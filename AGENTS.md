@@ -52,6 +52,102 @@ Quando relevante, informe:
 * testes ainda necessários;
 * dívida técnica criada.
 
+## Guia operacional do workspace
+
+Execute os comandos a partir da raiz. O workspace usa Node.js 22.18+ e `pnpm` 11.19.0.
+
+### Instalação e validação geral
+
+```bash
+pnpm install
+pnpm check
+```
+
+`pnpm check` executa formatação, lint, TypeScript, testes e builds. Em CI ou quando não se deseja
+alterar o lockfile, usar `pnpm install --frozen-lockfile`. Não executar `pnpm dev` por padrão em
+máquinas limitadas: ele inicia todos os projetos em paralelo.
+
+| Objetivo                  | Admin                      | API                      | Mobile admin                      | Mobile cliente                       |
+| ------------------------- | -------------------------- | ------------------------ | --------------------------------- | ------------------------------------ |
+| Desenvolvimento isolado  | `pnpm dev:admin`           | `pnpm dev:api`           | `pnpm dev:mobile-admin`           | `pnpm dev:mobile-client`             |
+| Build isolado             | `pnpm build:admin`         | `pnpm build:api`         | não definido                     | `pnpm build:mobile-client`            |
+| TypeScript isolado        | `pnpm typecheck:admin`     | `pnpm typecheck:api`     | `pnpm typecheck:mobile-admin`     | `pnpm typecheck:mobile-client`        |
+| Lint isolado              | `pnpm lint:admin`          | `pnpm lint:api`          | `pnpm lint:mobile-admin`          | `pnpm lint:mobile-client`             |
+| Testes isolados           | ainda não definidos       | `pnpm test:api`          | ainda não definidos              | ainda não definidos                  |
+
+Quando surgir um script não mapeado na raiz, usar
+`pnpm --filter <nome-do-package> <script>`, por exemplo
+`pnpm --filter @luminix/api db:check`. Não executar Expo Android/iOS automaticamente; esses comandos
+podem abrir emuladores e consumir muitos recursos.
+
+### Ambientes e integrações
+
+Cada app possui seu próprio `.env.example`. Arquivos `.env`, `.env.local`, credenciais Firebase
+Admin e chaves privadas nunca entram no Git. Checks disponíveis para a API:
+
+```bash
+pnpm --filter @luminix/api db:check
+pnpm --filter @luminix/api db:check:direct
+pnpm --filter @luminix/api firebase:check
+pnpm --filter @luminix/api r2:check
+pnpm --filter @luminix/api stripe:check
+```
+
+### Commit e pull request
+
+Fluxo preferencial:
+
+```bash
+git checkout -b tipo/nome-curto
+pnpm check
+git add <arquivos-da-tarefa>
+git diff --cached --check
+git commit -m "tipo: descrição objetiva"
+git push -u origin tipo/nome-curto
+```
+
+Revisar o diff e procurar secrets antes do commit. Branches e pull requests geram Preview na
+Vercel; merge/push em `master` publica Production dos projetos Vercel conectados. Não fazer push em
+`master`, merge, tag ou deploy de Production sem pedido explícito do usuário.
+
+### Vercel
+
+- Admin: `luminix-admin`, raiz `apps/admin`, <https://admin-xi-snowy.vercel.app>.
+- Cliente web: `luminix-client`, raiz `apps/mobile-client`,
+  <https://luminix-client.vercel.app>.
+
+O fluxo normal é Git, sem GitHub Action duplicada. Para operação manual explícita:
+
+```bash
+pnpm vercel:admin:pull
+pnpm vercel:admin:preview
+pnpm vercel:admin:production
+pnpm vercel:client:pull
+pnpm vercel:client:preview
+pnpm vercel:client:production
+vercel ls
+vercel inspect <deployment-url>
+```
+
+Os scripts Vercel devem ser executados da raiz porque o repositório é um monorepo. O cliente na
+Vercel é a exportação web do Expo; Android/iOS usam outro fluxo e não são produzidos por esse deploy.
+
+### Fly.io
+
+A API se chama somente `luminix-api` e responde em <https://luminix-api.fly.dev>. O deploy é manual:
+
+```bash
+pnpm fly:validate
+pnpm fly:deploy
+flyctl status --app luminix-api
+flyctl logs --app luminix-api
+```
+
+Depois do deploy, verificar `https://luminix-api.fly.dev/health`. A configuração mantém uma Machine
+`shared-cpu-1x` de 256 MB, `auto_stop_machines = "stop"` e `min_machines_running = 0`. Não aumentar
+quantidade, memória, volume ou IP dedicado sem autorização, pois isso altera custo. Secrets ficam no
+vault do Fly; seus valores não podem ser recuperados pelo CLI.
+
 ## Documentação
 
 * O Luminix está em preparação; pastas reservadas não representam implementação pronta.

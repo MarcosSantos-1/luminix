@@ -31,8 +31,8 @@ O painel Next.js precisava de um destino hospedado separado da API e compatível
 
 ## Consequências e pendências
 
-O painel hospedado usa configurações de teste e aponta para a URL reservada do Fly, mas a API ainda
-não foi publicada. Antes de dados reais, separar projetos/credenciais de Preview e Production,
+O painel hospedado usa configurações de teste e aponta para `https://luminix-api.fly.dev`. Antes de
+dados reais, separar projetos/credenciais de Preview e Production,
 definir domínio e revisar proteção, observabilidade e limites de gasto.
 
 O empacotamento local `vercel build` conclui o Next.js, mas o Windows sem permissão de symlink falha

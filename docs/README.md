@@ -27,7 +27,8 @@ Consulte apenas os documentos relevantes para a alteração atual.
 Decisões de base recentes: [ADR-003 — Bootstrap do workspace](decisions/ADR-003-BOOTSTRAP-DO-WORKSPACE.md)
 e [ADR-004 — Ambiente local e integrações](decisions/ADR-004-AMBIENTE-LOCAL-E-INTEGRACOES.md),
 [ADR-005 — Container e deploy da API](decisions/ADR-005-CONTAINER-E-DEPLOY-DA-API.md) e
-[ADR-006 — Deploy do admin na Vercel](decisions/ADR-006-DEPLOY-DO-ADMIN-NA-VERCEL.md).
+[ADR-006 — Deploy do admin na Vercel](decisions/ADR-006-DEPLOY-DO-ADMIN-NA-VERCEL.md) e
+[ADR-007 — Deploy web do cliente](decisions/ADR-007-DEPLOY-WEB-DO-CLIENTE-NA-VERCEL.md).
 
 ## Diretórios
 

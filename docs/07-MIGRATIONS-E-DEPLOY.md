@@ -45,11 +45,11 @@ Para mudanças importantes, preferir:
 
 Evitar migrations "big bang".
 
-## Deploy no Fly.io (preparado, ainda não publicado)
+## Deploy no Fly.io
 
-Estado: a API possui Dockerfile, `fly.toml`, CI e workflow manual de deploy. O cadastro
-`luminix-api-marcos-santos` existe sem Machine; nenhuma versão da API foi publicada por esta preparação. O frontend e o admin
-continuam na Vercel; o Fly.io hospeda somente o backend. Ver
+Estado: a API `luminix-api` está publicada em `https://luminix-api.fly.dev`, possui Dockerfile,
+`fly.toml`, CI e workflow manual de deploy. Há uma Machine compartilhada em `gru`, configurada com
+auto-stop e mínimo zero. O cliente e o admin ficam na Vercel; o Fly.io hospeda somente o backend. Ver
 [ADR-005](decisions/ADR-005-CONTAINER-E-DEPLOY-DA-API.md).
 
 O CLI (`flyctl`) autentica a máquina local. Ele não observa o Git. `git push` só dispara deploy se o GitHub Actions chamar `flyctl deploy` com um token. Caminho normal, quando a API existir: commit → push na branch principal → Actions → Fly.io. `fly deploy` local fica reservado a hotfix ou teste de emergência.
@@ -78,12 +78,17 @@ O workflow começa apenas por `workflow_dispatch`; push não publica. Para habil
 
 Quando houver testes, o job de deploy deve depender deles (`needs: test`). Pipeline com testes obrigatórios e destinos staging vs production fica para quando os ambientes existirem; a intenção de testar hospedado desde o início está em [PR20](13-REQUISITOS-PENDENTES-DO-PRODUTO.md) e ainda não autoriza produção como destino padrão.
 
-## Deploy do admin na Vercel
+## Deploy dos frontends na Vercel
 
 O projeto `luminix-admin` está conectado ao GitHub com raiz `apps/admin`. Push em `master` publica
 Production; outras branches e pull requests geram Preview. Usar a integração Git nativa, sem criar
 um segundo workflow de deploy. Ver
 [ADR-006](decisions/ADR-006-DEPLOY-DO-ADMIN-NA-VERCEL.md).
+
+O projeto `luminix-client` publica a exportação web do shell Expo em `apps/mobile-client`. Essa
+publicação serve para desenvolvimento e revisão visual; os binários Android/iOS continuarão sob o
+fluxo Expo/EAS quando forem configurados. Ver
+[ADR-007](decisions/ADR-007-DEPLOY-WEB-DO-CLIENTE-NA-VERCEL.md).
 
 As variáveis `NEXT_PUBLIC_*` são públicas e estão temporariamente compartilhadas entre Development,
 Preview e Production com serviços em modo de teste. Antes de uso real, separar destinos e nunca

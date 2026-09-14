@@ -2,7 +2,7 @@
 .cache/
 apps/api/
 apps/mobile-admin/
-apps/mobile-client/
+apps/mobile-client/legacy-source/
 apps/web/
 assets/
 docs/

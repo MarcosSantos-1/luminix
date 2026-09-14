@@ -29,11 +29,14 @@ pnpm test
 `pnpm dev` inicia em paralelo todos os apps com script `dev`. Para trabalhar em apenas um app:
 
 ```bash
-pnpm --filter @luminix/api dev
-pnpm --filter @luminix/admin dev
-pnpm --filter @luminix/mobile-admin dev
-pnpm --filter @luminix/mobile-client dev
+pnpm dev:api
+pnpm dev:admin
+pnpm dev:mobile-admin
+pnpm dev:mobile-client
 ```
+
+Use `pnpm check` antes de commits relevantes. A matriz completa de comandos isolados está no
+[AGENTS.md](AGENTS.md).
 
 Copie o `.env.example` de cada aplicação para `.env` local quando necessário. Nunca compartilhe
 arquivos reais de ambiente entre apps.
@@ -65,7 +68,8 @@ powershell -Command "iwr https://fly.io/install.ps1 -useb | iex"
 flyctl auth login
 ```
 
-O cadastro `luminix-api-marcos-santos` existe na organização pessoal, sem Machine ou deploy.
+O app `luminix-api` está publicado em <https://luminix-api.fly.dev>, com uma Machine compartilhada
+em `gru`, auto-stop habilitado e mínimo de zero Machines rodando.
 
 ```bash
 pnpm fly:validate
@@ -73,29 +77,28 @@ pnpm fly:deploy
 ```
 
 O deploy não acontece automaticamente em pushes. O workflow `Deploy API to Fly.io` é manual e só
-funciona depois de cadastrar `FLY_API_TOKEN` no environment `production` do GitHub. O primeiro deploy
-cria uma Machine faturável; auto-stop está habilitado e mantém zero Machines rodando quando ociosa,
-mas storage da imagem parada ainda pode ser cobrado.
+funciona depois de cadastrar `FLY_API_TOKEN` no environment `production` do GitHub. Auto-stop reduz
+compute ocioso, mas a imagem/rootfs da Machine parada ainda pode ser cobrada.
 
 ## Vercel
 
-O projeto `luminix-admin` está conectado ao GitHub com raiz em `apps/admin`. A Vercel cria Production
-para pushes em `master` e Preview para outras branches e pull requests; não existe workflow duplicado
-no GitHub Actions.
+Os projetos `luminix-admin` e `luminix-client` estão conectados ao mesmo GitHub, com raízes em
+`apps/admin` e `apps/mobile-client`. A Vercel cria Production para pushes em `master` e Preview para
+outras branches e pull requests; não existe workflow duplicado no GitHub Actions.
 
 ```bash
 npm install --global vercel@59.17.0
 vercel login
-pnpm vercel:pull
-pnpm vercel:build
-pnpm vercel:preview
-# Somente quando houver intenção explícita de publicar:
-pnpm vercel:production
+pnpm vercel:admin:preview
+pnpm vercel:client:preview
+# Somente quando houver intenção explícita de publicar manualmente:
+pnpm vercel:admin:production
+pnpm vercel:client:production
 ```
 
-As variáveis `NEXT_PUBLIC_*` de teste estão configuradas nos escopos Development, Preview e
-Production. O painel publicado está em <https://admin-xi-snowy.vercel.app>. Neste estágio ele aponta
-para a URL reservada da API Fly, que responderá somente depois do primeiro deploy da API.
+As variáveis públicas de teste estão configuradas nos três ambientes. O painel está em
+<https://admin-xi-snowy.vercel.app>, o shell web do cliente está em
+<https://luminix-client.vercel.app> e ambos apontam para a API Fly publicada.
 
 ## Por onde começar
 

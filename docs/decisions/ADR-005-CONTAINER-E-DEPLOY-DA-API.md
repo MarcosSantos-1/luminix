@@ -27,13 +27,19 @@ Desktop na máquina do operador.
   Fly.io fora do repositório. O JSON Firebase Admin fica codificado em base64 no vault do Fly e é
   montado como arquivo somente em runtime;
 
+## Estado verificado
+
+- a app definitiva é `luminix-api`, publicada em `https://luminix-api.fly.dev`;
+- o health check público responde em `/health`;
+- existe uma Machine `shared-cpu-1x` de 256 MB em `gru`, com mínimo zero e auto-stop;
+- o cadastro provisório `luminix-api-marcos-santos`, que não possuía recursos, foi removido;
+- não há volume Fly porque a persistência pertence ao Neon e ao R2.
+
 ## Consequências
 
-O cadastro `luminix-api-marcos-santos` foi criado sem deploy ou Machine. O primeiro deploy criará
-recurso faturável; auto-stop
-reduz compute ocioso, mas Machine parada ainda pode gerar cobrança de root filesystem. Não há volume
-Fly porque a persistência pertence ao Neon e ao R2.
+Auto-stop reduz compute ocioso, mas a Machine parada ainda pode gerar cobrança de root filesystem.
+O primeiro acesso depois da parada pode sofrer cold start.
 
-Antes do primeiro deploy, configurar `FLY_API_TOKEN` no environment `production` do GitHub e revisar
-os secrets da app. Automatizar deploy por push fica pendente até staging e production serem destinos
-separados.
+Para usar o workflow manual, configurar `FLY_API_TOKEN` no environment `production` do GitHub e
+revisar os secrets da app. Automatizar deploy por push fica pendente até staging e production serem
+destinos separados.

@@ -13,6 +13,10 @@
     },
     "android": {
       "package": "app.luminix.client"
+    },
+    "web": {
+      "bundler": "metro",
+      "output": "single"
     }
   }
 }

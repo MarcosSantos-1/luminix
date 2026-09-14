@@ -1,10 +1,10 @@
-app = "luminix-api-marcos-santos"
+app = "luminix-api"
 primary_region = "gru"
 kill_signal = "SIGINT"
 kill_timeout = "5s"
 
 [build]
-  dockerfile = "apps/api/Dockerfile"
+  dockerfile = "Dockerfile"
 
 [env]
   DATABASE_POOL_MAX = "5"
