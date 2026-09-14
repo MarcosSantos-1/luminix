@@ -1,0 +1,11 @@
+.agents/
+.cache/
+apps/api/
+apps/mobile-admin/
+apps/mobile-client/
+apps/web/
+assets/
+docs/
+legacy/
+scripts/
+tooling/

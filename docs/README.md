@@ -25,7 +25,9 @@ Consulte apenas os documentos relevantes para a alteração atual.
 | [15-LIGHT-MODE.md](15-LIGHT-MODE.md)                                 | Base temporária Light e limites do protótipo         | Evoluir o painel e onboarding provisórios                   |
 
 Decisões de base recentes: [ADR-003 — Bootstrap do workspace](decisions/ADR-003-BOOTSTRAP-DO-WORKSPACE.md)
-e [ADR-004 — Ambiente local e integrações](decisions/ADR-004-AMBIENTE-LOCAL-E-INTEGRACOES.md).
+e [ADR-004 — Ambiente local e integrações](decisions/ADR-004-AMBIENTE-LOCAL-E-INTEGRACOES.md),
+[ADR-005 — Container e deploy da API](decisions/ADR-005-CONTAINER-E-DEPLOY-DA-API.md) e
+[ADR-006 — Deploy do admin na Vercel](decisions/ADR-006-DEPLOY-DO-ADMIN-NA-VERCEL.md).
 
 ## Diretórios
 

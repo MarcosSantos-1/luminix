@@ -8,6 +8,7 @@ const config = tseslint.config(
       '**/node_modules/**',
       '**/.next/**',
       '**/.expo/**',
+      '**/.vercel/**',
       '**/coverage/**',
       '**/dist/**',
       '**/legacy-source/**',

@@ -15,7 +15,11 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "fly:validate": "flyctl config validate --config apps/api/fly.toml",
-    "fly:deploy": "flyctl deploy . --remote-only --config apps/api/fly.toml"
+    "fly:deploy": "flyctl deploy . --remote-only --config apps/api/fly.toml",
+    "vercel:pull": "vercel pull --yes --environment=preview --cwd apps/admin",
+    "vercel:build": "vercel build --cwd apps/admin",
+    "vercel:preview": "vercel deploy --cwd apps/admin",
+    "vercel:production": "vercel deploy --prod --cwd apps/admin"
   },
   "devDependencies": {
     "@eslint/js": "9.39.5",

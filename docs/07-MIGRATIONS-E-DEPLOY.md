@@ -78,4 +78,15 @@ O workflow começa apenas por `workflow_dispatch`; push não publica. Para habil
 
 Quando houver testes, o job de deploy deve depender deles (`needs: test`). Pipeline com testes obrigatórios e destinos staging vs production fica para quando os ambientes existirem; a intenção de testar hospedado desde o início está em [PR20](13-REQUISITOS-PENDENTES-DO-PRODUTO.md) e ainda não autoriza produção como destino padrão.
 
+## Deploy do admin na Vercel
+
+O projeto `luminix-admin` está conectado ao GitHub com raiz `apps/admin`. Push em `master` publica
+Production; outras branches e pull requests geram Preview. Usar a integração Git nativa, sem criar
+um segundo workflow de deploy. Ver
+[ADR-006](decisions/ADR-006-DEPLOY-DO-ADMIN-NA-VERCEL.md).
+
+As variáveis `NEXT_PUBLIC_*` são públicas e estão temporariamente compartilhadas entre Development,
+Preview e Production com serviços em modo de teste. Antes de uso real, separar destinos e nunca
+adicionar ao projeto frontend as credenciais administrativas da API.
+
 ---

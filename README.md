@@ -77,6 +77,26 @@ funciona depois de cadastrar `FLY_API_TOKEN` no environment `production` do GitH
 cria uma Machine faturável; auto-stop está habilitado e mantém zero Machines rodando quando ociosa,
 mas storage da imagem parada ainda pode ser cobrado.
 
+## Vercel
+
+O projeto `luminix-admin` está conectado ao GitHub com raiz em `apps/admin`. A Vercel cria Production
+para pushes em `master` e Preview para outras branches e pull requests; não existe workflow duplicado
+no GitHub Actions.
+
+```bash
+npm install --global vercel@59.17.0
+vercel login
+pnpm vercel:pull
+pnpm vercel:build
+pnpm vercel:preview
+# Somente quando houver intenção explícita de publicar:
+pnpm vercel:production
+```
+
+As variáveis `NEXT_PUBLIC_*` de teste estão configuradas nos escopos Development, Preview e
+Production. O painel publicado está em <https://admin-xi-snowy.vercel.app>. Neste estágio ele aponta
+para a URL reservada da API Fly, que responderá somente depois do primeiro deploy da API.
+
 ## Por onde começar
 
 1. Leia [o contexto do produto](docs/09-PRODUTO-E-CONTEXTO.md).
