@@ -1,0 +1,36 @@
+{
+  "name": "@luminix/api",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22.18.0"
+  },
+  "scripts": {
+    "dev": "tsx watch src/server.ts",
+    "build": "tsc -p tsconfig.build.json",
+    "start": "node dist/server.js",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint .",
+    "test": "vitest run",
+    "db:check": "tsx scripts/check-database.ts",
+    "db:check:direct": "tsx scripts/check-database.ts --direct",
+    "firebase:check": "tsx scripts/check-firebase.ts",
+    "r2:check": "tsx scripts/check-r2.ts",
+    "stripe:check": "tsx scripts/check-stripe.ts"
+  },
+  "dependencies": {
+    "@aws-sdk/client-s3": "3.1132.0",
+    "fastify": "5.12.4",
+    "firebase-admin": "14.4.0",
+    "pg": "8.23.0",
+    "stripe": "22.6.2"
+  },
+  "devDependencies": {
+    "@types/node": "catalog:",
+    "@types/pg": "8.23.1",
+    "tsx": "4.23.13",
+    "typescript": "catalog:",
+    "vitest": "5.0.0"
+  }
+}

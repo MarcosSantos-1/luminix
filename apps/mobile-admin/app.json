@@ -1,0 +1,17 @@
+{
+  "expo": {
+    "name": "Luminix Admin",
+    "slug": "luminix-mobile-admin",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "automatic",
+    "newArchEnabled": true,
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "app.luminix.admin"
+    },
+    "android": {
+      "package": "app.luminix.admin"
+    }
+  }
+}

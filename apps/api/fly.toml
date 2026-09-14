@@ -1,0 +1,47 @@
+app = "luminix-api-marcos-santos"
+primary_region = "gru"
+kill_signal = "SIGINT"
+kill_timeout = "5s"
+
+[build]
+  dockerfile = "apps/api/Dockerfile"
+
+[env]
+  DATABASE_POOL_MAX = "5"
+  FIREBASE_PROJECT_ID = "luminix-316aa"
+  GOOGLE_APPLICATION_CREDENTIALS = "/run/secrets/firebase-admin.json"
+  HOST = "0.0.0.0"
+  LOG_LEVEL = "info"
+  NODE_ENV = "production"
+  PORT = "8080"
+  R2_ACCOUNT_ID = "51c03f3ee06031d1a0609f0c7055b63f"
+  R2_BUCKET = "luminix"
+  R2_ENDPOINT = "https://51c03f3ee06031d1a0609f0c7055b63f.r2.cloudflarestorage.com"
+  R2_PUBLIC_BASE_URL = "https://pub-7f1394cf6d374105892306c102259b0b.r2.dev"
+
+[[files]]
+  guest_path = "/run/secrets/firebase-admin.json"
+  secret_name = "FIREBASE_SERVICE_ACCOUNT_JSON"
+
+[http_service]
+  internal_port = 8080
+  force_https = true
+  auto_stop_machines = "stop"
+  auto_start_machines = true
+  min_machines_running = 0
+
+  [http_service.concurrency]
+    type = "requests"
+    soft_limit = 50
+    hard_limit = 75
+
+  [[http_service.checks]]
+    grace_period = "10s"
+    interval = "30s"
+    method = "GET"
+    path = "/health"
+    timeout = "3s"
+
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "256mb"

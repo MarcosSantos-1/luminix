@@ -1,0 +1,105 @@
+# Luminix
+
+SaaS B2B multi-tenant para clínicas, salões, studios e profissionais de beleza e estética. Não é um marketplace.
+
+## Estado atual
+
+A base técnica inicial está configurada como workspace `pnpm`. `apps/admin` contém o protótipo
+Next.js, `apps/api` contém o bootstrap Fastify e os dois aplicativos mobile possuem shells Expo.
+Pastas vazias em `apps/` e `packages/` continuam sendo reservas, não implementações concluídas.
+
+O sistema anterior está em `legacy/charme-bela/`, com backend, web, mobile e histórico Git próprio.
+Uma cópia sanitizada do código visual mobile está em `apps/mobile-client/legacy-source/`, fora do
+build. Há um [inventário estático inicial](docs/12-INVENTARIO-LEGADO.md); isso não significa
+aprovação de segurança, migração ou validação em execução.
+
+## Desenvolvimento
+
+Requisitos: Node.js 22.18 ou superior e `pnpm` 11.19.0.
+
+```bash
+pnpm install
+pnpm dev
+pnpm build
+pnpm typecheck
+pnpm lint
+pnpm test
+```
+
+`pnpm dev` inicia em paralelo todos os apps com script `dev`. Para trabalhar em apenas um app:
+
+```bash
+pnpm --filter @luminix/api dev
+pnpm --filter @luminix/admin dev
+pnpm --filter @luminix/mobile-admin dev
+pnpm --filter @luminix/mobile-client dev
+```
+
+Copie o `.env.example` de cada aplicação para `.env` local quando necessário. Nunca compartilhe
+arquivos reais de ambiente entre apps.
+
+### Integrações locais
+
+O ambiente local atual possui Neon Postgres, Stripe em modo de teste, Firebase Auth/Admin e R2 com
+credenciais S3 validadas.
+
+```bash
+pnpm --filter @luminix/api db:check
+pnpm --filter @luminix/api db:check:direct
+pnpm --filter @luminix/api firebase:check
+pnpm --filter @luminix/api r2:check
+pnpm --filter @luminix/api stripe:check
+```
+
+O CLI Neon está vinculado ao projeto `luminix`, branch `production`.
+
+## Fly.io
+
+A API está preparada em `apps/api/Dockerfile` e `apps/api/fly.toml`. Docker Desktop não é necessário
+para o fluxo normal porque o Fly usa build remoto.
+
+No Windows, caso seja necessário reinstalar o CLI:
+
+```powershell
+powershell -Command "iwr https://fly.io/install.ps1 -useb | iex"
+flyctl auth login
+```
+
+O cadastro `luminix-api-marcos-santos` existe na organização pessoal, sem Machine ou deploy.
+
+```bash
+pnpm fly:validate
+pnpm fly:deploy
+```
+
+O deploy não acontece automaticamente em pushes. O workflow `Deploy API to Fly.io` é manual e só
+funciona depois de cadastrar `FLY_API_TOKEN` no environment `production` do GitHub. O primeiro deploy
+cria uma Machine faturável; auto-stop está habilitado e mantém zero Machines rodando quando ociosa,
+mas storage da imagem parada ainda pode ser cobrado.
+
+## Por onde começar
+
+1. Leia [o contexto do produto](docs/09-PRODUTO-E-CONTEXTO.md).
+2. Consulte [o mapa de arquitetura](docs/00-ARQUITETURA.md).
+3. Use [o índice documental](docs/README.md) para carregar apenas o necessário à tarefa.
+4. Para migrar funcionalidades, siga [o procedimento de migração](docs/11-MIGRACAO-DO-LEGADO.md).
+
+Agentes devem seguir [AGENTS.md](AGENTS.md).
+
+## Organização
+
+| Local                      | Responsabilidade                                                              |
+| -------------------------- | ----------------------------------------------------------------------------- |
+| `apps/api/`                | Backend modular e autoridade de negócio e autorização                         |
+| `apps/web/`                | Institucional e páginas públicas das clínicas                                 |
+| `apps/admin/`              | Painel da clínica e profissionais                                             |
+| Painel corporativo externo | Projeto da empresa-mãe para Luminix e outros produtos; fora deste repositório |
+| `apps/mobile-client/`      | Aplicativo do cliente final                                                   |
+| `apps/mobile-admin/`       | Aplicativo da gestora/profissional                                            |
+| `packages/`                | Código compartilhado com consumidores e fronteiras explícitos                 |
+| `docs/`                    | Princípios, decisões e procedimentos                                          |
+| `assets/`                  | Marca, materiais e referências; não dados enviados por clientes               |
+| `scripts/`                 | Automações que abrangem o repositório                                         |
+| `legacy/charme-bela/`      | Fonte de referência para migração, fora do futuro workspace                   |
+
+As configurações de execução serão criadas no bootstrap. A localização de uma pasta vazia não obriga a implementar um package, módulo ou integração. `tooling/` permanece sem função adotada; não deve competir com configurações da raiz.

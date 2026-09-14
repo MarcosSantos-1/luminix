@@ -1,0 +1,87 @@
+# Secrets e configuração local
+.env
+.env.*
+!.env.example
+!.env.*.example
+*.local
+*.pem
+*.key
+*.p12
+*.pfx
+*.jks
+*.keystore
+credentials.json
+service-account*.json
+*firebase-adminsdk*.json
+google-services.json
+GoogleService-Info.plist
+
+# Dependências e caches de gerenciadores
+node_modules/
+.pnpm-store/
+.yarn/
+.pnp.*
+.npm/
+
+# Builds, caches e cobertura
+.next/
+out/
+dist/
+build/
+coverage/
+.turbo/
+.cache/
+.parcel-cache/
+*.tsbuildinfo
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Expo / React Native
+.expo/
+.expo-shared/
+web-build/
+apps/mobile-admin/android/
+apps/mobile-admin/ios/
+apps/mobile-client/android/
+apps/mobile-client/ios/
+
+# Plataformas e CLIs
+.neon
+.neon/
+.fly/
+.vercel/
+.firebase/
+.wrangler/
+.dev.vars
+.dev.vars.*
+
+# IDEs, sistema operacional e temporários
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+Desktop.ini
+*.tmp
+*.temp
+*.bak
+*.orig
+
+# Bancos e dados locais
+*.sqlite
+*.sqlite3
+*.db
+
+# Relatórios e artefatos de teste
+playwright-report/
+test-results/
+blob-report/
+*.lcov
+
+# Fonte de referência com histórico próprio; não integra o repositório Luminix
+/legacy/charme-bela/

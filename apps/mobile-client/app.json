@@ -1,0 +1,18 @@
+{
+  "expo": {
+    "name": "Luminix",
+    "slug": "luminix-mobile-client",
+    "scheme": "luminix",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "automatic",
+    "newArchEnabled": true,
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "app.luminix.client"
+    },
+    "android": {
+      "package": "app.luminix.client"
+    }
+  }
+}

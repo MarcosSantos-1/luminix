@@ -1,0 +1,16 @@
+**
+!package.json
+!pnpm-lock.yaml
+!pnpm-workspace.yaml
+!tsconfig.base.json
+!apps/
+!apps/api/
+!apps/api/**
+
+apps/api/.env
+apps/api/.env.*
+!apps/api/.env.example
+apps/api/dist/
+apps/api/node_modules/
+apps/api/coverage/
+apps/api/*.log
