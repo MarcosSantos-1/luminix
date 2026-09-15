@@ -1,4 +1,5 @@
 .agents/
+.secrets/
 .cache/
 .neon
 .fly/

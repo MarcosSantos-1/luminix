@@ -82,6 +82,11 @@ podem abrir emuladores e consumir muitos recursos.
 
 ### Ambientes e integrações
 
+O JSON Firebase Admin local fica em `.secrets/firebase-admin.json`, ignorado pelo Git e pelos
+deploys. `apps/api/.env` usa `GOOGLE_APPLICATION_CREDENTIALS=../../.secrets/firebase-admin.json`
+(relativo a `apps/api`). Em outra máquina, transfira `.secrets/` e os `.env` separadamente do Git,
+em arquivo criptografado. Produção continua usando os secrets da plataforma.
+
 Cada app possui seu próprio `.env.example`. Arquivos `.env`, `.env.local`, credenciais Firebase
 Admin e chaves privadas nunca entram no Git. Checks disponíveis para a API:
 
@@ -93,22 +98,37 @@ pnpm --filter @luminix/api r2:check
 pnpm --filter @luminix/api stripe:check
 ```
 
-### Commit e pull request
+### Limpeza para transferência de máquina
+
+Pare os servidores antes de limpar. Execute da raiz:
+
+```bash
+pnpm run remove:preview # simula e lista as pastas, sem apagar
+pnpm run remove         # pede REMOVER antes de apagar dependências e caches/builds
+```
+
+Use `pnpm run remove`, não `pnpm remove` (comando de desinstalação de pacotes). A limpeza preserva
+código, `.git`, `.env`, `.secrets/`, `ios`, `android` e `legacy/`; recusa pastas com arquivos
+versionados ou links. Não compacta nem envia ao Drive. Compacte os arquivos privados com
+criptografia; o legado não é limpo automaticamente e pode manter dependências grandes.
+Na máquina de destino, execute `pnpm install`; builds e caches serão recriados ao usar os apps.
+
+### Commit e push
 
 Fluxo preferencial:
 
 ```bash
-git checkout -b tipo/nome-curto
 pnpm check
 git add <arquivos-da-tarefa>
 git diff --cached --check
 git commit -m "tipo: descrição objetiva"
-git push -u origin tipo/nome-curto
+git push
 ```
 
 Revisar o diff e procurar secrets antes do commit. Branches e pull requests geram Preview na
 Vercel; merge/push em `master` publica Production dos projetos Vercel conectados. Não fazer push em
 `master`, merge, tag ou deploy de Production sem pedido explícito do usuário.
+Usar a branch atual; não criar branches extras ou pull requests por iniciativa do agente.
 
 ### Vercel
 
