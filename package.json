@@ -42,7 +42,7 @@
     "vercel:admin:preview": "vercel deploy . --project luminix-admin",
     "vercel:admin:production": "vercel deploy . --prod --project luminix-admin",
     "vercel:web:pull": "vercel pull --yes --environment=preview --project luminix-web",
-    "vercel:web:preview": "vercel deploy . --project luminix-web",
+    "vercel:web:preview": "vercel deploy . --target preview --project luminix-web",
     "vercel:web:production": "vercel deploy . --prod --project luminix-web",
     "vercel:client:pull": "vercel pull --yes --environment=preview --project luminix-client",
     "vercel:client:preview": "vercel deploy . --project luminix-client",

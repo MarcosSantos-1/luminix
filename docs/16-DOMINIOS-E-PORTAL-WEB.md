@@ -32,6 +32,10 @@ Web local usa porta 3001 e admin usa 3000. Todos os projetos Vercel conectados u
 Production e demais branches/PRs para Preview. O CI GitHub valida o workspace, mas não bloqueia por
 si só o deploy Git da Vercel. Validar Preview e CI antes de integrar mudanças em `master`.
 
+A Vercel tentou atribuir o primeiro deploy Git do web a Production; ele foi cancelado antes do build.
+O script manual de Preview usa `--target preview` explicitamente. Nesta preparação, o web ainda não
+tem Production publicado; integrar a branch em `master` somente depois da revisão.
+
 `NEXT_PUBLIC_ADMIN_URL` usa a URL Vercel do admin em Preview enquanto o DNS não foi ativado.
 Production pode usar `https://app.luminix.beauty`. A API ainda não é consumida por este shell.
 

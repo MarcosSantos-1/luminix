@@ -1,5 +1,11 @@
 .agents/
 .cache/
+.neon
+.fly/
+.firebase/
+.wrangler/
+**/.env*
+**/*.tsbuildinfo
 apps/api/
 apps/mobile-admin/
 apps/mobile-client/legacy-source/

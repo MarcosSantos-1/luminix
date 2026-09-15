@@ -26,6 +26,9 @@ funcionalidade pendente. Não há login, dados reais, schema ou consulta tenant-
 `/meuplano` redireciona para `/meu-plano`; `/home` no admin redireciona ao dashboard atual.
 
 Os projetos/domínios foram cadastrados na Vercel. DNS continua na Hostinger e ainda não foi alterado.
+O primeiro deployment Git foi marcado automaticamente como Production pela Vercel e cancelado antes
+do build. Usar `--target preview` explicitamente para esta primeira validação. A branch de preparação
+não foi integrada em `master`.
 
 ## Consequências
 
