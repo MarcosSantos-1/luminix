@@ -32,6 +32,10 @@ e [ADR-004 — Ambiente local e integrações](decisions/ADR-004-AMBIENTE-LOCAL-
 
 ## Diretórios
 
+Domínios e portal web: [ADR-008](decisions/ADR-008-DOMINIOS-E-PORTAL-WEB.md) e
+[16 — Operação e roadmap](16-DOMINIOS-E-PORTAL-WEB.md). Consultar ao trabalhar com site,
+rotas `/c/`, portal do cliente, DNS ou domínios personalizados.
+
 ### `/decisions`
 
 Architecture Decision Records.

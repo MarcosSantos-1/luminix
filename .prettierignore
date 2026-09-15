@@ -8,6 +8,6 @@ dist
 legacy
 assets/templates
 apps/mobile-client/legacy-source
-apps/admin/next-env.d.ts
+**/next-env.d.ts
 AGENTS.md
 pnpm-lock.yaml

@@ -80,6 +80,11 @@ Quando houver testes, o job de deploy deve depender deles (`needs: test`). Pipel
 
 ## Deploy dos frontends na Vercel
 
+O projeto `luminix-web` usa raiz `apps/web`, para o domínio principal, páginas públicas e portal do
+cliente. `app.luminix.beauty` pertence ao admin. Associações Vercel cadastradas; ativação do DNS na
+Hostinger permanece pendente. Procedimento e roadmap em
+[16-DOMINIOS-E-PORTAL-WEB](16-DOMINIOS-E-PORTAL-WEB.md).
+
 O projeto `luminix-admin` está conectado ao GitHub com raiz `apps/admin`. Push em `master` publica
 Production; outras branches e pull requests geram Preview. Usar a integração Git nativa, sem criar
 um segundo workflow de deploy. Ver

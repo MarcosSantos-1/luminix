@@ -82,8 +82,19 @@ compute ocioso, mas a imagem/rootfs da Machine parada ainda pode ser cobrada.
 
 ## Vercel
 
-Os projetos `luminix-admin` e `luminix-client` estão conectados ao mesmo GitHub, com raízes em
-`apps/admin` e `apps/mobile-client`. A Vercel cria Production para pushes em `master` e Preview para
+O site/portal web oficial é `luminix-web` (`apps/web`): domínio principal e rotas `/c/[clinica]`.
+Gestores usam `app.luminix.beauty` no admin separado. O Expo web permanece como revisão do mobile.
+Associações no painel Vercel estão cadastradas, mas o DNS ainda não foi alterado. Ver
+[roadmap e cutover](docs/16-DOMINIOS-E-PORTAL-WEB.md).
+
+```bash
+pnpm dev:web
+pnpm test:web
+pnpm vercel:web:preview
+```
+
+Os projetos `luminix-web`, `luminix-admin` e `luminix-client` estão conectados ao mesmo GitHub, com raízes em
+`apps/web`, `apps/admin` e `apps/mobile-client`. A Vercel cria Production para pushes em `master` e Preview para
 outras branches e pull requests; não existe workflow duplicado no GitHub Actions.
 
 ```bash

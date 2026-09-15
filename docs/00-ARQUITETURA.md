@@ -9,23 +9,23 @@ A árvore abaixo continua conceitual: criar módulos apenas junto de funcionalid
 em `legacy/charme-bela/` possui [inventário estático inicial](12-INVENTARIO-LEGADO.md), sem validação
 em execução ou auditoria completa. Ver [ADR-001](decisions/ADR-001-BASE-DO-REPOSITORIO.md).
 
-| Responsabilidade                          | Destino adotado                                                                      |
-| ----------------------------------------- | ------------------------------------------------------------------------------------ |
-| Regras de negócio e endpoints por domínio | `apps/api/src/modules/<dominio>/`                                                    |
-| Contexto e validação central de tenant    | `apps/api/src/shared/tenant/`                                                        |
-| Conexão com banco                         | `apps/api/src/shared/database/`                                                      |
-| Schema, migrations e seeds                | Sob `apps/api/`, seguindo uma localização única da ferramenta escolhida no bootstrap |
-| Autenticação: fluxos de identidade        | `apps/api/src/modules/auth/`                                                         |
-| Hooks e mecanismos comuns de autenticação | `apps/api/src/shared/auth/`; sem duplicar os fluxos do módulo                        |
-| Institucional e páginas públicas          | `apps/web/`, separados por rotas/funcionalidades                                     |
-| Painel da clínica e onboarding            | `apps/admin/`                                                                        |
-| Gestão corporativa multi-produto          | Projeto externo da empresa-mãe; ver ADR-002                                          |
-| Aplicativos de cliente e gestora          | `apps/mobile-client/` e `apps/mobile-admin/`                                         |
-| Contratos públicos compartilhados         | `packages/contracts/`, quando houver consumidores                                    |
-| Componentes e tokens compartilhados       | Packages específicos quando houver implementação; design em etapa posterior          |
-| Testes unitários                          | Próximos ao código testado                                                           |
-| Testes de integração                      | `tests/` da aplicação proprietária                                                   |
-| Automações transversais                   | `scripts/`; comandos específicos pertencem à aplicação                               |
+| Responsabilidade                                        | Destino adotado                                                                      |
+| ------------------------------------------------------- | ------------------------------------------------------------------------------------ |
+| Regras de negócio e endpoints por domínio               | `apps/api/src/modules/<dominio>/`                                                    |
+| Contexto e validação central de tenant                  | `apps/api/src/shared/tenant/`                                                        |
+| Conexão com banco                                       | `apps/api/src/shared/database/`                                                      |
+| Schema, migrations e seeds                              | Sob `apps/api/`, seguindo uma localização única da ferramenta escolhida no bootstrap |
+| Autenticação: fluxos de identidade                      | `apps/api/src/modules/auth/`                                                         |
+| Hooks e mecanismos comuns de autenticação               | `apps/api/src/shared/auth/`; sem duplicar os fluxos do módulo                        |
+| Institucional, páginas públicas e portal web do cliente | `apps/web/`, separados por rotas/funcionalidades; ver ADR-008                        |
+| Painel da clínica e onboarding                          | `apps/admin/`                                                                        |
+| Gestão corporativa multi-produto                        | Projeto externo da empresa-mãe; ver ADR-002                                          |
+| Aplicativos de cliente e gestora                        | `apps/mobile-client/` e `apps/mobile-admin/`                                         |
+| Contratos públicos compartilhados                       | `packages/contracts/`, quando houver consumidores                                    |
+| Componentes e tokens compartilhados                     | Packages específicos quando houver implementação; design em etapa posterior          |
+| Testes unitários                                        | Próximos ao código testado                                                           |
+| Testes de integração                                    | `tests/` da aplicação proprietária                                                   |
+| Automações transversais                                 | `scripts/`; comandos específicos pertencem à aplicação                               |
 
 Módulos agrupam código por domínio. Não impor camadas ou arquivos sem responsabilidade concreta. Não compartilhar serviços internos importando uma aplicação de outra.
 
@@ -36,6 +36,12 @@ explicitamente `apps/*` e packages reais em `packages/*`, nunca `legacy/**`. `pn
 Turbo nesta etapa. ORM e ferramenta de migrations seguem em aberto; não existe schema Luminix.
 
 ## Fronteira da plataforma
+
+`apps/web` atende `luminix.beauty` e `/c/[clinica]`; `apps/admin` atende
+`app.luminix.beauty`. Domínios compartilham a marca, não autorização ou privilégios.
+A exportação web Expo é uma ferramenta de revisão do mobile, não o portal público oficial.
+Ver [ADR-008](decisions/ADR-008-DOMINIOS-E-PORTAL-WEB.md) e
+[roadmap de domínios](16-DOMINIOS-E-PORTAL-WEB.md).
 
 O painel corporativo será externo ao repositório e reunirá vários produtos, conforme [ADR-002](decisions/ADR-002-DIRECOES-DO-PRODUTO.md). `platform-admin` não é aplicação obrigatória do Luminix. Integrações futuras usam contratos explícitos e autorização; não implementar acesso global retirando filtros de clínica. Consultas globais devem ter finalidade, projeção de dados e auditoria próprias; não concedem acesso implícito a prontuários ou anamneses. Eventual painel operacional exclusivo do Luminix depende de necessidade concreta.
 

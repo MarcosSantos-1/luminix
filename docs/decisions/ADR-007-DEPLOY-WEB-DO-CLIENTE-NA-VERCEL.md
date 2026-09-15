@@ -30,6 +30,9 @@ binários Android e iOS.
 
 ## Consequências e pendências
 
+Atualização 2026-09-15: a [ADR-008](ADR-008-DOMINIOS-E-PORTAL-WEB.md) define `apps/web` como portal
+web oficial do cliente. Este deploy Expo permanece para revisão do app mobile pelo navegador.
+
 O deploy Vercel não substitui builds nativos Expo/EAS. Antes de dados reais, separar Preview e
 Production, definir autenticação do cliente e revisar armazenamento seguro no dispositivo. A URL da
 API é pública por definição e nunca pode conter credenciais.

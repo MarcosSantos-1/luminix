@@ -112,14 +112,24 @@ Vercel; merge/push em `master` publica Production dos projetos Vercel conectados
 
 ### Vercel
 
+- Site/páginas públicas/portal cliente: `luminix-web`, raiz `apps/web`, domínio `luminix.beauty`.
+- Gestão: domínio `app.luminix.beauty` no projeto admin existente.
+- DNS ainda depende de cutover manual na Hostinger. Procedimento e roadmap:
+  `docs/16-DOMINIOS-E-PORTAL-WEB.md`. Não transferir nameservers ou alterar DNS automaticamente.
+- Web isolado: `pnpm dev:web` (3001), `pnpm build:web`, `pnpm lint:web`,
+  `pnpm typecheck:web`, `pnpm test:web`.
+
 - Admin: `luminix-admin`, raiz `apps/admin`, <https://admin-xi-snowy.vercel.app>.
-- Cliente web: `luminix-client`, raiz `apps/mobile-client`,
+- Revisão web do mobile: `luminix-client`, raiz `apps/mobile-client`,
   <https://luminix-client.vercel.app>.
 
 O fluxo normal é Git, sem GitHub Action duplicada. Para operação manual explícita:
 
 ```bash
 pnpm vercel:admin:pull
+pnpm vercel:web:pull
+pnpm vercel:web:preview
+pnpm vercel:web:production
 pnpm vercel:admin:preview
 pnpm vercel:admin:production
 pnpm vercel:client:pull
