@@ -78,7 +78,8 @@ Não existe reset automático. O destino principal foi autorizado na fase inicia
 Falha de BEGIN ou de ROLLBACK descarta a conexão em vez de devolvê-la ao pool com possível
 transação/contexto pendente. Um teste simula rollback desconectado e verifica o descarte.
 
-Não existe seed persistente, convite, CRUD ou tela de onboarding conectado. Login/sessão Firebase,
+Não existe seed persistente, convite ou CRUD pós-conclusão. O onboarding inicial conectado usa
+rascunho versionado e funções transacionais da migration 0004; ver ADR-011. Login/sessão Firebase,
 bootstrap atômico da primeira clínica/proprietário e autorização HTTP implementados nas entregas
 1–3 da Step 4, com checks reais Firebase/Neon; ver `03-AUTENTICACAO-E-AUTORIZACAO.md`.
 O runner interno não valida um destino

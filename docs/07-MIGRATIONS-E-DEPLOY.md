@@ -109,6 +109,14 @@ Na Step 4, migration 0003 e role runtime foram aplicadas no Neon principal. Fly 
 do app. A API verifica privilégios na inicialização. A entrega foi publicada em Fly e o admin
 em Vercel Production em 2026-09-16, após `pnpm check`.
 
+Na Step 5, migration 0004 foi aplicada em `ep-bitter-fog-acchavo1.sa-east-1.aws.neon.tech/neondb`
+em 2026-09-16. Antes da escrita, `clinics`, `identities` e `onboarding_drafts` tinham zero linhas.
+A migration adiciona colunas com defaults e funções restritas; locks de DDL são breves com tabelas
+vazias. A API anterior continua compatível. A verificação Neon com role restrita, FK, RLS,
+preço e auditoria passou e reverteu seus dados sintéticos. O runner real Firebase/Neon cobriu
+rascunho, conclusão repetida e isolamento A × B, com rollback da fixture. Para reverter após
+publicação, criar migration corretiva; não editar a 0004 aplicada.
+
 ## Deploy dos frontends na Vercel
 
 O projeto `luminix-web` usa raiz `apps/web`, para o domínio principal, páginas públicas e portal do

@@ -256,7 +256,7 @@ export default function Page() {
                 <i />
                 <i />
               </div>
-              <span>+2.000 clínicas já simplificaram sua rotina</span>
+              <span>Uma rotina mais simples para sua clínica</span>
             </div>
           </div>
           <div className="hero-preview">
@@ -265,7 +265,7 @@ export default function Page() {
                 <span className="dot pink" />
                 <span className="dot" />
                 <span className="dot" />
-                <span className="preview-title">Visão geral</span>
+                <span className="preview-title">Prévia ilustrativa</span>
                 <span className="preview-date">Hoje, 15 de maio</span>
               </div>
               <div className="preview-welcome">

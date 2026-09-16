@@ -12,6 +12,7 @@ export default function SettingsPage() {
     settings?: { timezone: string; locale: string; currency: string }
     error?: string
   } | null>(null)
+  const [retry, setRetry] = useState(0)
   useEffect(() => {
     const user = staff.user
     if (!user || !allowed) return
@@ -39,11 +40,17 @@ export default function SettingsPage() {
       active = false
       abort.abort()
     }
-  }, [staff.user, clinic.clinic.id, key, allowed])
+  }, [staff.user, clinic.clinic.id, key, allowed, retry])
   if (!allowed)
     return <p role="alert">Você não tem permissão para gerenciar configurações nesta clínica.</p>
   if (state?.key !== key) return <p role="status">Carregando configurações…</p>
-  if (!state.settings) return <p role="alert">{state.error}</p>
+  if (!state.settings)
+    return (
+      <div role="alert">
+        <p>{state.error}</p>
+        <button onClick={() => setRetry((value) => value + 1)}>Tentar novamente</button>
+      </div>
+    )
   return (
     <section className="space-y-4 rounded-2xl border border-border bg-card p-5">
       <h2 className="text-xl font-bold">Configurações iniciais</h2>

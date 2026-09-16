@@ -290,6 +290,45 @@ try {
   console.log(
     'PASS: atomic owner bootstrap, retry, audited actor, restricted EXECUTE and clinic A/B isolation',
   )
+  await connection.query('SET LOCAL ROLE luminix_api')
+  const onboardingPayload = {
+    name: 'Synthetic owner clinic A',
+    occupations: ['Estética facial'],
+    services: [{ name: 'Limpeza de pele', priceCents: 9000, durationMinutes: 60 }],
+    professionals: ['Profissional sintético'],
+  }
+  const onboarding = (method: 'PUT' | 'POST', path: string, payload: object) =>
+    app!.inject({
+      method,
+      url: `/clinics/${clinicAId}/${path}`,
+      payload,
+      headers: { authorization: `Bearer ${idToken}` },
+    })
+  stage = 'onboarding_save'
+  const draft = await onboarding('PUT', 'onboarding', {
+    version: 0,
+    step: 'review',
+    payload: onboardingPayload,
+  })
+  assert.equal(draft.statusCode, 200)
+  assert.equal(draft.json().draft.version, 1)
+  assert.equal((await domain(`/clinics/${clinicBId}/onboarding`)).statusCode, 403)
+  stage = 'onboarding_complete'
+  const complete = await onboarding('POST', 'onboarding/complete', { version: 1 })
+  assert.equal(complete.statusCode, 200)
+  assert.equal(complete.json().replayed, false)
+  assert.equal(
+    (await onboarding('POST', 'onboarding/complete', { version: 1 })).json().replayed,
+    true,
+  )
+  const overview = (await domain(`/clinics/${clinicAId}/overview`)).json()
+  assert.equal(overview.services.length, 1)
+  assert.equal(overview.professionals.length, 1)
+  assert.equal(overview.occupations.length, 1)
+  await connection.query('RESET ROLE')
+  console.log(
+    'PASS: real Neon onboarding draft, completion replay and tenant isolation; fixture rolls back',
+  )
   assert.equal((await session(`${idToken}invalid`)).statusCode, 401)
   await connection.query(
     "UPDATE luminix.identities SET status = 'disabled' WHERE firebase_uid = $1",
