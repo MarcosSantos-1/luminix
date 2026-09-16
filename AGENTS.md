@@ -88,7 +88,11 @@ O usuário confirmou que ainda não há clientes/dados reais e autorizou impleme
 seeds sintéticos, testes e publicação nos projetos principais existentes de Neon, Vercel e Fly,
 inclusive na branch principal de banco/Git. Não exigir branch dev/staging ou criar branches/PRs
 extras para essa fase; não repetir pedidos de confirmação já cobertos por essa autorização.
-Usar a branch Git atual; publicar a entrega na principal quando fizer parte da tarefa.
+Em 2026-09-16, o usuário reforçou que, enquanto não houver clientes ou dados reais, as entregas
+devem ser feitas diretamente em `master`, com commit, push e publicação necessários sem nova
+aprovação. Não criar branches ou PRs por iniciativa do agente nessa fase. Se o workspace estiver
+em uma branch anterior, revisar a diferença e integrá-la por fast-forward à principal quando
+seguro, deixando o checkout em `master` antes de continuar.
 Essa autorização não é instrução para deploys sem mudança relevante ou resets indiscriminados.
 
 Antes de operar, confirmar projeto/endpoint/database, revisar a migration/diff e validar o que
@@ -140,11 +144,11 @@ git commit -m "tipo: descrição objetiva"
 git push
 ```
 
-Revisar o diff e procurar secrets antes do commit. Branches e pull requests geram Preview na
-Vercel; merge/push em `master` publica Production dos projetos Vercel conectados. Não fazer push em
-`master`, merge, tag ou deploy de Production sem pedido explícito do usuário, exceto publicação
-da entrega durante a fase inicial autorizada acima. Tags não fazem parte dessa exceção.
-Usar a branch atual; não criar branches extras ou pull requests por iniciativa do agente.
+Revisar o diff e procurar secrets antes do commit. Push em `master` publica Production dos projetos
+Vercel conectados; durante a fase inicial autorizada, esse é o fluxo padrão para entregas validadas.
+Não criar branches ou pull requests por iniciativa do agente. Tags não fazem parte dessa exceção.
+Quando surgirem clientes ou dados reais, suspender esta exceção e definir ambientes e aprovação
+de produção antes de novos deploys.
 
 ### Vercel
 

@@ -118,11 +118,11 @@ rascunho, conclusão repetida e isolamento A × B, com rollback da fixture. Para
 publicação, criar migration corretiva; não editar a 0004 aplicada.
 
 API da Step 5 publicada manualmente no Fly e admin publicado manualmente em Vercel Production em
-2026-09-16, a partir do commit `a5cbb91` na branch atual `chore/web-domain-foundation`. Health
+2026-09-16, a partir do commit `a5cbb91` então na branch `chore/web-domain-foundation`. Health
 respondeu `ok`; a rota nova sem token respondeu 401 no Fly e no proxy público do admin. O build
-da Vercel ficou READY. A navegação autenticada hospedada ainda requer teste manual. `master`
-permanece atrás dessa branch; um futuro deploy Git de `master` pode substituir o admin até que os
-commits sejam integrados à principal.
+da Vercel ficou READY. A navegação autenticada hospedada ainda requer teste manual. Os commits
+da branch foram integrados por fast-forward em `master` em 2026-09-16, após revisão de ancestralidade
+e validação; o deploy Git da principal deve ser conferido depois do push.
 
 ## Deploy dos frontends na Vercel
 
