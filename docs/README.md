@@ -32,6 +32,12 @@ e [ADR-004 — Ambiente local e integrações](decisions/ADR-004-AMBIENTE-LOCAL-
 
 ## Diretórios
 
+Núcleo multi-tenant: [ADR-009](decisions/ADR-009-NUCLEO-MULTI-TENANT.md) e
+[17 — Modelo, validação e ativação](17-NUCLEO-MULTI-TENANT.md). Consultar ao trabalhar com schema,
+membership, papéis, clientes locais, profissionais, serviços, RLS e auditoria. Migration aplicada
+e verificada no Neon principal na fase inicial autorizada; sessão, bootstrap e autorização HTTP
+da equipe implementados. CRUD de domínio e onboarding persistido pendentes.
+
 Domínios e portal web: [ADR-008](decisions/ADR-008-DOMINIOS-E-PORTAL-WEB.md) e
 [16 — Operação e roadmap](16-DOMINIOS-E-PORTAL-WEB.md). Consultar ao trabalhar com site,
 rotas `/c/`, portal do cliente, DNS ou domínios personalizados.

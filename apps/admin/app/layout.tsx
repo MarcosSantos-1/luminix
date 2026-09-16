@@ -1,6 +1,7 @@
 import { Analytics } from '@vercel/analytics/next'
 import type { Metadata, Viewport } from 'next'
 import './globals.css'
+import { StaffProvider } from '@/components/staff-provider'
 
 export const metadata: Metadata = {
   title: 'Luminix — Sua clínica, mais simples',
@@ -18,7 +19,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
   return (
     <html lang="pt-BR" className="bg-background">
       <body className="antialiased">
-        {children}
+        <StaffProvider>{children}</StaffProvider>
         {process.env.NODE_ENV === 'production' && <Analytics />}
       </body>
     </html>

@@ -10,7 +10,7 @@ Antes de realizar alterações relevantes, consulte `docs/README.md` para identi
 * Não assumir padrões se já existir implementação equivalente no projeto.
 * Não criar novas dependências sem necessidade clara.
 * Não alterar schema do banco sem migration versionada.
-* Não modificar produção diretamente.
+* Não modificar produção diretamente fora da fase inicial autorizada abaixo.
 * Não confiar em dados de tenant enviados pelo frontend.
 * Toda entidade tenant-aware deve respeitar isolamento por clínica.
 * Segurança e integridade dos dados têm prioridade sobre conveniência.
@@ -82,6 +82,21 @@ podem abrir emuladores e consumir muitos recursos.
 
 ### Ambientes e integrações
 
+#### Fase inicial autorizada (2026-09-15)
+
+O usuário confirmou que ainda não há clientes/dados reais e autorizou implementação, migrations,
+seeds sintéticos, testes e publicação nos projetos principais existentes de Neon, Vercel e Fly,
+inclusive na branch principal de banco/Git. Não exigir branch dev/staging ou criar branches/PRs
+extras para essa fase; não repetir pedidos de confirmação já cobertos por essa autorização.
+Usar a branch Git atual; publicar a entrega na principal quando fizer parte da tarefa.
+Essa autorização não é instrução para deploys sem mudança relevante ou resets indiscriminados.
+
+Antes de operar, confirmar projeto/endpoint/database, revisar a migration/diff e validar o que
+for possível. Preservar secrets, integridade, auditoria e isolamento entre clínicas. Uso do ambiente
+principal não dispensa segurança multi-tenant. Não apagar dados existentes sem entender seu uso.
+Antes de receber clientes/dados reais, separar dev/prod, credenciais e fluxo de deploy e rever esta
+exceção. Se aparecerem dados reais, a autorização de testes descartáveis deixa de se aplicar.
+
 O JSON Firebase Admin local fica em `.secrets/firebase-admin.json`, ignorado pelo Git e pelos
 deploys. `apps/api/.env` usa `GOOGLE_APPLICATION_CREDENTIALS=../../.secrets/firebase-admin.json`
 (relativo a `apps/api`). Em outra máquina, transfira `.secrets/` e os `.env` separadamente do Git,
@@ -127,7 +142,8 @@ git push
 
 Revisar o diff e procurar secrets antes do commit. Branches e pull requests geram Preview na
 Vercel; merge/push em `master` publica Production dos projetos Vercel conectados. Não fazer push em
-`master`, merge, tag ou deploy de Production sem pedido explícito do usuário.
+`master`, merge, tag ou deploy de Production sem pedido explícito do usuário, exceto publicação
+da entrega durante a fase inicial autorizada acima. Tags não fazem parte dessa exceção.
 Usar a branch atual; não criar branches extras ou pull requests por iniciativa do agente.
 
 ### Vercel
@@ -179,6 +195,14 @@ quantidade, memória, volume ou IP dedicado sem autorização, pois isso altera 
 vault do Fly; seus valores não podem ser recuperados pelo CLI.
 
 ## Documentação
+
+* Preferir atualizar documentos existentes; não criar documento por conversa, mudança pequena
+  ou relatório de progresso. Registrar estado operacional no guia do domínio correspondente.
+* Criar arquivo apenas para conteúdo duradouro que não caiba claramente em um documento existente.
+  Decisões arquiteturais relevantes, incidentes e dívidas técnicas podem ter arquivos próprios nas
+  pastas `docs/decisions`, `docs/incidents` e `docs/technical-debt`, sem duplicar registros.
+* Manter `docs/README.md` como índice curto. Ler somente trechos e documentos necessários à tarefa;
+  não reler toda a documentação nem repetir análise já feita sem mudança que a justifique.
 
 * O Luminix está em preparação; pastas reservadas não representam implementação pronta.
 * Consulte `docs/00-ARQUITETURA.md` para localizar responsabilidades antes de criar arquivos.

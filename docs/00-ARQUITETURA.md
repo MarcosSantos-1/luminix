@@ -33,7 +33,11 @@ Packages não importam apps. Frontends não importam código de banco, configura
 
 Configurações de ferramentas começam na raiz, com ajustes próprios por aplicação. O workspace inclui
 explicitamente `apps/*` e packages reais em `packages/*`, nunca `legacy/**`. `pnpm` foi adotado sem
-Turbo nesta etapa. ORM e ferramenta de migrations seguem em aberto; não existe schema Luminix.
+Turbo nesta etapa. A [ADR-009](decisions/ADR-009-NUCLEO-MULTI-TENANT.md) adota migrations SQL
+versionadas, runner interno com pg e o primeiro schema multi-tenant, validado localmente com
+PGlite. A primeira migration foi aplicada e verificada no Neon principal em 2026-09-15,
+durante a fase inicial autorizada. Login/sessão Firebase, bootstrap owner e autorização HTTP
+clínica foram implementados nas entregas 1–3 da Step 4 (ADR-010); CRUD de domínio pendente.
 
 ## Fronteira da plataforma
 
@@ -53,7 +57,7 @@ Identidade global e registros locais de cliente são distintos. Relações entre
 
 Estamos migrando um sistema/app single-tenant chamado "Charme & Bela" para um SaaS multi-tenant chamado "Luminix". O Charme & Bela basicamente é um White-label, já o Luminix será um SaaS B2B para clínicas, salões e Studios.
 
-### Stack planejada (bootstrap provisionado; integrações e banco ainda pendentes):
+### Stack adotada (novos domínios e integrações ainda pendentes):
 
 - Backend: Node.js + TypeScript + Fastify
 - PostgreSQL no Neon

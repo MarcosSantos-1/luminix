@@ -1,6 +1,9 @@
 # Light Mode — base temporária
 
-Status: protótipo funcional, sem integrações reais.
+Status: protótipo funcional; login/sessão conectado ao Firebase/API em `/login`, com validação
+autenticada da UI hospedada pendente. Formulário após login cria primeira clínica draft/owner
+na API; seletor e workspace clínico revalidam o vínculo na API. Onboarding e dashboard
+continuam demonstrativos.
 
 O Light Mode serve como bancada visual para desenvolver onboarding, autenticação, tenant e integrações antes da decisão final de identidade. A implementação inicial está em `apps/admin` e usa os mesmos componentes funcionais que deverão aceitar o tema `glass` no futuro.
 
@@ -33,6 +36,6 @@ Antes de conectar o onboarding, definir o contrato de rascunho versionado, idemp
 
 1. Extrair tokens Light e Glass para uma camada compartilhada quando o segundo tema tiver consumidor real.
 2. Trocar dados fixos por contratos tipados e estados de carregamento, vazio e erro.
-3. Implementar autenticação da equipe e criação segura do vínculo `owner`.
+3. Expandir o acesso da equipe para convites, delegação e proteção do último proprietário.
 4. Persistir rascunho do onboarding no backend e concluir a clínica de forma transacional.
 5. Executar testes de contraste, teclado, telas pequenas e uso prolongado.

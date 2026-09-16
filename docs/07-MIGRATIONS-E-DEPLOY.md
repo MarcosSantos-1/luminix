@@ -6,7 +6,11 @@ Schema deve evoluir por migrations versionadas.
 
 ## Ambientes e configuração
 
-O usuário manifestou intenção de testar online inicialmente em produção e preparar dados sintéticos/ambientes depois. Essa intenção está registrada em [PR20](13-REQUISITOS-PENDENTES-DO-PRODUTO.md), mas a estratégia ainda precisa resolver o conflito com as regras abaixo. Proposta: começar com deploy hospedado de testes, dados sintéticos e Stripe em modo de teste, mantendo banco/storage separados de dados reais. Não foi autorizado ou executado deploy por este registro.
+Em 2026-09-15, o usuário confirmou ausência de clientes/dados reais e autorizou migrations,
+seeds sintéticos, testes e publicação nos projetos/branches principais existentes durante a
+preparação. Não exigir branches dev/staging nesta fase. A exceção está em `AGENTS.md` e substitui
+a pendência de PR20; não dispensa identificação de destino, migrations versionadas, secrets,
+isolamento entre clínicas ou revisão dos dados antes de ações destrutivas.
 
 Estado atual: o ambiente local de desenvolvimento possui conexão validada com um projeto Neon,
 Stripe em test mode, Firebase Web/Admin e R2 com credenciais S3 validadas. Staging e production
@@ -17,9 +21,15 @@ produtivos; não copiar dados reais indiscriminadamente para desenvolvimento. Ve
 
 Cada aplicação deve documentar variáveis em seu `.env.example` quando elas forem definidas, sem valores reais. Variáveis públicas de frontend não podem conter secrets. Não herdar configurações do legado automaticamente.
 
-Schema, migrations e seeds pertencem inicialmente à API. Não manter cópias em `packages/database` e `scripts/migration`. Usar uma sequência versionada de migrations entre ambientes; seeds sintéticos de desenvolvimento devem recusar produção. `NODE_ENV` sozinho não comprova o destino do banco.
+Schema, migrations e seeds pertencem inicialmente à API. Não manter cópias em `packages/database`
+e `scripts/migration`. Usar uma sequência versionada de migrations; seeds devem recusar destinos
+não autorizados ou com dados reais. Na fase inicial, o principal é permitido com destino explícito.
+`NODE_ENV` sozinho não comprova o destino do banco.
 
-Antes de habilitar comandos operacionais, documentar como validar o destino, quem aplica migrations, como testar em staging e como recuperar uma falha. Não criar comandos com produção como destino padrão. Produção não deve ser modificada diretamente por agentes.
+Comandos operacionais devem exigir destino identificado para escrita e documentar aplicação,
+validação e recuperação. Não aplicar migrations automaticamente ao iniciar a API. Fora da fase
+inicial autorizada, produção não deve ser modificada diretamente por agentes; antes de clientes
+reais, definir staging/dev/prod e restaurar essa separação.
 
 ## Antes de migration
 
@@ -52,7 +62,9 @@ Estado: a API `luminix-api` está publicada em `https://luminix-api.fly.dev`, po
 auto-stop e mínimo zero. O cliente e o admin ficam na Vercel; o Fly.io hospeda somente o backend. Ver
 [ADR-005](decisions/ADR-005-CONTAINER-E-DEPLOY-DA-API.md).
 
-O CLI (`flyctl`) autentica a máquina local. Ele não observa o Git. `git push` só dispara deploy se o GitHub Actions chamar `flyctl deploy` com um token. Caminho normal, quando a API existir: commit → push na branch principal → Actions → Fly.io. `fly deploy` local fica reservado a hotfix ou teste de emergência.
+O CLI (`flyctl`) autentica a máquina local e não observa o Git. O deploy atual é manual:
+`pnpm fly:validate` e `pnpm fly:deploy`, ou workflow explicitamente acionado por
+`workflow_dispatch`. Push não publica a API. Não habilitar deploy automático sem decisão própria.
 
 Não reutilizar a app `charme-bela` nem o `fly.toml` do legado. Agentes não disparam deploy de produção. O token de deploy não entra no repositório.
 
@@ -74,9 +86,28 @@ O workflow começa apenas por `workflow_dispatch`; push não publica. Para habil
 
 1. Token de deploy com escopo só da app Luminix, não token global da conta: `fly tokens create deploy -a <nome-da-app-luminix> -x 999999h`. Copiar o valor inteiro, inclusive o prefixo `FlyV1 `.
 2. Guardar como secret do repositório no GitHub (`Settings → Secrets and variables → Actions`), nome `FLY_API_TOKEN`.
-3. Workflow em `.github/workflows/fly-deploy.yml`: push somente na branch principal; filtro `paths` em `apps/api/**` e no próprio workflow; `concurrency` para um deploy por vez; `flyctl deploy --remote-only --config apps/api/fly.toml`. Pull requests não publicam.
+3. Workflow em `.github/workflows/fly-deploy.yml`: somente `workflow_dispatch`, `concurrency`
+   para um deploy por vez e `flyctl deploy --remote-only --config apps/api/fly.toml`.
+   Push e pull requests não publicam. Uma evolução automática exigirá definição de ambientes,
+   filtros de paths e checks obrigatórios antes de habilitação.
 
-Quando houver testes, o job de deploy deve depender deles (`needs: test`). Pipeline com testes obrigatórios e destinos staging vs production fica para quando os ambientes existirem; a intenção de testar hospedado desde o início está em [PR20](13-REQUISITOS-PENDENTES-DO-PRODUTO.md) e ainda não autoriza produção como destino padrão.
+O workflow manual ainda não executa os checks como requisito do deploy. Na operação atual,
+executar `pnpm check` antes de publicar. Gating em CI e destinos staging/production ficam para a
+preparação de uso real; a publicação nos projetos principais durante a fase inicial está autorizada
+em PR20 e `AGENTS.md`.
+
+## Primeiro schema multi-tenant
+
+A [ADR-009](decisions/ADR-009-NUCLEO-MULTI-TENANT.md) define migration SQL, ledger/checksum,
+rollback e constraints do núcleo. A validação usa PostgreSQL descartável em memória, sem Neon.
+O comando `db:migrate` usa somente conexão direta, com flags explícitas para escrita/verificação,
+sem fallback para DATABASE_URL. Estado hospedado e condições para próximos fluxos e
+credenciais runtime estão em [17 — Núcleo multi-tenant](17-NUCLEO-MULTI-TENANT.md).
+
+Na Step 4, migration 0003 e role runtime foram aplicadas no Neon principal. Fly usa apenas
+`DATABASE_URL_RUNTIME` da role `luminix_api`; o secret privilegiado `DATABASE_URL` foi removido
+do app. A API verifica privilégios na inicialização. A entrega foi publicada em Fly e o admin
+em Vercel Production em 2026-09-16, após `pnpm check`.
 
 ## Deploy dos frontends na Vercel
 

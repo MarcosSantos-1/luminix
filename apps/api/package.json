@@ -15,6 +15,7 @@
     "test": "vitest run",
     "db:check": "tsx scripts/check-database.ts",
     "db:check:direct": "tsx scripts/check-database.ts --direct",
+    "db:migrate": "tsx scripts/migrate-database.ts",
     "firebase:check": "tsx scripts/check-firebase.ts",
     "r2:check": "tsx scripts/check-r2.ts",
     "stripe:check": "tsx scripts/check-stripe.ts"
@@ -27,6 +28,7 @@
     "stripe": "22.6.2"
   },
   "devDependencies": {
+    "@electric-sql/pglite": "0.5.8",
     "@types/node": "catalog:",
     "@types/pg": "8.23.1",
     "pino-pretty": "^13.1.3",

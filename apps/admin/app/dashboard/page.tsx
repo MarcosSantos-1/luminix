@@ -1,4 +1,5 @@
 'use client'
+import Link from 'next/link'
 
 import {
   Bell,
@@ -26,6 +27,10 @@ const clients = [
 export default function DashboardPage() {
   return (
     <main className="light-dashboard">
+      <p className="p-4 text-center" role="status">
+        Dashboard de demonstração · dados fictícios.{' '}
+        <Link href="/clinics">Voltar às minhas clínicas</Link>
+      </p>
       <header className="dash-header">
         <div className="dash-brand">
           <span className="brand-mark">L</span>

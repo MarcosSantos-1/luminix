@@ -59,5 +59,5 @@ export async function verifyFirebaseIdToken(
     throw new Error('Token Firebase ausente')
   }
 
-  return getFirebaseAdminAuth(environment).verifyIdToken(idToken)
+  return getFirebaseAdminAuth(environment).verifyIdToken(idToken, true)
 }

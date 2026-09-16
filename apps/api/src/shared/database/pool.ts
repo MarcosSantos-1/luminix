@@ -20,6 +20,9 @@ export function createDatabasePool(environment: NodeJS.ProcessEnv = process.env)
     connectionString: environment.DATABASE_URL,
     connectionTimeoutMillis: 10_000,
     idleTimeoutMillis: 30_000,
+    statement_timeout: 10_000,
+    lock_timeout: 3_000,
+    idle_in_transaction_session_timeout: 15_000,
     max: readPoolSize(environment.DATABASE_POOL_MAX),
   })
 }

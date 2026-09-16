@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import {
   ArrowLeft,
   ArrowRight,
@@ -180,6 +180,11 @@ function Choice({
 export default function Page() {
   const router = useRouter()
   const [started, setStarted] = useState(false)
+  useEffect(() => {
+    if (new URLSearchParams(window.location.search).get('demo') !== 'onboarding') return
+    const timeout = window.setTimeout(() => setStarted(true), 0)
+    return () => window.clearTimeout(timeout)
+  }, [])
   const [step, setStep] = useState(0)
   const [clinic, setClinic] = useState('Clínica Charme & Bela')
   const [segment, setSegment] = useState('Estética')
@@ -221,7 +226,7 @@ export default function Page() {
         <div className="landing-glow" />
         <header className="landing-header">
           <Brand dark />
-          <button className="login-link" onClick={() => setStarted(true)}>
+          <button className="login-link" onClick={() => router.push('/login')}>
             Já tenho uma conta <ArrowRight size={15} />
           </button>
         </header>
@@ -346,7 +351,7 @@ export default function Page() {
         <Brand dark />
         <div className="header-right">
           <span className="save-status">
-            <Check size={14} /> Salvo automaticamente
+            <Check size={14} /> Demonstração · sem salvamento
           </span>
           <button className="exit-button" onClick={() => setStarted(false)}>
             Sair do onboarding <X size={16} />
