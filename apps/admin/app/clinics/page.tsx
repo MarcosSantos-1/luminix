@@ -169,6 +169,7 @@ export default function ClinicsPage() {
               className="rounded-xl border border-border bg-background p-3"
               required
               maxLength={160}
+              placeholder="Ex.: Studio Luna"
               value={name}
               readOnly={submitted !== null}
               onChange={(event) => setName(event.target.value)}

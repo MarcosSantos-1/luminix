@@ -1,7 +1,7 @@
 'use client'
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react'
 import Link from 'next/link'
-import { useParams } from 'next/navigation'
+import { useParams, usePathname } from 'next/navigation'
 import { signOut } from 'firebase/auth'
 import { useStaff } from '@/components/staff-provider'
 import { getFirebaseAuth } from '@/lib/firebase'
@@ -13,6 +13,8 @@ type ClinicContext = {
 const Context = createContext<ClinicContext | null>(null)
 export function ClinicWorkspace({ children }: { children: ReactNode }) {
   const { clinicId } = useParams<{ clinicId: string }>()
+  const pathname = usePathname()
+  const onboarding = pathname.endsWith('/onboarding')
   const staff = useStaff()
   const key = `${staff.user?.uid}/${clinicId}/${staff.revision}`
   const [state, setState] = useState<{
@@ -85,6 +87,7 @@ export function ClinicWorkspace({ children }: { children: ReactNode }) {
         <button onClick={staff.refresh}>Tentar novamente</button>
       </main>
     )
+  if (onboarding) return <Context.Provider value={state.data}>{children}</Context.Provider>
   return (
     <Context.Provider value={state.data}>
       <main className="mx-auto max-w-3xl space-y-6 p-6">

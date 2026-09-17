@@ -22,5 +22,7 @@ function getFirebaseApp(): FirebaseApp {
 }
 
 export function getFirebaseAuth(): Auth {
-  return getAuth(getFirebaseApp())
+  const auth = getAuth(getFirebaseApp())
+  auth.languageCode = 'pt-BR'
+  return auth
 }

@@ -1,13 +1,29 @@
 'use client'
 
-import Link from 'next/link'
 import { useEffect, useState } from 'react'
+import {
+  ArrowLeft,
+  ArrowRight,
+  Building2,
+  Check,
+  Mail,
+  Phone,
+  Sparkles,
+  UserRound,
+  Users,
+} from 'lucide-react'
 import { useRouter } from 'next/navigation'
+import { Brand } from '@/components/brand'
 import { useClinic } from '@/components/clinic-workspace'
 import { useStaff } from '@/components/staff-provider'
+import { formatBrPhone, isCompletePhone, toE164Phone } from '@/lib/phone'
+import { untitledClinicName } from '@/lib/staff-destination'
 
 type Payload = {
   name: string
+  ownerName: string
+  email: string
+  phone: string
   occupations: string[]
   services: { name: string; priceCents: number; durationMinutes: number }[]
   professionals: string[]
@@ -19,15 +35,57 @@ type Draft = {
   status: string
   payload: Payload
 }
+
 const steps = [
-  { key: 'clinic', label: 'Clínica' },
-  { key: 'occupations', label: 'Ocupações' },
-  { key: 'services', label: 'Serviços' },
-  { key: 'professionals', label: 'Profissionais' },
-  { key: 'review', label: 'Revisão' },
-]
-const field = 'w-full rounded-xl border border-border bg-background p-3'
-const card = 'space-y-5 rounded-2xl border border-border bg-card p-6'
+  {
+    key: 'contact',
+    label: 'Você',
+    title: 'Por onde te encontramos',
+    description:
+      'Se você sair no meio, guardamos este contato para te chamar no WhatsApp ou e-mail e retomar o cadastro.',
+  },
+  {
+    key: 'clinic',
+    label: 'Clínica',
+    title: 'Como se chama o seu espaço?',
+    description: 'Pode ser o nome na fachada ou o que suas clientes já usam para te encontrar.',
+  },
+  {
+    key: 'occupations',
+    label: 'Atuação',
+    title: 'O que vocês fazem?',
+    description: 'Toque nas sugestões ou escreva as áreas. Nada vem marcado de antemão.',
+  },
+  {
+    key: 'services',
+    label: 'Serviços',
+    title: 'Quais serviços entram agora?',
+    description: 'Preço e duração reais. Você pode concluir sem nenhum e cadastrar depois.',
+  },
+  {
+    key: 'professionals',
+    label: 'Equipe',
+    title: 'Quem atende com você?',
+    description: 'Só o nome por enquanto. Convite e permissão ficam para depois.',
+  },
+  {
+    key: 'review',
+    label: 'Revisão',
+    title: 'Confira antes de abrir',
+    description: 'Ao concluir, a clínica fica ativa e ganhamos um código para o app das clientes.',
+  },
+] as const
+
+const occupationIdeas = ['Estética', 'Cabelo', 'Unhas', 'Massagem', 'Depilação', 'Sobrancelhas']
+const emptyPayload = (name: string, email: string, ownerName: string): Payload => ({
+  name,
+  ownerName,
+  email,
+  phone: '',
+  occupations: [],
+  services: [],
+  professionals: [],
+})
 
 export default function OnboardingPage() {
   const { clinic, permissions } = useClinic()
@@ -40,6 +98,8 @@ export default function OnboardingPage() {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const [retry, setRetry] = useState(0)
+  const [phoneText, setPhoneText] = useState('')
+
   useEffect(() => {
     const user = staff.user
     if (!user || !permissions.includes('onboarding:manage')) return
@@ -54,20 +114,30 @@ export default function OnboardingPage() {
         })
         if (!response.ok) throw new Error()
         const data: { draft: Draft } = await response.json()
-        if (active) {
-          if (data.draft.formatVersion !== 1) {
-            setState({ key, error: 'Esta versão do rascunho precisa de atualização.' })
-            return
-          }
-          setState({ key, draft: data.draft })
-          setPayload(data.draft.payload)
-          setStep(
-            Math.max(
-              0,
-              steps.findIndex((item) => item.key === data.draft.step),
-            ),
-          )
+        if (!active) return
+        if (data.draft.formatVersion !== 1) {
+          setState({ key, error: 'Esta versão do rascunho precisa de atualização.' })
+          return
         }
+        const next = {
+          ...emptyPayload(
+            untitledClinicName(String(data.draft.payload.name || clinic.name))
+              ? ''
+              : String(data.draft.payload.name || clinic.name),
+            data.draft.payload.email || user.email || '',
+            data.draft.payload.ownerName || user.displayName || '',
+          ),
+          ...data.draft.payload,
+        }
+        if (untitledClinicName(next.name)) next.name = ''
+        if (!next.email && user.email) next.email = user.email
+        if (!next.ownerName && user.displayName) next.ownerName = user.displayName
+        setPayload(next)
+        setPhoneText(next.phone ? formatBrPhone(next.phone) : '')
+        setState({ key, draft: { ...data.draft, payload: next } })
+        const missingContact = !next.ownerName.trim() || !next.email.trim() || !next.phone
+        const index = steps.findIndex((item) => item.key === data.draft.step)
+        setStep(missingContact ? 0 : Math.max(0, index))
       } catch {
         if (active) setState({ key, error: 'Não foi possível carregar o rascunho.' })
       }
@@ -76,7 +146,7 @@ export default function OnboardingPage() {
       active = false
       controller.abort()
     }
-  }, [staff.user, clinic.id, staff.revision, permissions, key, retry])
+  }, [staff.user, clinic.id, clinic.name, staff.revision, permissions, key, retry])
 
   async function save(nextStep: number, exit = false): Promise<void> {
     const user = staff.user
@@ -84,7 +154,14 @@ export default function OnboardingPage() {
     setBusy(true)
     setError('')
     try {
-      if (!payload.name.trim()) {
+      if (
+        step === 0 &&
+        (!payload.ownerName.trim() || !payload.email.trim() || !isCompletePhone(payload.phone))
+      ) {
+        setError('Preencha nome, e-mail e WhatsApp com DDD para salvarmos seu rascunho.')
+        return
+      }
+      if (step === 1 && !payload.name.trim()) {
         setError('Informe o nome da clínica.')
         return
       }
@@ -108,7 +185,19 @@ export default function OnboardingPage() {
           authorization: `Bearer ${await user.getIdToken()}`,
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ version: state.draft.version, step: steps[nextStep].key, payload }),
+        body: JSON.stringify({
+          version: draft.version,
+          step: steps[nextStep].key,
+          payload: {
+            name: payload.name.trim() || clinic.name,
+            ownerName: payload.ownerName,
+            email: payload.email.trim().toLowerCase(),
+            phone: payload.phone,
+            occupations: payload.occupations,
+            services: payload.services,
+            professionals: payload.professionals,
+          },
+        }),
         cache: 'no-store',
         signal: AbortSignal.timeout(20_000),
       })
@@ -154,7 +243,7 @@ export default function OnboardingPage() {
         setError(
           response.status === 409
             ? 'O rascunho mudou. Recarregue e revise novamente.'
-            : 'Não foi possível concluir. Tente novamente.',
+            : 'Não foi possível concluir. Confira contato e nome da clínica.',
         )
         return
       }
@@ -170,310 +259,486 @@ export default function OnboardingPage() {
   }
 
   if (!permissions.includes('onboarding:manage'))
-    return <p role="alert">Você não tem acesso ao onboarding.</p>
+    return (
+      <main className="onboarding">
+        <p className="boot-status" role="alert">
+          Você não tem acesso ao onboarding.
+        </p>
+      </main>
+    )
   if (clinic.status === 'active')
     return (
-      <p>
-        Onboarding concluído. <Link href={`/clinics/${clinic.id}`}>Voltar à clínica</Link>
-      </p>
+      <main className="onboarding">
+        <p className="boot-status">
+          Onboarding concluído.{' '}
+          <button
+            className="button button-primary"
+            onClick={() => router.push(`/clinics/${clinic.id}`)}
+          >
+            Ir para a clínica
+          </button>
+        </p>
+      </main>
     )
-  if (state?.key !== key) return <p role="status">Carregando rascunho…</p>
+  if (state?.key !== key)
+    return (
+      <main className="onboarding">
+        <p className="boot-status" role="status">
+          Carregando rascunho…
+        </p>
+      </main>
+    )
   if (!state.draft || !payload)
     return (
-      <div role="alert">
-        <p>{state.error}</p>
-        <button onClick={() => setRetry((value) => value + 1)}>Tentar novamente</button>
-      </div>
+      <main className="onboarding">
+        <div className="boot-status" role="alert">
+          <p>{state.error}</p>
+          <button className="button button-primary" onClick={() => setRetry((value) => value + 1)}>
+            Tentar novamente
+          </button>
+        </div>
+      </main>
     )
-  const draftVersion = state.draft.version
+
+  const draft = state.draft
+  const current = steps[step]
+  const progress = Math.round((step / (steps.length - 1)) * 100)
 
   return (
-    <section className={card}>
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <p className="text-sm text-muted-foreground">
-            Etapa {step + 1} de {steps.length}
-          </p>
-          <h2 className="text-2xl font-bold">{steps[step].label}</h2>
+    <main className="onboarding">
+      <div className="background-orb orb-one" />
+      <div className="background-orb orb-two" />
+      <header className="onboarding-header">
+        <Brand dark />
+        <div className="header-right">
+          <span className="save-status">
+            <Check size={14} /> Rascunho no servidor · pode sair e voltar
+          </span>
+          <button className="exit-button" disabled={busy} onClick={() => void save(step, true)}>
+            Salvar e sair
+          </button>
         </div>
-        <button disabled={busy} onClick={() => void save(step, true)}>
-          Salvar e sair
-        </button>
+      </header>
+      <div className="onboarding-layout">
+        <aside className="progress-sidebar">
+          <div className="progress-intro">
+            <span className="eyebrow">
+              <Sparkles size={13} /> Sua clínica, no seu ritmo
+            </span>
+            <h1>
+              Vamos deixar
+              <br />
+              <em>tudo pronto.</em>
+            </h1>
+            <p>
+              Cada etapa grava o rascunho. Com nome e WhatsApp, conseguimos te chamar se o cadastro
+              ficar pela metade.
+            </p>
+          </div>
+          <div className="progress-card">
+            <div className="progress-title">
+              <b>Seu progresso</b>
+              <strong>{Math.max(8, progress)}% salvo</strong>
+            </div>
+            <div className="progress-track">
+              <i style={{ width: `${Math.max(8, progress)}%` }} />
+            </div>
+            <ol>
+              {steps.map((item, index) => (
+                <li
+                  className={index === step ? 'current' : index < step ? 'done' : ''}
+                  key={item.key}
+                >
+                  <span>{index < step ? <Check size={13} /> : index + 1}</span>
+                  <b>{item.label}</b>
+                </li>
+              ))}
+            </ol>
+          </div>
+        </aside>
+        <div className="mobile-progress">
+          <div>
+            <span>
+              Etapa {step + 1} de {steps.length}
+            </span>
+            <b>{current.label}</b>
+          </div>
+          <div className="mobile-track">
+            <i style={{ width: `${Math.max(8, progress)}%` }} />
+          </div>
+        </div>
+        <div className="steps-area">
+          <section className="step-card" key={current.key}>
+            <div className="step-heading">
+              <div className="step-icon">
+                {[UserRound, Building2, Sparkles, Sparkles, Users, Check][step] &&
+                  (() => {
+                    const Icon = [UserRound, Building2, Sparkles, Sparkles, Users, Check][step]
+                    return <Icon size={24} />
+                  })()}
+              </div>
+              <div>
+                <div className="step-kicker">
+                  <b>{step + 1}</b>
+                  <span>
+                    Etapa {step + 1} de {steps.length}
+                  </span>
+                </div>
+                <h2>{current.title}</h2>
+                <p>{current.description}</p>
+              </div>
+            </div>
+            <div className="step-content">
+              {step === 0 && (
+                <>
+                  <label className="field">
+                    <span>Seu nome</span>
+                    <div className="field-control">
+                      <UserRound size={17} />
+                      <input
+                        maxLength={120}
+                        placeholder="Ex.: Marina Alves"
+                        value={payload.ownerName}
+                        aria-invalid={!payload.ownerName.trim()}
+                        onChange={(event) =>
+                          setPayload({ ...payload, ownerName: event.target.value })
+                        }
+                      />
+                    </div>
+                  </label>
+                  <label className="field">
+                    <span>E-mail</span>
+                    <div className="field-control">
+                      <Mail size={17} />
+                      <input
+                        type="email"
+                        maxLength={254}
+                        placeholder="ex.: marina@sua-clinica.com"
+                        value={payload.email}
+                        aria-invalid={!payload.email.trim()}
+                        onChange={(event) => setPayload({ ...payload, email: event.target.value })}
+                      />
+                    </div>
+                  </label>
+                  <label className="field">
+                    <span>WhatsApp com DDD</span>
+                    <div className="field-control">
+                      <Phone size={17} />
+                      <input
+                        inputMode="tel"
+                        placeholder="Ex.: (11) 99999-0000"
+                        value={phoneText}
+                        aria-invalid={!isCompletePhone(payload.phone)}
+                        onChange={(event) => {
+                          const next = event.target.value
+                          setPhoneText(formatBrPhone(next) || next)
+                          setPayload({ ...payload, phone: toE164Phone(next) })
+                        }}
+                      />
+                    </div>
+                  </label>
+                </>
+              )}
+              {step === 1 && (
+                <label className="field">
+                  <span>Nome da clínica</span>
+                  <div className="field-control">
+                    <Building2 size={17} />
+                    <input
+                      maxLength={160}
+                      placeholder="Ex.: Studio Luna"
+                      value={payload.name}
+                      aria-invalid={!payload.name.trim()}
+                      onChange={(event) => setPayload({ ...payload, name: event.target.value })}
+                    />
+                  </div>
+                </label>
+              )}
+              {step === 2 && (
+                <>
+                  <p className="input-label">Sugestões — toque para incluir</p>
+                  <div className="choice-grid compact">
+                    {occupationIdeas.map((item) => (
+                      <button
+                        className={`choice ${payload.occupations.includes(item) ? 'selected' : ''}`}
+                        key={item}
+                        type="button"
+                        onClick={() =>
+                          setPayload({
+                            ...payload,
+                            occupations: payload.occupations.includes(item)
+                              ? payload.occupations.filter((value) => value !== item)
+                              : [...payload.occupations, item],
+                          })
+                        }
+                      >
+                        <span>{item}</span>
+                      </button>
+                    ))}
+                  </div>
+                  {payload.occupations.map((name, index) =>
+                    occupationIdeas.includes(name) ? null : (
+                      <label className="field" key={`custom-${index}`}>
+                        <span>Outra área</span>
+                        <div className="field-control">
+                          <input
+                            maxLength={120}
+                            placeholder="Ex.: Podologia"
+                            value={name}
+                            onChange={(event) =>
+                              setPayload({
+                                ...payload,
+                                occupations: payload.occupations.map((value, position) =>
+                                  position === index ? event.target.value : value,
+                                ),
+                              })
+                            }
+                          />
+                        </div>
+                      </label>
+                    ),
+                  )}
+                  <button
+                    type="button"
+                    className="text-link"
+                    disabled={payload.occupations.length >= 20}
+                    onClick={() =>
+                      setPayload({ ...payload, occupations: [...payload.occupations, ''] })
+                    }
+                  >
+                    + Escrever outra área
+                  </button>
+                </>
+              )}
+              {step === 3 && (
+                <>
+                  {payload.services.map((service, index) => (
+                    <div className="service-grid" key={index}>
+                      <label className="field">
+                        <span>Serviço</span>
+                        <div className="field-control">
+                          <input
+                            maxLength={160}
+                            placeholder="Ex.: Limpeza de pele"
+                            value={service.name}
+                            onChange={(event) =>
+                              setPayload({
+                                ...payload,
+                                services: payload.services.map((value, position) =>
+                                  position === index
+                                    ? { ...value, name: event.target.value }
+                                    : value,
+                                ),
+                              })
+                            }
+                          />
+                        </div>
+                      </label>
+                      <label className="field">
+                        <span>Preço (R$)</span>
+                        <PriceInput
+                          key={`${draft.version}:${index}`}
+                          cents={service.priceCents}
+                          onChange={(cents) =>
+                            setPayload({
+                              ...payload,
+                              services: payload.services.map((value, position) =>
+                                position === index ? { ...value, priceCents: cents } : value,
+                              ),
+                            })
+                          }
+                        />
+                      </label>
+                      <label className="field">
+                        <span>Minutos</span>
+                        <div className="field-control">
+                          <input
+                            type="number"
+                            min="1"
+                            max="1440"
+                            placeholder="60"
+                            value={service.durationMinutes || ''}
+                            onChange={(event) =>
+                              setPayload({
+                                ...payload,
+                                services: payload.services.map((value, position) =>
+                                  position === index
+                                    ? {
+                                        ...value,
+                                        durationMinutes: Number(event.target.value) || 0,
+                                      }
+                                    : value,
+                                ),
+                              })
+                            }
+                          />
+                        </div>
+                      </label>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setPayload({
+                            ...payload,
+                            services: payload.services.filter((_, position) => position !== index),
+                          })
+                        }
+                      >
+                        Remover
+                      </button>
+                    </div>
+                  ))}
+                  <button
+                    type="button"
+                    className="text-link"
+                    disabled={payload.services.length >= 30}
+                    onClick={() =>
+                      setPayload({
+                        ...payload,
+                        services: [
+                          ...payload.services,
+                          { name: '', priceCents: 0, durationMinutes: 60 },
+                        ],
+                      })
+                    }
+                  >
+                    + Adicionar serviço
+                  </button>
+                </>
+              )}
+              {step === 4 && (
+                <>
+                  {payload.professionals.map((name, index) => (
+                    <label className="field" key={index}>
+                      <span>Profissional {index + 1}</span>
+                      <div className="field-control">
+                        <input
+                          maxLength={160}
+                          placeholder="Ex.: Camila"
+                          value={name}
+                          onChange={(event) =>
+                            setPayload({
+                              ...payload,
+                              professionals: payload.professionals.map((value, position) =>
+                                position === index ? event.target.value : value,
+                              ),
+                            })
+                          }
+                        />
+                      </div>
+                    </label>
+                  ))}
+                  <button
+                    type="button"
+                    className="text-link"
+                    disabled={payload.professionals.length >= 20}
+                    onClick={() =>
+                      setPayload({
+                        ...payload,
+                        professionals: [...payload.professionals, ''],
+                      })
+                    }
+                  >
+                    + Adicionar profissional
+                  </button>
+                </>
+              )}
+              {step === 5 && (
+                <dl className="review-list">
+                  <div>
+                    <dt>Responsável</dt>
+                    <dd>{payload.ownerName}</dd>
+                  </div>
+                  <div>
+                    <dt>Contato</dt>
+                    <dd>
+                      {payload.email} · {formatBrPhone(payload.phone) || payload.phone}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt>Clínica</dt>
+                    <dd>{payload.name}</dd>
+                  </div>
+                  <div>
+                    <dt>Áreas</dt>
+                    <dd>{payload.occupations.filter(Boolean).join(', ') || 'Nenhuma ainda'}</dd>
+                  </div>
+                  <div>
+                    <dt>Serviços</dt>
+                    <dd>{payload.services.length || 'Nenhum ainda'}</dd>
+                  </div>
+                  <div>
+                    <dt>Profissionais</dt>
+                    <dd>{payload.professionals.filter(Boolean).join(', ') || 'Nenhum ainda'}</dd>
+                  </div>
+                </dl>
+              )}
+            </div>
+            {error && (
+              <p role="alert" className="step-error">
+                {error}
+              </p>
+            )}
+            <div className="card-actions">
+              {step > 0 && (
+                <button
+                  className="button button-ghost"
+                  disabled={busy}
+                  onClick={() => void save(step - 1)}
+                >
+                  <ArrowLeft size={16} /> Voltar
+                </button>
+              )}
+              {step < steps.length - 1 ? (
+                <button
+                  className="button button-primary continue"
+                  disabled={busy}
+                  onClick={() => void save(step + 1)}
+                >
+                  {busy ? 'Salvando…' : 'Salvar e continuar'} <ArrowRight size={17} />
+                </button>
+              ) : (
+                <button
+                  className="button button-primary continue"
+                  disabled={busy}
+                  onClick={() => void complete()}
+                >
+                  {busy ? 'Concluindo…' : 'Concluir clínica'} <ArrowRight size={17} />
+                </button>
+              )}
+              {(error.includes('outra aba') || error.includes('mudou')) && (
+                <button onClick={() => setRetry((value) => value + 1)}>Recarregar rascunho</button>
+              )}
+            </div>
+          </section>
+        </div>
       </div>
-      <ol className="flex flex-wrap gap-2 text-sm" aria-label="Progresso">
-        {steps.map((item, index) => (
-          <li
-            key={item.key}
-            className={`rounded-full px-3 py-1 ${index === step ? 'bg-primary text-white' : 'bg-background'}`}
-          >
-            {item.label}
-          </li>
-        ))}
-      </ol>
-      {step === 0 && (
-        <div className="space-y-3">
-          <p>O proprietário já está vinculado pela sua conta. Confirme o nome da clínica.</p>
-          <label className="block">
-            Nome da clínica
-            <input
-              className={field}
-              maxLength={160}
-              required
-              aria-invalid={!payload.name.trim()}
-              value={payload.name}
-              onChange={(event) => setPayload({ ...payload, name: event.target.value })}
-            />
-          </label>
-        </div>
-      )}
-      {step === 1 && (
-        <div className="space-y-3">
-          <p>
-            Adicione as ocupações ou áreas de atuação da clínica. Você pode concluir sem nenhuma e
-            cadastrar depois.
-          </p>
-          {payload.occupations.map((name, index) => (
-            <div className="flex gap-2" key={index}>
-              <input
-                className={field}
-                aria-label={`Ocupação ${index + 1}`}
-                maxLength={120}
-                value={name}
-                onChange={(event) =>
-                  setPayload({
-                    ...payload,
-                    occupations: payload.occupations.map((value, position) =>
-                      position === index ? event.target.value : value,
-                    ),
-                  })
-                }
-              />
-              <button
-                onClick={() =>
-                  setPayload({
-                    ...payload,
-                    occupations: payload.occupations.filter((_, position) => position !== index),
-                  })
-                }
-              >
-                Remover
-              </button>
-            </div>
-          ))}
-          <button
-            disabled={payload.occupations.length >= 20}
-            onClick={() => setPayload({ ...payload, occupations: [...payload.occupations, ''] })}
-          >
-            + Adicionar ocupação
-          </button>
-        </div>
-      )}
-      {step === 2 && (
-        <div className="space-y-3">
-          <p>Cada serviço precisa de preço e duração reais. Você pode cadastrar serviços depois.</p>
-          {payload.services.map((service, index) => (
-            <div
-              className="grid gap-2 rounded-xl border border-border p-3 sm:grid-cols-4"
-              key={index}
-            >
-              <label className="sm:col-span-2">
-                Serviço
-                <input
-                  className={field}
-                  maxLength={160}
-                  value={service.name}
-                  onChange={(event) =>
-                    setPayload({
-                      ...payload,
-                      services: payload.services.map((value, position) =>
-                        position === index ? { ...value, name: event.target.value } : value,
-                      ),
-                    })
-                  }
-                />
-              </label>
-              <label>
-                Preço (R$)
-                <PriceInput
-                  key={`${draftVersion}:${index}:${service.name}`}
-                  cents={service.priceCents}
-                  onChange={(cents) =>
-                    setPayload({
-                      ...payload,
-                      services: payload.services.map((value, position) =>
-                        position === index ? { ...value, priceCents: cents } : value,
-                      ),
-                    })
-                  }
-                />
-              </label>
-              <label>
-                Minutos
-                <input
-                  className={field}
-                  type="number"
-                  min="1"
-                  max="1440"
-                  value={service.durationMinutes}
-                  onChange={(event) =>
-                    setPayload({
-                      ...payload,
-                      services: payload.services.map((value, position) =>
-                        position === index
-                          ? { ...value, durationMinutes: Number(event.target.value) }
-                          : value,
-                      ),
-                    })
-                  }
-                />
-              </label>
-              <button
-                className="sm:col-span-4"
-                onClick={() =>
-                  setPayload({
-                    ...payload,
-                    services: payload.services.filter((_, position) => position !== index),
-                  })
-                }
-              >
-                Remover serviço
-              </button>
-            </div>
-          ))}
-          <button
-            disabled={payload.services.length >= 30}
-            onClick={() =>
-              setPayload({
-                ...payload,
-                services: [...payload.services, { name: '', priceCents: 0, durationMinutes: 60 }],
-              })
-            }
-          >
-            + Adicionar serviço
-          </button>
-        </div>
-      )}
-      {step === 3 && (
-        <div className="space-y-3">
-          <p>
-            Cadastre profissionais sem criar acesso ao sistema. Convites e permissões serão
-            configurados depois.
-          </p>
-          {payload.professionals.map((name, index) => (
-            <div className="flex gap-2" key={index}>
-              <input
-                className={field}
-                aria-label={`Profissional ${index + 1}`}
-                maxLength={160}
-                value={name}
-                onChange={(event) =>
-                  setPayload({
-                    ...payload,
-                    professionals: payload.professionals.map((value, position) =>
-                      position === index ? event.target.value : value,
-                    ),
-                  })
-                }
-              />
-              <button
-                onClick={() =>
-                  setPayload({
-                    ...payload,
-                    professionals: payload.professionals.filter(
-                      (_, position) => position !== index,
-                    ),
-                  })
-                }
-              >
-                Remover
-              </button>
-            </div>
-          ))}
-          <button
-            disabled={payload.professionals.length >= 20}
-            onClick={() =>
-              setPayload({ ...payload, professionals: [...payload.professionals, ''] })
-            }
-          >
-            + Adicionar profissional
-          </button>
-        </div>
-      )}
-      {step === 4 && (
-        <div className="space-y-3">
-          <p>
-            Confira os dados que serão criados. As configurações iniciais são BRL, pt-BR e
-            America/Sao_Paulo.
-          </p>
-          <dl>
-            <dt>Clínica</dt>
-            <dd className="font-semibold">{payload.name}</dd>
-            <dt>Ocupações</dt>
-            <dd>{payload.occupations.length ? payload.occupations.join(', ') : 'Nenhuma'}</dd>
-            <dt>Serviços</dt>
-            <dd>{payload.services.length}</dd>
-            <dt>Profissionais</dt>
-            <dd>{payload.professionals.length}</dd>
-          </dl>
-          <p className="text-sm text-muted-foreground">
-            O código de compartilhamento será gerado ao concluir. Ele não é um convite nem concede
-            acesso à equipe.
-          </p>
-        </div>
-      )}
-      {error && (
-        <p role="alert" className="text-red-700">
-          {error}
-        </p>
-      )}
-      <div className="flex flex-wrap gap-4 border-t border-border pt-4">
-        {step > 0 && (
-          <button disabled={busy} onClick={() => void save(step - 1)}>
-            Voltar
-          </button>
-        )}
-        {step < steps.length - 1 ? (
-          <button
-            className="rounded-xl bg-primary px-5 py-3 text-white disabled:opacity-50"
-            disabled={busy}
-            onClick={() => void save(step + 1)}
-          >
-            {busy ? 'Salvando…' : 'Salvar e continuar'}
-          </button>
-        ) : (
-          <button
-            className="rounded-xl bg-primary px-5 py-3 text-white disabled:opacity-50"
-            disabled={busy}
-            onClick={() => void complete()}
-          >
-            {busy ? 'Concluindo…' : 'Concluir clínica'}
-          </button>
-        )}
-        {error.includes('outra aba') || error.includes('mudou') ? (
-          <button onClick={() => setRetry((value) => value + 1)}>Recarregar rascunho</button>
-        ) : null}
-      </div>
-    </section>
+    </main>
   )
 }
 
 function PriceInput({ cents, onChange }: { cents: number; onChange: (cents: number) => void }) {
-  const [text, setText] = useState((cents / 100).toFixed(2))
+  const [text, setText] = useState(cents ? (cents / 100).toFixed(2).replace('.', ',') : '')
   return (
-    <input
-      className={field}
-      inputMode="decimal"
-      value={text}
-      aria-invalid={!/^\d+(?:[.,]\d{0,2})?$/.test(text)}
-      onChange={(event) => {
-        const value = event.target.value
-        setText(value)
-        onChange(
-          /^\d+(?:[.,]\d{0,2})?$/.test(value)
-            ? Math.round(Number(value.replace(',', '.')) * 100)
-            : -1,
-        )
-      }}
-    />
+    <div className="field-control">
+      <input
+        inputMode="decimal"
+        placeholder="0,00"
+        value={text}
+        aria-invalid={text !== '' && !/^\d+(?:[.,]\d{0,2})?$/.test(text)}
+        onChange={(event) => {
+          const value = event.target.value
+          setText(value)
+          if (!value) {
+            onChange(0)
+            return
+          }
+          onChange(
+            /^\d+(?:[.,]\d{0,2})?$/.test(value)
+              ? Math.round(Number(value.replace(',', '.')) * 100)
+              : -1,
+          )
+        }}
+      />
+    </div>
   )
 }

@@ -3,8 +3,20 @@ import type { SqlConnection } from '../../shared/database/migrations.js'
 import { withClinicTransaction, type TenantPool } from '../../shared/tenant/clinic-transaction.js'
 import type { TenantContext } from '../../shared/tenant/tenant-context.js'
 
+const onboardingSteps = [
+  'contact',
+  'clinic',
+  'occupations',
+  'services',
+  'professionals',
+  'review',
+] as const
+
 type OnboardingPayload = {
   name: string
+  ownerName: string
+  email: string
+  phone: string
   occupations: string[]
   services: { name: string; priceCents: number; durationMinutes: number }[]
   professionals: string[]
@@ -13,14 +25,32 @@ type OnboardingPayload = {
 function validPayload(payload: OnboardingPayload): boolean {
   const unique = (names: string[]) =>
     new Set(names.map((name) => name.trim().toLocaleLowerCase('pt-BR'))).size === names.length
+  const email = payload.email.trim()
+  const phone = payload.phone.trim()
   return Boolean(
-    payload.name.trim() &&
+    payload.name.length <= 160 &&
+    payload.ownerName.length <= 120 &&
+    email.length <= 254 &&
+    (!email || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) &&
+    (!phone || /^\+[1-9][0-9]{7,14}$/.test(phone)) &&
     unique(payload.occupations) &&
     unique(payload.services.map((service) => service.name)) &&
     payload.occupations.every((name) => name.trim()) &&
     payload.professionals.every((name) => name.trim()) &&
     payload.services.every((service) => service.name.trim()),
   )
+}
+
+function emptyPayload(clinicName: string): OnboardingPayload {
+  return {
+    name: clinicName,
+    ownerName: '',
+    email: '',
+    phone: '',
+    occupations: [],
+    services: [],
+    professionals: [],
+  }
 }
 
 export async function clinicRoutes(
@@ -111,9 +141,12 @@ export async function clinicRoutes(
   const onboardingPayloadSchema = {
     type: 'object',
     additionalProperties: false,
-    required: ['name', 'occupations', 'services', 'professionals'],
+    required: ['name', 'ownerName', 'email', 'phone', 'occupations', 'services', 'professionals'],
     properties: {
-      name: { type: 'string', minLength: 1, maxLength: 160 },
+      name: { type: 'string', minLength: 0, maxLength: 160 },
+      ownerName: { type: 'string', minLength: 0, maxLength: 120 },
+      email: { type: 'string', minLength: 0, maxLength: 254 },
+      phone: { type: 'string', minLength: 0, maxLength: 16, pattern: '^$|^\\+[1-9][0-9]{7,14}$' },
       occupations: {
         type: 'array',
         maxItems: 20,
@@ -164,14 +197,21 @@ export async function clinicRoutes(
                 formatVersion: Number(draft.format_version),
                 step: draft.step,
                 status: draft.status,
-                payload: draft.payload,
+                payload: {
+                  ...emptyPayload(String(clinic.name)),
+                  ...(draft.payload &&
+                  typeof draft.payload === 'object' &&
+                  !Array.isArray(draft.payload)
+                    ? draft.payload
+                    : {}),
+                },
               }
             : {
                 version: 0,
                 formatVersion: 1,
-                step: 'clinic',
+                step: 'contact',
                 status: 'draft',
-                payload: { name: clinic.name, occupations: [], services: [], professionals: [] },
+                payload: emptyPayload(String(clinic.name)),
               },
         }
       }),
@@ -193,7 +233,7 @@ export async function clinicRoutes(
             version: { type: 'integer', minimum: 0 },
             step: {
               type: 'string',
-              enum: ['clinic', 'occupations', 'services', 'professionals', 'review'],
+              enum: [...onboardingSteps],
             },
             payload: onboardingPayloadSchema,
           },

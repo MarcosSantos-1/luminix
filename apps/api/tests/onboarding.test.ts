@@ -10,6 +10,9 @@ let clinicA: string
 let clinicB: string
 const payload = {
   name: 'Clínica A final',
+  ownerName: 'Ana Souza',
+  email: 'ana.a@example.com',
+  phone: '+5511999990001',
   occupations: ['Estética facial'],
   services: [{ name: 'Limpeza de pele', priceCents: 9000, durationMinutes: 60 }],
   professionals: ['Ana'],
@@ -78,15 +81,43 @@ describe('versioned clinic onboarding', () => {
   it('isolates drafts, rejects stale writes, and completes once with real records', async () => {
     const initial = await call('onboarding-a', 'GET', clinicA, 'onboarding')
     expect(initial.statusCode).toBe(200)
-    expect(initial.json().draft.version).toBe(0)
+    expect(initial.json().draft.step).toBe('contact')
+    expect(initial.json().draft.payload.phone).toBe('')
+    expect(initial.json().draft.payload.email).toBe('')
+    expect(
+      (
+        await call('onboarding-a', 'PUT', clinicA, 'onboarding', {
+          version: 0,
+          step: 'contact',
+          payload: { ...payload, ownerName: '', email: '', phone: '' },
+        })
+      ).statusCode,
+    ).toBe(200)
+    expect(
+      (await call('onboarding-a', 'POST', clinicA, 'onboarding/complete', { version: 1 }))
+        .statusCode,
+    ).toBe(400)
+    const savedContact = await call('onboarding-a', 'PUT', clinicA, 'onboarding', {
+      version: 1,
+      step: 'contact',
+      payload: {
+        ...payload,
+        name: 'Clínica A',
+        occupations: [],
+        services: [],
+        professionals: [],
+      },
+    })
+    expect(savedContact.statusCode).toBe(200)
+    expect(savedContact.json().draft.payload.phone).toBe('+5511999990001')
     expect((await call('onboarding-b', 'GET', clinicA, 'onboarding')).statusCode).toBe(403)
     const saved = await call('onboarding-a', 'PUT', clinicA, 'onboarding', {
-      version: 0,
+      version: 2,
       step: 'review',
       payload,
     })
     expect(saved.statusCode).toBe(200)
-    expect(saved.json().draft.version).toBe(1)
+    expect(saved.json().draft.version).toBe(3)
     expect(
       (
         await call('onboarding-a', 'PUT', clinicA, 'onboarding', {
@@ -99,24 +130,24 @@ describe('versioned clinic onboarding', () => {
     expect(
       (
         await call('onboarding-a', 'PUT', clinicA, 'onboarding', {
-          version: 1,
+          version: 3,
           step: 'review',
           payload,
         })
       ).json().draft.version,
-    ).toBe(2)
+    ).toBe(4)
     expect(
-      (await call('onboarding-a', 'POST', clinicA, 'onboarding/complete', { version: 1 }))
+      (await call('onboarding-a', 'POST', clinicA, 'onboarding/complete', { version: 3 }))
         .statusCode,
     ).toBe(409)
     const completed = await call('onboarding-a', 'POST', clinicA, 'onboarding/complete', {
-      version: 2,
+      version: 4,
     })
     expect(completed.statusCode).toBe(200)
     expect(completed.json().replayed).toBe(false)
     expect(completed.json().clinic.shareCode).toMatch(/^LX-[A-F0-9]{12}$/)
     const replay = await call('onboarding-a', 'POST', clinicA, 'onboarding/complete', {
-      version: 2,
+      version: 4,
     })
     expect(replay.statusCode).toBe(200)
     expect(replay.json().replayed).toBe(true)
@@ -129,7 +160,7 @@ describe('versioned clinic onboarding', () => {
     expect(
       (
         await call('onboarding-a', 'PUT', clinicA, 'onboarding', {
-          version: 2,
+          version: 4,
           step: 'review',
           payload,
         })

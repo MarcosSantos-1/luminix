@@ -7,9 +7,11 @@ Data: 2026-09-16
 ## Decisão
 
 A clínica draft e seu proprietário são criados pelo bootstrap da Step 4. O onboarding autenticado
-continua nessa clínica. A primeira versão recolhe nome, ocupações locais, serviços com preço em
-centavos e duração confirmados, e profissionais sem login. Configurações iniciais já são criadas
-no bootstrap: BRL, pt-BR e America/Sao_Paulo. Recursos físicos, horários, preferências de
+continua nessa clínica. A primeira versão recolhe contato da gestora (nome, e-mail e WhatsApp em
+E.164), nome da clínica, ocupações locais, serviços com preço em centavos e duração, e
+profissionais sem login. O contato fica no rascunho para retomada e follow-up manual se o cadastro
+ficar incompleto; não dispara WhatsApp automático nem concede acesso. Configurações iniciais já são
+criadas no bootstrap: BRL, pt-BR e America/Sao_Paulo. Recursos físicos, horários, preferências de
 integração, convites e permissões da equipe não entram neste formato.
 
 `onboarding_drafts` armazena o payload estruturado e limitado a 32 KiB, `format_version = 1` e
@@ -29,8 +31,11 @@ identidade enviada pelo frontend.
 
 ## Consequências
 
-- A página pública Light e `/dashboard` ainda são demonstrações explicitamente identificadas.
-  O fluxo real reside em `/clinics/:clinicId/onboarding` e a home dessa clínica lê a API.
+- A entrada pública em `/` apresenta o cadastro e encaminha a `/login` ou ao onboarding autenticado.
+  `/dashboard` continua demonstração identificada. O fluxo persistente reside em
+  `/clinics/:clinicId/onboarding`.
+- Google e cadastro por e-mail/senha entram no Firebase da equipe; o provedor Google precisa estar
+  habilitado no console do projeto.
 - O código ainda não possui busca pública ou entrada no app cliente. Compartilhá-lo não cria
   vínculo nem acesso.
 - Edição pós-conclusão de ocupações, serviços e profissionais será contrato separado. O formato

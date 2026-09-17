@@ -35,8 +35,8 @@ export default function DashboardPage() {
         <div className="dash-brand">
           <span className="brand-mark">L</span>
           <div>
-            <b>Bom dia, Juliana! 👋</b>
-            <span>Clínica Charme & Bela</span>
+            <b>Bom dia</b>
+            <span>Prévia ilustrativa · dados fictícios</span>
           </div>
         </div>
         <button className="notification" aria-label="Notificações">

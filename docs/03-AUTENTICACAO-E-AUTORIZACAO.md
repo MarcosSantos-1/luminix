@@ -2,11 +2,11 @@
 
 ## Step 4 — entrega 1 (2026-09-15)
 
-Implementado: login da equipe em `/login` no admin com senha, magic link, recuperação e logout.
-A opção Entrar da landing abre o login. Persistência Firebase por sessão da aba, sem copiar tokens
-para armazenamento próprio ou URL. Magic link solicita explicitamente o e-mail no retorno,
-inclusive em outro dispositivo. Cadastro por senha ainda não implementado;
-magic link também permite criar conta individual sem conceder vínculo com clínica.
+Implementado: login da equipe em `/login` e na landing, com Google, senha, cadastro por e-mail,
+magic link, recuperação e logout. A opção de começar na landing abre o cadastro. Persistência
+Firebase por sessão da aba, sem copiar tokens para armazenamento próprio ou URL. Magic link
+solicita explicitamente o e-mail no retorno, inclusive em outro dispositivo. Google usa popup do
+Firebase; o provedor precisa estar habilitado no projeto e o domínio autorizado.
 
 `GET /auth/session` no Fastify recebe `Authorization: Bearer <ID Token>`. O SDK Admin verifica
 assinatura, projeto, expiração e revogação (`verifyIdToken(token, true)`). UID verificado associa
@@ -70,8 +70,7 @@ Vínculo revogado não permite recriação. A função restaura settings SQL ant
 
 Admin usa proxy fixo `/api/auth/owner-clinic` com payload limitado a 2 KB. Após login, formulário
 mínimo cria clínica e confirma rascunho/vínculo. Preserva nome após tentativa para retry seguro.
-Contas existentes ou criadas por magic link podem usar o fluxo; cadastro por senha ainda futuro.
-Dashboard/onboarding continuam demo; onboarding definitivo é Step 5.
+Contas existentes, Google ou criadas por e-mail/senha/magic link podem usar o fluxo.
 
 Pool: statement timeout 10 s, lock timeout 3 s, idle-in-transaction timeout 15 s. Sem Firebase
 dentro da operação SQL. Testes HTTP/PGlite: criação/retry concorrente, payload adulterado,

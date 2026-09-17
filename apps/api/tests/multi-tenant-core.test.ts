@@ -114,6 +114,7 @@ describe('versioned core migration', () => {
       { name: '0002_owner_clinic_bootstrap.sql' },
       { name: '0003_staff_authorization_runtime.sql' },
       { name: '0004_onboarding.sql' },
+      { name: '0005_onboarding_contact.sql' },
     ])
   })
 

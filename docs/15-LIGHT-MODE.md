@@ -1,10 +1,8 @@
 # Light Mode — base temporária
 
-Status: login/sessão conectado ao Firebase/API em `/login`, com validação autenticada da UI
-hospedada pendente. O formulário após login cria a primeira clínica draft/owner na API. O
-onboarding real fica em `/clinics/:clinicId/onboarding`: salva cada etapa, permite retomada e
-conclui a clínica. A home dessa clínica mostra ocupações, serviços, profissionais e código reais.
-A landing e o onboarding visual em `/`, bem como `/dashboard`, continuam demonstrativos.
+Status: a landing em `/` explica o cadastro e inicia a conta (Google ou e-mail). O onboarding real
+fica em `/clinics/:clinicId/onboarding`: contato da gestora, rascunho por etapa, retomada e
+conclusão. `/dashboard` continua demonstrativo.
 
 O Light Mode serve como bancada visual para desenvolver onboarding, autenticação, tenant e integrações antes da decisão final de identidade. A implementação inicial está em `apps/admin` e usa os mesmos componentes funcionais que deverão aceitar o tema `glass` no futuro.
 
@@ -21,21 +19,21 @@ As referências fornecidas estão em `assets/references/design/light-mode/`.
 
 ## Estado implementado
 
-- Landing temporária que inicia o onboarding.
-- Onboarding navegável com sete etapas: clínica, serviços, estrutura, equipe, funcionamento, preferências e conclusão.
-- Resumo e link de convite ilustrativos.
-- Painel Light responsivo em `/dashboard` com dados de demonstração.
-- Background e logos oficiais copiados para os assets públicos do app.
+- Landing com apresentação do cadastro e acesso Google/e-mail.
+- Onboarding autenticado com contato, clínica, ocupações, serviços, profissionais e revisão.
+- Campos vazios com placeholder; rascunho persistido no backend, inclusive WhatsApp e e-mail.
+- Painel Light em `/dashboard` com dados de demonstração, identificado como tal.
 
 ## Limites do protótipo público
 
-O formulário público em `/` mantém estado apenas durante a sessão da página. O link de convite,
-pagamentos e dados de `/dashboard` são demonstrações visuais. Nenhum dado dessas páginas é
-enviado ao backend. O fluxo autenticado e persistente tem contrato próprio na ADR-011.
+O formulário público em `/` agora autentica e abre o rascunho. `/dashboard` permanece visual.
+Nenhum dado do dashboard demo é enviado ao backend. O fluxo autenticado e persistente tem contrato
+próprio na ADR-011.
 
-O primeiro lançamento recolhe nome, ocupações, serviços com preço/duração e profissionais sem
-login. Salas, equipamentos, funcionamento especial, integrações e convites aguardam modelos
-próprios. O código gerado não concede acesso à equipe.
+O primeiro lançamento recolhe contato da gestora, nome, ocupações, serviços com preço/duração e
+profissionais sem login. Salas, equipamentos, funcionamento especial, integrações e convites
+aguardam modelos próprios. O código gerado não concede acesso à equipe. Follow-up de rascunho
+incompleto é consulta ao payload; disparo automático de WhatsApp ainda não existe.
 
 ## Próxima evolução
 
