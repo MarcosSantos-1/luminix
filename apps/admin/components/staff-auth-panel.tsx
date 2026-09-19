@@ -1,34 +1,9 @@
 'use client'
 
-import { useEffect, useState, type FormEvent } from 'react'
-import {
-  GoogleAuthProvider,
-  createUserWithEmailAndPassword,
-  isSignInWithEmailLink,
-  sendPasswordResetEmail,
-  sendSignInLinkToEmail,
-  signInWithEmailAndPassword,
-  signInWithEmailLink,
-  signInWithPopup,
-} from 'firebase/auth'
-import { getFirebaseAuth } from '@/lib/firebase'
+import { useState, type FormEvent } from 'react'
+import { useStaffAuth } from '@/hooks/use-staff-auth'
 
 type Mode = 'login' | 'signup'
-
-function authMessage(code: string): string {
-  if (code === 'auth/popup-closed-by-user' || code === 'auth/cancelled-popup-request') return ''
-  if (code === 'auth/popup-blocked')
-    return 'O navegador bloqueou a janela do Google. Permita pop-ups e tente de novo.'
-  if (code === 'auth/operation-not-allowed')
-    return 'Este método de acesso ainda não está habilitado. Tente e-mail ou fale com o suporte.'
-  if (code === 'auth/unauthorized-domain')
-    return 'Este domínio ainda não está autorizado no Firebase.'
-  if (code === 'auth/email-already-in-use')
-    return 'Este e-mail já tem conta. Entre ou use o Google.'
-  if (code === 'auth/weak-password') return 'Use uma senha com pelo menos 6 caracteres.'
-  if (code === 'auth/invalid-email') return 'Confira o e-mail informado.'
-  return 'Não foi possível concluir. Confira os dados e tente novamente.'
-}
 
 export function StaffAuthPanel({
   heading,
@@ -39,125 +14,44 @@ export function StaffAuthPanel({
   compact?: boolean
   initialMode?: Mode
 }) {
+  const auth = useStaffAuth()
   const [mode, setMode] = useState<Mode>(initialMode)
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
-  const [busy, setBusy] = useState(false)
-  const [message, setMessage] = useState('')
-  const [error, setError] = useState('')
-  const [emailLink, setEmailLink] = useState(false)
-
-  useEffect(() => {
-    const timeout = window.setTimeout(() => {
-      try {
-        setEmailLink(isSignInWithEmailLink(getFirebaseAuth(), window.location.href))
-      } catch {
-        setError('Autenticação indisponível.')
-      }
-    }, 0)
-    return () => window.clearTimeout(timeout)
-  }, [])
-
-  async function google() {
-    setBusy(true)
-    setMessage('')
-    setError('')
-    try {
-      const provider = new GoogleAuthProvider()
-      provider.setCustomParameters({ prompt: 'select_account' })
-      await signInWithPopup(getFirebaseAuth(), provider)
-    } catch (caught) {
-      const code =
-        typeof caught === 'object' && caught && 'code' in caught ? String(caught.code) : ''
-      setError(authMessage(code))
-    } finally {
-      setBusy(false)
-    }
-  }
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
-    setBusy(true)
-    setMessage('')
-    setError('')
-    try {
-      const auth = getFirebaseAuth()
-      if (emailLink) {
-        await signInWithEmailLink(auth, email.trim(), window.location.href)
-        window.history.replaceState(null, '', window.location.pathname)
-        setEmailLink(false)
-      } else if (mode === 'signup') {
-        await createUserWithEmailAndPassword(auth, email.trim(), password)
-      } else {
-        await signInWithEmailAndPassword(auth, email.trim(), password)
-      }
-      setPassword('')
-    } catch (caught) {
-      const code =
-        typeof caught === 'object' && caught && 'code' in caught ? String(caught.code) : ''
-      setError(authMessage(code))
-    } finally {
-      setBusy(false)
+    if (auth.emailLink) {
+      await auth.confirmEmailLink(email)
+      return
     }
-  }
-
-  async function sendLink() {
-    setBusy(true)
-    setMessage('')
-    setError('')
-    try {
-      await sendSignInLinkToEmail(getFirebaseAuth(), email.trim(), {
-        url: `${window.location.origin}/login`,
-        handleCodeInApp: true,
-      })
-      setMessage(
-        'Se o envio estiver disponível, você receberá um link por e-mail. Verifique também o spam.',
-      )
-    } catch {
-      setError('Não foi possível enviar o link. Tente novamente.')
-    } finally {
-      setBusy(false)
-    }
-  }
-
-  async function reset() {
-    setBusy(true)
-    setMessage('')
-    setError('')
-    try {
-      try {
-        await sendPasswordResetEmail(getFirebaseAuth(), email.trim())
-      } catch {
-        /* Avoid account enumeration. */
-      }
-      setMessage('Se houver uma conta elegível, você receberá as instruções por e-mail.')
-    } finally {
-      setBusy(false)
-    }
+    if (mode === 'signup') await auth.signUp(email, password)
+    else await auth.signIn(email, password)
+    setPassword('')
   }
 
   return (
     <section className={compact ? 'auth-card compact' : 'auth-card'}>
       <h2>{heading}</h2>
       <p>
-        {emailLink
+        {auth.emailLink
           ? 'Confirme o e-mail que recebeu este link.'
           : mode === 'signup'
             ? 'Crie a conta da gestora. Depois você configura a clínica e o app das clientes.'
             : 'Entre com Google ou e-mail. A sessão continua nesta aba.'}
       </p>
-      {!emailLink && (
+      {!auth.emailLink && (
         <button
           className="google-button"
           type="button"
-          disabled={busy}
-          onClick={() => void google()}
+          disabled={auth.busy}
+          onClick={() => void auth.google()}
         >
           <GoogleMark />
           Continuar com Google
         </button>
       )}
-      {!emailLink && <p className="auth-split">ou com e-mail</p>}
+      {!auth.emailLink && <p className="auth-split">ou com e-mail</p>}
       <form onSubmit={(event) => void submit(event)} className="auth-form">
         <label className="field">
           <span>E-mail</span>
@@ -173,7 +67,7 @@ export function StaffAuthPanel({
             />
           </div>
         </label>
-        {!emailLink && (
+        {!auth.emailLink && (
           <label className="field">
             <span>{mode === 'signup' ? 'Crie uma senha' : 'Senha'}</span>
             <div className="field-control">
@@ -189,41 +83,49 @@ export function StaffAuthPanel({
             </div>
           </label>
         )}
-        <button className="button button-primary" disabled={busy} type="submit">
-          {busy
+        <button className="button button-primary" disabled={auth.busy} type="submit">
+          {auth.busy
             ? 'Aguarde…'
-            : emailLink
+            : auth.emailLink
               ? 'Confirmar acesso'
               : mode === 'signup'
                 ? 'Criar conta'
                 : 'Entrar'}
         </button>
       </form>
-      {!emailLink && (
+      {!auth.emailLink && (
         <div className="auth-links">
           <button
             type="button"
-            disabled={busy}
+            disabled={auth.busy}
             onClick={() => setMode(mode === 'signup' ? 'login' : 'signup')}
           >
             {mode === 'signup' ? 'Já tenho conta' : 'Quero criar uma conta'}
           </button>
-          <button type="button" disabled={busy || !email.trim()} onClick={() => void sendLink()}>
+          <button
+            type="button"
+            disabled={auth.busy || !email.trim()}
+            onClick={() => void auth.sendLink(email)}
+          >
             Receber link de acesso
           </button>
-          <button type="button" disabled={busy || !email.trim()} onClick={() => void reset()}>
+          <button
+            type="button"
+            disabled={auth.busy || !email.trim()}
+            onClick={() => void auth.reset(email)}
+          >
             Recuperar senha
           </button>
         </div>
       )}
-      {message && (
+      {auth.message && (
         <p className="auth-note" role="status">
-          {message}
+          {auth.message}
         </p>
       )}
-      {error && (
+      {auth.error && (
         <p className="auth-error" role="alert">
-          {error}
+          {auth.error}
         </p>
       )}
     </section>

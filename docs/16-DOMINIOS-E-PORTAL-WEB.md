@@ -2,14 +2,17 @@
 
 ## Mapa adotado
 
-| Endereço                            | Projeto Vercel   | Pasta                | Estado                                           |
-| ----------------------------------- | ---------------- | -------------------- | ------------------------------------------------ |
-| `luminix.beauty`                    | `luminix-web`    | `apps/web`           | Shell pronto; DNS pendente                       |
-| `luminix.beauty/c/<slug>`           | `luminix-web`    | `apps/web`           | Apenas `/c/demonstracao` funciona                |
-| `luminix.beauty/c/<slug>/meu-plano` | `luminix-web`    | `apps/web`           | Aviso sem login/dados privados                   |
-| `www.luminix.beauty`                | `luminix-web`    | `apps/web`           | Redirect 308 para o domínio principal cadastrado |
-| `app.luminix.beauty`                | `luminix-admin`  | `apps/admin`         | Dashboard existente; DNS pendente                |
-| URL `luminix-client.vercel.app`     | `luminix-client` | `apps/mobile-client` | Revisão do shell mobile, não portal web          |
+| Endereço                            | Projeto Vercel   | Pasta                | Estado                                             |
+| ----------------------------------- | ---------------- | -------------------- | -------------------------------------------------- |
+| `luminix.beauty/`                   | `luminix-web`    | `apps/web`           | Landing pública (rascunho do template)             |
+| `luminix.beauty/acesso`             | `luminix-web`    | `apps/web`           | Login de cliente stub (CPF + senha → demonstração) |
+| `luminix.beauty/c/<slug>`           | `luminix-web`    | `apps/web`           | Apenas `/c/demonstracao` funciona                  |
+| `luminix.beauty/c/<slug>/meu-plano` | `luminix-web`    | `apps/web`           | Aviso sem login/dados privados                     |
+| `www.luminix.beauty`                | `luminix-web`    | `apps/web`           | Redirect 308 para o domínio principal cadastrado   |
+| `app.luminix.beauty/`               | `luminix-admin`  | `apps/admin`         | Sem sessão → `/login`; com sessão → clínica        |
+| `app.luminix.beauty/cadastro`       | `luminix-admin`  | `apps/admin`         | Cadastro da gestora (Firebase)                     |
+| `app.luminix.beauty/login`          | `luminix-admin`  | `apps/admin`         | Login da gestora (Firebase)                        |
+| URL `luminix-client.vercel.app`     | `luminix-client` | `apps/mobile-client` | Revisão do shell mobile, não portal web            |
 
 Referência: [ADR-008](decisions/ADR-008-DOMINIOS-E-PORTAL-WEB.md).
 
@@ -49,12 +52,13 @@ Production pode usar `https://app.luminix.beauty`. A API ainda não é consumida
    Testar desconhecida, não publicada, slug inválido e isolamento/cache entre clínicas.
 3. **Página real da clínica — pendente.** Substituir fixture por contrato público da API. Implementar
    identidade visual, contato, serviços e metadata/SEO. Não liberar indexação da demonstração.
-4. **Portal privado — pendente.** Implementar identidade CPF/senha e recuperação segura conforme
+4. **Portal privado — pendente.** `/acesso` é só um rascunho visual (CPF + senha sem autenticação,
+   redireciona à demonstração). Implementar identidade CPF/senha e recuperação segura conforme
    ADR-002 e documentação de autenticação. A API valida identidade + vínculo + clínica em cada
    operação; testar alteração de URL, IDs de outra clínica e vínculo removido. Só depois conectar
    `/meu-plano` a dados reais. `noindex` não é proteção de acesso.
-5. **Admin e ambientes — pendente.** Conectar login Firebase, seleção de clínica e autorização por
-   membership. Separar Preview/Production antes de dados reais, revisar cookies host-only, CORS,
+5. **Admin e ambientes — pendente.** Cadastro em `/cadastro` e login em `/login` usam Firebase da
+   equipe. Separar Preview/Production antes de dados reais, revisar cookies host-only, CORS,
    recuperação de conta e configuração Firebase dos domínios autorizados.
 6. **Cutover DNS — ação manual abaixo.** Confirmar Production, HTTPS, rotas e redirects antes de
    distribuir links. Não apontar DNS para um projeto sem deployment Production válido.

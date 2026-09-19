@@ -1,6 +1,7 @@
 import { notFound } from 'next/navigation'
 import type { ReactNode } from 'react'
 
+import { PortalShell } from '../../../components/portal-shell'
 import { getPreviewClinic } from '../../../lib/preview-clinic'
 
 export default async function ClinicLayout({
@@ -12,5 +13,5 @@ export default async function ClinicLayout({
 }) {
   const { clinica } = await params
   if (!getPreviewClinic(clinica)) notFound()
-  return children
+  return <PortalShell>{children}</PortalShell>
 }
