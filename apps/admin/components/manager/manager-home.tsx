@@ -19,12 +19,42 @@ import {
   X,
   Package,
 } from 'lucide-react'
-import { useState } from 'react'
+import { useState, type ReactNode } from 'react'
 import { useManagerLayout } from '@/hooks/use-manager-layout'
 import { demoAppointments, managerNavigation } from './demo-data'
 import { ManagerSidebar } from './manager-sidebar'
 
-export function ManagerHome() {
+export function ManagerHome({
+  clinicName = 'Clínica de demonstração',
+  userName = 'Marcos',
+  homeHref = '/dashboard',
+  canManageSettings = true,
+  onNavigate,
+  profile,
+  clinicDetails,
+  banner,
+}: {
+  clinicName?: string
+  userName?: string
+  homeHref?: string
+  canManageSettings?: boolean
+  onNavigate?: (label: string) => boolean
+  profile?: ReactNode
+  clinicDetails?: ReactNode
+  banner?: ReactNode
+} = {}) {
+  const navigation = managerNavigation.filter(
+    (item) => item.label !== 'Configurações' || canManageSettings,
+  )
+  const firstName = userName.trim().split(/\s+/)[0] || 'Gestor'
+  const initials =
+    userName
+      .trim()
+      .split(/\s+/)
+      .slice(0, 2)
+      .map((part) => part[0])
+      .join('')
+      .toUpperCase() || 'G'
   const { collapsed, setCollapsed, searchOpen, changeSearch, query, setQuery, searchTrigger } =
     useManagerLayout()
   const [notice, setNotice] = useState<string | null>(null)
@@ -35,10 +65,11 @@ export function ManagerHome() {
       window.scrollTo({ top: 0, behavior: 'instant' })
       return
     }
+    if (onNavigate?.(label)) return
     setNotice(label)
   }
   const results = [
-    ...managerNavigation.map((item) => ({ title: item.label, detail: 'Página do gestor' })),
+    ...navigation.map((item) => ({ title: item.label, detail: 'Página do gestor' })),
     ...demoAppointments.map((item) => ({
       title: item.name,
       detail: `${item.time} · ${item.service}`,
@@ -65,6 +96,8 @@ export function ManagerHome() {
         Pular para o conteúdo
       </a>
       <ManagerSidebar
+        homeHref={homeHref}
+        canManageSettings={canManageSettings}
         collapsed={collapsed}
         onToggle={() => setCollapsed((value) => !value)}
         onNavigate={navigate}
@@ -73,8 +106,8 @@ export function ManagerHome() {
         <header className="manager-header">
           <div className="manager-greeting">
             <p>Seu espaço de cuidado ✦</p>
-            <h1>Bom dia, Marcos!</h1>
-            <span>Clínica de demonstração</span>
+            <h1>Olá, {firstName}!</h1>
+            <span>{clinicName}</span>
           </div>
           <Button
             ref={searchTrigger}
@@ -107,14 +140,14 @@ export function ManagerHome() {
             <Button
               className="manager-profile"
               variant="ghost"
-              onPress={() => navigate('Perfil demonstrativo')}
-              aria-label="Perfil demonstrativo de Marcos"
+              onPress={() => navigate('Minha conta')}
+              aria-label={`Minha conta: ${userName}`}
             >
               <Avatar size="sm">
-                <Avatar.Fallback>MA</Avatar.Fallback>
+                <Avatar.Fallback>{initials}</Avatar.Fallback>
               </Avatar>
               <span>
-                Marcos <ChevronRight size={14} />
+                {firstName} <ChevronRight size={14} />
               </span>
             </Button>
           </div>
@@ -122,10 +155,18 @@ export function ManagerHome() {
         <div className="manager-demo-label">
           <span>
             <i />
-            PRÉVIA DO GESTOR
+            {clinicDetails ? 'HOME DO GESTOR' : 'PRÉVIA DO GESTOR'}
           </span>
-          <span>Dados fictícios · explorando o Glass Mode</span>
+          <span>Agenda e indicadores demonstrativos</span>
         </div>
+        {banner}
+        {clinicDetails && (
+          <div className="manager-clinic-tools">
+            <Button variant="ghost" onPress={() => navigate('Dados da clínica')}>
+              Dados da clínica e código de acesso <ArrowRight size={16} />
+            </Button>
+          </div>
+        )}
         <section className="manager-actions" aria-label="Ações principais">
           {[
             {
@@ -430,17 +471,23 @@ export function ManagerHome() {
           if (!open) setNotice(null)
         }}
       >
-        <Modal.Container size="sm">
+        <Modal.Container size={notice === 'Dados da clínica' ? 'lg' : 'sm'}>
           <Modal.Dialog className="manager-dialog">
             <Modal.CloseTrigger aria-label="Fechar" />
             <Modal.Header>
               <Modal.Heading>{notice}</Modal.Heading>
             </Modal.Header>
             <Modal.Body>
-              <p>
-                Este é um rascunho visual do Home do Gestor. Esta funcionalidade ainda será
-                construída; os exemplos exibidos são fictícios.
-              </p>
+              {notice === 'Minha conta' && profile ? (
+                profile
+              ) : notice === 'Dados da clínica' && clinicDetails ? (
+                clinicDetails
+              ) : (
+                <p>
+                  Esta funcionalidade ainda está em desenvolvimento. Os agendamentos, atividades e
+                  indicadores exibidos são exemplos e não representam dados reais da clínica.
+                </p>
+              )}
             </Modal.Body>
             <Modal.Footer>
               <Button onPress={() => setNotice(null)}>Entendi</Button>

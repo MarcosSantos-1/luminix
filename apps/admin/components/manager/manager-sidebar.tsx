@@ -7,34 +7,40 @@ import { ChevronLeft, ChevronRight, Crown, LogOut } from 'lucide-react'
 import { managerNavigation, supportNavigation } from './demo-data'
 
 export function ManagerSidebar({
+  homeHref,
+  canManageSettings,
   collapsed,
   onToggle,
   onNavigate,
 }: {
+  homeHref: string
+  canManageSettings: boolean
   collapsed: boolean
   onToggle: () => void
   onNavigate: (label: string) => void
 }) {
   return (
     <aside className="manager-sidebar">
-      <Link href="/dashboard" className="manager-brand" aria-label="Luminix — início">
+      <Link href={homeHref} className="manager-brand" aria-label="Luminix — início">
         <Image src="/brand/logo.png" width={35} height={43} alt="" />
         <span>Luminix</span>
       </Link>
       <nav aria-label="Navegação do gestor" className="manager-nav">
-        {managerNavigation.map(({ label, icon: Icon }) => (
-          <Button
-            key={label}
-            variant="ghost"
-            className={`manager-nav-item ${label === 'Início' ? 'is-active' : ''}`}
-            aria-label={label}
-            aria-current={label === 'Início' ? 'page' : undefined}
-            onPress={() => onNavigate(label)}
-          >
-            <Icon size={20} />
-            <span>{label}</span>
-          </Button>
-        ))}
+        {managerNavigation
+          .filter((item) => item.label !== 'Configurações' || canManageSettings)
+          .map(({ label, icon: Icon }) => (
+            <Button
+              key={label}
+              variant="ghost"
+              className={`manager-nav-item ${label === 'Início' ? 'is-active' : ''}`}
+              aria-label={label}
+              aria-current={label === 'Início' ? 'page' : undefined}
+              onPress={() => onNavigate(label)}
+            >
+              <Icon size={20} />
+              <span>{label}</span>
+            </Button>
+          ))}
       </nav>
       <Card className="manager-plan">
         <Crown size={20} />

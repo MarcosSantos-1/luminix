@@ -120,7 +120,7 @@ HTML semântico continua apropriado para estrutura, títulos, listas e conteúdo
 
 ### Rascunho da Home do Gestor
 
-Implementado em `/dashboard` (`/home` redireciona para essa rota): layout Glass responsivo, sidebar
+Implementado na Home oficial `/clinics/:clinicId`, destino existente após login e conclusão do onboarding. `/dashboard` mantém a demonstração pública da mesma composição (`/home` é seu alias). Layout Glass responsivo, sidebar
 recolhível, navegação móvel, cabeçalho, atalhos, clientes do dia, atividades, resumo e meta ilustrativos.
 Os backgrounds oficiais são servidos pelas cópias idênticas em `apps/admin/public/brand/`.
 
@@ -130,9 +130,18 @@ e oferece estado vazio. Ações ainda não construídas abrem um Modal HeroUI ex
 Cards, Button, Avatar, Chip, SearchField, Modal e ProgressBar são HeroUI, com CSS e tokens do experimento
 em `app/dashboard/manager.css`. Não foi criado um package compartilhado sem consumidores reais.
 
-A prévia é pública e claramente identificada, sem consultas ou gravações de dados de clínicas. Não
-substitui a Home autenticada em `/clinics/:clinicId`, nem altera autorização, onboarding ou schema.
-Conectar os componentes ao tenant real é uma etapa posterior, com estados reais de loading/vazio/erro.
+A Home autenticada recebe nome e status reais do contexto autorizado da clínica e nome de exibição
+Firebase (fallback “Gestor” quando ausente). Agenda, atividades e indicadores permanecem mockados,
+identificados como demonstrativos, para migração incremental aos contratos reais. Essas fixtures
+nunca são fallback para erro de API. A rota continua protegida pelo contexto e `clinic:manage`.
+O layout recebe propriedades; a demonstração pública não importa nem consulta o contexto autenticado.
+
+Configurações respeita `settings:manage`; Minha conta oferece troca de clínica, atualização de acesso
+e logout. Clínicas em rascunho mantêm o atalho ao onboarding conforme `onboarding:manage`. Os dados
+reais já disponíveis (ocupações, serviços, profissionais e código) continuam acessíveis no modal
+“Dados da clínica”, com carregamento/erro/retry próprios. Nenhuma migration ou mudança no fluxo de
+login foi necessária. O cache visual distingue UID, clínica e revisão de autorização; respostas de
+acesso negado invalidam a entrada e a interface não reutiliza contexto de outra sessão.
 Glass é o experimento atual, não uma decisão definitiva de tema. O sistema respeita redução de
 transparência/movimento; o botão de teste na prévia permite optar por transparência nesta sessão.
 

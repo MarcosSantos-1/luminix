@@ -151,3 +151,7 @@ Sidebar, cabeçalho, busca Ctrl/⌘ K, painéis e navegação móvel estão impl
 A redução de transparência do sistema aplica superfícies opacas; a bancada oferece opt-in explícito
 para testar o vidro. Alternância completa Light/Glass e validações formais da lista de aceite acima
 continuam planejadas. Contratos, localização do código e política HeroUI estão no Design System.
+
+A composição também é a Home oficial autenticada em `/clinics/:clinicId`, com nome real da clínica
+e fixtures operacionais temporárias explicitamente identificadas. O contexto e as permissões vêm
+do backend; dados reais do onboarding permanecem disponíveis em “Dados da clínica”.
