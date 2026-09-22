@@ -143,3 +143,11 @@ Fallback obrigatório: superfície mais opaca sem blur. Ativar por preferência 
 ## Limites da referência
 
 Os screenshots definem linguagem visual e composição. Eles não definem fonte, valores exatos, comportamento, acessibilidade, permissões ou requisitos de produto. Métricas, estoque, marketing e outros elementos visíveis não entram no escopo funcional por aparecerem na imagem.
+
+## Bancada implementada — 2026-09-22
+
+A Home demonstrativa em `/dashboard` usa HeroUI e os backgrounds oficiais desktop/portrait.
+Sidebar, cabeçalho, busca Ctrl/⌘ K, painéis e navegação móvel estão implementados como rascunho.
+A redução de transparência do sistema aplica superfícies opacas; a bancada oferece opt-in explícito
+para testar o vidro. Alternância completa Light/Glass e validações formais da lista de aceite acima
+continuam planejadas. Contratos, localização do código e política HeroUI estão no Design System.

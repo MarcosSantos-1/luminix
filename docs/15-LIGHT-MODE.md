@@ -2,7 +2,7 @@
 
 Status: a landing em `/` explica o cadastro e inicia a conta (Google ou e-mail). O onboarding real
 fica em `/clinics/:clinicId/onboarding`: contato da gestora, rascunho por etapa, retomada e
-conclusão. `/dashboard` continua demonstrativo.
+conclusão. `/dashboard` agora apresenta o rascunho Glass demonstrativo (ver Design System).
 
 O Light Mode serve como bancada visual para desenvolver onboarding, autenticação, tenant e integrações antes da decisão final de identidade. A implementação inicial está em `apps/admin` e usa os mesmos componentes funcionais que deverão aceitar o tema `glass` no futuro.
 
@@ -22,7 +22,7 @@ As referências fornecidas estão em `assets/references/design/light-mode/`.
 - Landing com apresentação do cadastro e acesso Google/e-mail.
 - Onboarding autenticado com contato, clínica, ocupações, serviços, profissionais e revisão.
 - Campos vazios com placeholder; rascunho persistido no backend, inclusive WhatsApp e e-mail.
-- Painel Light em `/dashboard` com dados de demonstração, identificado como tal.
+- O antigo painel Light de `/dashboard` foi substituído pela bancada Glass/HeroUI em 2026-09-22. O onboarding e a autenticação mantêm sua implementação atual.
 
 ## Limites do protótipo público
 

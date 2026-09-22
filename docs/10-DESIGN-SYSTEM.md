@@ -95,3 +95,47 @@ Registrar nos testes: legibilidade, fadiga percebida, velocidade para localizar 
 A especificação detalhada está em [14-GLASS-MODE.md](14-GLASS-MODE.md). Screenshots ficam em [`assets/references/design/glass-mode/`](../assets/references/design/glass-mode/README.md).
 
 Não adicionar biblioteca visual ou de blur sem justificar compatibilidade web/mobile, peso, desempenho e manutenção. Quando o código existir, tokens deverão morar em package próprio apenas se houver consumidores reais entre aplicações.
+
+## Biblioteca padrão de componentes — adotado em 2026-09-22
+
+**HeroUI é o padrão para novos componentes e páginas.** Antes de implementar qualquer controle,
+consultar o [catálogo oficial](https://heroui.com/docs/react/components) e sua API na versão instalada.
+Usar os componentes HeroUI para botões, inputs, cards, tabelas, toast, spinner, skeleton, dropdown,
+busca, modais, dialogs, breadcrumbs e demais equivalentes disponíveis. Adaptar tokens e composição
+à marca; não substituir por controles nativos estilizados, shadcn ou componentes caseiros por hábito.
+Exceções devem atender pedido explícito do usuário ou limitação concreta documentada.
+HTML semântico continua apropriado para estrutura, títulos, listas e conteúdo.
+
+- Admin web: `@heroui/react` e `@heroui/styles` 3.2.6, compatíveis com React 19 e Tailwind CSS 4.
+  Essa dependência foi adicionada para usar os comportamentos acessíveis e componentes solicitados;
+  a alternativa anterior era Base UI/shadcn. Não remover controles existentes em uma migração ampla.
+- Mobile nativo: consultar HeroUI Native e sua compatibilidade com Expo antes da adoção; o pacote
+  React web não pode ser importado automaticamente nos aplicativos nativos.
+- Referências pessoais do **21st.dev** serão selecionadas pelo usuário posteriormente. Composições
+  e animações específicas podem complementar HeroUI; não são autorização para importar templates
+  ou novas dependências indiscriminadamente.
+- A referência visual desta etapa é
+  [`glass_desktop_design.png`](../assets/references/ui-inspiration/glass_desktop_design.png).
+  Ela inspira a composição e não determina funcionalidades, permissões ou dados reais.
+
+### Rascunho da Home do Gestor
+
+Implementado em `/dashboard` (`/home` redireciona para essa rota): layout Glass responsivo, sidebar
+recolhível, navegação móvel, cabeçalho, atalhos, clientes do dia, atividades, resumo e meta ilustrativos.
+Os backgrounds oficiais são servidos pelas cópias idênticas em `apps/admin/public/brand/`.
+
+`components/manager/` contém a composição e fixtures; `hooks/use-manager-layout.ts` controla sidebar
+e busca Ctrl/⌘ K. A busca filtra páginas e exemplos de clientes/serviços, abre por teclado ou botão,
+e oferece estado vazio. Ações ainda não construídas abrem um Modal HeroUI explicando o protótipo.
+Cards, Button, Avatar, Chip, SearchField, Modal e ProgressBar são HeroUI, com CSS e tokens do experimento
+em `app/dashboard/manager.css`. Não foi criado um package compartilhado sem consumidores reais.
+
+A prévia é pública e claramente identificada, sem consultas ou gravações de dados de clínicas. Não
+substitui a Home autenticada em `/clinics/:clinicId`, nem altera autorização, onboarding ou schema.
+Conectar os componentes ao tenant real é uma etapa posterior, com estados reais de loading/vazio/erro.
+Glass é o experimento atual, não uma decisão definitiva de tema. O sistema respeita redução de
+transparência/movimento; o botão de teste na prévia permite optar por transparência nesta sessão.
+
+Validação inicial: conferir desktop/mobile, sidebar, busca por teclado, foco/Escape, modal e ausência
+de overflow. Contraste formal, fadiga visual e performance em dispositivos modestos continuam
+critérios de avaliação do experimento, não garantias já comprovadas.
