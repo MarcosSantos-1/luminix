@@ -1,5 +1,13 @@
 'use client'
-import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from 'react'
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useRef,
+  useState,
+  type ReactNode,
+} from 'react'
 import {
   browserSessionPersistence,
   onIdTokenChanged,
@@ -20,6 +28,18 @@ type StaffState = {
   refresh: () => void
 }
 const StaffContext = createContext<StaffState | null>(null)
+
+function sameClinics(left: StaffClinic[], right: StaffClinic[]) {
+  if (left.length !== right.length) return false
+  return left.every(
+    (clinic, index) =>
+      clinic.id === right[index]?.id &&
+      clinic.name === right[index]?.name &&
+      clinic.status === right[index]?.status &&
+      clinic.role === right[index]?.role,
+  )
+}
+
 export function StaffProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
   const [loading, setLoading] = useState(true)
@@ -28,7 +48,13 @@ export function StaffProvider({ children }: { children: ReactNode }) {
   const [nextCursor, setNextCursor] = useState<string | null>(null)
   const [revision, setRevision] = useState(0)
   const [retry, setRetry] = useState(0)
-  const refresh = useCallback(() => setRetry((value) => value + 1), [])
+  const userRef = useRef<User | null>(null)
+  const clinicsRef = useRef<StaffClinic[]>([])
+  const explicitRefresh = useRef(false)
+  const refresh = useCallback(() => {
+    explicitRefresh.current = true
+    setRetry((value) => value + 1)
+  }, [])
   useEffect(() => {
     let active = true
     let generation = 0
@@ -39,10 +65,15 @@ export function StaffProvider({ children }: { children: ReactNode }) {
       abort?.abort()
       abort = new AbortController()
       const signal = abort.signal
-      setLoading(true)
+      const sameUser = Boolean(currentUser && userRef.current?.uid === currentUser.uid)
+      if (!sameUser) {
+        setLoading(true)
+        setClinics([])
+        clinicsRef.current = []
+        setNextCursor(null)
+      }
       setUser(currentUser)
-      setClinics([])
-      setNextCursor(null)
+      userRef.current = currentUser
       setError('')
       try {
         if (currentUser) {
@@ -56,19 +87,20 @@ export function StaffProvider({ children }: { children: ReactNode }) {
             throw new Error('Session unavailable')
           }
           const data = await response.json()
-          if (active && current === generation) {
-            setClinics(data.clinics)
-            setNextCursor(data.nextCursor)
-          }
+          if (!active || current !== generation) return
+          const nextClinics = data.clinics as StaffClinic[]
+          const changed = !sameClinics(clinicsRef.current, nextClinics)
+          clinicsRef.current = nextClinics
+          setClinics(nextClinics)
+          setNextCursor(data.nextCursor)
+          if (changed || explicitRefresh.current) setRevision((value) => value + 1)
         }
       } catch {
-        if (active && current === generation)
+        if (active && current === generation && !sameUser)
           setError('Não foi possível validar seus acessos. Tente novamente.')
       } finally {
-        if (active && current === generation) {
-          setLoading(false)
-          setRevision((value) => value + 1)
-        }
+        explicitRefresh.current = false
+        if (active && current === generation) setLoading(false)
       }
     }
     void (async () => {
@@ -86,22 +118,13 @@ export function StaffProvider({ children }: { children: ReactNode }) {
         }
       }
     })()
-    const focus = () => {
-      try {
-        if (document.visibilityState === 'visible' && getFirebaseAuth().currentUser) refresh()
-      } catch {
-        /* Incomplete config is surfaced by sync. */
-      }
-    }
-    window.addEventListener('focus', focus)
     return () => {
       active = false
       generation++
       abort?.abort()
       unsubscribe?.()
-      window.removeEventListener('focus', focus)
     }
-  }, [retry, refresh])
+  }, [retry])
   return (
     <StaffContext.Provider value={{ user, loading, error, clinics, nextCursor, revision, refresh }}>
       {children}

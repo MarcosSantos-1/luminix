@@ -2,6 +2,7 @@
 
 import { useEffect, type FormEvent } from 'react'
 import { useRouter } from 'next/navigation'
+import { AppStatus } from '@/components/app-status'
 import AuthSectionOne from '@/components/ui/auth-section-1'
 import { useStaff } from '@/components/staff-provider'
 import { useStaffAuth } from '@/hooks/use-staff-auth'
@@ -17,12 +18,7 @@ export default function CadastroPage() {
     router.replace(staffHomePath(staff.clinics) ?? '/')
   }, [staff.user, staff.loading, staff.error, staff.clinics, router])
 
-  if (staff.user && !staff.error)
-    return (
-      <main className="auth-boot" role="status">
-        Abrindo seu espaço…
-      </main>
-    )
+  if (staff.user && !staff.error) return <AppStatus />
 
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()

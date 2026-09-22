@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { AppStatus } from '@/components/app-status'
 import { useStaff } from '@/components/staff-provider'
 import { DRAFT_CLINIC_NAME, staffHomePath } from '@/lib/staff-destination'
 
@@ -48,16 +49,22 @@ export default function Page() {
     })()
   }, [staff.loading, staff.error, staff.user, staff.clinics, staff.refresh, error, router])
 
+  const problem = error || staff.error
   return (
-    <main className="auth-boot">
-      <p className="boot-status" role="status">
-        {error || staff.error || 'Preparando seu espaço…'}
-      </p>
-      {(error || staff.error) && (
-        <button type="button" onClick={() => (error ? window.location.reload() : staff.refresh())}>
-          Tentar novamente
-        </button>
-      )}
-    </main>
+    <AppStatus
+      alert={Boolean(problem)}
+      action={
+        problem ? (
+          <button
+            type="button"
+            onClick={() => (error ? window.location.reload() : staff.refresh())}
+          >
+            Tentar novamente
+          </button>
+        ) : undefined
+      }
+    >
+      {problem || 'Carregando'}
+    </AppStatus>
   )
 }

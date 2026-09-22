@@ -1,14 +1,18 @@
 'use client'
 import Link from 'next/link'
-import { useState, type FormEvent } from 'react'
+import { useEffect, useState, type FormEvent } from 'react'
 import { signOut } from 'firebase/auth'
 import { useRouter } from 'next/navigation'
+import { AppStatus } from '@/components/app-status'
 import { useStaff, type StaffClinic } from '@/components/staff-provider'
 import { getFirebaseAuth } from '@/lib/firebase'
 
 export default function ClinicsPage() {
   const staff = useStaff()
   const router = useRouter()
+  useEffect(() => {
+    if (!staff.loading && !staff.user) router.replace('/login')
+  }, [staff.loading, staff.user, router])
   const [name, setName] = useState('')
   const [submitted, setSubmitted] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
@@ -93,24 +97,13 @@ export default function ClinicsPage() {
       setBusy(false)
     }
   }
-  if (staff.loading)
-    return (
-      <main className="p-6" role="status">
-        Validando seus acessos…
-      </main>
-    )
-  if (!staff.user)
-    return (
-      <main className="p-6">
-        <Link href="/login">Entrar para acessar suas clínicas</Link>
-      </main>
-    )
+  if (staff.loading) return <AppStatus />
+  if (!staff.user) return <AppStatus />
   if (staff.error)
     return (
-      <main className="p-6" role="alert">
-        <p>{staff.error}</p>
-        <button onClick={staff.refresh}>Tentar novamente</button>
-      </main>
+      <AppStatus alert action={<button onClick={staff.refresh}>Tentar novamente</button>}>
+        {staff.error}
+      </AppStatus>
     )
   return (
     <main className="mx-auto max-w-2xl space-y-5 p-6">

@@ -1,5 +1,6 @@
 'use client'
 import { useEffect, useState } from 'react'
+import { AppStatus } from '@/components/app-status'
 import { useClinic } from '@/components/clinic-workspace'
 import { useStaff } from '@/components/staff-provider'
 export default function SettingsPage() {
@@ -30,10 +31,14 @@ export default function SettingsPage() {
         if (active) setState({ key, settings: data.settings })
       } catch {
         if (active)
-          setState({
-            key,
-            error: 'Configurações indisponíveis ou acesso alterado. Atualize seu acesso.',
-          })
+          setState((current) =>
+            current?.settings
+              ? current
+              : {
+                  key,
+                  error: 'Configurações indisponíveis ou acesso alterado. Atualize seu acesso.',
+                },
+          )
       }
     })()
     return () => {
@@ -43,13 +48,17 @@ export default function SettingsPage() {
   }, [staff.user, clinic.clinic.id, key, allowed, retry])
   if (!allowed)
     return <p role="alert">Você não tem permissão para gerenciar configurações nesta clínica.</p>
-  if (state?.key !== key) return <p role="status">Carregando configurações…</p>
-  if (!state.settings)
-    return (
-      <div role="alert">
-        <p>{state.error}</p>
-        <button onClick={() => setRetry((value) => value + 1)}>Tentar novamente</button>
-      </div>
+  if (!state?.settings)
+    return state?.error ? (
+      <AppStatus
+        compact
+        alert
+        action={<button onClick={() => setRetry((value) => value + 1)}>Tentar novamente</button>}
+      >
+        {state.error}
+      </AppStatus>
+    ) : (
+      <AppStatus compact />
     )
   return (
     <section className="space-y-4 rounded-2xl border border-border bg-card p-5">

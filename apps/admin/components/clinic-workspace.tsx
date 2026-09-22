@@ -8,7 +8,7 @@ import {
   type ReactNode,
 } from 'react'
 import Link from 'next/link'
-import { useParams, usePathname } from 'next/navigation'
+import { useParams, usePathname, useRouter } from 'next/navigation'
 import { signOut } from 'firebase/auth'
 import { AppStatus } from '@/components/app-status'
 import { useStaff } from '@/components/staff-provider'
@@ -39,6 +39,7 @@ function rememberClinic(id: string, data: ClinicContext) {
 export function ClinicWorkspace({ children }: { children: ReactNode }) {
   const { clinicId } = useParams<{ clinicId: string }>()
   const pathname = usePathname()
+  const router = useRouter()
   const onboarding = pathname.endsWith('/onboarding')
   const staff = useStaff()
   const key = `${staff.user?.uid}/${clinicId}/${staff.revision}`
@@ -100,12 +101,10 @@ export function ClinicWorkspace({ children }: { children: ReactNode }) {
       : state?.key === key
         ? state.data
         : cached
-  if (!staff.loading && !staff.user)
-    return (
-      <AppStatus alert action={<Link href="/login">Entrar para continuar</Link>}>
-        Entre para continuar.
-      </AppStatus>
-    )
+  useEffect(() => {
+    if (!staff.loading && !staff.user) router.replace('/login')
+  }, [staff.loading, staff.user, router])
+  if (!staff.loading && !staff.user) return <AppStatus />
   if (!visible) {
     if (staff.error)
       return (

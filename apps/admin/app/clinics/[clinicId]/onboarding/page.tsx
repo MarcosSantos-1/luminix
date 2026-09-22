@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState, useSyncExternalStore } from 'react'
 import {
   ArrowLeft,
   ArrowRight,
@@ -14,6 +14,7 @@ import {
 } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { Brand } from '@/components/brand'
+import { AppStatus } from '@/components/app-status'
 import { useClinic } from '@/components/clinic-workspace'
 import { useStaff } from '@/components/staff-provider'
 import { formatBrPhone, isCompletePhone, toE164Phone } from '@/lib/phone'
@@ -34,6 +35,27 @@ type Draft = {
   step: string
   status: string
   payload: Payload
+}
+
+type DraftView = { draft: Draft; payload: Payload; step: number; phoneText: string }
+const draftViews = new Map<string, DraftView>()
+const draftListeners = new Set<() => void>()
+
+function subscribeDrafts(listener: () => void) {
+  draftListeners.add(listener)
+  return () => draftListeners.delete(listener)
+}
+
+function rememberDraft(id: string, view: DraftView) {
+  const current = draftViews.get(id)
+  if (
+    current?.payload === view.payload &&
+    current.step === view.step &&
+    current.phoneText === view.phoneText
+  )
+    return
+  draftViews.set(id, view)
+  draftListeners.forEach((listener) => listener())
 }
 
 const steps = [
@@ -92,13 +114,27 @@ export default function OnboardingPage() {
   const staff = useStaff()
   const router = useRouter()
   const key = `${staff.user?.uid}/${clinic.id}/${staff.revision}`
+  const viewId = `${staff.user?.uid ?? ''}/${clinic.id}`
+  const remembered = useSyncExternalStore(
+    subscribeDrafts,
+    () => draftViews.get(viewId) ?? null,
+    () => null,
+  )
   const [state, setState] = useState<{ key: string; draft?: Draft; error?: string } | null>(null)
-  const [payload, setPayload] = useState<Payload | null>(null)
-  const [step, setStep] = useState(0)
+  const [editedPayload, setPayload] = useState<Payload | null>(null)
+  const [editedStep, setStep] = useState<number | null>(null)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const [retry, setRetry] = useState(0)
-  const [phoneText, setPhoneText] = useState('')
+  const [editedPhone, setPhoneText] = useState<string | null>(null)
+  const payload = editedPayload ?? remembered?.payload ?? null
+  const step = editedStep ?? remembered?.step ?? 0
+  const phoneText = editedPhone ?? remembered?.phoneText ?? ''
+  const draft = state?.draft ?? remembered?.draft
+  const payloadRef = useRef<Payload | null>(null)
+  useEffect(() => {
+    payloadRef.current = payload
+  })
 
   useEffect(() => {
     const user = staff.user
@@ -117,6 +153,10 @@ export default function OnboardingPage() {
         if (!active) return
         if (data.draft.formatVersion !== 1) {
           setState({ key, error: 'Esta versão do rascunho precisa de atualização.' })
+          return
+        }
+        if (payloadRef.current) {
+          setState({ key, draft: { ...data.draft, payload: payloadRef.current } })
           return
         }
         const next = {
@@ -138,8 +178,15 @@ export default function OnboardingPage() {
         const missingContact = !next.ownerName.trim() || !next.email.trim() || !next.phone
         const index = steps.findIndex((item) => item.key === data.draft.step)
         setStep(missingContact ? 0 : Math.max(0, index))
+        rememberDraft(`${user.uid}/${clinic.id}`, {
+          draft: { ...data.draft, payload: next },
+          payload: next,
+          step: missingContact ? 0 : Math.max(0, index),
+          phoneText: next.phone ? formatBrPhone(next.phone) : '',
+        })
       } catch {
-        if (active) setState({ key, error: 'Não foi possível carregar o rascunho.' })
+        if (active && !payloadRef.current)
+          setState({ key, error: 'Não foi possível carregar o rascunho.' })
       }
     })()
     return () => {
@@ -148,9 +195,21 @@ export default function OnboardingPage() {
     }
   }, [staff.user, clinic.id, clinic.name, staff.revision, permissions, key, retry])
 
+  useEffect(() => {
+    const uid = staff.user?.uid
+    const stored = state?.draft ?? remembered?.draft
+    if (!uid || !payload || !stored) return
+    rememberDraft(`${uid}/${clinic.id}`, {
+      draft: { ...stored, payload },
+      payload,
+      step,
+      phoneText,
+    })
+  }, [staff.user, clinic.id, payload, state, remembered, step, phoneText])
+
   async function save(nextStep: number, exit = false): Promise<void> {
     const user = staff.user
-    if (!user || !payload || !state?.draft || busy) return
+    if (!user || !payload || !draft || busy) return
     setBusy(true)
     setError('')
     try {
@@ -259,48 +318,38 @@ export default function OnboardingPage() {
   }
 
   if (!permissions.includes('onboarding:manage'))
-    return (
-      <main className="onboarding">
-        <p className="boot-status" role="alert">
-          Você não tem acesso ao onboarding.
-        </p>
-      </main>
-    )
+    return <AppStatus alert>Você não tem acesso ao onboarding.</AppStatus>
   if (clinic.status === 'active')
     return (
-      <main className="onboarding">
-        <p className="boot-status">
-          Onboarding concluído.{' '}
+      <AppStatus
+        action={
           <button
             className="button button-primary"
             onClick={() => router.push(`/clinics/${clinic.id}`)}
           >
             Ir para a clínica
           </button>
-        </p>
-      </main>
+        }
+      >
+        Onboarding concluído.
+      </AppStatus>
     )
-  if (state?.key !== key)
-    return (
-      <main className="onboarding">
-        <p className="boot-status" role="status">
-          Carregando rascunho…
-        </p>
-      </main>
-    )
-  if (!state.draft || !payload)
-    return (
-      <main className="onboarding">
-        <div className="boot-status" role="alert">
-          <p>{state.error}</p>
+  if (!payload || !draft)
+    return state?.error ? (
+      <AppStatus
+        alert
+        action={
           <button className="button button-primary" onClick={() => setRetry((value) => value + 1)}>
             Tentar novamente
           </button>
-        </div>
-      </main>
+        }
+      >
+        {state.error}
+      </AppStatus>
+    ) : (
+      <AppStatus />
     )
 
-  const draft = state.draft
   const current = steps[step]
   const progress = Math.round((step / (steps.length - 1)) * 100)
 
