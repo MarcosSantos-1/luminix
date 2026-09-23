@@ -22,6 +22,8 @@ import {
 } from './demo-data'
 import { ManagerSidebar } from './manager-sidebar'
 import { HomePanels } from './sections/home-panels'
+import { AgendaPanel } from './sections/agenda-panel'
+import { ClientsPanel } from './sections/clients-panel'
 import { SectionSketchView } from './sections/section-sketch'
 
 function normalize(value: string) {
@@ -80,6 +82,7 @@ export function ManagerHome({
   const [announcement, setAnnouncement] = useState(true)
   const [forceGlass, setForceGlass] = useState(false)
   const [copied, setCopied] = useState(false)
+  const [createSignal, setCreateSignal] = useState(0)
   const [copyError, setCopyError] = useState(false)
   const realClinic = shareCode !== undefined
   const isHome = section.id === 'inicio'
@@ -97,6 +100,16 @@ export function ManagerHome({
   }
 
   function navigate(label: string) {
+    if (label === 'Novo agendamento') {
+      select('agenda')
+      setCreateSignal((value) => value + 1)
+      return
+    }
+    if (label === 'Adicionar cliente') {
+      select('clientes')
+      setCreateSignal((value) => value + 1)
+      return
+    }
     if (label === 'Agenda semanal' || label === 'Agenda completa') {
       select('agenda')
       return
@@ -141,7 +154,11 @@ export function ManagerHome({
         ? 'Agenda e indicadores demonstrativos'
         : 'Exemplos ilustrativos desta seção'
   const sketch =
-    section.id === 'inicio' || section.id === 'configuracoes' ? null : sectionSketches[section.id]
+    section.id === 'inicio' ||
+    section.id === 'configuracoes' ||
+    (realClinic && (section.id === 'agenda' || section.id === 'clientes'))
+      ? null
+      : sectionSketches[section.id]
 
   return (
     <div
@@ -280,6 +297,8 @@ export function ManagerHome({
             onNavigate={navigate}
           />
         )}
+        {realClinic && section.id === 'agenda' && <AgendaPanel createSignal={createSignal} />}
+        {realClinic && section.id === 'clientes' && <ClientsPanel createSignal={createSignal} />}
         {sketch && (
           <SectionSketchView
             sketch={sketch}

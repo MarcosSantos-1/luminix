@@ -6,7 +6,7 @@ export async function GET(
   const { clinicId, resource } = await params
   if (
     !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(clinicId) ||
-    !['context', 'settings', 'onboarding', 'overview'].includes(resource)
+    !['context', 'settings', 'onboarding', 'overview', 'clients', 'agenda'].includes(resource)
   )
     return Response.json(
       { error: 'Not found' },
@@ -19,7 +19,11 @@ export async function GET(
         ? (`/clinics/${clinicId}/settings` as const)
         : resource === 'overview'
           ? (`/clinics/${clinicId}/overview` as const)
-          : (`/clinics/${clinicId}/onboarding` as const)
+          : resource === 'clients'
+            ? (`/clinics/${clinicId}/clients` as const)
+            : resource === 'agenda'
+              ? (`/clinics/${clinicId}/agenda` as const)
+              : (`/clinics/${clinicId}/onboarding` as const)
   return staffApiGet(request, path)
 }
 export async function PUT(
@@ -29,11 +33,35 @@ export async function PUT(
   const { clinicId, resource } = await params
   if (
     !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(clinicId) ||
-    resource !== 'onboarding'
+    !['onboarding', 'availability'].includes(resource)
   )
     return Response.json(
       { error: 'Not found' },
       { status: 404, headers: { 'Cache-Control': 'no-store' } },
     )
-  return staffApiWrite(request, `/clinics/${clinicId}/onboarding`)
+  return staffApiWrite(
+    request,
+    resource === 'availability'
+      ? `/clinics/${clinicId}/availability`
+      : `/clinics/${clinicId}/onboarding`,
+  )
+}
+
+export async function POST(
+  request: Request,
+  { params }: { params: Promise<{ clinicId: string; resource: string }> },
+) {
+  const { clinicId, resource } = await params
+  if (
+    !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(clinicId) ||
+    !['clients', 'appointments'].includes(resource)
+  )
+    return Response.json(
+      { error: 'Not found' },
+      { status: 404, headers: { 'Cache-Control': 'no-store' } },
+    )
+  return staffApiWrite(
+    request,
+    resource === 'clients' ? `/clinics/${clinicId}/clients` : `/clinics/${clinicId}/appointments`,
+  )
 }

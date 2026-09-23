@@ -30,6 +30,8 @@ e [ADR-004 — Ambiente local e integrações](decisions/ADR-004-AMBIENTE-LOCAL-
 [ADR-006 — Deploy do admin na Vercel](decisions/ADR-006-DEPLOY-DO-ADMIN-NA-VERCEL.md) e
 [ADR-007 — Deploy web do cliente](decisions/ADR-007-DEPLOY-WEB-DO-CLIENTE-NA-VERCEL.md).
 
+Agenda e clientes do gestor: [ADR-012](decisions/ADR-012-AGENDA-E-CLIENTES-DO-GESTOR.md).
+
 ## Diretórios
 
 Núcleo multi-tenant: [ADR-009](decisions/ADR-009-NUCLEO-MULTI-TENANT.md) e

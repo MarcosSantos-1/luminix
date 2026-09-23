@@ -1,6 +1,7 @@
 import type { FastifyInstance } from 'fastify'
 import { createStaffAuthenticator, type AuthDependencies } from '../../shared/auth/staff-session.js'
 import { clinicRoutes } from '../clinics/routes.js'
+import { operationRoutes } from '../operations/routes.js'
 export type { AuthDependencies } from '../../shared/auth/staff-session.js'
 
 export async function authRoutes(app: FastifyInstance, dependencies: AuthDependencies) {
@@ -14,6 +15,7 @@ export async function authRoutes(app: FastifyInstance, dependencies: AuthDepende
   })
   const authenticate = createStaffAuthenticator(dependencies)
   await clinicRoutes(app, authenticate, dependencies.tenantPool)
+  await operationRoutes(app, authenticate, dependencies.tenantPool)
   app.get<{ Querystring: { after?: string } }>(
     '/auth/clinics',
     {

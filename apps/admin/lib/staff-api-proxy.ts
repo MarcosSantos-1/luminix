@@ -6,7 +6,9 @@ export async function staffApiGet(
     | `/clinics/${string}/context`
     | `/clinics/${string}/settings`
     | `/clinics/${string}/overview`
-    | `/clinics/${string}/onboarding`,
+    | `/clinics/${string}/onboarding`
+    | `/clinics/${string}/clients`
+    | `/clinics/${string}/agenda`,
 ) {
   const headers = { 'Cache-Control': 'no-store' }
   const authorization = request.headers.get('authorization') ?? ''
@@ -27,6 +29,18 @@ export async function staffApiGet(
         if (!/^[0-9a-f-]{36}$/i.test(after))
           return Response.json({ error: 'Invalid cursor' }, { status: 400, headers })
         url.searchParams.set('after', after)
+      }
+    } else if (path.endsWith('/clients')) {
+      const source = new URL(request.url).searchParams
+      for (const key of ['q', 'status']) {
+        const value = source.get(key)
+        if (value) url.searchParams.set(key, value)
+      }
+    } else if (path.endsWith('/agenda')) {
+      const source = new URL(request.url).searchParams
+      for (const key of ['from', 'to']) {
+        const value = source.get(key)
+        if (value) url.searchParams.set(key, value)
       }
     }
     const response = await fetch(url, {
@@ -49,7 +63,12 @@ export async function staffApiGet(
 
 export async function staffApiWrite(
   request: Request,
-  path: `/clinics/${string}/onboarding` | `/clinics/${string}/onboarding/complete`,
+  path:
+    | `/clinics/${string}/onboarding`
+    | `/clinics/${string}/onboarding/complete`
+    | `/clinics/${string}/clients`
+    | `/clinics/${string}/appointments`
+    | `/clinics/${string}/availability`,
 ) {
   const headers = { 'Cache-Control': 'no-store' }
   const authorization = request.headers.get('authorization') ?? ''
@@ -75,14 +94,13 @@ export async function staffApiWrite(
       redirect: 'error',
       signal: AbortSignal.timeout(15_000),
     })
-    if (!response.ok)
-      return Response.json(
-        { error: 'Request failed' },
-        {
-          status: [400, 401, 403, 409, 413, 429].includes(response.status) ? response.status : 503,
-          headers,
-        },
-      )
+    if (!response.ok) {
+      const responseBody = await response.json().catch(() => ({ error: 'Request failed' }))
+      return Response.json(responseBody, {
+        status: [400, 401, 403, 409, 413, 429].includes(response.status) ? response.status : 503,
+        headers,
+      })
+    }
     return Response.json(await response.json(), { headers })
   } catch {
     return Response.json({ error: 'API unavailable' }, { status: 503, headers })

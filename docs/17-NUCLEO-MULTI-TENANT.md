@@ -6,7 +6,7 @@ Em 2026-09-15, migration 0001 aplicada no Neon existente: projeto `luminix`
 (`noisy-credit-37439938`), branch principal `production` (`br-hidden-glitter-acap197k`), endpoint
 direto `ep-bitter-fog-acchavo1.sa-east-1.aws.neon.tech`, database `neondb`, PostgreSQL 18.6.
 O destino estava sem tabelas de usuário. Após a migration 0002 da Step 4 entrega 2,
-existem 17 tabelas em `luminix`, além do ledger
+Após a migration 0006, aplicada em 2026-09-23, existem 20 tabelas em `luminix`, além do ledger
 `luminix_migrations.applied`. No console Neon, selecionar `neondb` e o schema `luminix` para vê-las.
 Não ficaram cadastros sintéticos dos testes; apenas o catálogo técnico de permissões da migration.
 
@@ -29,6 +29,9 @@ Schema em `apps/api/migrations/0001_multi_tenant_core.sql`, runner interno em
 | clinic_settings                        | Base inicial BRL / pt-BR / America/Sao_Paulo           |
 | onboarding_drafts                      | Rascunho após criação da clínica, autor local e versão |
 | audit_logs                             | Eventos locais transacionais, sem snapshots sensíveis  |
+| weekly_availability                    | Funcionamento semanal local da clínica                 |
+| schedule_overrides                     | Exceção de horário por data local                      |
+| appointments                           | Agenda tenant-aware e overrides confirmados            |
 
 ## Validação local sem credenciais
 
@@ -78,7 +81,8 @@ Não existe reset automático. O destino principal foi autorizado na fase inicia
 Falha de BEGIN ou de ROLLBACK descarta a conexão em vez de devolvê-la ao pool com possível
 transação/contexto pendente. Um teste simula rollback desconectado e verifica o descarte.
 
-Não existe seed persistente, convite ou CRUD pós-conclusão. O onboarding inicial conectado usa
+Não existe seed persistente ou convite. O CRUD inicial de clientes e agenda do gestor foi entregue
+na migration 0006 e na API HTTP; limites e chave mestra estão na ADR-012. O onboarding inicial conectado usa
 rascunho versionado e funções transacionais da migration 0004; ver ADR-011. Login/sessão Firebase,
 bootstrap atômico da primeira clínica/proprietário e autorização HTTP implementados nas entregas
 1–3 da Step 4, com checks reais Firebase/Neon; ver `03-AUTENTICACAO-E-AUTORIZACAO.md`.
