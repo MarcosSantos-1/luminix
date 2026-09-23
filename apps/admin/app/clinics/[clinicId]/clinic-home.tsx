@@ -41,6 +41,10 @@ export function ClinicHome({ initialSection }: { initialSection: string }) {
       key={`${staff.user?.uid}/${clinic.id}`}
       clinicName={clinic.name}
       userName={staff.user?.displayName || 'Gestor'}
+      userEmail={staff.user?.email || undefined}
+      onLogout={() => void logout()}
+      signingOut={signingOut}
+      logoutError={logoutError}
       canManageSettings={permissions.includes('settings:manage')}
       shareCode={clinic.share_code ?? null}
       initialSection={initialSection}
@@ -48,7 +52,9 @@ export function ClinicHome({ initialSection }: { initialSection: string }) {
         permissions.includes('settings:manage') ? (
           <ClinicSettings
             clinic={clinic}
+            shareCode={clinic.share_code ?? null}
             canContinueOnboarding={permissions.includes('onboarding:manage')}
+            canReadOnboarding={permissions.includes('onboarding:manage')}
           />
         ) : undefined
       }
@@ -71,9 +77,6 @@ export function ClinicHome({ initialSection }: { initialSection: string }) {
           <p>{staff.user?.email}</p>
           <Button variant="secondary" onPress={staff.refresh}>
             Atualizar acesso
-          </Button>
-          <Button isDisabled={signingOut} onPress={() => void logout()}>
-            {signingOut ? 'Saindo…' : 'Sair'}
           </Button>
           {logoutError && <p role="alert">{logoutError}</p>}
         </div>

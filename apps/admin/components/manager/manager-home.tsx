@@ -1,7 +1,16 @@
 'use client'
 
-import { Avatar, Button, Card, Modal, SearchField } from '@heroui/react'
-import { ArrowRight, Bell, ChevronRight, Plus, Search } from 'lucide-react'
+import { Avatar, Button, Card, Dropdown, Modal, SearchField } from '@heroui/react'
+import {
+  ArrowRight,
+  Bell,
+  ChevronDown,
+  LogOut,
+  Plus,
+  Search,
+  Settings2,
+  UserRound,
+} from 'lucide-react'
 import { useMemo, useState, type ReactNode } from 'react'
 import { useManagerLayout } from '@/hooks/use-manager-layout'
 import { useManagerSection } from '@/hooks/use-manager-section'
@@ -31,6 +40,10 @@ export function ManagerHome({
   shareCode,
   banner,
   initialSection = 'inicio',
+  userEmail,
+  onLogout,
+  signingOut = false,
+  logoutError,
 }: {
   clinicName?: string
   userName?: string
@@ -40,6 +53,10 @@ export function ManagerHome({
   shareCode?: string | null
   banner?: ReactNode
   initialSection?: string
+  userEmail?: string
+  onLogout?: () => void
+  signingOut?: boolean
+  logoutError?: string
 } = {}) {
   const navigation = useMemo(
     () => managerNavigation.filter((item) => item.id !== 'configuracoes' || canManageSettings),
@@ -187,21 +204,60 @@ export function ManagerHome({
             >
               <Bell size={20} />
             </Button>
-            <Button
-              className="manager-profile"
-              variant="ghost"
-              onPress={() => navigate('Minha conta')}
-              aria-label={`Minha conta: ${userName}`}
-            >
-              <Avatar size="sm">
-                <Avatar.Fallback>{initials}</Avatar.Fallback>
-              </Avatar>
-              <span>
-                {firstName} <ChevronRight size={14} />
-              </span>
-            </Button>
+            <Dropdown>
+              <Dropdown.Trigger className="manager-profile" aria-label={`Conta: ${userName}`}>
+                <Avatar size="sm">
+                  <Avatar.Fallback>{initials}</Avatar.Fallback>
+                </Avatar>
+                <span>
+                  {firstName} <ChevronDown size={14} />
+                </span>
+              </Dropdown.Trigger>
+              <Dropdown.Popover className="manager-account-menu" placement="bottom end">
+                <div className="manager-account-head">
+                  <strong>{userName}</strong>
+                  {userEmail && <span>{userEmail}</span>}
+                </div>
+                <Dropdown.Menu
+                  aria-label="Conta"
+                  onAction={(key) => {
+                    if (key === 'account') openNotice('Minha conta')
+                    if (key === 'settings') select('configuracoes')
+                    if (key === 'logout') {
+                      if (onLogout) onLogout()
+                      else openNotice('Sair')
+                    }
+                  }}
+                >
+                  <Dropdown.Item id="account" textValue="Minha conta">
+                    <UserRound size={18} />
+                    <span>Minha conta</span>
+                  </Dropdown.Item>
+                  {canManageSettings ? (
+                    <Dropdown.Item id="settings" textValue="Configurações">
+                      <Settings2 size={18} />
+                      <span>Configurações</span>
+                    </Dropdown.Item>
+                  ) : null}
+                  <Dropdown.Item
+                    id="logout"
+                    textValue="Sair"
+                    variant="danger"
+                    isDisabled={signingOut}
+                  >
+                    <LogOut size={18} />
+                    <span>{signingOut ? 'Saindo…' : 'Sair'}</span>
+                  </Dropdown.Item>
+                </Dropdown.Menu>
+              </Dropdown.Popover>
+            </Dropdown>
           </div>
         </header>
+        {logoutError && (
+          <p className="manager-logout-error" role="alert">
+            {logoutError}
+          </p>
+        )}
         <div className="manager-demo-label">
           <span>
             <i />

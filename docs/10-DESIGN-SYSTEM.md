@@ -138,13 +138,13 @@ marketing e relatórios são esboços com exemplos identificados como ilustrativ
 nunca são fallback para erro de API. A rota continua protegida pelo contexto e `clinic:manage`.
 O layout recebe propriedades; a demonstração pública não importa nem consulta o contexto autenticado.
 
-Configurações respeita `settings:manage` e, na clínica autenticada, mostra dados reais do contexto,
-de `settings` e de `overview` (nome, identificador, situação, fuso, idioma, moeda, ocupações,
-serviços e profissionais), com carregamento, erro e nova tentativa. A prévia pública não inventa
-esses registros. O código de acesso fica só na Home. Minha conta oferece atualização de acesso e
-logout; o gestor não troca de clínica. A lista `/clinics` continua sendo a entrada após o login e o
-retorno quando o acesso é negado. Clínicas em rascunho mantêm o atalho ao onboarding conforme
-`onboarding:manage`. Nenhuma migration ou mudança no fluxo de login foi necessária. O cache visual
+Configurações respeita `settings:manage` e, na clínica autenticada, mostra o cadastro persistido:
+nome, identificador, situação, código, contato do onboarding, fuso, idioma, moeda, ocupações,
+serviços e equipe. Horários, recursos, pagamentos, página pública, marca e permissões aparecem como
+exemplos identificados e não substituem falha de API. A conta no cabeçalho abre um menu com Minha
+conta, Configurações e Sair. O gestor não troca de clínica. A lista `/clinics` continua sendo a
+entrada após o login e o retorno quando o acesso é negado. Clínicas em rascunho mantêm o atalho ao
+onboarding conforme `onboarding:manage`. Nenhuma migration ou mudança no fluxo de login foi necessária. O cache visual
 distingue UID, clínica e revisão de autorização; respostas de acesso negado invalidam a entrada e a
 interface não reutiliza contexto de outra sessão.
 Glass é o experimento atual, não uma decisão definitiva de tema. O sistema respeita redução de

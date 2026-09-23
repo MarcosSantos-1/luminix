@@ -2,7 +2,8 @@
 
 /* Tokens locais ao experimento; o restante do admin mantém sua aparência. */
 .manager-shell,
-.manager-dialog {
+.manager-dialog,
+.manager-account-menu {
   --foreground: #fff7fb;
   --muted: #f1cfdf;
   --accent: #ec287a;
@@ -210,9 +211,19 @@
   border: 1px solid #ffffff16;
   border-radius: 13px;
 }
-.manager-profile.button {
+.manager-profile.button,
+.manager-profile.dropdown__trigger {
   gap: 10px;
   padding: 5px 9px;
+}
+.manager-profile.dropdown__trigger {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: inherit;
 }
 .manager-profile > span:not(.avatar) {
   display: flex;
@@ -862,7 +873,8 @@
   .manager-header-actions > .button:first-child {
     display: none;
   }
-  .manager-profile.button {
+  .manager-profile.button,
+  .manager-profile.dropdown__trigger {
     padding: 0;
   }
   .manager-search-trigger.button {
@@ -1159,6 +1171,43 @@
   background: #ffffff14;
   letter-spacing: 0.08em;
   font-size: 18px;
+}
+.manager-logout-error {
+  margin: -8px 0 12px;
+}
+.manager-account-menu.dropdown__popover {
+  min-width: 240px;
+  padding: 8px;
+  border: 1px solid #ffffff26;
+  border-radius: 16px;
+  background: #3d1228;
+  color: #fff7fb;
+}
+.manager-account-head {
+  display: grid;
+  gap: 2px;
+  padding: 8px 12px 10px;
+}
+.manager-account-head span {
+  color: #f1cfdf;
+  font-size: 12px;
+}
+.manager-account-menu .menu-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 44px;
+  color: inherit;
+}
+.manager-settings-group {
+  display: grid;
+  gap: 12px;
+}
+.manager-settings-kicker {
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #f6bfd7;
 }
 @media (max-width: 900px) {
   .manager-settings-grid {
