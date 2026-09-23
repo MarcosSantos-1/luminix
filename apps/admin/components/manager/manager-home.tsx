@@ -86,6 +86,7 @@ export function ManagerHome({
   const [copyError, setCopyError] = useState(false)
   const realClinic = shareCode !== undefined
   const isHome = section.id === 'inicio'
+  const showDemoLabel = section.id !== 'agenda'
 
   function closeNotice() {
     setNotice(null)
@@ -275,13 +276,15 @@ export function ManagerHome({
             {logoutError}
           </p>
         )}
-        <div className="manager-demo-label">
-          <span>
-            <i />
-            {demoLabel}
-          </span>
-          <span>{demoDetail}</span>
-        </div>
+        {showDemoLabel && (
+          <div className="manager-demo-label">
+            <span>
+              <i />
+              {demoLabel}
+            </span>
+            <span>{demoDetail}</span>
+          </div>
+        )}
         {section.id !== 'configuracoes' && banner}
         {realClinic && isHome && (
           <div className="manager-clinic-tools">

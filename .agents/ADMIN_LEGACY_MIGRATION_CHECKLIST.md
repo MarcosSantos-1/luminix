@@ -21,7 +21,8 @@ por clínica e testes estiverem cobertos.
 - [x] Exceção por data para fechar, ampliar ou reduzir o expediente.
 - [~] Alterar disponibilidade preserva agendamentos existentes; preview global de afetados pendente.
 - [x] Isolamento por clínica, FKs compostas, RLS, auditoria e timezone da clínica.
-- [~] Visualização semanal real; visão mensal e filtros avançados ainda não migrados.
+- [x] Visualizações semanal e mensal reais, com seleção do dia e detalhamento de agendamentos.
+- [ ] Filtros avançados da agenda.
 - [ ] Reagendar, cancelar, concluir e marcar falta.
 - [ ] Política de cancelamento, crédito/reembolso e retentativa manual.
 - [ ] Autoagendamento do cliente com travas (sem chave mestra).
@@ -42,7 +43,8 @@ por clínica e testes estiverem cobertos.
 - [ ] Editar cadastro, arquivar/restaurar e tela de detalhes.
 - [ ] Convite verificado para vincular o cadastro local à identidade do app.
 - [ ] Histórico, anamnese versionada, alertas clínicos e consentimentos.
-- [ ] Assinaturas, pacotes, vouchers, pagamentos e cartões.
+- [~] Atalho visual de vouchers entregue; emissão, validade, uso, auditoria e financeiro pendentes.
+- [ ] Assinaturas, pacotes, pagamentos e cartões.
 - [ ] Importação reconciliada do legado com mapa de IDs e contatos duplicados.
 
 ## Fora deste recorte

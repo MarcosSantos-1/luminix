@@ -1,7 +1,7 @@
 'use client'
 
-import { Button, Card, Chip, Modal, Spinner } from '@heroui/react'
-import { Plus, Search, UserRound } from 'lucide-react'
+import { Button, Card, Chip, Modal } from '@heroui/react'
+import { Plus, Search, TicketPercent, UserRound } from 'lucide-react'
 import { useEffect, useState, type FormEvent } from 'react'
 import { useClinic } from '@/components/clinic-workspace'
 import { useStaff } from '@/components/staff-provider'
@@ -30,12 +30,14 @@ export function ClientsPanel({ createSignal = 0 }: { createSignal?: number }) {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [open, setOpen] = useState(false)
+  const [voucherOpen, setVoucherOpen] = useState(false)
   const [form, setForm] = useState(emptyForm)
   const [saving, setSaving] = useState(false)
   const [mountedAt] = useState(() => Date.now())
 
   async function load(signal?: AbortSignal) {
     if (!user) return
+    setLoading(true)
     setError('')
     try {
       const search = new URLSearchParams()
@@ -52,7 +54,7 @@ export function ClientsPanel({ createSignal = 0 }: { createSignal?: number }) {
       if (!(caught instanceof DOMException && caught.name === 'AbortError'))
         setError('Não foi possível carregar os clientes desta clínica.')
     } finally {
-      setLoading(false)
+      if (!signal?.aborted) setLoading(false)
     }
   }
 
@@ -140,9 +142,14 @@ export function ClientsPanel({ createSignal = 0 }: { createSignal?: number }) {
             placeholder="Nome, telefone ou e-mail"
           />
         </label>
-        <Button onPress={() => setOpen(true)}>
-          <Plus size={18} /> Adicionar cliente
-        </Button>
+        <div className="manager-toolbar-actions">
+          <Button variant="secondary" onPress={() => setVoucherOpen(true)}>
+            <TicketPercent size={18} /> Voucher
+          </Button>
+          <Button onPress={() => setOpen(true)}>
+            <Plus size={18} /> Adicionar cliente
+          </Button>
+        </div>
       </div>
       {error && (
         <p className="manager-data-error" role="alert">
@@ -150,9 +157,24 @@ export function ClientsPanel({ createSignal = 0 }: { createSignal?: number }) {
         </p>
       )}
       {loading ? (
-        <div className="manager-section-status" role="status">
-          <Spinner aria-label="Carregando clientes" /> Carregando clientes…
-        </div>
+        <Card className="manager-panel manager-client-skeleton" role="status">
+          <Card.Header className="manager-panel-heading">
+            <div className="manager-skeleton manager-skeleton-heading" />
+          </Card.Header>
+          <Card.Content>
+            {Array.from({ length: 5 }, (_, index) => (
+              <div className="manager-skeleton-row" aria-hidden="true" key={index}>
+                <div className="manager-skeleton manager-skeleton-avatar" />
+                <div className="manager-skeleton-lines">
+                  <div className="manager-skeleton manager-skeleton-line" />
+                  <div className="manager-skeleton manager-skeleton-line is-short" />
+                </div>
+                <div className="manager-skeleton manager-skeleton-pill" />
+              </div>
+            ))}
+            <span className="manager-loading-copy">Carregando clientes…</span>
+          </Card.Content>
+        </Card>
       ) : (
         <Card className="manager-panel">
           <Card.Header className="manager-panel-heading">
@@ -281,6 +303,36 @@ export function ClientsPanel({ createSignal = 0 }: { createSignal?: number }) {
               <Button type="submit" form="manager-client-form" isDisabled={saving}>
                 {saving ? 'Salvando…' : 'Salvar cliente'}
               </Button>
+            </Modal.Footer>
+          </Modal.Dialog>
+        </Modal.Container>
+      </Modal.Backdrop>
+      <Modal.Backdrop isOpen={voucherOpen} onOpenChange={setVoucherOpen}>
+        <Modal.Container size="md">
+          <Modal.Dialog className="manager-dialog">
+            <Modal.CloseTrigger aria-label="Fechar" />
+            <Modal.Header>
+              <Modal.Heading>Vouchers</Modal.Heading>
+            </Modal.Header>
+            <Modal.Body>
+              <div className="manager-voucher-intro">
+                <span aria-hidden="true">
+                  <TicketPercent size={24} />
+                </span>
+                <div>
+                  <Chip size="sm" variant="soft">
+                    Em preparação
+                  </Chip>
+                  <p>
+                    O acesso já está posicionado na tela de clientes. A emissão será ativada junto
+                    das regras de valor, validade, uso e auditoria financeira, para não criar
+                    vouchers sem controle.
+                  </p>
+                </div>
+              </div>
+            </Modal.Body>
+            <Modal.Footer>
+              <Button onPress={() => setVoucherOpen(false)}>Entendi</Button>
             </Modal.Footer>
           </Modal.Dialog>
         </Modal.Container>

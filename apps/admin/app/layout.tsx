@@ -7,6 +7,10 @@ export const metadata: Metadata = {
   title: 'Luminix — Sua clínica, mais simples',
   description: 'Configure sua clínica e simplifique sua rotina com o Luminix.',
   generator: 'v0.app',
+  icons: {
+    icon: [{ url: '/brand/logo.png', type: 'image/png', sizes: '1254x1254' }],
+    apple: [{ url: '/brand/logo.png', type: 'image/png', sizes: '1254x1254' }],
+  },
 }
 
 export const viewport: Viewport = {

@@ -1,6 +1,6 @@
 'use client'
 
-import { Button, Card, Chip, Modal, Spinner } from '@heroui/react'
+import { Button, Card, Chip, Modal } from '@heroui/react'
 import {
   AlertTriangle,
   CalendarClock,
@@ -10,7 +10,7 @@ import {
   Plus,
   Settings2,
 } from 'lucide-react'
-import { useEffect, useMemo, useState, type FormEvent } from 'react'
+import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
 import { useClinic } from '@/components/clinic-workspace'
 import { useStaff } from '@/components/staff-provider'
 
@@ -66,6 +66,14 @@ function addDays(value: Date, amount: number) {
   return next
 }
 
+function startOfMonth(value: Date) {
+  return new Date(value.getFullYear(), value.getMonth(), 1)
+}
+
+function addMonths(value: Date, amount: number) {
+  return new Date(value.getFullYear(), value.getMonth() + amount, 1)
+}
+
 function ymd(value: Date) {
   return `${value.getFullYear()}-${String(value.getMonth() + 1).padStart(2, '0')}-${String(value.getDate()).padStart(2, '0')}`
 }
@@ -96,6 +104,9 @@ export function AgendaPanel({ createSignal = 0 }: { createSignal?: number }) {
   const { clinic } = useClinic()
   const { user } = useStaff()
   const [week, setWeek] = useState(() => startOfMonday(new Date()))
+  const [month, setMonth] = useState(() => startOfMonth(new Date()))
+  const [view, setView] = useState<'week' | 'month'>('week')
+  const [selectedDate, setSelectedDate] = useState(() => ymd(new Date()))
   const [data, setData] = useState<AgendaData | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -113,16 +124,28 @@ export function AgendaPanel({ createSignal = 0 }: { createSignal?: number }) {
     reason: '',
   })
   const [saving, setSaving] = useState(false)
+  const selectedDayRef = useRef<HTMLDivElement>(null)
 
   const days = useMemo(() => Array.from({ length: 7 }, (_, index) => addDays(week, index)), [week])
+  const monthDays = useMemo(() => {
+    const firstGridDay = startOfMonday(startOfMonth(month))
+    return Array.from({ length: 42 }, (_, index) => addDays(firstGridDay, index))
+  }, [month])
+  const visibleRange = useMemo(
+    () =>
+      view === 'week'
+        ? { from: addDays(week, -1), to: addDays(week, 8) }
+        : { from: addDays(monthDays[0], -1), to: addDays(monthDays[41], 1) },
+    [monthDays, view, week],
+  )
 
   async function load(signal?: AbortSignal) {
     if (!user) return
     setLoading(true)
     setError('')
     try {
-      const from = new Date(`${ymd(addDays(week, -1))}T00:00:00.000Z`)
-      const to = new Date(`${ymd(addDays(week, 8))}T23:59:59.999Z`)
+      const from = new Date(`${ymd(visibleRange.from)}T00:00:00.000Z`)
+      const to = new Date(`${ymd(visibleRange.to)}T23:59:59.999Z`)
       const query = new URLSearchParams({ from: from.toISOString(), to: to.toISOString() })
       const response = await fetch(`/api/clinics/${clinic.id}/agenda?${query}`, {
         headers: { authorization: `Bearer ${await user.getIdToken()}` },
@@ -156,9 +179,9 @@ export function AgendaPanel({ createSignal = 0 }: { createSignal?: number }) {
       window.clearTimeout(timeout)
       abort.abort()
     }
-    // load is intentionally scoped to the latest user/clinic/week values.
+    // load is intentionally scoped to the latest user/clinic/visible range values.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [clinic.id, user, week])
+  }, [clinic.id, user, visibleRange])
 
   useEffect(() => {
     if (!createSignal) return
@@ -182,6 +205,45 @@ export function AgendaPanel({ createSignal = 0 }: { createSignal?: number }) {
     setBooking({ ...emptyBooking, localStartsAt: `${date}T09:00` })
     setWarnings([])
     setBookingOpen(true)
+  }
+
+  function selectMonthDay(day: Date) {
+    setSelectedDate(ymd(day))
+    const behavior = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+      ? 'auto'
+      : 'smooth'
+    window.requestAnimationFrame(() =>
+      selectedDayRef.current?.scrollIntoView({ behavior, block: 'start' }),
+    )
+  }
+
+  function movePeriod(amount: number) {
+    if (view === 'week') {
+      setWeek((current) => addDays(current, amount * 7))
+      return
+    }
+    const next = addMonths(month, amount)
+    setMonth(next)
+    setSelectedDate(ymd(next))
+  }
+
+  function changeView(nextView: 'week' | 'month') {
+    if (nextView === view) return
+    if (nextView === 'month') {
+      const focus = addDays(week, 3)
+      setMonth(startOfMonth(focus))
+      setSelectedDate(ymd(focus))
+    } else {
+      setWeek(startOfMonday(new Date(`${selectedDate}T12:00:00`)))
+    }
+    setView(nextView)
+  }
+
+  function goToToday() {
+    const today = new Date()
+    setWeek(startOfMonday(today))
+    setMonth(startOfMonth(today))
+    setSelectedDate(ymd(today))
   }
 
   async function saveBooking(event?: FormEvent, confirm = false) {
@@ -284,59 +346,66 @@ export function AgendaPanel({ createSignal = 0 }: { createSignal?: number }) {
     }
   }
 
-  const appointmentCount = data?.appointments.length ?? 0
-  const outsideCount = data?.appointments.filter((item) => item.override_reasons.length).length ?? 0
+  const selectedDay = new Date(`${selectedDate}T12:00:00`)
+  const selectedAppointments = appointmentsFor(selectedDay)
   return (
     <div className="manager-section manager-data-section">
-      <div className="manager-stats" aria-label="Resumo da agenda">
-        <div>
-          <span>Semana</span>
-          <strong>{appointmentCount}</strong>
-          <small>atendimentos</small>
-        </div>
-        <div>
-          <span>Hoje</span>
-          <strong>{appointmentsFor(new Date()).length}</strong>
-          <small>na agenda</small>
-        </div>
-        <div>
-          <span>Exceções confirmadas</span>
-          <strong>{outsideCount}</strong>
-          <small>chave mestra</small>
-        </div>
-      </div>
       <div className="manager-section-toolbar manager-agenda-toolbar">
         <div className="manager-week-nav">
           <Button
             isIconOnly
             variant="secondary"
-            aria-label="Semana anterior"
-            onPress={() => setWeek(addDays(week, -7))}
+            aria-label={view === 'week' ? 'Semana anterior' : 'Mês anterior'}
+            onPress={() => movePeriod(-1)}
           >
             <ChevronLeft size={18} />
           </Button>
           <strong>
-            {new Intl.DateTimeFormat('pt-BR', { day: '2-digit', month: 'short' }).format(days[0])}
-            {' — '}
-            {new Intl.DateTimeFormat('pt-BR', {
-              day: '2-digit',
-              month: 'short',
-              year: 'numeric',
-            }).format(days[6])}
+            {view === 'week' ? (
+              <>
+                {new Intl.DateTimeFormat('pt-BR', { day: '2-digit', month: 'short' }).format(
+                  days[0],
+                )}
+                {' — '}
+                {new Intl.DateTimeFormat('pt-BR', {
+                  day: '2-digit',
+                  month: 'short',
+                  year: 'numeric',
+                }).format(days[6])}
+              </>
+            ) : (
+              new Intl.DateTimeFormat('pt-BR', { month: 'long', year: 'numeric' }).format(month)
+            )}
           </strong>
           <Button
             isIconOnly
             variant="secondary"
-            aria-label="Próxima semana"
-            onPress={() => setWeek(addDays(week, 7))}
+            aria-label={view === 'week' ? 'Próxima semana' : 'Próximo mês'}
+            onPress={() => movePeriod(1)}
           >
             <ChevronRight size={18} />
           </Button>
-          <Button variant="ghost" onPress={() => setWeek(startOfMonday(new Date()))}>
+          <Button variant="ghost" onPress={goToToday}>
             Hoje
           </Button>
         </div>
         <div className="manager-toolbar-actions">
+          <div className="manager-view-switch" aria-label="Visualização da agenda">
+            <Button
+              variant={view === 'week' ? undefined : 'secondary'}
+              aria-pressed={view === 'week'}
+              onPress={() => changeView('week')}
+            >
+              Semana
+            </Button>
+            <Button
+              variant={view === 'month' ? undefined : 'secondary'}
+              aria-pressed={view === 'month'}
+              onPress={() => changeView('month')}
+            >
+              Mês
+            </Button>
+          </div>
           <Button variant="secondary" onPress={() => setScheduleOpen(true)}>
             <Settings2 size={17} /> Horários
           </Button>
@@ -351,9 +420,111 @@ export function AgendaPanel({ createSignal = 0 }: { createSignal?: number }) {
         </p>
       )}
       {loading || !data ? (
-        <div className="manager-section-status" role="status">
-          <Spinner aria-label="Carregando agenda" /> Carregando agenda…
+        <div className="manager-agenda-skeleton" role="status" aria-label="Carregando agenda">
+          <div className="manager-skeleton manager-skeleton-heading" />
+          <div className="manager-skeleton-calendar">
+            {Array.from({ length: 14 }, (_, index) => (
+              <div className="manager-skeleton manager-skeleton-day" key={index} />
+            ))}
+          </div>
+          <span>Carregando agenda…</span>
         </div>
+      ) : view === 'month' ? (
+        <>
+          <Card className="manager-panel manager-month-card">
+            <Card.Content>
+              <div className="manager-month-weekdays" aria-hidden="true">
+                {['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom'].map((label) => (
+                  <span key={label}>{label}</span>
+                ))}
+              </div>
+              <div className="manager-month-grid" role="grid" aria-label="Calendário mensal">
+                {monthDays.map((day) => {
+                  const date = ymd(day)
+                  const items = appointmentsFor(day)
+                  const isCurrentMonth = day.getMonth() === month.getMonth()
+                  const isToday = date === ymd(new Date())
+                  const isSelected = date === selectedDate
+                  const hasException = data.overrides.some(
+                    (item) => item.local_date.slice(0, 10) === date,
+                  )
+                  return (
+                    <button
+                      type="button"
+                      role="gridcell"
+                      className="manager-month-day"
+                      data-outside={!isCurrentMonth || undefined}
+                      data-today={isToday || undefined}
+                      data-selected={isSelected || undefined}
+                      aria-selected={isSelected}
+                      aria-label={`${new Intl.DateTimeFormat('pt-BR', { dateStyle: 'full' }).format(day)}, ${items.length} ${items.length === 1 ? 'agendamento' : 'agendamentos'}`}
+                      key={date}
+                      onClick={() => selectMonthDay(day)}
+                    >
+                      <span className="manager-month-day-number">
+                        {day.getDate()}
+                        {hasException && <i title="Horário excepcional" />}
+                      </span>
+                      <strong>{items.length}</strong>
+                      <small>{items.length === 1 ? 'agendamento' : 'agendamentos'}</small>
+                    </button>
+                  )
+                })}
+              </div>
+            </Card.Content>
+          </Card>
+          <div ref={selectedDayRef} className="manager-selected-day">
+            <Card className="manager-panel">
+              <Card.Header className="manager-panel-heading">
+                <div>
+                  <CalendarClock size={18} />
+                  <Card.Title>
+                    {new Intl.DateTimeFormat('pt-BR', {
+                      weekday: 'long',
+                      day: '2-digit',
+                      month: 'long',
+                    }).format(selectedDay)}
+                  </Card.Title>
+                </div>
+                <Button variant="secondary" onPress={() => openBooking(selectedDay)}>
+                  <Plus size={17} /> Agendar neste dia
+                </Button>
+              </Card.Header>
+              <Card.Content>
+                {selectedAppointments.length ? (
+                  <div className="manager-day-appointments manager-selected-appointments">
+                    {selectedAppointments.map((appointment) => {
+                      const local = clinicParts(appointment.starts_at, data.timezone)
+                      return (
+                        <article key={appointment.id} className="manager-appointment-card">
+                          <time>{local.time}</time>
+                          <div>
+                            <strong>{appointment.client_name}</strong>
+                            <span>{appointment.service_name}</span>
+                            {appointment.professional_name && (
+                              <small>{appointment.professional_name}</small>
+                            )}
+                          </div>
+                          {appointment.override_reasons.length > 0 && (
+                            <span className="manager-master-key" title="Agendamento com aviso">
+                              <AlertTriangle size={15} />
+                            </span>
+                          )}
+                        </article>
+                      )
+                    })}
+                  </div>
+                ) : (
+                  <div className="manager-empty-real manager-selected-empty">
+                    <CalendarClock size={25} />
+                    <strong>Nenhum agendamento neste dia</strong>
+                    <p>O dia está livre na agenda atual.</p>
+                  </div>
+                )}
+              </Card.Content>
+            </Card>
+          </div>
+        </>
       ) : (
         <div className="manager-week-grid">
           {days.map((day) => {
