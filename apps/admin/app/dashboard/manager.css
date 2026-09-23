@@ -1081,3 +1081,87 @@
 .manager-real-muted {
   color: #f1cfdf;
 }
+
+.manager-brand.button {
+  width: 100%;
+  justify-content: flex-start;
+  background: transparent;
+  font-size: 27px;
+  font-weight: 650;
+  letter-spacing: -0.8px;
+}
+.manager-brand.button:hover {
+  background: transparent;
+}
+.manager-section {
+  display: grid;
+  gap: 16px;
+}
+.manager-section-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.manager-section-status {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 88px;
+}
+.manager-definition {
+  display: grid;
+  gap: 12px;
+  margin: 0;
+}
+.manager-definition div {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid #ffffff1a;
+}
+.manager-definition dt {
+  color: var(--manager-muted);
+}
+.manager-definition dd {
+  margin: 0;
+  text-align: right;
+}
+.manager-settings-grid {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+.manager-settings-list {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.manager-placeholder-copy {
+  display: grid;
+  gap: 12px;
+}
+.manager-shell .manager-table .table__cell,
+.manager-shell .manager-table .table__column {
+  color: #fff7fb;
+  background: #ffffff10;
+  border-color: #ffffff22;
+}
+.manager-access-code {
+  display: grid;
+  gap: 12px;
+}
+.manager-access-code code {
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: #ffffff14;
+  letter-spacing: 0.08em;
+  font-size: 18px;
+}
+@media (max-width: 900px) {
+  .manager-settings-grid {
+    grid-template-columns: 1fr;
+  }
+}

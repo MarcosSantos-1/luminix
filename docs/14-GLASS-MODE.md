@@ -154,4 +154,4 @@ continuam planejadas. Contratos, localização do código e política HeroUI est
 
 A composição também é a Home oficial autenticada em `/clinics/:clinicId`, com nome real da clínica
 e fixtures operacionais temporárias explicitamente identificadas. O contexto e as permissões vêm
-do backend; dados reais do onboarding permanecem disponíveis em “Dados da clínica”.
+do backend; Configurações mostra os dados reais da clínica e o código de acesso fica na Home.

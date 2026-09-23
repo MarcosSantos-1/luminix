@@ -15,7 +15,7 @@ import { useStaff } from '@/components/staff-provider'
 import { getFirebaseAuth } from '@/lib/firebase'
 
 type ClinicContext = {
-  clinic: { id: string; name: string; slug: string; status: string }
+  clinic: { id: string; name: string; slug: string; status: string; share_code: string | null }
   permissions: string[]
 }
 const Context = createContext<ClinicContext | null>(null)
@@ -129,7 +129,7 @@ export function ClinicWorkspace({ children }: { children: ReactNode }) {
       </AppStatus>
     )
   }
-  if (onboarding || pathname === `/clinics/${clinicId}`)
+  if (onboarding || pathname === `/clinics/${clinicId}` || pathname.endsWith('/settings'))
     return <Context.Provider value={visible}>{children}</Context.Provider>
   return (
     <Context.Provider value={visible}>
@@ -142,9 +142,6 @@ export function ClinicWorkspace({ children }: { children: ReactNode }) {
             </p>
           </div>
           <div className="flex gap-4">
-            <Link href="/clinics" aria-label="Trocar clínica">
-              ⇄ Trocar clínica
-            </Link>
             <button
               onClick={() => {
                 void signOut(getFirebaseAuth()).catch(() =>
@@ -159,7 +156,7 @@ export function ClinicWorkspace({ children }: { children: ReactNode }) {
         <nav className="flex gap-4" aria-label="Navegação da clínica">
           <Link href={`/clinics/${clinicId}`}>Início</Link>
           {visible.permissions.includes('settings:manage') && (
-            <Link href={`/clinics/${clinicId}/settings`}>Configurações</Link>
+            <Link href={`/clinics/${clinicId}?secao=configuracoes`}>Configurações</Link>
           )}
           <button onClick={staff.refresh}>Atualizar acesso</button>
         </nav>

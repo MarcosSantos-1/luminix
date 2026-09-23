@@ -125,23 +125,28 @@ recolhível, navegação móvel, cabeçalho, atalhos, clientes do dia, atividade
 Os backgrounds oficiais são servidos pelas cópias idênticas em `apps/admin/public/brand/`.
 
 `components/manager/` contém a composição e fixtures; `hooks/use-manager-layout.ts` controla sidebar
-e busca Ctrl/⌘ K. A busca filtra páginas e exemplos de clientes/serviços, abre por teclado ou botão,
-e oferece estado vazio. Ações ainda não construídas abrem um Modal HeroUI explicando o protótipo.
-Cards, Button, Avatar, Chip, SearchField, Modal e ProgressBar são HeroUI, com CSS e tokens do experimento
-em `app/dashboard/manager.css`. Não foi criado um package compartilhado sem consumidores reais.
+e busca Ctrl/⌘ K. A seção ativa fica no mesmo shell, sincronizada com `?secao=` sem remontar a
+página. Título, placeholder e resultados da busca seguem a seção. A busca filtra páginas e exemplos
+da seção atual, abre por teclado ou botão, e oferece estado vazio. Ações ainda não construídas abrem
+um Modal HeroUI explicando o protótipo.
+Cards, Button, Avatar, Chip, SearchField, Modal, ProgressBar e Table são HeroUI, com CSS e tokens do
+experimento em `app/dashboard/manager.css`. Não foi criado um package compartilhado sem consumidores reais.
 
 A Home autenticada recebe nome e status reais do contexto autorizado da clínica e nome de exibição
-Firebase (fallback “Gestor” quando ausente). Agenda, atividades e indicadores permanecem mockados,
-identificados como demonstrativos, para migração incremental aos contratos reais. Essas fixtures
+Firebase (fallback “Gestor” quando ausente). Agenda, clientes, serviços, financeiro, estoque,
+marketing e relatórios são esboços com exemplos identificados como ilustrativos. Essas fixtures
 nunca são fallback para erro de API. A rota continua protegida pelo contexto e `clinic:manage`.
 O layout recebe propriedades; a demonstração pública não importa nem consulta o contexto autenticado.
 
-Configurações respeita `settings:manage`; Minha conta oferece troca de clínica, atualização de acesso
-e logout. Clínicas em rascunho mantêm o atalho ao onboarding conforme `onboarding:manage`. Os dados
-reais já disponíveis (ocupações, serviços, profissionais e código) continuam acessíveis no modal
-“Dados da clínica”, com carregamento/erro/retry próprios. Nenhuma migration ou mudança no fluxo de
-login foi necessária. O cache visual distingue UID, clínica e revisão de autorização; respostas de
-acesso negado invalidam a entrada e a interface não reutiliza contexto de outra sessão.
+Configurações respeita `settings:manage` e, na clínica autenticada, mostra dados reais do contexto,
+de `settings` e de `overview` (nome, identificador, situação, fuso, idioma, moeda, ocupações,
+serviços e profissionais), com carregamento, erro e nova tentativa. A prévia pública não inventa
+esses registros. O código de acesso fica só na Home. Minha conta oferece atualização de acesso e
+logout; o gestor não troca de clínica. A lista `/clinics` continua sendo a entrada após o login e o
+retorno quando o acesso é negado. Clínicas em rascunho mantêm o atalho ao onboarding conforme
+`onboarding:manage`. Nenhuma migration ou mudança no fluxo de login foi necessária. O cache visual
+distingue UID, clínica e revisão de autorização; respostas de acesso negado invalidam a entrada e a
+interface não reutiliza contexto de outra sessão.
 Glass é o experimento atual, não uma decisão definitiva de tema. O sistema respeita redução de
 transparência/movimento; o botão de teste na prévia permite optar por transparência nesta sessão.
 

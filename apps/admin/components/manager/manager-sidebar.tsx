@@ -1,19 +1,18 @@
 'use client'
 
 import Image from 'next/image'
-import Link from 'next/link'
 import { Button, Card } from '@heroui/react'
-import { ChevronLeft, ChevronRight, Crown, LogOut } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Crown } from 'lucide-react'
 import { managerNavigation, supportNavigation } from './demo-data'
 
 export function ManagerSidebar({
-  homeHref,
+  activeLabel,
   canManageSettings,
   collapsed,
   onToggle,
   onNavigate,
 }: {
-  homeHref: string
+  activeLabel: string
   canManageSettings: boolean
   collapsed: boolean
   onToggle: () => void
@@ -21,20 +20,25 @@ export function ManagerSidebar({
 }) {
   return (
     <aside className="manager-sidebar">
-      <Link href={homeHref} className="manager-brand" aria-label="Luminix — início">
+      <Button
+        variant="ghost"
+        className="manager-brand"
+        aria-label="Luminix — início"
+        onPress={() => onNavigate('Início')}
+      >
         <Image src="/brand/logo.png" width={35} height={43} alt="" />
         <span>Luminix</span>
-      </Link>
+      </Button>
       <nav aria-label="Navegação do gestor" className="manager-nav">
         {managerNavigation
-          .filter((item) => item.label !== 'Configurações' || canManageSettings)
-          .map(({ label, icon: Icon }) => (
+          .filter((item) => item.id !== 'configuracoes' || canManageSettings)
+          .map(({ id, label, icon: Icon }) => (
             <Button
-              key={label}
+              key={id}
               variant="ghost"
-              className={`manager-nav-item ${label === 'Início' ? 'is-active' : ''}`}
+              className={`manager-nav-item ${label === activeLabel ? 'is-active' : ''}`}
               aria-label={label}
-              aria-current={label === 'Início' ? 'page' : undefined}
+              aria-current={label === activeLabel ? 'page' : undefined}
               onPress={() => onNavigate(label)}
             >
               <Icon size={20} />
@@ -58,10 +62,6 @@ export function ManagerSidebar({
             <span>{label}</span>
           </Button>
         ))}
-        <Link href="/clinics" aria-label="Minhas clínicas">
-          <LogOut size={18} />
-          <span>Minhas clínicas</span>
-        </Link>
       </div>
       <Button
         className="manager-collapse"

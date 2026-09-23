@@ -1,51 +1,53 @@
 'use client'
 
-import { Avatar, Button, Card, Chip, Modal, ProgressBar, SearchField } from '@heroui/react'
-import {
-  ArrowRight,
-  Bell,
-  CalendarDays,
-  CalendarPlus,
-  ChevronRight,
-  Megaphone,
-  MessageCircle,
-  MoreHorizontal,
-  Plus,
-  Search,
-  Sparkles,
-  Star,
-  UserPlus,
-  Wallet,
-  X,
-  Package,
-} from 'lucide-react'
-import { useState, type ReactNode } from 'react'
+import { Avatar, Button, Card, Modal, SearchField } from '@heroui/react'
+import { ArrowRight, Bell, ChevronRight, Plus, Search } from 'lucide-react'
+import { useMemo, useState, type ReactNode } from 'react'
 import { useManagerLayout } from '@/hooks/use-manager-layout'
-import { demoAppointments, managerNavigation } from './demo-data'
+import { useManagerSection } from '@/hooks/use-manager-section'
+import {
+  managerNavigation,
+  sectionSearchExamples,
+  sectionSketches,
+  type ManagerSectionId,
+} from './demo-data'
 import { ManagerSidebar } from './manager-sidebar'
+import { HomePanels } from './sections/home-panels'
+import { SectionSketchView } from './sections/section-sketch'
+
+function normalize(value: string) {
+  return value
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+}
 
 export function ManagerHome({
   clinicName = 'Clínica de demonstração',
   userName = 'Marcos',
-  homeHref = '/dashboard',
   canManageSettings = true,
-  onNavigate,
   profile,
-  clinicDetails,
+  settings,
+  shareCode,
   banner,
+  initialSection = 'inicio',
 }: {
   clinicName?: string
   userName?: string
-  homeHref?: string
   canManageSettings?: boolean
-  onNavigate?: (label: string) => boolean
   profile?: ReactNode
-  clinicDetails?: ReactNode
+  settings?: ReactNode
+  shareCode?: string | null
   banner?: ReactNode
+  initialSection?: string
 } = {}) {
-  const navigation = managerNavigation.filter(
-    (item) => item.label !== 'Configurações' || canManageSettings,
+  const navigation = useMemo(
+    () => managerNavigation.filter((item) => item.id !== 'configuracoes' || canManageSettings),
+    [canManageSettings],
   )
+  const allowedIds = useMemo(() => navigation.map((item) => item.id), [navigation])
+  const { section: sectionId, select } = useManagerSection(allowedIds, initialSection)
+  const section = navigation.find((item) => item.id === sectionId) ?? navigation[0]
   const firstName = userName.trim().split(/\s+/)[0] || 'Gestor'
   const initials =
     userName
@@ -60,32 +62,70 @@ export function ManagerHome({
   const [notice, setNotice] = useState<string | null>(null)
   const [announcement, setAnnouncement] = useState(true)
   const [forceGlass, setForceGlass] = useState(false)
-  function navigate(label: string) {
-    if (label === 'Início') {
-      window.scrollTo({ top: 0, behavior: 'instant' })
-      return
-    }
-    if (onNavigate?.(label)) return
+  const [copied, setCopied] = useState(false)
+  const [copyError, setCopyError] = useState(false)
+  const realClinic = shareCode !== undefined
+  const isHome = section.id === 'inicio'
+
+  function closeNotice() {
+    setNotice(null)
+    setCopied(false)
+    setCopyError(false)
+  }
+
+  function openNotice(label: string) {
+    setCopied(false)
+    setCopyError(false)
     setNotice(label)
   }
+
+  function navigate(label: string) {
+    if (label === 'Agenda semanal' || label === 'Agenda completa') {
+      select('agenda')
+      return
+    }
+    const match = navigation.find((item) => item.label === label)
+    if (match) {
+      select(match.id)
+      return
+    }
+    openNotice(label)
+  }
+
+  const needle = normalize(query)
   const results = [
-    ...navigation.map((item) => ({ title: item.label, detail: 'Página do gestor' })),
-    ...demoAppointments.map((item) => ({
-      title: item.name,
-      detail: `${item.time} · ${item.service}`,
+    ...navigation.map((item) => ({
+      key: `page-${item.id}`,
+      title: item.label,
+      detail: 'Página do gestor',
+      sectionId: item.id as ManagerSectionId | undefined,
     })),
-  ].filter((item) =>
-    `${item.title} ${item.detail}`
-      .normalize('NFD')
-      .replace(/[\u0300-\u036f]/g, '')
-      .toLowerCase()
-      .includes(
-        query
-          .normalize('NFD')
-          .replace(/[\u0300-\u036f]/g, '')
-          .toLowerCase(),
-      ),
-  )
+    ...sectionSearchExamples(section.id).map((item, index) => ({
+      key: `example-${index}-${item.title}`,
+      title: item.title,
+      detail: item.detail,
+      sectionId: undefined,
+    })),
+  ].filter((item) => normalize(`${item.title} ${item.detail}`).includes(needle))
+
+  const demoLabel = realClinic
+    ? section.id === 'configuracoes'
+      ? 'CONFIGURAÇÕES'
+      : isHome
+        ? 'HOME DO GESTOR'
+        : 'ESBOÇO'
+    : 'PRÉVIA DO GESTOR'
+  const demoDetail =
+    section.id === 'configuracoes'
+      ? realClinic
+        ? 'Dados reais da clínica'
+        : 'Dados reais após o login'
+      : isHome
+        ? 'Agenda e indicadores demonstrativos'
+        : 'Exemplos ilustrativos desta seção'
+  const sketch =
+    section.id === 'inicio' || section.id === 'configuracoes' ? null : sectionSketches[section.id]
+
   return (
     <div
       className={`manager-shell ${collapsed ? 'is-collapsed' : ''}`}
@@ -96,7 +136,7 @@ export function ManagerHome({
         Pular para o conteúdo
       </a>
       <ManagerSidebar
-        homeHref={homeHref}
+        activeLabel={section.label}
         canManageSettings={canManageSettings}
         collapsed={collapsed}
         onToggle={() => setCollapsed((value) => !value)}
@@ -105,27 +145,37 @@ export function ManagerHome({
       <main className="manager-main" id="manager-content">
         <header className="manager-header">
           <div className="manager-greeting">
-            <p>Seu espaço de cuidado ✦</p>
-            <h1>Olá, {firstName}!</h1>
-            <span>{clinicName}</span>
+            {isHome ? (
+              <>
+                <p>Seu espaço de cuidado ✦</p>
+                <h1>Olá, {firstName}!</h1>
+                <span>{clinicName}</span>
+              </>
+            ) : (
+              <>
+                <p>{clinicName}</p>
+                <h1>{section.label}</h1>
+                <span>{section.subtitle}</span>
+              </>
+            )}
           </div>
           <Button
             ref={searchTrigger}
             className="manager-search-trigger"
             variant="secondary"
             onPress={() => changeSearch(true)}
-            aria-label="Buscar na demonstração (Control ou Command K)"
+            aria-label={`Buscar em ${section.label} (Control ou Command K)`}
           >
             <Search size={19} />
-            <span>Buscar clientes, serviços...</span>
+            <span>{section.searchPlaceholder}</span>
             <kbd>Ctrl/⌘ K</kbd>
           </Button>
           <div className="manager-header-actions">
             <Button
               isIconOnly
-              aria-label="Criar novo"
+              aria-label={section.createLabel}
               className="manager-icon-button"
-              onPress={() => navigate('Novo agendamento')}
+              onPress={() => navigate(section.createLabel)}
             >
               <Plus size={21} />
             </Button>
@@ -155,242 +205,47 @@ export function ManagerHome({
         <div className="manager-demo-label">
           <span>
             <i />
-            {clinicDetails ? 'HOME DO GESTOR' : 'PRÉVIA DO GESTOR'}
+            {demoLabel}
           </span>
-          <span>Agenda e indicadores demonstrativos</span>
+          <span>{demoDetail}</span>
         </div>
-        {banner}
-        {clinicDetails && (
+        {section.id !== 'configuracoes' && banner}
+        {realClinic && isHome && (
           <div className="manager-clinic-tools">
-            <Button variant="ghost" onPress={() => navigate('Dados da clínica')}>
-              Dados da clínica e código de acesso <ArrowRight size={16} />
+            <Button variant="ghost" onPress={() => openNotice('Código de acesso')}>
+              Código de acesso <ArrowRight size={16} />
             </Button>
           </div>
         )}
-        <section className="manager-actions" aria-label="Ações principais">
-          {[
-            {
-              title: 'Novo agendamento',
-              detail: 'Abra espaço para um novo cuidado',
-              icon: CalendarPlus,
-            },
-            { title: 'Agenda semanal', detail: 'Sua semana, bem organizada', icon: CalendarDays },
-            { title: 'Adicionar cliente', detail: 'Uma nova história começa aqui', icon: UserPlus },
-          ].map(({ title, detail, icon: Icon }) => (
-            <Button key={title} className="manager-action" onPress={() => navigate(title)}>
-              <div>
-                <strong>{title}</strong>
-                <span>{detail}</span>
-              </div>
-              <ChevronRight size={16} />
-              <Icon size={32} strokeWidth={1.5} />
-            </Button>
+        {section.id === 'inicio' && (
+          <HomePanels
+            announcement={announcement}
+            onDismissAnnouncement={() => setAnnouncement(false)}
+            onNavigate={navigate}
+          />
+        )}
+        {sketch && (
+          <SectionSketchView
+            sketch={sketch}
+            createLabel={section.createLabel}
+            onAction={navigate}
+          />
+        )}
+        {section.id === 'configuracoes' &&
+          (settings ?? (
+            <Card className="manager-panel">
+              <Card.Header>
+                <Card.Title>Configurações da clínica</Card.Title>
+              </Card.Header>
+              <Card.Content>
+                <p>
+                  Nome, identificador, situação, fuso, idioma, moeda, ocupações, serviços e
+                  profissionais aparecem aqui depois do login, com os dados reais da clínica. Esta
+                  prévia não inventa esses registros.
+                </p>
+              </Card.Content>
+            </Card>
           ))}
-        </section>
-        <div className="manager-grid">
-          <Card className="manager-panel manager-agenda">
-            <Card.Header className="manager-panel-heading">
-              <div>
-                <Card.Title>Clientes do dia</Card.Title>
-                <Chip size="sm" variant="soft">
-                  6
-                </Chip>
-              </div>
-              <Button variant="ghost" onPress={() => navigate('Agenda completa')}>
-                Ver agenda <ArrowRight size={16} />
-              </Button>
-            </Card.Header>
-            <Card.Content>
-              {demoAppointments.map((client, index) => (
-                <div className="manager-client" key={client.time}>
-                  <time>{client.time}</time>
-                  <Avatar className={`manager-avatar tone-${index % 3}`}>
-                    <Avatar.Fallback>{client.initials}</Avatar.Fallback>
-                  </Avatar>
-                  <div className="manager-client-copy">
-                    <strong>{client.name}</strong>
-                    <span>{client.service}</span>
-                  </div>
-                  <Chip
-                    size="sm"
-                    className={
-                      client.status === 'Pendente' ? 'manager-status pending' : 'manager-status'
-                    }
-                  >
-                    {client.status}
-                  </Chip>
-                  <Button
-                    isIconOnly
-                    variant="ghost"
-                    aria-label={`Detalhes de ${client.name}`}
-                    onPress={() => setNotice(`${client.name} · ${client.time}`)}
-                  >
-                    <MoreHorizontal size={20} />
-                  </Button>
-                </div>
-              ))}
-            </Card.Content>
-            <Card.Footer className="manager-agenda-footer">
-              <span>
-                <span className="manager-dot" /> Um dia cheio de boas conexões
-              </span>
-              <span>6 atendimentos</span>
-            </Card.Footer>
-          </Card>
-          <Card className="manager-panel manager-activity">
-            <Card.Header className="manager-panel-heading">
-              <Card.Title>Atividades recentes</Card.Title>
-              <Button variant="ghost" onPress={() => navigate('Atividades')}>
-                Ver todas
-              </Button>
-            </Card.Header>
-            <Card.Content>
-              {[
-                {
-                  icon: CalendarDays,
-                  title: 'Novo agendamento criado',
-                  detail: 'Juliana Lima · 09:00',
-                  time: 'Há 5 min',
-                },
-                {
-                  icon: Wallet,
-                  title: 'Pagamento recebido',
-                  detail: 'R$ 120,00 · Camila Santos',
-                  time: 'Há 25 min',
-                },
-                {
-                  icon: MessageCircle,
-                  title: 'Lembrete enviado',
-                  detail: 'Mariana Costa · Amanhã, 14:30',
-                  time: 'Há 1 h',
-                },
-                {
-                  icon: Star,
-                  title: 'Um carinho em forma de avaliação',
-                  detail: 'Beatriz avaliou seu atendimento',
-                  time: 'Há 2 h',
-                },
-                {
-                  icon: Package,
-                  title: 'Produto em estoque baixo',
-                  detail: 'Gel hidratante · 3 unidades',
-                  time: 'Há 3 h',
-                },
-              ].map(({ icon: Icon, title, detail, time }, index) => (
-                <div className="manager-event" key={title}>
-                  <span className={`manager-event-icon event-${index}`}>
-                    <Icon size={19} />
-                  </span>
-                  <div>
-                    <strong>{title}</strong>
-                    <p>{detail}</p>
-                  </div>
-                  <time>{time}</time>
-                </div>
-              ))}
-            </Card.Content>
-          </Card>
-          <Card className="manager-panel">
-            <Card.Header>
-              <Card.Title>Acesso rápido</Card.Title>
-            </Card.Header>
-            <Card.Content>
-              <div className="manager-shortcuts">
-                {managerNavigation
-                  .filter((item) =>
-                    [
-                      'Agenda',
-                      'Clientes',
-                      'Serviços',
-                      'Financeiro',
-                      'Relatórios',
-                      'Marketing',
-                    ].includes(item.label),
-                  )
-                  .map(({ label, icon: Icon }) => (
-                    <Button key={label} variant="secondary" onPress={() => navigate(label)}>
-                      <Icon size={24} strokeWidth={1.5} />
-                      <span>{label}</span>
-                    </Button>
-                  ))}
-              </div>
-              <div className="manager-summary-title">
-                <h2>Seu dia em números</h2>
-                <span>Resumo ilustrativo</span>
-              </div>
-              <div className="manager-stats">
-                {[
-                  { label: 'Agendamentos', value: '6', detail: '+20% vs. ontem' },
-                  { label: 'Faturamento', value: 'R$ 1.240', detail: '+15% vs. ontem' },
-                  { label: 'Novos clientes', value: '2', detail: '+100% vs. ontem' },
-                  { label: 'Avaliações', value: '4,9', detail: '★★★★★' },
-                ].map((stat) => (
-                  <div key={stat.label}>
-                    <span>{stat.label}</span>
-                    <strong>{stat.value}</strong>
-                    <small>{stat.detail}</small>
-                  </div>
-                ))}
-              </div>
-            </Card.Content>
-          </Card>
-          <Card className="manager-panel">
-            <Card.Header>
-              <Card.Title>Um olhar para o seu negócio</Card.Title>
-            </Card.Header>
-            <Card.Content className="manager-business">
-              {announcement && (
-                <div className="manager-announcement">
-                  <div>
-                    <span className="manager-eyebrow">FEITO PARA VOCÊ</span>
-                    <h3>Sua rotina merece leveza.</h3>
-                    <p>Conheça o novo espaço de gestão Luminix.</p>
-                    <Button
-                      size="sm"
-                      variant="secondary"
-                      onPress={() => navigate('Novidades Luminix')}
-                    >
-                      Explorar novidades <ArrowRight size={14} />
-                    </Button>
-                  </div>
-                  <Megaphone size={64} strokeWidth={1} />
-                  <Button
-                    isIconOnly
-                    variant="ghost"
-                    className="manager-dismiss"
-                    aria-label="Dispensar novidade"
-                    onPress={() => setAnnouncement(false)}
-                  >
-                    <X size={16} />
-                  </Button>
-                </div>
-              )}
-              <div className="manager-goal">
-                <div>
-                  <h3>Meta mensal</h3>
-                  <Sparkles size={17} />
-                </div>
-                <div>
-                  <p>
-                    <strong>R$ 8.450</strong> / R$ 15.000
-                  </p>
-                  <strong>56%</strong>
-                </div>
-                <ProgressBar
-                  aria-label="Meta mensal demonstrativa"
-                  value={8450}
-                  maxValue={15000}
-                  className="manager-progress"
-                >
-                  <ProgressBar.Track>
-                    <ProgressBar.Fill />
-                  </ProgressBar.Track>
-                </ProgressBar>
-                <p>Um atendimento de cada vez, mais perto da sua meta.</p>
-              </div>
-            </Card.Content>
-          </Card>
-        </div>
         <footer className="manager-footer">
           <span>Luminix · tempo para o que importa.</span>
           <Button
@@ -404,12 +259,12 @@ export function ManagerHome({
         </footer>
       </main>
       <nav className="manager-bottom-nav" aria-label="Navegação móvel">
-        {managerNavigation.slice(0, 4).map(({ label, icon: Icon }) => (
+        {navigation.slice(0, 4).map(({ id, label, icon: Icon }) => (
           <Button
-            key={label}
+            key={id}
             variant="ghost"
-            aria-current={label === 'Início' ? 'page' : undefined}
-            onPress={() => navigate(label)}
+            aria-current={id === section.id ? 'page' : undefined}
+            onPress={() => select(id)}
           >
             <Icon size={21} />
             <span>{label}</span>
@@ -425,29 +280,31 @@ export function ManagerHome({
           <Modal.Dialog className="manager-dialog">
             <Modal.CloseTrigger aria-label="Fechar" />
             <Modal.Header>
-              <Modal.Heading>O que você procura?</Modal.Heading>
+              <Modal.Heading>Buscar em {section.label}</Modal.Heading>
             </Modal.Header>
             <Modal.Body>
-              <SearchField aria-label="Buscar na demonstração" value={query} onChange={setQuery}>
+              <SearchField
+                aria-label={`Buscar em ${section.label}`}
+                value={query}
+                onChange={setQuery}
+              >
                 <SearchField.Group>
                   <SearchField.SearchIcon />
-                  <SearchField.Input
-                    autoFocus
-                    placeholder="Busque por página, cliente ou serviço"
-                  />
+                  <SearchField.Input autoFocus placeholder={section.searchPlaceholder} />
                   <SearchField.ClearButton aria-label="Limpar busca" />
                 </SearchField.Group>
               </SearchField>
-              <p className="manager-search-hint">Busca apenas nos exemplos desta prévia.</p>
+              <p className="manager-search-hint">{section.searchHint}</p>
               <div className="manager-search-results">
                 {results.length ? (
                   results.map((item) => (
                     <Button
                       variant="ghost"
-                      key={item.title}
+                      key={item.key}
                       onPress={() => {
                         changeSearch(false)
-                        navigate(item.title)
+                        if (item.sectionId) select(item.sectionId)
+                        else openNotice(item.title)
                       }}
                     >
                       <span>
@@ -468,10 +325,10 @@ export function ManagerHome({
       <Modal.Backdrop
         isOpen={notice !== null}
         onOpenChange={(open) => {
-          if (!open) setNotice(null)
+          if (!open) closeNotice()
         }}
       >
-        <Modal.Container size={notice === 'Dados da clínica' ? 'lg' : 'sm'}>
+        <Modal.Container size="sm">
           <Modal.Dialog className="manager-dialog">
             <Modal.CloseTrigger aria-label="Fechar" />
             <Modal.Header>
@@ -480,8 +337,35 @@ export function ManagerHome({
             <Modal.Body>
               {notice === 'Minha conta' && profile ? (
                 profile
-              ) : notice === 'Dados da clínica' && clinicDetails ? (
-                clinicDetails
+              ) : notice === 'Código de acesso' ? (
+                shareCode ? (
+                  <div className="manager-access-code">
+                    <p>
+                      Use este código para o cliente identificar a clínica. Ele não concede acesso à
+                      equipe.
+                    </p>
+                    <code>{shareCode}</code>
+                    <Button
+                      onPress={() =>
+                        void navigator.clipboard
+                          .writeText(shareCode)
+                          .then(() => {
+                            setCopyError(false)
+                            setCopied(true)
+                          })
+                          .catch(() => setCopyError(true))
+                      }
+                    >
+                      Copiar código
+                    </Button>
+                    {copied && <p role="status">Código copiado.</p>}
+                    {copyError && (
+                      <p role="alert">Não foi possível copiar. Selecione o código acima.</p>
+                    )}
+                  </div>
+                ) : (
+                  <p>O código de acesso aparece quando a configuração da clínica é concluída.</p>
+                )
               ) : (
                 <p>
                   Esta funcionalidade ainda está em desenvolvimento. Os agendamentos, atividades e
@@ -490,7 +374,7 @@ export function ManagerHome({
               )}
             </Modal.Body>
             <Modal.Footer>
-              <Button onPress={() => setNotice(null)}>Entendi</Button>
+              <Button onPress={closeNotice}>Entendi</Button>
             </Modal.Footer>
           </Modal.Dialog>
         </Modal.Container>
