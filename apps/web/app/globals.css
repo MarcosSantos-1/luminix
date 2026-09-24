@@ -52,6 +52,13 @@ input:focus-visible {
   box-shadow: 0 10px 28px rgba(64, 3, 29, 0.12);
 }
 
+.landing .brand {
+  border: 0;
+  padding: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
 .brand img {
   width: 142px;
   height: auto;

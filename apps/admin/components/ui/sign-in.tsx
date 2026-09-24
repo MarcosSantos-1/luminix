@@ -5,32 +5,6 @@ import Image, { type StaticImageData } from 'next/image'
 import Link from 'next/link'
 import { Eye, EyeOff } from 'lucide-react'
 
-const GoogleIcon = () => (
-  <svg
-    xmlns="http://www.w3.org/2000/svg"
-    className="h-5 w-5"
-    viewBox="0 0 48 48"
-    aria-hidden="true"
-  >
-    <path
-      fill="#FFC107"
-      d="M43.611 20.083H42V20H24v8h11.303c-1.649 4.657-6.08 8-11.303 8-6.627 0-12-5.373-12-12s5.373-12 12-12c3.059 0 5.842 1.154 7.961 3.039l5.657-5.657C34.046 6.053 29.268 4 24 4 12.955 4 4 12.955 4 24s8.955 20 20 20 20-8.955 20-20c0-2.641-.21-5.236-.611-7.743z"
-    />
-    <path
-      fill="#FF3D00"
-      d="M6.306 14.691l6.571 4.819C14.655 15.108 18.961 12 24 12c3.059 0 5.842 1.154 7.961 3.039l5.657-5.657C34.046 6.053 29.268 4 24 4 16.318 4 9.656 8.337 6.306 14.691z"
-    />
-    <path
-      fill="#4CAF50"
-      d="M24 44c5.166 0 9.86-1.977 13.409-5.192l-6.19-5.238C29.211 35.091 26.715 36 24 36c-5.202 0-9.619-3.317-11.283-7.946l-6.522 5.025C9.505 39.556 16.227 44 24 44z"
-    />
-    <path
-      fill="#1976D2"
-      d="M43.611 20.083H42V20H24v8h11.303c-.792 2.237-2.231 4.166-4.087 5.571l6.19 5.238C42.022 35.026 44 30.038 44 24c0-2.641-.21-5.236-.611-7.743z"
-    />
-  </svg>
-)
-
 export interface Testimonial {
   avatarSrc: string
   name: string
@@ -47,7 +21,6 @@ interface SignInPageProps {
   error?: string
   message?: string
   onSignIn?: (event: React.FormEvent<HTMLFormElement>) => void
-  onGoogleSignIn?: () => void
   onResetPassword?: (email: string) => void
 }
 
@@ -61,14 +34,9 @@ const TestimonialCard = ({ testimonial, delay }: { testimonial: Testimonial; del
   <div
     className={`animate-testimonial ${delay} flex w-64 items-start gap-3 rounded-3xl border border-white/55 bg-white/90 p-5 text-[#371a29] shadow-[0_18px_45px_rgba(80,15,44,0.18)] backdrop-blur-xl`}
   >
-    <Image
-      src={testimonial.avatarSrc}
-      width={40}
-      height={40}
-      className="rounded-2xl object-cover"
-      style={{ width: 40, height: 40 }}
-      alt=""
-    />
+    <div className="relative h-10 w-10 shrink-0 overflow-hidden rounded-2xl">
+      <Image src={testimonial.avatarSrc} fill sizes="40px" className="object-cover" alt="" />
+    </div>
     <div className="text-sm leading-snug">
       <p className="flex items-center gap-1 font-medium">{testimonial.name}</p>
       <p className="text-[#806c77]">{testimonial.handle}</p>
@@ -86,7 +54,6 @@ export const SignInPage: React.FC<SignInPageProps> = ({
   error,
   message,
   onSignIn,
-  onGoogleSignIn,
   onResetPassword,
 }) => {
   const [showPassword, setShowPassword] = useState(false)
@@ -98,11 +65,11 @@ export const SignInPage: React.FC<SignInPageProps> = ({
           <div className="flex flex-col gap-6">
             <Link href="/" className="animate-element animate-delay-100 mb-2 inline-flex w-fit">
               <Image
-                src="/brand/logo-letter.png"
-                width={178}
-                height={40}
+                src="/brand/logo-letter-default.png"
+                width={267}
+                height={60}
                 alt="Luminix"
-                className="h-auto w-[148px] sm:w-[178px]"
+                className="-ml-4 h-auto w-[222px] sm:w-[267px]"
                 priority
               />
             </Link>
@@ -196,22 +163,7 @@ export const SignInPage: React.FC<SignInPageProps> = ({
               </button>
             </form>
 
-            <div className="animate-element animate-delay-700 relative flex items-center justify-center">
-              <span className="w-full border-t border-[#eadde3]"></span>
-              <span className="absolute bg-white px-4 text-sm text-[#806c77]">Ou continue com</span>
-            </div>
-
-            <button
-              type="button"
-              disabled={busy}
-              onClick={onGoogleSignIn}
-              className="animate-element animate-delay-800 flex w-full items-center justify-center gap-3 rounded-2xl border border-[#eadde3] bg-white py-4 transition-colors hover:border-[#e8b5c9] hover:bg-[#fff6f9] disabled:opacity-60"
-            >
-              <GoogleIcon />
-              Continuar com Google
-            </button>
-
-            <p className="animate-element animate-delay-900 text-center text-sm text-[#806c77]">
+            <p className="animate-element animate-delay-700 text-center text-sm text-[#806c77]">
               Nova por aqui?{' '}
               <Link
                 href="/cadastro"

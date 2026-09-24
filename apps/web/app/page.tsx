@@ -11,7 +11,7 @@ export default function HomePage() {
     <main className="landing">
       <div className="landing-glow" />
       <header className="landing-header">
-        <Brand />
+        <Brand variant="white" />
         <div className="header-links">
           <Link href="/acesso" className="login-link">
             Acesso do cliente

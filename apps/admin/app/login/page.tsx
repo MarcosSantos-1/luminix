@@ -96,7 +96,6 @@ export default function LoginPage() {
       error={auth.error || staff.error}
       message={auth.message}
       onSignIn={signIn}
-      onGoogleSignIn={() => void auth.google()}
       onResetPassword={resetPassword}
     />
   )

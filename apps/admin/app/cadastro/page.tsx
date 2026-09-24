@@ -36,7 +36,6 @@ export default function CadastroPage() {
       error={auth.error || staff.error}
       message={auth.message}
       onSubmit={submit}
-      onGoogleSignIn={() => void auth.google()}
     />
   )
 }
