@@ -1,8 +1,9 @@
 'use client'
 
-import { GrainGradient } from '@paper-design/shaders-react'
+import Image from 'next/image'
 import Link from 'next/link'
 import { useState, type FormEvent, type ReactNode } from 'react'
+import loginBackground from '../../../../assets/brand/backgrounds/login.png'
 
 type AuthSectionOneProps = {
   busy?: boolean
@@ -17,14 +18,14 @@ const termsText = (
     Ao criar uma conta, você concorda com os{' '}
     <a
       href="#"
-      className="font-medium text-black/45 underline underline-offset-2 dark:text-white/45"
+      className="font-medium text-[#765365] underline underline-offset-2 hover:text-[#d71966]"
     >
       Termos de uso
     </a>{' '}
     e a{' '}
     <a
       href="#"
-      className="font-medium text-black/45 underline underline-offset-2 dark:text-white/45"
+      className="font-medium text-[#765365] underline underline-offset-2 hover:text-[#d71966]"
     >
       Política de privacidade
     </a>
@@ -39,122 +40,124 @@ export default function AuthSectionOne({
   onGoogleSignIn,
 }: AuthSectionOneProps) {
   return (
-    <section className="dark min-h-screen bg-white p-3 text-black antialiased [font-synthesis:none] dark:bg-[#050505] dark:text-white">
-      <div className="grid min-h-[calc(100vh-1.5rem)] gap-6 lg:grid-cols-[0.94fr_1.06fr]">
-        <div className="flex min-h-[760px] items-start rounded-md border border-black/20 bg-white px-6 py-12 sm:px-10 dark:border-white/10 dark:bg-[#0a0a0a] lg:min-h-0 lg:px-14 lg:py-28 xl:px-20">
-          <div className="mx-auto w-full max-w-[590px]">
-            <div>
-              <h1 className="text-3xl font-medium tracking-[-0.04em] sm:text-4xl lg:text-[42px] lg:leading-[1.05] xl:text-[50px]">
-                Crie uma conta
-              </h1>
-              <p className="mt-3 text-lg leading-snug text-black/60 dark:text-white/55 sm:text-xl lg:text-2xl xl:text-3xl">
-                Cadastre sua clínica e comece a atender
-              </p>
-            </div>
-
-            <div className="mt-12">
-              <SocialButton
-                icon={<GoogleIcon />}
-                label="Entrar com Google"
-                disabled={busy}
-                onClick={onGoogleSignIn}
-              />
-            </div>
-
-            <div className="my-10 text-center text-xl font-medium text-black/60 dark:text-white/50">
-              ou
-            </div>
-
-            <form className="space-y-5" onSubmit={onSubmit}>
-              <div className="grid gap-5 sm:grid-cols-2">
-                <FieldBox label="Nome" name="firstName" autoComplete="given-name" />
-                <FieldBox label="Sobrenome" name="lastName" autoComplete="family-name" />
-              </div>
-
-              <FieldBox label="E-mail" name="email" type="email" autoComplete="email" />
-              <FieldBox
-                label="Senha"
-                name="password"
-                type="password"
-                autoComplete="new-password"
-                minLength={6}
-              />
-
-              <div className="space-y-4 pt-2 text-sm leading-5 text-black/30 dark:text-white/35 sm:text-[15px]">
-                <CheckboxLine name="updates">
-                  Não quero receber e-mails sobre novidades do Luminix
-                </CheckboxLine>
-                <CheckboxLine name="terms" required>
-                  {termsText}
-                </CheckboxLine>
-              </div>
-
-              {message ? (
-                <p className="text-sm text-black/60 dark:text-white/60" role="status">
-                  {message}
-                </p>
-              ) : null}
-              {error ? (
-                <p className="text-sm text-red-400" role="alert">
-                  {error}
-                </p>
-              ) : null}
-
-              <button
-                type="submit"
-                disabled={busy}
-                className="mt-9 flex h-12 w-full items-center justify-center rounded-[10px] border border-black/40 bg-black text-xl font-medium text-white transition-colors hover:bg-black/85 disabled:opacity-60 dark:border-white/40 dark:bg-white dark:text-black dark:hover:bg-white/85"
-              >
-                {busy ? 'Aguarde…' : 'Criar conta'}
-              </button>
-            </form>
-
-            <p className="mt-8 text-center text-sm text-black/45 dark:text-white/45">
-              Já tem uma conta?{' '}
-              <Link
-                href="/login"
-                className="font-medium text-black underline underline-offset-2 dark:text-white"
-              >
-                Entrar
-              </Link>
+    <main className="grid min-h-[100dvh] grid-cols-1 bg-[#fff9fb] text-[#371a29] antialiased [font-synthesis:none] lg:grid-cols-[0.94fr_1.06fr]">
+      <section className="order-2 flex items-center bg-white px-6 py-10 sm:px-10 lg:order-1 lg:min-h-[100dvh] lg:px-14 lg:py-16 xl:px-20">
+        <div className="mx-auto w-full max-w-[590px]">
+          <Link href="/" className="mb-10 inline-flex w-fit">
+            <Image
+              src="/brand/logo-letter.png"
+              width={190}
+              height={43}
+              alt="Luminix"
+              className="h-auto w-[152px] sm:w-[180px]"
+              priority
+            />
+          </Link>
+          <div>
+            <h1 className="text-3xl font-semibold tracking-[-0.04em] sm:text-4xl lg:text-[42px] lg:leading-[1.05] xl:text-[48px]">
+              Crie uma conta
+            </h1>
+            <p className="mt-3 text-lg leading-snug text-[#806c77] sm:text-xl lg:text-2xl">
+              Cadastre sua clínica e comece a atender
             </p>
           </div>
-        </div>
 
-        <div className="relative flex min-h-[720px] overflow-hidden rounded-md bg-black p-8 text-white sm:p-12 lg:min-h-0">
-          <GrainGradient
-            speed={1}
-            scale={1}
-            rotation={0}
-            offsetX={0}
-            offsetY={0}
-            softness={0.5}
-            intensity={0.5}
-            noise={0.25}
-            shape="corners"
-            frame={2854.5}
-            colors={['#FFFFFF', '#FC7819', '#FC7819', '#FFFFFF']}
-            colorBack="#00000000"
-            className="absolute inset-0 bg-black"
-          />
+          <div className="mt-12">
+            <SocialButton
+              icon={<GoogleIcon />}
+              label="Entrar com Google"
+              disabled={busy}
+              onClick={onGoogleSignIn}
+            />
+          </div>
 
-          <div className="relative z-10 flex h-full w-full flex-col justify-between">
-            <h2 className="max-w-[620px] pt-0 text-5xl font-medium tracking-[-0.05em] text-white sm:text-6xl lg:pt-16 lg:text-[64px] lg:leading-[0.98] xl:text-[70px]">
-              Sua clínica,
-              <br />
-              mais simples.
-            </h2>
+          <div className="my-8 text-center text-base font-medium text-[#9d8993]">ou</div>
 
+          <form className="space-y-5" onSubmit={onSubmit}>
+            <div className="grid gap-5 sm:grid-cols-2">
+              <FieldBox label="Nome" name="firstName" autoComplete="given-name" />
+              <FieldBox label="Sobrenome" name="lastName" autoComplete="family-name" />
+            </div>
+
+            <FieldBox label="E-mail" name="email" type="email" autoComplete="email" />
+            <FieldBox
+              label="Senha"
+              name="password"
+              type="password"
+              autoComplete="new-password"
+              minLength={6}
+            />
+
+            <div className="space-y-4 pt-2 text-sm leading-5 text-[#806c77] sm:text-[15px]">
+              <CheckboxLine name="updates">
+                Não quero receber e-mails sobre novidades do Luminix
+              </CheckboxLine>
+              <CheckboxLine name="terms" required>
+                {termsText}
+              </CheckboxLine>
+            </div>
+
+            {message ? (
+              <p className="text-sm text-[#806c77]" role="status">
+                {message}
+              </p>
+            ) : null}
+            {error ? (
+              <p className="text-sm text-red-400" role="alert">
+                {error}
+              </p>
+            ) : null}
+
+            <button
+              type="submit"
+              disabled={busy}
+              className="mt-7 flex h-12 w-full items-center justify-center rounded-xl bg-gradient-to-r from-[#c70e59] to-[#f23b80] text-lg font-semibold text-white shadow-[0_12px_28px_rgba(199,14,89,0.22)] transition hover:brightness-105 disabled:opacity-60"
+            >
+              {busy ? 'Aguarde…' : 'Criar conta'}
+            </button>
+          </form>
+
+          <p className="mt-8 text-center text-sm text-[#806c77]">
+            Já tem uma conta?{' '}
             <Link
               href="/login"
-              className="mb-0 inline-flex h-12 max-w-full items-center gap-3 rounded-[10px] border border-white/25 px-5 text-base font-medium text-white/85 backdrop-blur-sm transition-colors hover:border-white/45 hover:text-white xl:mb-32 xl:px-6 xl:text-2xl"
+              className="font-medium text-[#d71966] underline underline-offset-2 hover:text-[#a31350]"
+            >
+              Entrar
+            </Link>
+          </p>
+        </div>
+      </section>
+
+      <aside className="order-1 m-3 min-h-[220px] sm:min-h-[280px] lg:sticky lg:top-3 lg:order-2 lg:h-[calc(100dvh-24px)] lg:min-h-0 lg:self-start">
+        <div className="relative h-full min-h-[220px] overflow-hidden rounded-[28px] bg-[#f8d9e4] sm:min-h-[280px] lg:min-h-0">
+          <Image
+            src={loginBackground}
+            alt="Profissional organizando a clínica com o Luminix"
+            fill
+            className="object-cover object-[58%_center]"
+            sizes="(max-width: 1023px) 100vw, 53vw"
+            placeholder="blur"
+            priority
+          />
+          <div className="absolute inset-0 bg-gradient-to-t from-[#4b0925c9] via-[#7b123130] to-transparent" />
+          <div className="absolute inset-x-6 bottom-6 text-white sm:inset-x-10 sm:bottom-10 lg:inset-x-12 lg:bottom-12">
+            <span className="text-xs font-semibold tracking-[0.18em] text-[#ffd6e5] uppercase">
+              Feito para quem cuida
+            </span>
+            <h2 className="mt-3 max-w-[620px] text-3xl font-semibold tracking-[-0.045em] sm:text-5xl lg:text-[56px] lg:leading-[1.02]">
+              Sua clínica, mais simples.
+            </h2>
+            <Link
+              href="/login"
+              className="mt-6 inline-flex min-h-12 items-center rounded-xl border border-white/45 bg-white/12 px-5 font-medium text-white backdrop-blur-sm transition hover:bg-white/20"
             >
               Já tenho uma conta
             </Link>
           </div>
         </div>
-      </div>
-    </section>
+      </aside>
+    </main>
   )
 }
 
@@ -174,7 +177,7 @@ function SocialButton({
       type="button"
       disabled={disabled}
       onClick={onClick}
-      className="flex h-10 w-full items-center justify-center gap-2 rounded-[10px] border border-black/25 bg-white px-3 text-sm leading-none text-black transition-colors hover:bg-black/[0.03] disabled:opacity-60 dark:border-white/20 dark:bg-white/5 dark:text-white dark:hover:bg-white/10 xl:text-[19px]"
+      className="flex h-11 w-full items-center justify-center gap-2 rounded-xl border border-[#eadde3] bg-white px-3 text-sm leading-none text-[#371a29] transition-colors hover:border-[#e8b5c9] hover:bg-[#fff6f9] disabled:opacity-60 xl:text-base"
     >
       <span className="shrink-0">{icon}</span>
       <span className="whitespace-nowrap">{label}</span>
@@ -200,7 +203,7 @@ function FieldBox({
   const showLabel = !focused && value.length === 0
 
   return (
-    <label className="flex h-14 items-center justify-between gap-4 rounded-[10px] border border-black/25 bg-white px-5 text-lg leading-none dark:border-white/15 dark:bg-white/5 xl:text-xl">
+    <label className="flex h-14 items-center justify-between gap-4 rounded-xl border border-[#eadde3] bg-[#fffafb] px-5 text-base leading-none transition focus-within:border-[#e72875] focus-within:bg-white focus-within:ring-4 focus-within:ring-[#e7287512] xl:text-lg">
       <input
         name={name}
         type={type}
@@ -213,9 +216,9 @@ function FieldBox({
         onFocus={() => setFocused(true)}
         onBlur={() => setFocused(false)}
         onChange={(event) => setValue(event.target.value)}
-        className="min-w-0 flex-1 truncate bg-transparent text-black outline-none placeholder:text-black/30 dark:text-white dark:placeholder:text-white/35"
+        className="min-w-0 flex-1 truncate bg-transparent text-[#371a29] outline-none placeholder:text-[#aa919e]"
       />
-      {showLabel ? <span className="shrink-0 text-black dark:text-white">{label}</span> : null}
+      {showLabel ? <span className="shrink-0 text-[#573746]">{label}</span> : null}
     </label>
   )
 }
@@ -236,11 +239,11 @@ function CheckboxLine({
           type="checkbox"
           name={name}
           required={required}
-          className="peer size-full appearance-none rounded-[2px] border border-black/25 bg-white checked:border-black checked:bg-black dark:border-white/30 dark:bg-white/5 dark:checked:border-white dark:checked:bg-white"
+          className="peer size-full appearance-none rounded-[3px] border border-[#cbb8c1] bg-white checked:border-[#d71966] checked:bg-[#d71966]"
         />
         <svg
           viewBox="0 0 12 12"
-          className="pointer-events-none absolute inset-0 hidden size-full p-0.5 text-white peer-checked:block dark:text-black"
+          className="pointer-events-none absolute inset-0 hidden size-full p-0.5 text-white peer-checked:block"
           fill="none"
           aria-hidden="true"
         >

@@ -7,6 +7,7 @@ import { SignInPage, type Testimonial } from '@/components/ui/sign-in'
 import { useStaff } from '@/components/staff-provider'
 import { useStaffAuth } from '@/hooks/use-staff-auth'
 import { staffHomePath } from '@/lib/staff-destination'
+import loginBackground from '../../../../assets/brand/backgrounds/login.png'
 
 const testimonials: Testimonial[] = [
   {
@@ -90,7 +91,7 @@ export default function LoginPage() {
 
   return (
     <SignInPage
-      heroImageSrc="https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=1600&q=80"
+      heroImageSrc={loginBackground}
       testimonials={testimonials}
       busy={auth.busy}
       error={auth.error || staff.error}

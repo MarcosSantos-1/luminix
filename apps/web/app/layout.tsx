@@ -1,5 +1,6 @@
 import type { Metadata } from 'next'
 import type { ReactNode } from 'react'
+import appLogo from '../../../assets/brand/logos/logo.png'
 
 import './globals.css'
 
@@ -7,6 +8,10 @@ export const metadata: Metadata = {
   title: { default: 'Luminix — Sua clínica, mais simples', template: '%s | Luminix' },
   description: 'Agende, organize, atenda e encante seus clientes em um só lugar.',
   robots: { index: false, follow: false },
+  icons: {
+    icon: [{ url: appLogo.src, type: 'image/png', sizes: '1254x1254' }],
+    apple: [{ url: appLogo.src, type: 'image/png', sizes: '1254x1254' }],
+  },
 }
 
 export default function RootLayout({ children }: { children: ReactNode }) {
