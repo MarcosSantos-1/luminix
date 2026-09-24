@@ -3,7 +3,6 @@
 import Image from 'next/image'
 import Link from 'next/link'
 import { useState, type FormEvent, type ReactNode } from 'react'
-import loginBackground from '../../../../assets/brand/backgrounds/login.png'
 
 type AuthSectionOneProps = {
   busy?: boolean
@@ -132,12 +131,11 @@ export default function AuthSectionOne({
       <aside className="order-1 m-3 min-h-[220px] sm:min-h-[280px] lg:sticky lg:top-3 lg:order-2 lg:h-[calc(100dvh-24px)] lg:min-h-0 lg:self-start">
         <div className="relative h-full min-h-[220px] overflow-hidden rounded-[28px] bg-[#f8d9e4] sm:min-h-[280px] lg:min-h-0">
           <Image
-            src={loginBackground}
+            src="/brand/login.png"
             alt="Profissional organizando a clínica com o Luminix"
             fill
             className="object-cover object-[58%_center]"
             sizes="(max-width: 1023px) 100vw, 53vw"
-            placeholder="blur"
             priority
           />
           <div className="absolute inset-0 bg-gradient-to-t from-[#4b0925c9] via-[#7b123130] to-transparent" />

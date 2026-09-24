@@ -1,10 +1,9 @@
 import Image from 'next/image'
-import logoLetter from '../../../assets/brand/logos/logo_letter.png'
 
 export function Brand() {
   return (
     <div className="brand">
-      <Image src={logoLetter} alt="Luminix" priority />
+      <Image src="/brand/logo-letter.png" width={887} height={199} alt="Luminix" priority />
     </div>
   )
 }

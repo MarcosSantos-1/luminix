@@ -1,6 +1,5 @@
 import type { Metadata } from 'next'
 import type { ReactNode } from 'react'
-import appLogo from '../../../assets/brand/logos/logo.png'
 
 import './globals.css'
 
@@ -9,8 +8,8 @@ export const metadata: Metadata = {
   description: 'Agende, organize, atenda e encante seus clientes em um só lugar.',
   robots: { index: false, follow: false },
   icons: {
-    icon: [{ url: appLogo.src, type: 'image/png', sizes: '1254x1254' }],
-    apple: [{ url: appLogo.src, type: 'image/png', sizes: '1254x1254' }],
+    icon: [{ url: '/brand/logo.png', type: 'image/png', sizes: '1254x1254' }],
+    apple: [{ url: '/brand/logo.png', type: 'image/png', sizes: '1254x1254' }],
   },
 }
 
