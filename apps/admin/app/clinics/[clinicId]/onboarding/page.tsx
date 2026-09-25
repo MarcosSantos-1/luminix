@@ -301,6 +301,7 @@ export default function OnboardingPage() {
       step={step}
       busy={busy}
       onBack={() => void save(step - 1)}
+      onSelectStep={(index) => void save(index)}
       onExit={() => void save(step, true)}
     >
       {step === 0 && (

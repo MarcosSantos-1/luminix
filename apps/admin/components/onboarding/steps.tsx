@@ -1,4 +1,4 @@
-import { Button, Card, Checkbox, Separator, Switch, Label } from '@heroui/react'
+import { Button, Card, Checkbox, ScrollShadow, Separator, Switch, Label } from '@heroui/react'
 import {
   AtSign,
   Building2,
@@ -56,6 +56,21 @@ const bookingOptions = [
   { id: 'request', label: 'Pedir confirmação' },
   { id: 'manual_release', label: 'Liberar datas manualmente' },
 ]
+
+function selectedByCategory(services: Payload['services']) {
+  const grouped = new Map<string, string[]>()
+  for (const service of services) {
+    const names = grouped.get(service.category) ?? []
+    names.push(service.name)
+    grouped.set(service.category, names)
+  }
+  const known = categories.filter((category) => grouped.has(category))
+  const extra = [...grouped.keys()].filter((category) => !categories.includes(category))
+  return [...known, ...extra].map((category) => ({
+    category,
+    names: grouped.get(category) ?? [],
+  }))
+}
 
 function priceLabel(service: Service) {
   if (service.priceType === 'quote') return 'Sob consulta'
@@ -291,48 +306,78 @@ export function CatalogStep({
   }
 
   const items = area ? servicesInCategory(area) : []
+  const picked = selectedByCategory(payload.services)
   return (
     <div className="ob2-stack">
-      {area ? (
-        <>
-          <QuietButton onPress={() => setArea(null)}>Todas as áreas</QuietButton>
-          <p className="ob2-copy">
-            Marque o que {area.toLowerCase()} oferece. Dá para voltar e escolher outra área.
-          </p>
-          <StepScroll>
-            {items.map((item) => {
-              const selected = selectedNames.has(item.nome)
-              return (
-                <ChoiceCard
-                  key={item.nome}
-                  selected={selected}
-                  icon={selected ? <Check size={18} /> : <Plus size={18} />}
-                  title={item.nome}
-                  detail={`${item.duracao_minutos} min · sugestão ${formatMoney(Math.round(item.preco_sugerido_brl * 100))}`}
-                  onPress={() => toggle(item)}
-                />
-              )
-            })}
-          </StepScroll>
-        </>
-      ) : (
-        <div className="ob2-grid">
-          {categories.map((category) => {
-            const Icon = categoryIcon(category)
-            const count = payload.services.filter((service) => service.category === category).length
-            return (
-              <ChoiceCard
-                key={category}
-                icon={<Icon size={18} />}
-                title={category}
-                detail={count ? `${count} na agenda` : 'Ver serviços'}
-                selected={count > 0}
-                onPress={() => setArea(category)}
-              />
-            )
-          })}
+      <div className={picked.length ? 'ob2-catalog has-picked' : 'ob2-catalog'}>
+        <div className="ob2-catalog-main">
+          {area ? (
+            <>
+              <p className="ob2-copy">
+                Marque o que {area.toLowerCase()} oferece. Para seguir, volte a todas as áreas.
+              </p>
+              <ScrollShadow className="ob2-scroll" orientation="vertical" hideScrollBar>
+                <div className="ob2-services">
+                  {items.map((item) => {
+                    const selected = selectedNames.has(item.nome)
+                    return (
+                      <ChoiceCard
+                        key={item.nome}
+                        selected={selected}
+                        icon={selected ? <Check size={18} /> : <Plus size={18} />}
+                        title={item.nome}
+                        detail={`${item.duracao_minutos} min · sugestão ${formatMoney(Math.round(item.preco_sugerido_brl * 100))}`}
+                        onPress={() => toggle(item)}
+                      />
+                    )
+                  })}
+                </div>
+              </ScrollShadow>
+            </>
+          ) : (
+            <ScrollShadow className="ob2-scroll ob2-scroll-categories" orientation="vertical" hideScrollBar>
+              <div className="ob2-categories">
+                {categories.map((category) => {
+                  const Icon = categoryIcon(category)
+                  const count = payload.services.filter((service) => service.category === category).length
+                  return (
+                    <ChoiceCard
+                      key={category}
+                      icon={<Icon size={18} />}
+                      title={category}
+                      detail={count ? `${count} na agenda` : 'Ver serviços'}
+                      selected={count > 0}
+                      onPress={() => setArea(category)}
+                    />
+                  )
+                })}
+              </div>
+            </ScrollShadow>
+          )}
         </div>
-      )}
+        {picked.length > 0 && (
+          <aside className="ob2-picked" aria-label="Serviços selecionados">
+            <strong>Na agenda</strong>
+            <ScrollShadow className="ob2-picked-scroll" orientation="vertical" hideScrollBar>
+              <div className="ob2-picked-groups">
+                {picked.map((group) => (
+                  <div className="ob2-picked-group" key={group.category}>
+                    <div className="ob2-picked-head">
+                      <span>{group.category}</span>
+                      <b>{group.names.length}</b>
+                    </div>
+                    <ul>
+                      {group.names.map((name) => (
+                        <li key={name}>{name}</li>
+                      ))}
+                    </ul>
+                  </div>
+                ))}
+              </div>
+            </ScrollShadow>
+          </aside>
+        )}
+      </div>
       <p className="ob2-copy">
         {payload.services.length === 0
           ? 'Escolha pelo menos um serviço para a agenda nascer com horário.'
@@ -341,9 +386,23 @@ export function CatalogStep({
       <QuietButton onPress={custom.open} isDisabled={payload.services.length >= 80}>
         <Plus size={16} /> Serviço fora do catálogo
       </QuietButton>
-      <StepEnd error={error} footer={footer} />
+      {area ? (
+        <>
+          {error ? (
+            <p className="ob2-error" role="alert">
+              {error}
+            </p>
+          ) : null}
+          <Button className="ob2-cta" fullWidth onPress={() => setArea(null)}>
+            Todas as áreas
+          </Button>
+        </>
+      ) : (
+        <StepEnd error={error} footer={footer} />
+      )}
       <BlurDrawer
         state={custom}
+        placement="bottom"
         title="Serviço fora do catálogo"
         footer={
           <Button className="ob2-cta" fullWidth onPress={addCustom} isDisabled={!customName.trim()}>

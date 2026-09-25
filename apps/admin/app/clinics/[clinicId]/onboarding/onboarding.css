@@ -1,6 +1,11 @@
 @import '@heroui/styles';
 
 .ob2 {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 28px;
+  padding: 28px 32px 56px;
   --accent: #e72875;
   --accent-foreground: #fff;
   --accent-hover: #ff4a91;
@@ -9,7 +14,7 @@
   --surface: rgba(255, 255, 255, 0.12);
   --surface-foreground: #fff;
   --surface-secondary: rgba(255, 255, 255, 0.08);
-  --overlay: rgba(89, 11, 45, 0.9);
+  --overlay: rgba(255, 255, 255, 0.16);
   --overlay-foreground: #fff;
   --field-background: rgba(255, 255, 255, 0.14);
   --field-foreground: #fff;
@@ -45,14 +50,107 @@
   background: #fff4f8;
 }
 
+.ob2-top,
+.ob2-board {
+  width: min(1240px, 100%);
+}
+
+.ob2-top {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.ob2-logo {
+  width: 190px;
+  height: auto;
+}
+
+.ob2-board {
+  display: grid;
+  gap: 20px;
+  align-items: start;
+}
+
+.ob2-rail-meter {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.ob2-rail-meter span {
+  font-size: 15px;
+}
+
+.ob2-rail-meter strong {
+  font-size: 28px;
+  line-height: 1;
+}
+
+.ob2-rail-track {
+  display: block;
+  height: 6px;
+  overflow: hidden;
+  border-radius: 99px;
+  background: rgba(255, 255, 255, 0.28);
+}
+
+.ob2-rail-track span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #ff2775, #ffb1cd);
+}
+
+.ob2-rail ol {
+  display: grid;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.ob2 .button.ob2-rail-item {
+  width: 100%;
+  height: auto;
+  min-height: 44px;
+  justify-content: flex-start;
+  gap: 10px;
+  border-radius: 12px;
+  color: #fff;
+  white-space: normal;
+  --button-bg: transparent;
+  --button-bg-hover: rgba(255, 255, 255, 0.12);
+  --button-fg: #fff;
+}
+
+.ob2 .button.ob2-rail-item.is-current {
+  --button-bg: rgba(255, 255, 255, 0.18);
+}
+
+.ob2 .button.ob2-rail-item > span {
+  width: 28px;
+  height: 28px;
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+  border-radius: 9px;
+  background: rgba(255, 255, 255, 0.16);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.ob2-rail {
+  display: none;
+}
+
 .ob2-column {
-  width: min(440px, calc(100% - 32px));
-  margin: 0 auto;
-  padding: 28px 0 56px;
+  width: 100%;
+  min-width: 0;
   display: flex;
   flex-direction: column;
   gap: 18px;
-  min-width: 0;
 }
 
 .ob2-bar {
@@ -123,8 +221,92 @@
 
 .ob2-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: 1fr;
   gap: 12px;
+}
+
+.ob2-categories,
+.ob2-services {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 12px;
+}
+
+.ob2-catalog {
+  display: grid;
+  gap: 16px;
+  min-width: 0;
+}
+
+.ob2-catalog-main {
+  min-width: 0;
+}
+
+.ob2-picked {
+  display: grid;
+  align-content: start;
+  gap: 12px;
+  padding: 16px;
+  min-width: 0;
+}
+
+.ob2-picked > strong {
+  font-size: 16px;
+}
+
+.ob2-picked-groups {
+  display: grid;
+  gap: 14px;
+}
+
+.ob2-picked-group {
+  display: grid;
+  gap: 8px;
+  padding-bottom: 12px;
+  border-bottom: 2px solid #ff4a91;
+}
+
+.ob2-picked-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.ob2-picked-head b {
+  min-width: 28px;
+  height: 28px;
+  display: grid;
+  place-items: center;
+  border-radius: 999px;
+  background: #ff2d79;
+  color: #fff;
+  font-size: 14px;
+}
+
+.ob2-picked-groups span {
+  display: block;
+  font-size: 16px;
+  font-weight: 700;
+  color: #fff;
+}
+
+.ob2-picked-groups ul {
+  margin: 6px 0 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 4px;
+}
+
+.ob2-picked-groups li {
+  font-size: 15px;
+  line-height: 1.4;
+  color: rgba(255, 255, 255, 0.84);
+}
+
+.ob2-picked-scroll {
+  max-height: min(52vh, 480px);
 }
 
 .ob2-form {
@@ -132,14 +314,19 @@
   gap: 16px;
 }
 
-.ob2 .card.ob2-panel {
-  padding: 22px;
+.ob2 .card.ob2-panel,
+.ob2-rail,
+.ob2-picked {
   border: 1px solid rgba(255, 255, 255, 0.28);
   border-radius: 24px;
   background: rgba(255, 255, 255, 0.12);
   color: #fff;
-  box-shadow: 0 16px 40px rgba(44, 0, 20, 0.24);
-  backdrop-filter: blur(20px) saturate(125%);
+  box-shadow: none;
+  backdrop-filter: blur(24px) saturate(140%);
+}
+
+.ob2 .card.ob2-panel {
+  padding: 22px;
 }
 
 .ob2 .label {
@@ -258,10 +445,18 @@
 }
 
 .ob2 .button.ob2-choice.is-selected {
-  border-color: #ff8db7;
-  box-shadow: inset 0 0 0 1px rgba(255, 141, 183, 0.65);
-  --button-bg: rgba(255, 48, 121, 0.34);
-  --button-bg-hover: rgba(255, 48, 121, 0.44);
+  border-color: #fff;
+  box-shadow: inset 0 0 0 1px #fff;
+  --button-bg: rgba(255, 45, 121, 0.55);
+  --button-bg-hover: rgba(255, 45, 121, 0.68);
+  --button-fg: #fff;
+  color: #fff;
+}
+
+.ob2 .button.ob2-rail-item.is-done > span,
+.ob2 .button.ob2-rail-item.is-current > span {
+  background: #ff2d79;
+  color: #fff;
 }
 
 .ob2-choice-icon {
@@ -319,8 +514,24 @@
   font-weight: 650;
 }
 
+.ob2-scroll,
+.ob2-picked-scroll,
+.ob2-scroll-categories {
+  scrollbar-width: none;
+}
+
+.ob2-scroll::-webkit-scrollbar,
+.ob2-picked-scroll::-webkit-scrollbar,
+.ob2-scroll-categories::-webkit-scrollbar {
+  display: none;
+}
+
 .ob2-scroll {
-  max-height: min(420px, 52vh);
+  max-height: min(520px, 58vh);
+}
+
+.ob2-scroll-categories {
+  max-height: min(720px, 68vh);
 }
 
 .ob2-day {
@@ -409,11 +620,12 @@
 
 .ob2-popover {
   --foreground: #fff;
-  --overlay: #5a1233;
-  --accent: #e72875;
-  background: #5a1233;
+  --overlay: rgba(255, 255, 255, 0.16);
+  --accent: #ec287a;
+  background: rgba(255, 255, 255, 0.16);
   color: #fff;
   border: 1px solid rgba(255, 255, 255, 0.28);
+  backdrop-filter: blur(24px) saturate(140%);
 }
 
 .ob2-popover .list-box-item {
@@ -436,13 +648,21 @@
   --accent-foreground: #fff;
   --default: rgba(255, 255, 255, 0.14);
   --default-foreground: #fff;
-  --overlay: rgba(89, 11, 45, 0.94);
+  --overlay: rgba(255, 255, 255, 0.16);
   --separator: rgba(255, 255, 255, 0.28);
-  width: min(420px, 100%);
-  background: rgba(89, 11, 45, 0.9);
+  width: min(440px, 100%);
+  background: rgba(255, 255, 255, 0.14);
   color: #fff;
-  backdrop-filter: blur(28px) saturate(125%);
-  border-inline-start: 1px solid rgba(255, 255, 255, 0.28);
+  backdrop-filter: blur(28px) saturate(140%);
+  border: 1px solid rgba(255, 255, 255, 0.26);
+  box-shadow: 0 16px 45px rgba(39, 1, 19, 0.18);
+}
+
+.ob2-drawer-dialog[data-placement='bottom'] {
+  width: 100%;
+  max-height: min(78vh, 640px);
+  border-radius: 24px 24px 0 0;
+  border-bottom: 0;
 }
 
 .ob2-drawer-dialog .drawer__header {
@@ -512,6 +732,8 @@
 }
 
 .ob2[data-surface='solid'] .card.ob2-panel,
+.ob2[data-surface='solid'] .ob2-rail,
+.ob2[data-surface='solid'] .ob2-picked,
 .ob2[data-surface='solid'] .button.ob2-choice,
 .ob2[data-surface='solid'] .input-group,
 .ob2[data-surface='solid'] .select__trigger {
@@ -543,17 +765,50 @@
   box-shadow: 0 0 0 1000px rgba(255, 255, 255, 0.08) inset;
 }
 
-@media (max-width: 720px) {
+@media (min-width: 720px) {
+  .ob2-grid,
+  .ob2-services {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .ob2-categories {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 1080px) {
+  .ob2-board {
+    grid-template-columns: 240px minmax(0, 1fr);
+    gap: 48px;
+  }
+
+  .ob2-rail {
+    position: sticky;
+    top: 28px;
+    display: grid;
+    align-content: start;
+    gap: 14px;
+    padding: 18px 14px;
+  }
+
+  .ob2-steps-trigger {
+    display: none;
+  }
+
+  .ob2-catalog.has-picked {
+    grid-template-columns: minmax(0, 1fr) 300px;
+    gap: 48px;
+    align-items: start;
+  }
+}
+
+@media (max-width: 719px) {
   .ob2 {
     background-image: url('/brand/background-portrait.png');
   }
 
   .ob2-heading h1 {
     font-size: 28px;
-  }
-
-  .ob2-grid {
-    grid-template-columns: 1fr;
   }
 }
 
@@ -567,12 +822,21 @@
   }
 
   .ob2 .card.ob2-panel,
-  .ob2 .button.ob2-choice {
-    background: #8e1d50;
+  .ob2-rail,
+  .ob2-picked,
+  .ob2-drawer-dialog,
+  .ob2-popover {
+    background: rgba(255, 255, 255, 0.22);
   }
 
-  .ob2-drawer-dialog {
-    background: #6d143c;
+  .ob2 .button.ob2-choice {
+    --button-bg: rgba(255, 255, 255, 0.22);
+    background: rgba(255, 255, 255, 0.22);
+  }
+
+  .ob2 .button.ob2-choice.is-selected {
+    --button-bg: rgba(255, 45, 121, 0.72);
+    background: rgba(255, 45, 121, 0.72);
   }
 }
 

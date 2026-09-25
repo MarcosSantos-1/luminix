@@ -1,7 +1,7 @@
 import { Button, Drawer, Separator } from '@heroui/react'
+import Image from 'next/image'
 import { ArrowLeft, Check, MoonStar, Sun } from 'lucide-react'
 import type { ReactNode } from 'react'
-import { Brand } from '@/components/brand'
 import { stepInfo } from './model'
 
 export function OnboardingShell({
@@ -10,6 +10,7 @@ export function OnboardingShell({
   step,
   busy,
   onBack,
+  onSelectStep,
   onExit,
   children,
 }: {
@@ -18,14 +19,22 @@ export function OnboardingShell({
   step: number
   busy: boolean
   onBack: () => void
+  onSelectStep: (index: number) => void
   onExit: () => void
   children: ReactNode
 }) {
   const current = stepInfo[step]
+  const progress = Math.round(((step + 1) / stepInfo.length) * 100)
   return (
     <main className="ob2" data-surface={glass ? 'glass' : 'solid'}>
-      <div className="ob2-column">
-        <Brand />
+      <div className="ob2-top">
+        <Image
+          className="ob2-logo"
+          src="/brand/logo-letter-white.png"
+          alt="Luminix"
+          width={190}
+          height={34}
+        />
         <header className="ob2-bar">
           <Button
             className="ob2-icon"
@@ -95,7 +104,41 @@ export function OnboardingShell({
           <h1>{current.title}</h1>
           <p>{current.text}</p>
         </div>
-        {children}
+      </div>
+      <div className="ob2-board">
+        <aside className="ob2-rail">
+          <div className="ob2-rail-meter">
+            <span>Progresso</span>
+            <strong>{progress}%</strong>
+          </div>
+          <i className="ob2-rail-track" aria-hidden>
+            <span style={{ width: `${progress}%` }} />
+          </i>
+          <ol>
+            {stepInfo.map((item, index) => (
+              <li key={item.key}>
+                <Button
+                  className={
+                    index === step
+                      ? 'ob2-rail-item is-current'
+                      : index < step
+                        ? 'ob2-rail-item is-done'
+                        : 'ob2-rail-item'
+                  }
+                  variant="ghost"
+                  isDisabled={busy || index > step}
+                  onPress={() => {
+                    if (index < step) onSelectStep(index)
+                  }}
+                >
+                  <span>{index < step ? <Check size={15} /> : index + 1}</span>
+                  {item.label}
+                </Button>
+              </li>
+            ))}
+          </ol>
+        </aside>
+        <div className="ob2-column">{children}</div>
       </div>
     </main>
   )

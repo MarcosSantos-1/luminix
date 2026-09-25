@@ -135,16 +135,18 @@ export function BlurDrawer({
   title,
   children,
   footer,
+  placement = 'right',
 }: {
   state: UseOverlayStateReturn
   title: string
   children: ReactNode
   footer?: ReactNode
+  placement?: 'right' | 'bottom'
 }) {
   return (
     <Drawer state={state}>
       <Drawer.Backdrop variant="blur" className="ob2-drawer">
-        <Drawer.Content placement="right">
+        <Drawer.Content placement={placement}>
           <Drawer.Dialog className="ob2-drawer-dialog">
             <Drawer.Header>
               <Drawer.Heading>{title}</Drawer.Heading>
