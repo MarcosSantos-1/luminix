@@ -84,7 +84,7 @@ export async function staffApiWrite(
     )
       throw new Error('Invalid API URL')
     const body = await request.text()
-    if (body.length > 32768)
+    if (body.length > 131072)
       return Response.json({ error: 'Payload too large' }, { status: 413, headers })
     const response = await fetch(url, {
       method: request.method,

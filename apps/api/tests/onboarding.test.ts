@@ -13,9 +13,49 @@ const payload = {
   ownerName: 'Ana Souza',
   email: 'ana.a@example.com',
   phone: '+5511999990001',
+  clinic: {
+    foundedYear: '2020',
+    whatsapp: '+5511999990001',
+    instagram: '@clinicaa',
+    facebook: '',
+    website: '',
+    taxId: '',
+    addressLine: 'Rua A, 10',
+    city: 'São Paulo',
+    state: 'SP',
+    postalCode: '01001000',
+  },
   occupations: ['Estética facial'],
-  services: [{ name: 'Limpeza de pele', priceCents: 9000, durationMinutes: 60 }],
-  professionals: ['Ana'],
+  services: [
+    {
+      category: 'Estética facial',
+      name: 'Limpeza de pele',
+      description: 'Limpeza completa',
+      priceCents: 9000,
+      durationMinutes: 60,
+      priceType: 'fixed',
+      bookingMode: 'instant',
+      audience: 'all',
+      resourceName: '',
+      cancellationHours: null,
+    },
+  ],
+  teamMode: 'solo',
+  professionals: [
+    { name: 'Ana', role: 'Esteticista', audience: 'all', serviceNames: ['Limpeza de pele'] },
+  ],
+  businessHours: [1, 2, 3, 4, 5, 6, 0].map((weekday) => ({
+    weekday,
+    enabled: weekday >= 1 && weekday <= 5,
+    start: '09:00',
+    end: '18:00',
+  })),
+  preferences: {
+    cancellationHours: 12,
+    specialCancellationHours: 24,
+    acceptInApp: false,
+    packagePaymentMode: 'clinic_only',
+  },
 }
 beforeAll(async () => {
   db = new PGlite()
@@ -104,7 +144,6 @@ describe('versioned clinic onboarding', () => {
         ...payload,
         name: 'Clínica A',
         occupations: [],
-        services: [],
         professionals: [],
       },
     })
@@ -155,6 +194,19 @@ describe('versioned clinic onboarding', () => {
     expect(overview.occupations).toHaveLength(1)
     expect(overview.services).toHaveLength(1)
     expect(overview.professionals).toHaveLength(1)
+    await db.query("SELECT set_config('luminix.clinic_id', $1, false)", [clinicA])
+    expect(
+      (await db.query('SELECT * FROM luminix.clinic_profiles WHERE clinic_id = $1', [clinicA]))
+        .rows,
+    ).toHaveLength(1)
+    expect(
+      (await db.query('SELECT * FROM luminix.business_hours WHERE clinic_id = $1', [clinicA])).rows,
+    ).toHaveLength(5)
+    expect(
+      (await db.query('SELECT * FROM luminix.booking_policies WHERE clinic_id = $1', [clinicA]))
+        .rows,
+    ).toHaveLength(1)
+    await db.query("SELECT set_config('luminix.clinic_id', '', false)")
     const other = (await call('onboarding-b', 'GET', clinicB, 'overview')).json()
     expect(other.services).toHaveLength(0)
     expect(

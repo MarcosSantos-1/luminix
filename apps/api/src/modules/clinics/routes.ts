@@ -6,9 +6,11 @@ import type { TenantContext } from '../../shared/tenant/tenant-context.js'
 const onboardingSteps = [
   'contact',
   'clinic',
-  'occupations',
+  'catalog',
   'services',
-  'professionals',
+  'structure',
+  'schedule',
+  'preferences',
   'review',
 ] as const
 
@@ -17,9 +19,45 @@ type OnboardingPayload = {
   ownerName: string
   email: string
   phone: string
+  clinic: {
+    foundedYear: string
+    whatsapp: string
+    instagram: string
+    facebook: string
+    website: string
+    taxId: string
+    addressLine: string
+    city: string
+    state: string
+    postalCode: string
+  }
   occupations: string[]
-  services: { name: string; priceCents: number; durationMinutes: number }[]
-  professionals: string[]
+  services: {
+    category: string
+    name: string
+    description: string
+    priceCents: number
+    durationMinutes: number
+    priceType: 'fixed' | 'from' | 'quote'
+    bookingMode: 'instant' | 'request' | 'manual_release'
+    audience: 'all' | 'women' | 'men'
+    resourceName: string
+    cancellationHours: number | null
+  }[]
+  teamMode: 'solo' | 'team'
+  professionals: {
+    name: string
+    role: string
+    audience: 'all' | 'women' | 'men'
+    serviceNames: string[]
+  }[]
+  businessHours: { weekday: number; enabled: boolean; start: string; end: string }[]
+  preferences: {
+    cancellationHours: number
+    specialCancellationHours: number
+    acceptInApp: boolean
+    packagePaymentMode: 'clinic_only' | 'in_app' | 'both'
+  }
 }
 
 function validPayload(payload: OnboardingPayload): boolean {
@@ -27,17 +65,39 @@ function validPayload(payload: OnboardingPayload): boolean {
     new Set(names.map((name) => name.trim().toLocaleLowerCase('pt-BR'))).size === names.length
   const email = payload.email.trim()
   const phone = payload.phone.trim()
+  const foundedYear = payload.clinic.foundedYear.trim()
+  const whatsapp = payload.clinic.whatsapp.trim()
+  const taxDigits = payload.clinic.taxId.replace(/\D/g, '')
   return Boolean(
     payload.name.length <= 160 &&
     payload.ownerName.length <= 120 &&
     email.length <= 254 &&
     (!email || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) &&
     (!phone || /^\+[1-9][0-9]{7,14}$/.test(phone)) &&
+    (!whatsapp || /^\+[1-9][0-9]{7,14}$/.test(whatsapp)) &&
+    (!foundedYear ||
+      (/^[0-9]{4}$/.test(foundedYear) &&
+        Number(foundedYear) >= 1800 &&
+        Number(foundedYear) <= 2200)) &&
+    (!payload.clinic.taxId || (taxDigits.length >= 11 && taxDigits.length <= 14)) &&
+    (!payload.clinic.state || /^[A-Z]{2}$/.test(payload.clinic.state)) &&
+    (!payload.clinic.postalCode || /^[0-9-]{8,9}$/.test(payload.clinic.postalCode)) &&
     unique(payload.occupations) &&
     unique(payload.services.map((service) => service.name)) &&
     payload.occupations.every((name) => name.trim()) &&
-    payload.professionals.every((name) => name.trim()) &&
-    payload.services.every((service) => service.name.trim()),
+    payload.professionals.every((professional) => professional.name.trim()) &&
+    payload.services.every((service) => service.name.trim()) &&
+    payload.businessHours.length === 7 &&
+    unique(payload.businessHours.map((day) => String(day.weekday))) &&
+    payload.businessHours.every(
+      (day) =>
+        day.weekday >= 0 &&
+        day.weekday <= 6 &&
+        /^(?:[01][0-9]|2[0-3]):[0-5][0-9]$/.test(day.start) &&
+        /^(?:[01][0-9]|2[0-3]):[0-5][0-9]$/.test(day.end) &&
+        (!day.enabled || day.start < day.end),
+    ) &&
+    unique(payload.professionals.map((professional) => professional.name)),
   )
 }
 
@@ -47,9 +107,34 @@ function emptyPayload(clinicName: string): OnboardingPayload {
     ownerName: '',
     email: '',
     phone: '',
+    clinic: {
+      foundedYear: '',
+      whatsapp: '',
+      instagram: '',
+      facebook: '',
+      website: '',
+      taxId: '',
+      addressLine: '',
+      city: '',
+      state: '',
+      postalCode: '',
+    },
     occupations: [],
     services: [],
+    teamMode: 'solo',
     professionals: [],
+    businessHours: [1, 2, 3, 4, 5, 6, 0].map((weekday) => ({
+      weekday,
+      enabled: weekday >= 1 && weekday <= 5,
+      start: '09:00',
+      end: weekday === 6 ? '13:00' : '18:00',
+    })),
+    preferences: {
+      cancellationHours: 12,
+      specialCancellationHours: 24,
+      acceptInApp: false,
+      packagePaymentMode: 'clinic_only',
+    },
   }
 }
 
@@ -95,7 +180,7 @@ export async function clinicRoutes(
       }
       if ((error as { code?: string })?.code === '23505')
         return reply.code(409).send({ error: 'Onboarding changed; reload before retrying' })
-      if ((error as { code?: string })?.code === '22023')
+      if (['22023', '22P02', '23514'].includes((error as { code?: string })?.code ?? ''))
         return reply.code(400).send({ error: 'Invalid onboarding data' })
       request.log.warn({ event: 'clinic_read_unavailable' })
       return reply.code(503).send({ error: 'Clinic unavailable' })
@@ -141,12 +226,52 @@ export async function clinicRoutes(
   const onboardingPayloadSchema = {
     type: 'object',
     additionalProperties: false,
-    required: ['name', 'ownerName', 'email', 'phone', 'occupations', 'services', 'professionals'],
+    required: [
+      'name',
+      'ownerName',
+      'email',
+      'phone',
+      'clinic',
+      'occupations',
+      'services',
+      'teamMode',
+      'professionals',
+      'businessHours',
+      'preferences',
+    ],
     properties: {
       name: { type: 'string', minLength: 0, maxLength: 160 },
       ownerName: { type: 'string', minLength: 0, maxLength: 120 },
       email: { type: 'string', minLength: 0, maxLength: 254 },
       phone: { type: 'string', minLength: 0, maxLength: 16, pattern: '^$|^\\+[1-9][0-9]{7,14}$' },
+      clinic: {
+        type: 'object',
+        additionalProperties: false,
+        required: [
+          'foundedYear',
+          'whatsapp',
+          'instagram',
+          'facebook',
+          'website',
+          'taxId',
+          'addressLine',
+          'city',
+          'state',
+          'postalCode',
+        ],
+        properties: {
+          foundedYear: { type: 'string', maxLength: 4, pattern: '^$|^[0-9]{4}$' },
+          whatsapp: { type: 'string', maxLength: 16, pattern: '^$|^\\+[1-9][0-9]{7,14}$' },
+          instagram: { type: 'string', maxLength: 120 },
+          facebook: { type: 'string', maxLength: 300 },
+          website: { type: 'string', maxLength: 300 },
+          taxId: { type: 'string', maxLength: 18 },
+          addressLine: { type: 'string', maxLength: 240 },
+          city: { type: 'string', maxLength: 120 },
+          state: { type: 'string', maxLength: 2, pattern: '^$|^[A-Z]{2}$' },
+          postalCode: { type: 'string', maxLength: 9, pattern: '^$|^[0-9-]{8,9}$' },
+        },
+      },
       occupations: {
         type: 'array',
         maxItems: 20,
@@ -154,22 +279,89 @@ export async function clinicRoutes(
       },
       services: {
         type: 'array',
+        maxItems: 80,
+        items: {
+          type: 'object',
+          additionalProperties: false,
+          required: [
+            'category',
+            'name',
+            'description',
+            'priceCents',
+            'durationMinutes',
+            'priceType',
+            'bookingMode',
+            'audience',
+            'resourceName',
+            'cancellationHours',
+          ],
+          properties: {
+            category: { type: 'string', minLength: 1, maxLength: 120 },
+            name: { type: 'string', minLength: 1, maxLength: 160 },
+            description: { type: 'string', maxLength: 1200 },
+            priceCents: { type: 'integer', minimum: 0, maximum: 999999999 },
+            durationMinutes: { type: 'integer', minimum: 1, maximum: 1440 },
+            priceType: { type: 'string', enum: ['fixed', 'from', 'quote'] },
+            bookingMode: { type: 'string', enum: ['instant', 'request', 'manual_release'] },
+            audience: { type: 'string', enum: ['all', 'women', 'men'] },
+            resourceName: { type: 'string', maxLength: 160 },
+            cancellationHours: {
+              anyOf: [{ type: 'integer', minimum: 0, maximum: 168 }, { type: 'null' }],
+            },
+          },
+        },
+      },
+      teamMode: { type: 'string', enum: ['solo', 'team'] },
+      professionals: {
+        type: 'array',
         maxItems: 30,
         items: {
           type: 'object',
           additionalProperties: false,
-          required: ['name', 'priceCents', 'durationMinutes'],
+          required: ['name', 'role', 'audience', 'serviceNames'],
           properties: {
             name: { type: 'string', minLength: 1, maxLength: 160 },
-            priceCents: { type: 'integer', minimum: 0, maximum: 999999999 },
-            durationMinutes: { type: 'integer', minimum: 1, maximum: 1440 },
+            role: { type: 'string', minLength: 1, maxLength: 120 },
+            audience: { type: 'string', enum: ['all', 'women', 'men'] },
+            serviceNames: {
+              type: 'array',
+              maxItems: 80,
+              items: { type: 'string', minLength: 1, maxLength: 160 },
+            },
           },
         },
       },
-      professionals: {
+      businessHours: {
         type: 'array',
-        maxItems: 20,
-        items: { type: 'string', minLength: 1, maxLength: 160 },
+        minItems: 7,
+        maxItems: 7,
+        items: {
+          type: 'object',
+          additionalProperties: false,
+          required: ['weekday', 'enabled', 'start', 'end'],
+          properties: {
+            weekday: { type: 'integer', minimum: 0, maximum: 6 },
+            enabled: { type: 'boolean' },
+            start: { type: 'string', pattern: '^(?:[01][0-9]|2[0-3]):[0-5][0-9]$' },
+            end: { type: 'string', pattern: '^(?:[01][0-9]|2[0-3]):[0-5][0-9]$' },
+          },
+        },
+      },
+      preferences: {
+        type: 'object',
+        additionalProperties: false,
+        required: [
+          'cancellationHours',
+          'specialCancellationHours',
+          'acceptInApp',
+          'packagePaymentMode',
+        ],
+        properties: {
+          cancellationHours: { type: 'integer', minimum: 0, maximum: 168 },
+          specialCancellationHours: { type: 'integer', minimum: 0, maximum: 336 },
+          acceptInApp: { type: 'boolean' },
+          packagePaymentMode: { type: 'string', enum: ['clinic_only', 'in_app', 'both'] },
+        },
       },
     },
   } as const
@@ -208,7 +400,7 @@ export async function clinicRoutes(
               }
             : {
                 version: 0,
-                formatVersion: 1,
+                formatVersion: 2,
                 step: 'contact',
                 status: 'draft',
                 payload: emptyPayload(String(clinic.name)),
@@ -222,7 +414,7 @@ export async function clinicRoutes(
   }>(
     '/clinics/:clinicId/onboarding',
     {
-      bodyLimit: 32768,
+      bodyLimit: 131072,
       schema: {
         params,
         body: {
@@ -258,7 +450,7 @@ export async function clinicRoutes(
         return {
           draft: {
             version: Number(row.draft_version),
-            formatVersion: 1,
+            formatVersion: 2,
             step: row.draft_step,
             status: 'draft',
             payload: row.draft_payload,
