@@ -1,0 +1,584 @@
+@import '@heroui/styles';
+
+.ob2 {
+  --accent: #e72875;
+  --accent-foreground: #fff;
+  --accent-hover: #ff4a91;
+  --foreground: #fff;
+  --muted: rgba(255, 255, 255, 0.8);
+  --surface: rgba(255, 255, 255, 0.12);
+  --surface-foreground: #fff;
+  --surface-secondary: rgba(255, 255, 255, 0.08);
+  --overlay: rgba(89, 11, 45, 0.9);
+  --overlay-foreground: #fff;
+  --field-background: rgba(255, 255, 255, 0.14);
+  --field-foreground: #fff;
+  --field-placeholder: rgba(255, 255, 255, 0.62);
+  --field-border: rgba(255, 255, 255, 0.28);
+  --field-border-hover: rgba(255, 255, 255, 0.42);
+  --field-border-focus: #ff8db7;
+  --focus: #ff8db7;
+  --default: rgba(255, 255, 255, 0.14);
+  --default-foreground: #fff;
+  --default-hover: rgba(255, 255, 255, 0.22);
+  --border: rgba(255, 255, 255, 0.22);
+  --separator: rgba(255, 255, 255, 0.28);
+  --radius: 0.9rem;
+  --field-radius: 14px;
+  min-height: 100vh;
+  overflow-x: clip;
+  color: #fff;
+  background: #780033 url('/brand/background-desktop.png') center / cover fixed;
+}
+
+.ob2[data-surface='solid'] {
+  --foreground: #34101f;
+  --muted: #6d4d5c;
+  --surface: #fff;
+  --field-background: #fff;
+  --field-foreground: #34101f;
+  --field-placeholder: #a88898;
+  --field-border: #f0cfdb;
+  --default: #fff4f8;
+  --default-foreground: #34101f;
+  color: #34101f;
+  background: #fff4f8;
+}
+
+.ob2-column {
+  width: min(440px, calc(100% - 32px));
+  margin: 0 auto;
+  padding: 28px 0 56px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  min-width: 0;
+}
+
+.ob2-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+.ob2-steps-trigger {
+  flex: 1 1 120px;
+  min-width: 0;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  border: 0;
+  padding: 0;
+  color: inherit;
+  background: transparent;
+  cursor: pointer;
+}
+
+.ob2-steps {
+  display: flex;
+  width: 100%;
+  gap: 6px;
+}
+
+.ob2-steps i {
+  flex: 1;
+  height: 6px;
+  border-radius: 99px;
+  background: rgba(255, 255, 255, 0.32);
+}
+
+.ob2-steps i.on {
+  background: linear-gradient(90deg, #ff2775, #ffb1cd);
+}
+
+.ob2-heading h1 {
+  margin: 0;
+  font-size: 32px;
+  line-height: 1.12;
+  letter-spacing: -0.03em;
+  font-weight: 700;
+}
+
+.ob2-heading p,
+.ob2-copy {
+  margin: 8px 0 0;
+  font-size: 16px;
+  line-height: 1.5;
+  color: rgba(255, 255, 255, 0.84);
+}
+
+.ob2-copy {
+  margin: 0;
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.ob2-stack {
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+}
+
+.ob2-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.ob2-form {
+  display: grid;
+  gap: 16px;
+}
+
+.ob2 .card.ob2-panel {
+  padding: 22px;
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  border-radius: 24px;
+  background: rgba(255, 255, 255, 0.12);
+  color: #fff;
+  box-shadow: 0 16px 40px rgba(44, 0, 20, 0.24);
+  backdrop-filter: blur(20px) saturate(125%);
+}
+
+.ob2 .label {
+  font-size: 14px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.94);
+}
+
+.ob2 .textfield,
+.ob2 .select {
+  gap: 8px;
+}
+
+.ob2 .input-group,
+.ob2 .select__trigger {
+  min-height: 52px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.14);
+  border-color: rgba(255, 255, 255, 0.28);
+  color: #fff;
+  font-size: 16px;
+}
+
+.ob2 .input-group__input,
+.ob2 .select__value {
+  font-size: 16px;
+  color: #fff;
+}
+
+.ob2 .input-group__input::placeholder {
+  color: rgba(255, 255, 255, 0.62);
+}
+
+.ob2 .input-group__prefix {
+  border-inline-end-color: transparent;
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.ob2 .button,
+.ob2-drawer-dialog .button {
+  padding: 0 16px;
+  font-weight: 650;
+}
+
+.ob2 .button:hover,
+.ob2-drawer-dialog .button:hover {
+  transform: none;
+}
+
+.ob2 .button.ob2-cta {
+  min-height: 52px;
+  height: 52px;
+  border: 0;
+  border-radius: 14px;
+  font-size: 16px;
+  font-weight: 650;
+  color: #fff;
+  background-color: #ff1e6c;
+  background-image: linear-gradient(95deg, #ff1e6c, #ff91b9);
+  box-shadow: 0 12px 30px #c6004b55;
+  --button-fg: #fff;
+  --button-bg-hover: #ff3b86;
+  --button-bg-pressed: #e01862;
+}
+
+.ob2 .button.ob2-icon {
+  width: 44px;
+  height: 44px;
+  min-width: 44px;
+  padding: 0;
+  border-radius: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  --button-bg: rgba(255, 255, 255, 0.12);
+  --button-bg-hover: rgba(255, 255, 255, 0.22);
+  --button-fg: #fff;
+}
+
+.ob2 .button.ob2-exit,
+.ob2 .button.ob2-quiet {
+  min-height: 44px;
+  height: auto;
+  border-radius: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  --button-bg: rgba(255, 255, 255, 0.12);
+  --button-bg-hover: rgba(255, 255, 255, 0.22);
+  --button-fg: #fff;
+  color: #fff;
+  white-space: normal;
+}
+
+.ob2 .button.ob2-exit {
+  border-radius: 999px;
+  margin-left: auto;
+}
+
+.ob2 .button.ob2-choice {
+  width: 100%;
+  height: auto;
+  min-height: 96px;
+  padding: 16px;
+  border-radius: 18px;
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 12px;
+  text-align: left;
+  white-space: normal;
+  color: #fff;
+  backdrop-filter: blur(16px) saturate(125%);
+  --button-bg: rgba(255, 255, 255, 0.12);
+  --button-bg-hover: rgba(255, 255, 255, 0.2);
+  --button-bg-pressed: rgba(255, 255, 255, 0.16);
+  --button-fg: #fff;
+}
+
+.ob2 .button.ob2-choice.is-selected {
+  border-color: #ff8db7;
+  box-shadow: inset 0 0 0 1px rgba(255, 141, 183, 0.65);
+  --button-bg: rgba(255, 48, 121, 0.34);
+  --button-bg-hover: rgba(255, 48, 121, 0.44);
+}
+
+.ob2-choice-icon {
+  width: 36px;
+  height: 36px;
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.16);
+}
+
+.ob2-choice-copy {
+  min-width: 0;
+  display: grid;
+  gap: 4px;
+}
+
+.ob2-choice-copy strong {
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 1.3;
+}
+
+.ob2-choice-copy small {
+  font-size: 13px;
+  line-height: 1.35;
+  color: rgba(255, 255, 255, 0.78);
+}
+
+.ob2-summary,
+.ob2-fact {
+  display: grid;
+  gap: 6px;
+}
+
+.ob2-summary strong,
+.ob2-fact strong {
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 1.3;
+}
+
+.ob2-summary p,
+.ob2-fact span,
+.ob2-summary b {
+  margin: 0;
+  font-size: 15px;
+  line-height: 1.4;
+  color: rgba(255, 255, 255, 0.82);
+}
+
+.ob2-fact span {
+  font-size: 14px;
+  font-weight: 650;
+}
+
+.ob2-scroll {
+  max-height: min(420px, 52vh);
+}
+
+.ob2-day {
+  display: grid;
+  gap: 10px;
+  padding: 4px 0 12px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.18);
+}
+
+.ob2-hours {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.ob2-checks {
+  display: grid;
+  gap: 10px;
+}
+
+.ob2-checks .checkbox {
+  min-height: 44px;
+}
+
+.ob2-step-list {
+  display: grid;
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.ob2-step-list li {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: rgba(255, 255, 255, 0.72);
+}
+
+.ob2-step-list li > span {
+  width: 32px;
+  height: 32px;
+  display: grid;
+  place-items: center;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.ob2-step-list li.current {
+  color: #fff;
+}
+
+.ob2-step-list li.current > span,
+.ob2-step-list li.done > span {
+  border-color: transparent;
+  background: linear-gradient(135deg, #ff2d79, #ff91ba);
+  color: #fff;
+}
+
+.ob2-step-list strong,
+.ob2-step-list small {
+  display: block;
+}
+
+.ob2-step-list strong {
+  font-size: 16px;
+}
+
+.ob2-step-list small {
+  margin-top: 2px;
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.75);
+}
+
+.ob2-error {
+  margin: 0;
+  border-radius: 14px;
+  padding: 12px 14px;
+  color: #fff;
+  background: #8c183f;
+  font-size: 15px;
+  line-height: 1.4;
+}
+
+.ob2-popover {
+  --foreground: #fff;
+  --overlay: #5a1233;
+  --accent: #e72875;
+  background: #5a1233;
+  color: #fff;
+  border: 1px solid rgba(255, 255, 255, 0.28);
+}
+
+.ob2-popover .list-box-item {
+  min-height: 44px;
+  color: #fff;
+  font-size: 15px;
+}
+
+.ob2-drawer-dialog {
+  --foreground: #fff;
+  --muted: rgba(255, 255, 255, 0.8);
+  --surface: rgba(255, 255, 255, 0.1);
+  --field-background: rgba(255, 255, 255, 0.14);
+  --field-foreground: #fff;
+  --field-placeholder: rgba(255, 255, 255, 0.62);
+  --field-border: rgba(255, 255, 255, 0.28);
+  --field-border-focus: #ff8db7;
+  --focus: #ff8db7;
+  --accent: #e72875;
+  --accent-foreground: #fff;
+  --default: rgba(255, 255, 255, 0.14);
+  --default-foreground: #fff;
+  --overlay: rgba(89, 11, 45, 0.94);
+  --separator: rgba(255, 255, 255, 0.28);
+  width: min(420px, 100%);
+  background: rgba(89, 11, 45, 0.9);
+  color: #fff;
+  backdrop-filter: blur(28px) saturate(125%);
+  border-inline-start: 1px solid rgba(255, 255, 255, 0.28);
+}
+
+.ob2-drawer-dialog .drawer__header {
+  padding-inline-end: 52px;
+}
+
+.ob2-drawer-dialog .drawer__heading {
+  color: #fff;
+  font-size: 24px;
+  font-weight: 700;
+  line-height: 1.25;
+}
+
+.ob2-drawer-dialog .drawer__close-trigger {
+  width: 44px;
+  height: 44px;
+  top: 12px;
+  right: 12px;
+}
+
+.ob2-drawer-dialog .drawer__body {
+  overflow: auto;
+}
+
+.ob2-drawer-dialog .label,
+.ob2-drawer-dialog .input-group,
+.ob2-drawer-dialog .input-group__input,
+.ob2-drawer-dialog .select__trigger,
+.ob2-drawer-dialog .select__value {
+  color: #fff;
+}
+
+.ob2-drawer-dialog .input-group,
+.ob2-drawer-dialog .select__trigger {
+  min-height: 52px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.14);
+  border-color: rgba(255, 255, 255, 0.28);
+  font-size: 16px;
+}
+
+.ob2-drawer-dialog .input-group__prefix {
+  border-inline-end-color: transparent;
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.ob2-drawer-dialog .button.ob2-cta {
+  min-height: 52px;
+  border-radius: 14px;
+  color: #fff;
+  background-image: linear-gradient(95deg, #ff1e6c, #ff91b9);
+}
+
+.ob2-drawer-dialog .button.ob2-quiet {
+  color: #fff;
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  --button-fg: #fff;
+}
+
+.ob2[data-surface='solid'] .ob2-heading p,
+.ob2[data-surface='solid'] .ob2-copy,
+.ob2[data-surface='solid'] .label,
+.ob2[data-surface='solid'] .ob2-choice-copy small,
+.ob2[data-surface='solid'] .ob2-summary p,
+.ob2[data-surface='solid'] .ob2-fact span {
+  color: #5e4250;
+}
+
+.ob2[data-surface='solid'] .card.ob2-panel,
+.ob2[data-surface='solid'] .button.ob2-choice,
+.ob2[data-surface='solid'] .input-group,
+.ob2[data-surface='solid'] .select__trigger {
+  background: #fff;
+  color: #34101f;
+  border-color: #f0cfdb;
+  backdrop-filter: none;
+}
+
+.ob2[data-surface='solid'] .input-group__input,
+.ob2[data-surface='solid'] .select__value,
+.ob2[data-surface='solid'] .button.ob2-choice,
+.ob2[data-surface='solid'] .button.ob2-icon,
+.ob2[data-surface='solid'] .button.ob2-exit,
+.ob2[data-surface='solid'] .button.ob2-quiet {
+  color: #34101f;
+  --button-fg: #34101f;
+}
+
+.ob2[data-surface='solid'] .ob2-steps i {
+  background: rgba(151, 17, 66, 0.2);
+}
+
+.ob2 input:-webkit-autofill,
+.ob2 input:-webkit-autofill:hover,
+.ob2 input:-webkit-autofill:focus {
+  -webkit-text-fill-color: #fff;
+  caret-color: #fff;
+  box-shadow: 0 0 0 1000px rgba(255, 255, 255, 0.08) inset;
+}
+
+@media (max-width: 720px) {
+  .ob2 {
+    background-image: url('/brand/background-portrait.png');
+  }
+
+  .ob2-heading h1 {
+    font-size: 28px;
+  }
+
+  .ob2-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  .ob2,
+  .ob2 .card.ob2-panel,
+  .ob2 .button.ob2-choice,
+  .ob2-drawer-dialog,
+  .drawer__backdrop--blur {
+    backdrop-filter: none !important;
+  }
+
+  .ob2 .card.ob2-panel,
+  .ob2 .button.ob2-choice {
+    background: #8e1d50;
+  }
+
+  .ob2-drawer-dialog {
+    background: #6d143c;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ob2 .button,
+  .ob2-drawer-dialog {
+    transition: none;
+  }
+}
