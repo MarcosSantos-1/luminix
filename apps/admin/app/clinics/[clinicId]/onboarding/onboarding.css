@@ -350,6 +350,17 @@
   font-size: 16px;
 }
 
+.ob2 .input-group__input:focus,
+.ob2 .input-group__input:focus-visible {
+  outline: none;
+  box-shadow: none;
+}
+
+.ob2 .input-group:focus-within {
+  border-color: #ff8db7;
+  box-shadow: 0 0 0 3px rgba(255, 45, 121, 0.35);
+}
+
 .ob2 .input-group__input,
 .ob2 .select__value {
   font-size: 16px;
@@ -445,10 +456,10 @@
 }
 
 .ob2 .button.ob2-choice.is-selected {
-  border-color: #fff;
-  box-shadow: inset 0 0 0 1px #fff;
-  --button-bg: rgba(255, 45, 121, 0.55);
-  --button-bg-hover: rgba(255, 45, 121, 0.68);
+  border-color: #ff2d79;
+  box-shadow: inset 0 0 0 2px #ff4a91;
+  --button-bg: rgba(255, 45, 121, 0.42);
+  --button-bg-hover: rgba(255, 45, 121, 0.55);
   --button-fg: #fff;
   color: #fff;
 }
@@ -514,24 +525,92 @@
   font-weight: 650;
 }
 
-.ob2-scroll,
-.ob2-picked-scroll,
-.ob2-scroll-categories {
-  scrollbar-width: none;
+.ob2-detail-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 12px;
 }
 
-.ob2-scroll::-webkit-scrollbar,
-.ob2-picked-scroll::-webkit-scrollbar,
-.ob2-scroll-categories::-webkit-scrollbar {
+.ob2-address-line {
+  display: grid;
+  grid-template-columns: minmax(0, 4fr) minmax(72px, 1fr);
+  gap: 10px;
+}
+
+.ob2-city-state {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 96px;
+  gap: 10px;
+}
+
+.ob2 .button.ob2-address-summary {
+  width: 100%;
+  min-height: 64px;
+  height: auto;
+  justify-content: flex-start;
+  gap: 12px;
+  color: #fff;
+  white-space: normal;
+  --button-bg: transparent;
+  --button-fg: #fff;
+}
+
+.ob2 .button.ob2-address-summary small {
+  margin-left: auto;
+  color: #ffd0e2;
+}
+
+.ob2 .button.ob2-cep {
+  height: 36px;
+  min-height: 36px;
+  border-radius: 10px;
+  padding: 0 12px;
+  font-size: 13px;
+  --button-bg: #ff2d79;
+  --button-fg: #fff;
+  color: #fff;
+}
+
+.ob2-cep-long {
   display: none;
 }
 
-.ob2-scroll {
-  max-height: min(520px, 58vh);
+.ob2-audience {
+  display: grid;
+  gap: 10px;
 }
 
-.ob2-scroll-categories {
-  max-height: min(720px, 68vh);
+.ob2-audience-option .checkbox__content,
+.ob2 .ob2-audience-option {
+  color: inherit;
+}
+
+.ob2-audience-icon {
+  width: 32px;
+  height: 32px;
+  display: grid;
+  place-items: center;
+  border-radius: 10px;
+}
+
+.ob2-audience-option.is-all .ob2-audience-icon {
+  background: rgba(255, 45, 121, 0.18);
+  color: #ff2d79;
+}
+
+.ob2-audience-option.is-women .ob2-audience-icon {
+  background: rgba(255, 74, 145, 0.18);
+  color: #e21870;
+}
+
+.ob2-audience-option.is-men .ob2-audience-icon {
+  background: rgba(126, 182, 255, 0.2);
+  color: #3b82f6;
+}
+
+.ob2-audience-option[data-selected='true'] .ob2-audience-icon,
+.ob2-audience-option:has([data-selected='true']) .ob2-audience-icon {
+  color: #fff;
 }
 
 .ob2-day {
@@ -620,12 +699,12 @@
 
 .ob2-popover {
   --foreground: #fff;
-  --overlay: rgba(255, 255, 255, 0.16);
-  --accent: #ec287a;
-  background: rgba(255, 255, 255, 0.16);
+  --overlay: rgba(92, 16, 48, 0.82);
+  --accent: #ff4a91;
+  background: rgba(92, 16, 48, 0.82);
   color: #fff;
-  border: 1px solid rgba(255, 255, 255, 0.28);
-  backdrop-filter: blur(24px) saturate(140%);
+  border: 1px solid rgba(255, 180, 210, 0.72);
+  backdrop-filter: blur(28px) saturate(150%);
 }
 
 .ob2-popover .list-box-item {
@@ -634,28 +713,50 @@
   font-size: 15px;
 }
 
+.ob2-drawer.drawer__backdrop--blur {
+  background: rgba(90, 12, 40, 0.28);
+  backdrop-filter: blur(42px) saturate(150%);
+}
+
+.ob2-popover.ob2-popover-ice,
+.ob2-popover.ob2-popover-ice .list-box {
+  --foreground: #2a1020;
+  --overlay: #fffafa;
+  --accent: #e72875;
+  background: #fffafa;
+  background-color: #fffafa;
+  color: #2a1020;
+  border: 2px solid #ff4a91;
+  backdrop-filter: none;
+  box-shadow: 0 12px 28px rgba(39, 1, 19, 0.16);
+}
+
+.ob2-popover-ice .list-box-item {
+  color: #2a1020;
+}
+
 .ob2-drawer-dialog {
-  --foreground: #fff;
-  --muted: rgba(255, 255, 255, 0.8);
-  --surface: rgba(255, 255, 255, 0.1);
-  --field-background: rgba(255, 255, 255, 0.14);
-  --field-foreground: #fff;
-  --field-placeholder: rgba(255, 255, 255, 0.62);
-  --field-border: rgba(255, 255, 255, 0.28);
-  --field-border-focus: #ff8db7;
-  --focus: #ff8db7;
+  --foreground: #2a1020;
+  --muted: #6d4d5c;
+  --surface: #fffafa;
+  --field-background: #fff;
+  --field-foreground: #2a1020;
+  --field-placeholder: #8d7380;
+  --field-border: #d7b7c6;
+  --field-border-focus: #ff2d79;
+  --focus: #ff2d79;
   --accent: #e72875;
   --accent-foreground: #fff;
-  --default: rgba(255, 255, 255, 0.14);
-  --default-foreground: #fff;
-  --overlay: rgba(255, 255, 255, 0.16);
-  --separator: rgba(255, 255, 255, 0.28);
+  --default: #fff;
+  --default-foreground: #2a1020;
+  --overlay: #fffafa;
+  --separator: #d7b7c6;
   width: min(440px, 100%);
-  background: rgba(255, 255, 255, 0.14);
-  color: #fff;
-  backdrop-filter: blur(28px) saturate(140%);
-  border: 1px solid rgba(255, 255, 255, 0.26);
-  box-shadow: 0 16px 45px rgba(39, 1, 19, 0.18);
+  background: #fffafa;
+  color: #2a1020;
+  border: 2px solid #ff4a91;
+  box-shadow: 0 18px 50px rgba(39, 1, 19, 0.28);
+  backdrop-filter: none;
 }
 
 .ob2-drawer-dialog[data-placement='bottom'] {
@@ -669,8 +770,12 @@
   padding-inline-end: 52px;
 }
 
+.ob2-drawer-dialog .drawer__heading,
+.ob2-drawer-dialog .drawer__close-trigger {
+  color: #2a1020;
+}
+
 .ob2-drawer-dialog .drawer__heading {
-  color: #fff;
   font-size: 24px;
   font-weight: 700;
   line-height: 1.25;
@@ -687,26 +792,84 @@
   overflow: auto;
 }
 
+.ob2-drawer-dialog .label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
 .ob2-drawer-dialog .label,
+.ob2-drawer-dialog .ob2-copy,
+.ob2-drawer-dialog .checkbox,
 .ob2-drawer-dialog .input-group,
 .ob2-drawer-dialog .input-group__input,
 .ob2-drawer-dialog .select__trigger,
-.ob2-drawer-dialog .select__value {
-  color: #fff;
+.ob2-drawer-dialog .select__value,
+.ob2-drawer-dialog .ob2-step-list,
+.ob2-drawer-dialog .ob2-step-list li,
+.ob2-drawer-dialog .ob2-step-list small {
+  color: #2a1020;
+}
+
+.ob2-drawer-dialog .ob2-step-list li > span {
+  border-color: #d7b7c6;
+  color: #2a1020;
 }
 
 .ob2-drawer-dialog .input-group,
 .ob2-drawer-dialog .select__trigger {
   min-height: 52px;
   border-radius: 14px;
-  background: rgba(255, 255, 255, 0.14);
-  border-color: rgba(255, 255, 255, 0.28);
+  background: #fff;
+  border: 1px solid #c9a3b6;
   font-size: 16px;
+}
+
+.ob2-drawer-dialog .input-group__input,
+.ob2-drawer-dialog .input-group__input:focus,
+.ob2-drawer-dialog .input-group__input:focus-visible {
+  outline: none;
+  box-shadow: none;
+  background: transparent;
+}
+
+.ob2-drawer-dialog .input-group:focus-within {
+  border-color: #ff2d79;
+  box-shadow: 0 0 0 3px rgba(255, 45, 121, 0.28);
 }
 
 .ob2-drawer-dialog .input-group__prefix {
   border-inline-end-color: transparent;
-  color: rgba(255, 255, 255, 0.9);
+  color: #e21870;
+}
+
+.ob2-drawer-dialog input:-webkit-autofill,
+.ob2-drawer-dialog input:-webkit-autofill:hover,
+.ob2-drawer-dialog input:-webkit-autofill:focus {
+  -webkit-text-fill-color: #2a1020;
+  caret-color: #2a1020;
+  box-shadow: 0 0 0 1000px #fff inset;
+}
+
+.ob2-tax-kind {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.ob2 .ob2-tax-kind .button {
+  min-height: 48px;
+  border-radius: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.45);
+  color: #fff;
+  --button-bg: rgba(255, 255, 255, 0.12);
+  --button-fg: #fff;
+}
+
+.ob2 .ob2-tax-kind .button.is-selected {
+  border-color: #ff4a91;
+  box-shadow: inset 0 0 0 2px #ff4a91;
+  --button-bg: rgba(255, 45, 121, 0.42);
 }
 
 .ob2-drawer-dialog .button.ob2-cta {
@@ -717,9 +880,10 @@
 }
 
 .ob2-drawer-dialog .button.ob2-quiet {
-  color: #fff;
-  border: 1px solid rgba(255, 255, 255, 0.28);
-  --button-fg: #fff;
+  color: #2a1020;
+  border: 1px solid #c9a3b6;
+  --button-fg: #2a1020;
+  --button-bg: #fff;
 }
 
 .ob2[data-surface='solid'] .ob2-heading p,
@@ -767,8 +931,17 @@
 
 @media (min-width: 720px) {
   .ob2-grid,
-  .ob2-services {
+  .ob2-services,
+  .ob2-detail-grid {
     grid-template-columns: 1fr 1fr;
+  }
+
+  .ob2-cep-short {
+    display: none;
+  }
+
+  .ob2-cep-long {
+    display: inline;
   }
 
   .ob2-categories {
@@ -802,6 +975,12 @@
   }
 }
 
+@media (max-width: 1079px) {
+  .ob2-picked {
+    display: none;
+  }
+}
+
 @media (max-width: 719px) {
   .ob2 {
     background-image: url('/brand/background-portrait.png');
@@ -824,9 +1003,13 @@
   .ob2 .card.ob2-panel,
   .ob2-rail,
   .ob2-picked,
-  .ob2-drawer-dialog,
   .ob2-popover {
     background: rgba(255, 255, 255, 0.22);
+  }
+
+  .ob2-drawer-dialog {
+    background: #fffafa;
+    border-color: #ff4a91;
   }
 
   .ob2 .button.ob2-choice {

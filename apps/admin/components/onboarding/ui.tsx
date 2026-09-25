@@ -24,6 +24,7 @@ export function GlassField({
   autoComplete,
   maxLength,
   isDisabled,
+  suffix,
 }: {
   label: string
   icon?: ReactNode
@@ -35,6 +36,7 @@ export function GlassField({
   autoComplete?: string
   maxLength?: number
   isDisabled?: boolean
+  suffix?: ReactNode
 }) {
   return (
     <TextField
@@ -54,6 +56,7 @@ export function GlassField({
           autoComplete={autoComplete}
           maxLength={maxLength}
         />
+        {suffix ? <InputGroup.Suffix>{suffix}</InputGroup.Suffix> : null}
       </InputGroup>
     </TextField>
   )
@@ -65,12 +68,14 @@ export function GlassSelect({
   onChange,
   options,
   isDisabled,
+  menu = 'glass',
 }: {
-  label: string
+  label: ReactNode
   value: string
   onChange: (value: string) => void
   options: { id: string; label: string }[]
   isDisabled?: boolean
+  menu?: 'glass' | 'ice'
 }) {
   return (
     <Select
@@ -87,7 +92,7 @@ export function GlassSelect({
         <Select.Value />
         <Select.Indicator />
       </Select.Trigger>
-      <Select.Popover className="ob2-popover">
+      <Select.Popover className={menu === 'ice' ? 'ob2-popover ob2-popover-ice' : 'ob2-popover'}>
         <ListBox>
           {options.map((option) => (
             <ListBox.Item key={option.id} id={option.id} textValue={option.label}>

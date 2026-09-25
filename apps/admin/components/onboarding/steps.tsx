@@ -1,6 +1,7 @@
 import { Button, Card, Checkbox, ScrollShadow, Separator, Switch, Label } from '@heroui/react'
 import {
   AtSign,
+  Banknote,
   Building2,
   Calendar,
   Check,
@@ -11,10 +12,15 @@ import {
   IdCard,
   Mail,
   MapPin,
+  Mars,
   Phone,
   Plus,
+  Scissors,
+  Search,
   Trash2,
   UserRound,
+  Users,
+  Venus,
 } from 'lucide-react'
 import { useState, type ReactNode } from 'react'
 import { formatBrPhone, toE164Phone } from '@/lib/phone'
@@ -37,25 +43,69 @@ import {
   GlassSelect,
   QuietButton,
   StepEnd,
-  StepScroll,
   useOverlayState,
 } from './ui'
 
-const audienceOptions = [
-  { id: 'all', label: 'Todos' },
-  { id: 'women', label: 'Somente mulheres' },
-  { id: 'men', label: 'Somente homens' },
-]
 const priceOptions = [
   { id: 'fixed', label: 'Preço fixo' },
   { id: 'from', label: 'A partir de' },
   { id: 'quote', label: 'Sob consulta' },
 ]
-const bookingOptions = [
-  { id: 'instant', label: 'Confirma na hora' },
-  { id: 'request', label: 'Pedir confirmação' },
-  { id: 'manual_release', label: 'Liberar datas manualmente' },
-]
+
+const audienceChoices = [
+  { id: 'all', label: 'Todos', icon: Users, tone: 'all' },
+  { id: 'women', label: 'Somente mulheres', icon: Venus, tone: 'women' },
+  { id: 'men', label: 'Somente homens', icon: Mars, tone: 'men' },
+] as const
+
+function AudienceChoices({
+  value,
+  onChange,
+}: {
+  value: Audience
+  onChange: (value: Audience) => void
+}) {
+  return (
+    <div className="ob2-audience">
+      {audienceChoices.map((option) => {
+        const Icon = option.icon
+        return (
+          <Checkbox
+            key={option.id}
+            className={`ob2-audience-option is-${option.tone}`}
+            isSelected={value === option.id}
+            onChange={() => onChange(option.id)}
+          >
+            <Checkbox.Content>
+              <Checkbox.Control>
+                <Checkbox.Indicator />
+              </Checkbox.Control>
+              <span className="ob2-audience-icon" aria-hidden>
+                <Icon size={18} />
+              </span>
+              <Label>{option.label}</Label>
+            </Checkbox.Content>
+          </Checkbox>
+        )
+      })}
+    </div>
+  )
+}
+
+function maskTaxId(kind: 'cpf' | 'cnpj', value: string) {
+  const digits = value.replace(/\D/g, '').slice(0, kind === 'cpf' ? 11 : 14)
+  if (kind === 'cpf') {
+    return digits
+      .replace(/(\d{3})(\d)/, '$1.$2')
+      .replace(/(\d{3})(\d)/, '$1.$2')
+      .replace(/(\d{3})(\d{1,2})$/, '$1-$2')
+  }
+  return digits
+    .replace(/^(\d{2})(\d)/, '$1.$2')
+    .replace(/^(\d{2})\.(\d{3})(\d)/, '$1.$2.$3')
+    .replace(/\.(\d{3})(\d)/, '.$1/$2')
+    .replace(/(\d{4})(\d{1,2})$/, '$1-$2')
+}
 
 function selectedByCategory(services: Payload['services']) {
   const grouped = new Map<string, string[]>()
@@ -166,32 +216,68 @@ export function ClinicStep({
             placeholder="Ex.: Studio Luna"
             onChange={(value) => setPayload({ ...payload, name: value })}
           />
+          <GlassField
+            label="Ano de abertura"
+            icon={<Calendar size={18} />}
+            inputMode="numeric"
+            maxLength={4}
+            value={payload.clinic.foundedYear}
+            placeholder="2021"
+            onChange={(value) => change('foundedYear', value.replace(/\D/g, ''))}
+          />
+          <div className="ob2-tax-kind">
+            <Button
+              className={payload.clinic.taxIdKind !== 'cnpj' ? 'is-selected' : ''}
+              variant="ghost"
+              onPress={() =>
+                setPayload({
+                  ...payload,
+                  clinic: {
+                    ...payload.clinic,
+                    taxIdKind: 'cpf',
+                    taxId: maskTaxId('cpf', payload.clinic.taxId),
+                  },
+                })
+              }
+            >
+              CPF
+            </Button>
+            <Button
+              className={payload.clinic.taxIdKind === 'cnpj' ? 'is-selected' : ''}
+              variant="ghost"
+              onPress={() =>
+                setPayload({
+                  ...payload,
+                  clinic: {
+                    ...payload.clinic,
+                    taxIdKind: 'cnpj',
+                    taxId: maskTaxId('cnpj', payload.clinic.taxId),
+                  },
+                })
+              }
+            >
+              CNPJ
+            </Button>
+          </div>
+          <GlassField
+            label={payload.clinic.taxIdKind === 'cnpj' ? 'CNPJ' : 'CPF'}
+            icon={<IdCard size={18} />}
+            inputMode="numeric"
+            value={payload.clinic.taxId}
+            placeholder={payload.clinic.taxIdKind === 'cnpj' ? '00.000.000/0000-00' : '000.000.000-00'}
+            onChange={(value) =>
+              change('taxId', maskTaxId(payload.clinic.taxIdKind === 'cnpj' ? 'cnpj' : 'cpf', value))
+            }
+          />
           <QuietButton onPress={details.open}>Mais detalhes da clínica</QuietButton>
           <Separator />
           <StepEnd error={error} footer={footer} />
         </Card.Content>
       </Card>
-      <BlurDrawer
-        state={details}
-        title="Mais detalhes"
-        footer={
-          <Button className="ob2-cta" fullWidth onPress={details.close}>
-            Guardar nesta tela
-          </Button>
-        }
-      >
+      <BlurDrawer state={details} title="Mais detalhes">
         <p className="ob2-copy">
           Nada disto é obrigatório para abrir a clínica. Você completa quando quiser, no painel.
         </p>
-        <GlassField
-          label="Ano de abertura"
-          icon={<Calendar size={18} />}
-          inputMode="numeric"
-          maxLength={4}
-          value={payload.clinic.foundedYear}
-          placeholder="2021"
-          onChange={(value) => change('foundedYear', value.replace(/\D/g, ''))}
-        />
         <GlassField
           label="Instagram"
           icon={<AtSign size={18} />}
@@ -212,13 +298,6 @@ export function ClinicStep({
           value={payload.clinic.facebook}
           placeholder="facebook.com/sua-clinica"
           onChange={(value) => change('facebook', value)}
-        />
-        <GlassField
-          label="CPF ou CNPJ"
-          icon={<IdCard size={18} />}
-          value={payload.clinic.taxId}
-          placeholder="Somente para o cadastro interno"
-          onChange={(value) => change('taxId', value)}
         />
         <Separator />
         <p className="ob2-copy">
@@ -294,7 +373,7 @@ export function CatalogStep({
           durationMinutes: 60,
           priceCents: 0,
           priceType: 'quote',
-          bookingMode: 'request',
+          bookingMode: 'instant',
           audience: 'all',
           resourceName: '',
           cancellationHours: null,
@@ -316,8 +395,7 @@ export function CatalogStep({
               <p className="ob2-copy">
                 Marque o que {area.toLowerCase()} oferece. Para seguir, volte a todas as áreas.
               </p>
-              <ScrollShadow className="ob2-scroll" orientation="vertical" hideScrollBar>
-                <div className="ob2-services">
+              <div className="ob2-services">
                   {items.map((item) => {
                     const selected = selectedNames.has(item.nome)
                     return (
@@ -332,10 +410,8 @@ export function CatalogStep({
                     )
                   })}
                 </div>
-              </ScrollShadow>
             </>
           ) : (
-            <ScrollShadow className="ob2-scroll ob2-scroll-categories" orientation="vertical" hideScrollBar>
               <div className="ob2-categories">
                 {categories.map((category) => {
                   const Icon = categoryIcon(category)
@@ -352,7 +428,6 @@ export function CatalogStep({
                   )
                 })}
               </div>
-            </ScrollShadow>
           )}
         </div>
         {picked.length > 0 && (
@@ -439,7 +514,11 @@ export function ServicesStep({
 }) {
   const editor = useOverlayState()
   const [index, setIndex] = useState<number | null>(null)
+  const [query, setQuery] = useState('')
   const service = index != null ? payload.services[index] : undefined
+  const visibleServices = payload.services
+    .map((item, position) => ({ item, position }))
+    .filter(({ item }) => item.name.toLowerCase().includes(query.trim().toLowerCase()))
 
   function update(patch: Partial<Service>) {
     if (index == null) return
@@ -452,6 +531,18 @@ export function ServicesStep({
   }
 
   function open(position: number) {
+    setPayload({
+      ...payload,
+      services: payload.services.map((item, current) =>
+        current === position
+          ? {
+              ...item,
+              bookingMode: 'instant',
+              durationMinutes: item.durationMinutes < 30 ? 30 : item.durationMinutes,
+            }
+          : item,
+      ),
+    })
     setIndex(position)
     editor.open()
   }
@@ -464,23 +555,34 @@ export function ServicesStep({
 
   return (
     <div className="ob2-stack">
+      <GlassField
+        label="Buscar serviço"
+        icon={<Search size={18} />}
+        value={query}
+        placeholder="Nome do atendimento"
+        onChange={setQuery}
+      />
       {payload.services.length === 0 ? (
         <p className="ob2-copy">Volte ao catálogo e escolha pelo menos um serviço.</p>
+      ) : visibleServices.length === 0 ? (
+        <p className="ob2-copy">Nenhum serviço com esse nome.</p>
       ) : (
-        payload.services.map((item, position) => (
-          <Card className="ob2-panel" key={`${item.name}-${position}`}>
-            <Card.Content className="ob2-summary">
-              <strong>{item.name}</strong>
-              <p>
-                {item.category} · {item.durationMinutes} min
-              </p>
-              <b>{priceLabel(item)}</b>
-              <Button className="ob2-quiet" variant="ghost" onPress={() => open(position)}>
-                Ajustar este serviço
-              </Button>
-            </Card.Content>
-          </Card>
-        ))
+        <div className="ob2-detail-grid">
+          {visibleServices.map(({ item, position }) => (
+            <Card className="ob2-panel" key={`${item.name}-${position}`}>
+              <Card.Content className="ob2-summary">
+                <strong>{item.name}</strong>
+                <p>
+                  {item.category} · {item.durationMinutes} min
+                </p>
+                <b>{priceLabel(item)}</b>
+                <Button className="ob2-quiet" variant="ghost" onPress={() => open(position)}>
+                  Ajustar este serviço
+                </Button>
+              </Card.Content>
+            </Card>
+          ))}
+        </div>
       )}
       <StepEnd error={error} footer={footer} />
       <BlurDrawer state={editor} title={service?.name || 'Ajustar serviço'}>
@@ -488,23 +590,21 @@ export function ServicesStep({
           <>
             <GlassField
               label="Nome do serviço"
+              icon={<Scissors size={18} />}
               value={service.name}
               onChange={(value) => update({ name: value })}
-            />
-            <GlassField
-              label="Categoria"
-              value={service.category}
-              onChange={(value) => update({ category: value })}
             />
             <Separator />
             <GlassSelect
               label="Como cobrar"
+              menu="ice"
               value={service.priceType}
               options={priceOptions}
               onChange={(value) => update({ priceType: value as Service['priceType'] })}
             />
             <GlassField
               label="Preço"
+              icon={<Banknote size={18} />}
               inputMode="decimal"
               isDisabled={service.priceType === 'quote'}
               value={
@@ -518,32 +618,19 @@ export function ServicesStep({
               }
             />
             <GlassSelect
-              label="Duração"
+              label={
+                <>
+                  <Clock3 size={16} /> Duração
+                </>
+              }
+              menu="ice"
               value={String(service.durationMinutes)}
               options={durations.map((minutes) => ({ id: String(minutes), label: `${minutes} min` }))}
               onChange={(value) => update({ durationMinutes: Number(value) })}
             />
             <Separator />
-            <GlassSelect
-              label="Como entra na agenda"
-              value={service.bookingMode}
-              options={bookingOptions}
-              onChange={(value) => update({ bookingMode: value as Service['bookingMode'] })}
-            />
-            <GlassSelect
-              label="Público atendido"
-              value={service.audience}
-              options={audienceOptions}
-              onChange={(value) => update({ audience: value as Audience })}
-            />
-            {service.bookingMode === 'manual_release' ? (
-              <GlassField
-                label="Máquina ou recurso"
-                value={service.resourceName}
-                placeholder="Ex.: Laser alugado"
-                onChange={(value) => update({ resourceName: value })}
-              />
-            ) : null}
+            <p className="ob2-copy">Público atendido</p>
+            <AudienceChoices value={service.audience} onChange={(audience) => update({ audience })} />
             <Button
               className="ob2-quiet"
               variant="danger-soft"
@@ -705,11 +792,10 @@ export function TeamStep({
               placeholder="Ex.: Esteticista"
               onChange={(value) => update({ role: value })}
             />
-            <GlassSelect
-              label="Público"
+            <p className="ob2-copy">Público</p>
+            <AudienceChoices
               value={professional.audience}
-              options={audienceOptions}
-              onChange={(value) => update({ audience: value as Audience })}
+              onChange={(audience) => update({ audience })}
             />
             <Separator />
             <p className="ob2-copy">Serviços que esta pessoa realiza.</p>
@@ -759,6 +845,11 @@ export function TeamStep({
   )
 }
 
+function formatCep(value: string) {
+  const digits = value.replace(/\D/g, '').slice(0, 8)
+  return digits.length > 5 ? `${digits.slice(0, 5)}-${digits.slice(5)}` : digits
+}
+
 export function ScheduleStep({
   payload,
   setPayload,
@@ -772,6 +863,94 @@ export function ScheduleStep({
 }) {
   const changeClinic = (key: keyof Payload['clinic'], value: string) =>
     setPayload({ ...payload, clinic: { ...payload.clinic, [key]: value } })
+  const [open, setOpen] = useState(payload.clinic.addressLine.trim() === '')
+  const summary = [payload.clinic.addressLine, payload.clinic.addressNumber].filter(Boolean).join(', ')
+  return (
+    <div className="ob2-stack">
+      <Card className="ob2-panel">
+        <Card.Content className="ob2-form">
+          {open ? (
+            <>
+              <GlassField
+                label="CEP"
+                icon={<MapPin size={18} />}
+                inputMode="numeric"
+                value={payload.clinic.postalCode}
+                placeholder="00000-000"
+                onChange={(value) => changeClinic('postalCode', formatCep(value))}
+                suffix={
+                  <Button className="ob2-cep" variant="primary" onPress={() => undefined}>
+                    <span className="ob2-cep-long">Procurar endereço</span>
+                    <span className="ob2-cep-short">Procurar</span>
+                  </Button>
+                }
+              />
+              <div className="ob2-address-line">
+                <GlassField
+                  label="Endereço"
+                  value={payload.clinic.addressLine}
+                  placeholder="Rua, avenida ou travessa"
+                  onChange={(value) => changeClinic('addressLine', value)}
+                />
+                <GlassField
+                  label="Número"
+                  value={payload.clinic.addressNumber}
+                  placeholder="Nº"
+                  onChange={(value) => changeClinic('addressNumber', value)}
+                />
+              </div>
+              <div className="ob2-city-state">
+                <GlassField
+                  label="Cidade"
+                  value={payload.clinic.city}
+                  placeholder="Ex.: São Paulo"
+                  onChange={(value) => changeClinic('city', value)}
+                />
+                <GlassField
+                  label="Estado"
+                  value={payload.clinic.state}
+                  maxLength={2}
+                  placeholder="SP"
+                  onChange={(value) => changeClinic('state', value.toUpperCase())}
+                />
+              </div>
+              <GlassField
+                label="Observação do endereço (opcional)"
+                value={payload.clinic.addressNote}
+                placeholder="Sala, bloco ou ponto de referência"
+                onChange={(value) => changeClinic('addressNote', value)}
+              />
+              {payload.clinic.addressLine.trim() ? (
+                <Button className="ob2-quiet" variant="ghost" onPress={() => setOpen(false)}>
+                  Recolher endereço
+                </Button>
+              ) : null}
+            </>
+          ) : (
+            <Button className="ob2-address-summary" variant="ghost" onPress={() => setOpen(true)}>
+              <MapPin size={18} />
+              <span>{summary || 'Endereço'}</span>
+              <small>Editar</small>
+            </Button>
+          )}
+        </Card.Content>
+      </Card>
+      <StepEnd error={error} footer={footer} />
+    </div>
+  )
+}
+
+export function HoursStep({
+  payload,
+  setPayload,
+  error,
+  footer,
+}: {
+  payload: Payload
+  setPayload: (value: Payload) => void
+  error: string
+  footer: ReactNode
+}) {
   const updateDay = (weekday: number, patch: Partial<Payload['businessHours'][number]>) =>
     setPayload({
       ...payload,
@@ -781,73 +960,36 @@ export function ScheduleStep({
     })
   return (
     <div className="ob2-stack">
-      <Card className="ob2-panel">
-        <Card.Content className="ob2-form">
-          <GlassField
-            label="Endereço"
-            icon={<MapPin size={18} />}
-            value={payload.clinic.addressLine}
-            placeholder="Rua, número e complemento"
-            onChange={(value) => changeClinic('addressLine', value)}
-          />
-          <GlassField
-            label="Cidade"
-            value={payload.clinic.city}
-            placeholder="Ex.: São Paulo"
-            onChange={(value) => changeClinic('city', value)}
-          />
-          <GlassField
-            label="Estado"
-            value={payload.clinic.state}
-            maxLength={2}
-            placeholder="SP"
-            onChange={(value) => changeClinic('state', value.toUpperCase())}
-          />
-          <GlassField
-            label="CEP"
-            value={payload.clinic.postalCode}
-            placeholder="00000-000"
-            onChange={(value) => changeClinic('postalCode', value)}
-          />
-          <p className="ob2-copy">O endereço pode ficar em branco e ser completado no painel.</p>
-        </Card.Content>
-      </Card>
-      <p className="ob2-copy">
-        <Clock3 size={16} /> Ligue os dias em que a clínica atende. A agenda individual da equipe
-        usa este horário como base.
-      </p>
-      <StepScroll>
-        {payload.businessHours.map((day) => (
-          <div className="ob2-day" key={day.weekday}>
-            <Switch isSelected={day.enabled} onChange={(enabled) => updateDay(day.weekday, { enabled })}>
-              <Switch.Content>
-                <Switch.Control>
-                  <Switch.Thumb />
-                </Switch.Control>
-                <Label>{dayNames[day.weekday]}</Label>
-              </Switch.Content>
-            </Switch>
-            {day.enabled ? (
-              <div className="ob2-hours">
-                <GlassField
-                  label="Abre"
-                  type="time"
-                  value={day.start}
-                  onChange={(value) => updateDay(day.weekday, { start: value })}
-                />
-                <GlassField
-                  label="Fecha"
-                  type="time"
-                  value={day.end}
-                  onChange={(value) => updateDay(day.weekday, { end: value })}
-                />
-              </div>
-            ) : (
-              <p className="ob2-copy">Fechado neste dia.</p>
-            )}
-          </div>
-        ))}
-      </StepScroll>
+      {payload.businessHours.map((day) => (
+        <div className="ob2-day" key={day.weekday}>
+          <Switch isSelected={day.enabled} onChange={(enabled) => updateDay(day.weekday, { enabled })}>
+            <Switch.Content>
+              <Switch.Control>
+                <Switch.Thumb />
+              </Switch.Control>
+              <Label>{dayNames[day.weekday]}</Label>
+            </Switch.Content>
+          </Switch>
+          {day.enabled ? (
+            <div className="ob2-hours">
+              <GlassField
+                label="Abre"
+                type="time"
+                value={day.start}
+                onChange={(value) => updateDay(day.weekday, { start: value })}
+              />
+              <GlassField
+                label="Fecha"
+                type="time"
+                value={day.end}
+                onChange={(value) => updateDay(day.weekday, { end: value })}
+              />
+            </div>
+          ) : (
+            <p className="ob2-copy">Fechado neste dia.</p>
+          )}
+        </div>
+      ))}
       <StepEnd error={error} footer={footer} />
     </div>
   )
@@ -964,7 +1106,7 @@ export function ReviewStep({ payload, error, footer }: { payload: Payload; error
     {
       label: 'Endereço',
       value: payload.clinic.city
-        ? `${payload.clinic.addressLine || 'A definir'}, ${payload.clinic.city}/${payload.clinic.state || '—'}`
+        ? `${[payload.clinic.addressLine, payload.clinic.addressNumber].filter(Boolean).join(', ') || 'A definir'}, ${payload.clinic.city}/${payload.clinic.state || '—'}`
         : 'Pode completar depois',
     },
   ]

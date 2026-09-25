@@ -20,7 +20,9 @@ const payload = {
     facebook: '',
     website: '',
     taxId: '',
-    addressLine: 'Rua A, 10',
+    addressLine: 'Rua A',
+    addressNumber: '10',
+    addressNote: 'Sala 2',
     city: 'São Paulo',
     state: 'SP',
     postalCode: '01001000',
@@ -50,13 +52,14 @@ const payload = {
     start: '09:00',
     end: '18:00',
   })),
-  preferences: {
-    cancellationHours: 12,
-    specialCancellationHours: 24,
-    acceptInApp: false,
-    packagePaymentMode: 'clinic_only',
-  },
-}
+    uiFocus: 'address',
+    preferences: {
+      cancellationHours: 12,
+      specialCancellationHours: 24,
+      acceptInApp: false,
+      packagePaymentMode: 'clinic_only',
+    },
+  }
 beforeAll(async () => {
   db = new PGlite()
   connection = {

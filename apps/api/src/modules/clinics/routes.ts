@@ -27,10 +27,14 @@ type OnboardingPayload = {
     website: string
     taxId: string
     addressLine: string
+    addressNumber?: string
+    addressNote?: string
+    taxIdKind?: 'cpf' | 'cnpj'
     city: string
     state: string
     postalCode: string
   }
+  uiFocus?: 'address' | 'hours'
   occupations: string[]
   services: {
     category: string
@@ -114,7 +118,10 @@ function emptyPayload(clinicName: string): OnboardingPayload {
       facebook: '',
       website: '',
       taxId: '',
+      taxIdKind: 'cpf',
       addressLine: '',
+      addressNumber: '',
+      addressNote: '',
       city: '',
       state: '',
       postalCode: '',
@@ -267,9 +274,12 @@ export async function clinicRoutes(
           website: { type: 'string', maxLength: 300 },
           taxId: { type: 'string', maxLength: 18 },
           addressLine: { type: 'string', maxLength: 240 },
+          addressNumber: { type: 'string', maxLength: 20 },
+          addressNote: { type: 'string', maxLength: 240 },
+          taxIdKind: { type: 'string', enum: ['cpf', 'cnpj'] },
           city: { type: 'string', maxLength: 120 },
           state: { type: 'string', maxLength: 2, pattern: '^$|^[A-Z]{2}$' },
-          postalCode: { type: 'string', maxLength: 9, pattern: '^$|^[0-9-]{8,9}$' },
+          postalCode: { type: 'string', maxLength: 9, pattern: '^$|^[0-9-]{1,9}$' },
         },
       },
       occupations: {
@@ -347,6 +357,7 @@ export async function clinicRoutes(
           },
         },
       },
+      uiFocus: { type: 'string', enum: ['address', 'hours'] },
       preferences: {
         type: 'object',
         additionalProperties: false,

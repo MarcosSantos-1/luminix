@@ -1,5 +1,6 @@
 import {
   Activity,
+  MapPin,
   Building2,
   CalendarDays,
   Check,
@@ -46,11 +47,15 @@ export type Payload = {
     facebook: string
     website: string
     taxId: string
+    taxIdKind?: 'cpf' | 'cnpj'
     addressLine: string
+    addressNumber: string
+    addressNote: string
     city: string
     state: string
     postalCode: string
   }
+  uiFocus?: 'address' | 'hours'
   occupations: string[]
   services: Service[]
   teamMode: 'solo' | 'team'
@@ -110,9 +115,16 @@ export const stepInfo = [
   },
   {
     key: 'schedule',
-    label: 'Agenda',
+    label: 'Endereço',
+    title: 'Onde fica a clínica?',
+    text: 'Comece pelo CEP. A busca automática entra em seguida; enquanto isso, você completa rua, número e cidade na mão.',
+    icon: MapPin,
+  },
+  {
+    key: 'hours',
+    label: 'Horários',
     title: 'Quando a clínica abre?',
-    text: 'Este horário vale para o espaço inteiro e já deixa a agenda pronta para marcar. O horário de cada profissional pode ser refinado no painel.',
+    text: 'Este horário vale para o espaço inteiro. A agenda de cada profissional pode ser refinada no painel.',
     icon: CalendarDays,
   },
   {
@@ -170,4 +182,8 @@ export function formatMoney(cents: number) {
   return `R$ ${(cents / 100).toFixed(2).replace('.', ',')}`
 }
 
-export const durationChoices = [15, 30, 45, 60, 90, 120, 150, 180, 240]
+export const durationChoices = [30, 45, 60, 90, 120, 150, 180, 240]
+
+export function persistedStepKey(key: string) {
+  return key === 'hours' ? 'schedule' : key
+}

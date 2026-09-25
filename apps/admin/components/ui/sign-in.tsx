@@ -25,7 +25,7 @@ interface SignInPageProps {
 }
 
 const GlassInputWrapper = ({ children }: { children: React.ReactNode }) => (
-  <div className="rounded-2xl border border-[#eadde3] bg-[#fffafb] transition-colors focus-within:border-[#e72875] focus-within:bg-white focus-within:ring-4 focus-within:ring-[#e7287512]">
+  <div className="rounded-2xl border border-white/55 bg-white/18 backdrop-blur-md transition-colors focus-within:border-[#ffb4d2] focus-within:bg-white/24 focus-within:ring-4 focus-within:ring-[#ff2d7940]">
     {children}
   </div>
 )
@@ -46,7 +46,7 @@ const TestimonialCard = ({ testimonial, delay }: { testimonial: Testimonial; del
 )
 
 export const SignInPage: React.FC<SignInPageProps> = ({
-  title = <span className="font-light tracking-tighter text-foreground">Bem-vinda</span>,
+  title = <span className="font-light tracking-tighter text-white">Bem-vinda</span>,
   description = 'Acesse a gestão da sua clínica e continue de onde parou.',
   heroImageSrc,
   testimonials = [],
@@ -59,13 +59,13 @@ export const SignInPage: React.FC<SignInPageProps> = ({
   const [showPassword, setShowPassword] = useState(false)
 
   return (
-    <main className="grid min-h-[100dvh] w-full grid-cols-1 bg-[#fff9fb] font-sans text-[#371a29] lg:grid-cols-[0.9fr_1.1fr]">
-      <section className="order-2 flex items-center justify-center bg-white px-6 py-10 sm:px-10 lg:order-1 lg:min-h-[100dvh] lg:px-12 xl:px-20">
+    <main className="grid min-h-[100dvh] w-full grid-cols-1 bg-[#780033] font-sans text-white lg:grid-cols-[0.9fr_1.1fr]">
+      <section className="order-2 flex items-center justify-center bg-[#780033] bg-[url('/brand/background-portrait.png')] bg-cover bg-center px-6 py-10 text-white sm:px-10 lg:order-1 lg:min-h-[100dvh] lg:bg-[url('/brand/background-desktop.png')] lg:px-12 xl:px-20">
         <div className="w-full max-w-md">
           <div className="flex flex-col gap-6">
             <Link href="/" className="animate-element animate-delay-100 mb-2 inline-flex w-fit">
               <Image
-                src="/brand/logo-letter-default.png"
+                src="/brand/logo-letter-white.png"
                 width={267}
                 height={60}
                 alt="Luminix"
@@ -76,11 +76,11 @@ export const SignInPage: React.FC<SignInPageProps> = ({
             <h1 className="animate-element animate-delay-100 text-4xl leading-tight font-semibold md:text-5xl">
               {title}
             </h1>
-            <p className="animate-element animate-delay-200 text-[#806c77]">{description}</p>
+            <p className="animate-element animate-delay-200 text-white/80">{description}</p>
 
             <form className="space-y-5" onSubmit={onSignIn}>
               <div className="animate-element animate-delay-300">
-                <label className="text-sm font-medium text-[#6f5964]">E-mail</label>
+                <label className="text-sm font-medium text-white/90">E-mail</label>
                 <GlassInputWrapper>
                   <input
                     name="email"
@@ -88,13 +88,13 @@ export const SignInPage: React.FC<SignInPageProps> = ({
                     required
                     autoComplete="username"
                     placeholder="Digite seu e-mail"
-                    className="w-full rounded-2xl bg-transparent p-4 text-sm focus:outline-none"
+                    className="w-full rounded-2xl bg-transparent p-4 text-sm text-white placeholder:text-white/60 focus:outline-none"
                   />
                 </GlassInputWrapper>
               </div>
 
               <div className="animate-element animate-delay-400">
-                <label className="text-sm font-medium text-[#6f5964]">Senha</label>
+                <label className="text-sm font-medium text-white/90">Senha</label>
                 <GlassInputWrapper>
                   <div className="relative">
                     <input
@@ -104,7 +104,7 @@ export const SignInPage: React.FC<SignInPageProps> = ({
                       minLength={6}
                       autoComplete="current-password"
                       placeholder="Digite sua senha"
-                      className="w-full rounded-2xl bg-transparent p-4 pr-12 text-sm focus:outline-none"
+                      className="w-full rounded-2xl bg-transparent p-4 pr-12 text-sm text-white placeholder:text-white/60 focus:outline-none"
                     />
                     <button
                       type="button"
@@ -113,9 +113,9 @@ export const SignInPage: React.FC<SignInPageProps> = ({
                       aria-label={showPassword ? 'Ocultar senha' : 'Mostrar senha'}
                     >
                       {showPassword ? (
-                        <EyeOff className="h-5 w-5 text-[#806c77] transition-colors hover:text-[#e72875]" />
+                        <EyeOff className="h-5 w-5 text-white/70 transition-colors hover:text-white" />
                       ) : (
-                        <Eye className="h-5 w-5 text-[#806c77] transition-colors hover:text-[#e72875]" />
+                        <Eye className="h-5 w-5 text-white/70 transition-colors hover:text-white" />
                       )}
                     </button>
                   </div>
@@ -124,8 +124,12 @@ export const SignInPage: React.FC<SignInPageProps> = ({
 
               <div className="animate-element animate-delay-500 flex items-center justify-between text-sm">
                 <label className="flex cursor-pointer items-center gap-3">
-                  <input type="checkbox" name="rememberMe" className="custom-checkbox" />
-                  <span className="text-[#573746]">Manter conectada</span>
+                  <input
+                    type="checkbox"
+                    name="rememberMe"
+                    className="size-4 appearance-none rounded border border-white/70 bg-white/15 checked:border-[#ff2d79] checked:bg-[#ff2d79]"
+                  />
+                  <span className="text-white/85">Manter conectada</span>
                 </label>
                 <a
                   href="#"
@@ -137,14 +141,14 @@ export const SignInPage: React.FC<SignInPageProps> = ({
                       ''
                     onResetPassword?.(email)
                   }}
-                  className="font-medium text-[#d71966] transition-colors hover:text-[#a31350] hover:underline"
+                  className="font-medium text-[#ffd0e4] transition-colors hover:text-white hover:underline"
                 >
                   Esqueci a senha
                 </a>
               </div>
 
               {message ? (
-                <p className="text-sm text-[#806c77]" role="status">
+                <p className="text-sm text-white/80" role="status">
                   {message}
                 </p>
               ) : null}
@@ -163,11 +167,11 @@ export const SignInPage: React.FC<SignInPageProps> = ({
               </button>
             </form>
 
-            <p className="animate-element animate-delay-700 text-center text-sm text-[#806c77]">
+            <p className="animate-element animate-delay-700 text-center text-sm text-white/80">
               Nova por aqui?{' '}
               <Link
                 href="/cadastro"
-                className="font-medium text-[#d71966] transition-colors hover:text-[#a31350] hover:underline"
+                className="font-medium text-[#ffd0e4] transition-colors hover:text-white hover:underline"
               >
                 Criar conta
               </Link>

@@ -13,6 +13,7 @@ import {
   ContactStep,
   PreferencesStep,
   ReviewStep,
+  HoursStep,
   ScheduleStep,
   ServicesStep,
   TeamStep,
@@ -20,7 +21,7 @@ import {
 import { useStaff } from '@/components/staff-provider'
 import { formatBrPhone, isCompletePhone } from '@/lib/phone'
 import { untitledClinicName } from '@/lib/staff-destination'
-import { stepInfo, type Draft, type Payload } from '@/components/onboarding/model'
+import { persistedStepKey, stepInfo, type Draft, type Payload } from '@/components/onboarding/model'
 import './onboarding.css'
 
 function emptyPayload(name: string, email: string, ownerName: string): Payload {
@@ -36,7 +37,10 @@ function emptyPayload(name: string, email: string, ownerName: string): Payload {
       facebook: '',
       website: '',
       taxId: '',
+      taxIdKind: 'cpf',
       addressLine: '',
+      addressNumber: '',
+      addressNote: '',
       city: '',
       state: '',
       postalCode: '',
@@ -110,12 +114,13 @@ export default function OnboardingPage() {
         setPayload(next)
         setPhoneText(next.phone ? formatBrPhone(next.phone) : '')
         setDraft({ ...data.draft, payload: next })
-        setStep(
-          Math.max(
-            0,
-            stepInfo.findIndex((item) => item.key === data.draft.step),
-          ),
-        )
+        const stored = data.draft.step
+        const focus = data.draft.payload.uiFocus
+        const index =
+          stored === 'schedule' && focus === 'hours'
+            ? stepInfo.findIndex((item) => item.key === 'hours')
+            : stepInfo.findIndex((item) => item.key === stored)
+        setStep(Math.max(0, index))
       } catch {
         if (!controller.signal.aborted)
           setError('Não foi possível carregar seu cadastro. Tente novamente.')
@@ -144,7 +149,7 @@ export default function OnboardingPage() {
     if (step === 4 && payload.teamMode === 'team' && payload.professionals.length === 0)
       return 'Adicione ao menos uma profissional ou marque “somente eu”.'
     if (
-      step === 5 &&
+      stepInfo[step]?.key === 'hours' &&
       payload.businessHours.filter((day) => day.enabled).some((day) => day.start >= day.end)
     )
       return 'O horário de encerramento deve ser depois da abertura.'
@@ -159,8 +164,9 @@ export default function OnboardingPage() {
       setError(problem)
       return
     }
-    const payloadToSave: Payload =
-      step === 4 && payload.teamMode === 'solo'
+    const nextKey = stepInfo[nextStep].key
+    const payloadToSave: Payload = {
+      ...(step === 4 && payload.teamMode === 'solo'
         ? {
             ...payload,
             professionals: [
@@ -172,7 +178,9 @@ export default function OnboardingPage() {
               },
             ],
           }
-        : payload
+        : payload),
+      uiFocus: nextKey === 'hours' ? 'hours' : nextKey === 'schedule' ? 'address' : undefined,
+    }
     setBusy(true)
     setError('')
     try {
@@ -184,7 +192,7 @@ export default function OnboardingPage() {
         },
         body: JSON.stringify({
           version: draft.version,
-          step: stepInfo[nextStep].key,
+          step: persistedStepKey(stepInfo[nextStep].key),
           payload: payloadToSave,
         }),
         cache: 'no-store',
@@ -312,8 +320,9 @@ export default function OnboardingPage() {
       {step === 3 && <ServicesStep {...stepProps} />}
       {step === 4 && <TeamStep {...stepProps} />}
       {step === 5 && <ScheduleStep {...stepProps} />}
-      {step === 6 && <PreferencesStep {...stepProps} />}
-      {step === 7 && <ReviewStep payload={ready} error={error} footer={footer} />}
+      {step === 6 && <HoursStep {...stepProps} />}
+      {step === 7 && <PreferencesStep {...stepProps} />}
+      {step === 8 && <ReviewStep payload={ready} error={error} footer={footer} />}
     </OnboardingShell>
   )
 }

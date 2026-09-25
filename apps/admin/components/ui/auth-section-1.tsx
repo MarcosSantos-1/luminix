@@ -16,14 +16,14 @@ const termsText = (
     Ao criar uma conta, você concorda com os{' '}
     <a
       href="#"
-      className="font-medium text-[#765365] underline underline-offset-2 hover:text-[#d71966]"
+      className="font-medium text-[#ffd0e4] underline underline-offset-2 hover:text-white"
     >
       Termos de uso
     </a>{' '}
     e a{' '}
     <a
       href="#"
-      className="font-medium text-[#765365] underline underline-offset-2 hover:text-[#d71966]"
+      className="font-medium text-[#ffd0e4] underline underline-offset-2 hover:text-white"
     >
       Política de privacidade
     </a>
@@ -37,12 +37,12 @@ export default function AuthSectionOne({
   onSubmit,
 }: AuthSectionOneProps) {
   return (
-    <main className="grid min-h-[100dvh] grid-cols-1 bg-[#fff9fb] text-[#371a29] antialiased [font-synthesis:none] lg:grid-cols-[0.94fr_1.06fr]">
-      <section className="order-2 flex items-center bg-white px-6 py-10 sm:px-10 lg:order-1 lg:min-h-[100dvh] lg:px-14 lg:py-16 xl:px-20">
+    <main className="grid min-h-[100dvh] grid-cols-1 bg-[#780033] text-white antialiased [font-synthesis:none] lg:grid-cols-[0.94fr_1.06fr]">
+      <section className="order-2 flex items-center bg-[#780033] bg-[url('/brand/background-portrait.png')] bg-cover bg-center px-6 py-10 text-white sm:px-10 lg:order-1 lg:min-h-[100dvh] lg:bg-[url('/brand/background-desktop.png')] lg:px-14 lg:py-16 xl:px-20">
         <div className="mx-auto w-full max-w-[590px]">
           <Link href="/" className="mb-10 inline-flex w-fit">
             <Image
-              src="/brand/logo-letter-default.png"
+              src="/brand/logo-letter-white.png"
               width={285}
               height={65}
               alt="Luminix"
@@ -54,7 +54,7 @@ export default function AuthSectionOne({
             <h1 className="text-3xl font-semibold tracking-[-0.04em] sm:text-4xl lg:text-[42px] lg:leading-[1.05] xl:text-[48px]">
               Crie uma conta
             </h1>
-            <p className="mt-3 text-lg leading-snug text-[#806c77] sm:text-xl lg:text-2xl">
+            <p className="mt-3 text-lg leading-snug text-white/80 sm:text-xl lg:text-2xl">
               Cadastre sua clínica e comece a atender
             </p>
           </div>
@@ -74,7 +74,7 @@ export default function AuthSectionOne({
               minLength={6}
             />
 
-            <div className="space-y-4 pt-2 text-sm leading-5 text-[#806c77] sm:text-[15px]">
+            <div className="space-y-4 pt-2 text-sm leading-5 text-white/80 sm:text-[15px]">
               <CheckboxLine name="updates">
                 Não quero receber e-mails sobre novidades do Luminix
               </CheckboxLine>
@@ -84,7 +84,7 @@ export default function AuthSectionOne({
             </div>
 
             {message ? (
-              <p className="text-sm text-[#806c77]" role="status">
+              <p className="text-sm text-white/80" role="status">
                 {message}
               </p>
             ) : null}
@@ -103,11 +103,11 @@ export default function AuthSectionOne({
             </button>
           </form>
 
-          <p className="mt-8 text-center text-sm text-[#806c77]">
+          <p className="mt-8 text-center text-sm text-white/80">
             Já tem uma conta?{' '}
             <Link
               href="/login"
-              className="font-medium text-[#d71966] underline underline-offset-2 hover:text-[#a31350]"
+              className="font-medium text-[#ffd0e4] underline underline-offset-2 hover:text-white"
             >
               Entrar
             </Link>
@@ -164,7 +164,7 @@ function FieldBox({
   const showLabel = !focused && value.length === 0
 
   return (
-    <label className="flex h-14 items-center justify-between gap-4 rounded-xl border border-[#eadde3] bg-[#fffafb] px-5 text-base leading-none transition focus-within:border-[#e72875] focus-within:bg-white focus-within:ring-4 focus-within:ring-[#e7287512] xl:text-lg">
+    <label className="flex h-14 items-center justify-between gap-4 rounded-xl border border-white/55 bg-white/18 px-5 text-base leading-none text-white backdrop-blur-md transition focus-within:border-[#ffb4d2] focus-within:bg-white/24 focus-within:ring-4 focus-within:ring-[#ff2d7940] xl:text-lg">
       <input
         name={name}
         type={type}
@@ -177,9 +177,9 @@ function FieldBox({
         onFocus={() => setFocused(true)}
         onBlur={() => setFocused(false)}
         onChange={(event) => setValue(event.target.value)}
-        className="min-w-0 flex-1 truncate bg-transparent text-[#371a29] outline-none placeholder:text-[#aa919e]"
+        className="min-w-0 flex-1 truncate bg-transparent text-white outline-none placeholder:text-white/60"
       />
-      {showLabel ? <span className="shrink-0 text-[#573746]">{label}</span> : null}
+      {showLabel ? <span className="shrink-0 text-white/70">{label}</span> : null}
     </label>
   )
 }
@@ -200,7 +200,7 @@ function CheckboxLine({
           type="checkbox"
           name={name}
           required={required}
-          className="peer size-full appearance-none rounded-[3px] border border-[#cbb8c1] bg-white checked:border-[#d71966] checked:bg-[#d71966]"
+          className="peer size-full appearance-none rounded-[3px] border border-white/70 bg-white/15 checked:border-[#ff2d79] checked:bg-[#ff2d79]"
         />
         <svg
           viewBox="0 0 12 12"
