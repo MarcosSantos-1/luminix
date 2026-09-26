@@ -52,7 +52,7 @@
 
 .ob2-top,
 .ob2-board {
-  width: min(1240px, 100%);
+  width: min(1420px, 100%);
 }
 
 .ob2-top {
@@ -436,8 +436,8 @@
 .ob2 .button.ob2-choice {
   width: 100%;
   height: auto;
-  min-height: 96px;
-  padding: 16px;
+  min-height: 112px;
+  padding: 20px 18px;
   border-radius: 18px;
   border: 1px solid rgba(255, 255, 255, 0.28);
   display: flex;
@@ -790,6 +790,11 @@
 
 .ob2-drawer-dialog .drawer__body {
   overflow: auto;
+  padding-top: 22px;
+}
+
+.ob2-drawer-dialog .ob2-form {
+  gap: 8px;
 }
 
 .ob2-drawer-dialog .label {
@@ -852,12 +857,25 @@
 }
 
 .ob2-tax-kind {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 10px;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-start;
+  gap: 8px;
+  width: fit-content;
+}
+
+.ob2-clinic-more {
+  margin-top: 28px;
+}
+
+.ob2-clinic-continue {
+  margin-top: 28px;
 }
 
 .ob2 .ob2-tax-kind .button {
+  width: auto;
+  min-width: 108px;
+  flex: 0 0 auto;
   min-height: 48px;
   border-radius: 14px;
   border: 1px solid rgba(255, 255, 255, 0.45);
@@ -884,6 +902,15 @@
   border: 1px solid #c9a3b6;
   --button-fg: #2a1020;
   --button-bg: #fff;
+}
+
+.ob2-drawer-dialog .button.ob2-remove-service {
+  border: 0;
+  color: #fff;
+  background: #e11d48;
+  --button-bg: #e11d48;
+  --button-bg-hover: #be123c;
+  --button-fg: #fff;
 }
 
 .ob2[data-surface='solid'] .ob2-heading p,
@@ -952,7 +979,7 @@
 @media (min-width: 1080px) {
   .ob2-board {
     grid-template-columns: 240px minmax(0, 1fr);
-    gap: 48px;
+    gap: 84px;
   }
 
   .ob2-rail {
@@ -970,7 +997,7 @@
 
   .ob2-catalog.has-picked {
     grid-template-columns: minmax(0, 1fr) 300px;
-    gap: 48px;
+    gap: 84px;
     align-items: start;
   }
 }

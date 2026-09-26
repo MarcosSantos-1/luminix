@@ -269,9 +269,12 @@ export function ClinicStep({
               change('taxId', maskTaxId(payload.clinic.taxIdKind === 'cnpj' ? 'cnpj' : 'cpf', value))
             }
           />
-          <QuietButton onPress={details.open}>Mais detalhes da clínica</QuietButton>
-          <Separator />
-          <StepEnd error={error} footer={footer} />
+          <div className="ob2-clinic-more">
+            <QuietButton onPress={details.open}>Mais detalhes da clínica</QuietButton>
+          </div>
+          <div className="ob2-clinic-continue">
+            <StepEnd error={error} footer={footer} />
+          </div>
         </Card.Content>
       </Card>
       <BlurDrawer state={details} title="Mais detalhes">
@@ -632,8 +635,7 @@ export function ServicesStep({
             <p className="ob2-copy">Público atendido</p>
             <AudienceChoices value={service.audience} onChange={(audience) => update({ audience })} />
             <Button
-              className="ob2-quiet"
-              variant="danger-soft"
+              className="ob2-remove-service"
               onPress={() => {
                 setPayload({
                   ...payload,
