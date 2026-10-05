@@ -1,43 +1,54 @@
 import { Button, Drawer, Separator } from '@heroui/react'
 import Image from 'next/image'
-import { ArrowLeft, Check, MoonStar, Sun } from 'lucide-react'
+import { ArrowLeft, Check, Headphones } from 'lucide-react'
 import type { ReactNode } from 'react'
 import { stepInfo } from './model'
 
 export function OnboardingShell({
-  glass,
-  onToggleGlass,
   step,
   busy,
   onBack,
   onSelectStep,
-  onExit,
   children,
 }: {
-  glass: boolean
-  onToggleGlass: () => void
   step: number
   busy: boolean
   onBack: () => void
   onSelectStep: (index: number) => void
-  onExit: () => void
   children: ReactNode
 }) {
   const current = stepInfo[step]
   const progress = Math.round(((step + 1) / stepInfo.length) * 100)
   return (
-    <main className="ob2" data-surface={glass ? 'glass' : 'solid'}>
+    <main className="ob2" data-surface="glass">
       <div className="ob2-top">
-        <Image
-          className="ob2-logo"
-          src="/brand/logo-letter-white.png"
-          alt="Luminix"
-          width={190}
-          height={34}
-        />
+        <div className="ob2-brand-row">
+          <Image
+            className="ob2-logo"
+            src="/brand/logo-letter-white.png"
+            alt="Luminix"
+            width={190}
+            height={34}
+          />
+          <div className="ob2-brand-actions">
+            <Button
+              className="ob2-icon ob2-back-desktop"
+              isIconOnly
+              variant="ghost"
+              aria-label="Voltar"
+              isDisabled={step === 0 || busy}
+              onPress={onBack}
+            >
+              <ArrowLeft />
+            </Button>
+            <Button className="ob2-exit" variant="ghost" isDisabled>
+              Pular
+            </Button>
+          </div>
+        </div>
         <header className="ob2-bar">
           <Button
-            className="ob2-icon"
+            className="ob2-icon ob2-back-mobile"
             isIconOnly
             variant="ghost"
             aria-label="Voltar"
@@ -86,19 +97,6 @@ export function OnboardingShell({
               </Drawer.Content>
             </Drawer.Backdrop>
           </Drawer>
-          <Button
-            className="ob2-icon"
-            isIconOnly
-            variant="ghost"
-            aria-pressed={glass}
-            aria-label={glass ? 'Usar superfície clara' : 'Usar vidro'}
-            onPress={onToggleGlass}
-          >
-            {glass ? <MoonStar /> : <Sun />}
-          </Button>
-          <Button className="ob2-exit" variant="ghost" isDisabled={busy} onPress={onExit}>
-            Salvar e sair
-          </Button>
         </header>
         <div className="ob2-heading">
           <h1>{current.title}</h1>
@@ -140,6 +138,14 @@ export function OnboardingShell({
         </aside>
         <div className="ob2-column">{children}</div>
       </div>
+      <Button
+        className="ob2-icon ob2-support"
+        isIconOnly
+        variant="ghost"
+        aria-label="Suporte"
+      >
+        <Headphones />
+      </Button>
     </main>
   )
 }

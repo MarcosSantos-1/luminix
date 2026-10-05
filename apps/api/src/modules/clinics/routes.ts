@@ -118,7 +118,7 @@ function emptyPayload(clinicName: string): OnboardingPayload {
       facebook: '',
       website: '',
       taxId: '',
-      taxIdKind: 'cpf',
+      taxIdKind: 'cnpj',
       addressLine: '',
       addressNumber: '',
       addressNote: '',

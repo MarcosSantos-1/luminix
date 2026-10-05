@@ -52,16 +52,17 @@ export function useStaffAuth() {
     return () => window.clearTimeout(timeout)
   }, [])
 
-  async function run(action: () => Promise<void>) {
+  async function run<T>(action: () => Promise<T>): Promise<T | undefined> {
     setBusy(true)
     setMessage('')
     setError('')
     try {
-      await action()
+      return await action()
     } catch (caught) {
       const code =
         typeof caught === 'object' && caught && 'code' in caught ? String(caught.code) : ''
       setError(authMessage(code))
+      return undefined
     } finally {
       setBusy(false)
     }
@@ -87,6 +88,7 @@ export function useStaffAuth() {
       const credential = await createUserWithEmailAndPassword(auth, email.trim(), password)
       const name = displayName?.trim()
       if (name) await updateProfile(credential.user, { displayName: name })
+      return credential.user.uid
     })
   }
 

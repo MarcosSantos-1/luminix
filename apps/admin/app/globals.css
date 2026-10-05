@@ -60,6 +60,48 @@ input:-webkit-autofill:focus {
   box-shadow: 0 0 0 1000px #fffafb inset;
   caret-color: var(--foreground);
 }
+
+.auth-password-input::-ms-reveal,
+.auth-password-input::-ms-clear,
+.auth-password-input::-webkit-credentials-auto-fill-button,
+.auth-password-input::-webkit-strong-password-auto-fill-button {
+  display: none !important;
+}
+
+/* Single focus cue on auth fields: border only (no outline + ring stack). */
+.auth-field input:focus,
+.auth-field input:focus-visible,
+.auth-field button:focus,
+.auth-field button:focus-visible {
+  outline: none;
+}
+
+@media (max-height: 820px) {
+  .auth-shell .auth-form-pane {
+    padding-top: 1rem;
+    padding-bottom: 1rem;
+  }
+
+  .auth-shell .auth-logo {
+    margin-bottom: 0.75rem;
+  }
+
+  .auth-shell .auth-hero {
+    min-height: 120px;
+  }
+
+  .auth-shell .auth-hero > div {
+    min-height: 120px;
+    border-radius: 18px;
+  }
+}
+
+@media (max-height: 820px) and (min-width: 1024px) {
+  .auth-shell .auth-hero {
+    height: calc(100dvh - 16px);
+    top: 0.5rem;
+  }
+}
 .brand {
   display: flex;
   align-items: center;

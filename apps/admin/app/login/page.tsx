@@ -6,7 +6,7 @@ import { AppStatus } from '@/components/app-status'
 import { SignInPage, type Testimonial } from '@/components/ui/sign-in'
 import { useStaff } from '@/components/staff-provider'
 import { useStaffAuth } from '@/hooks/use-staff-auth'
-import { staffHomePath } from '@/lib/staff-destination'
+import { loadingScene, staffHomePath } from '@/lib/staff-destination'
 
 const testimonials: Testimonial[] = [
   {
@@ -43,7 +43,8 @@ export default function LoginPage() {
     router.replace(staffHomePath(staff.clinics) ?? '/')
   }, [staff.user, staff.loading, staff.error, staff.clinics, router])
 
-  if (staff.user && !staff.error) return <AppStatus />
+  if (staff.user && !staff.error)
+    return <AppStatus scene={loadingScene(staff.clinics, staff.loading)} />
 
   function signIn(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()

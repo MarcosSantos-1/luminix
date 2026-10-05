@@ -104,7 +104,8 @@ export function ClinicWorkspace({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!staff.loading && !staff.user) router.replace('/login')
   }, [staff.loading, staff.user, router])
-  if (!staff.loading && !staff.user) return <AppStatus />
+  const scene = onboarding ? 'onboarding' : 'workspace'
+  if (!staff.loading && !staff.user) return <AppStatus scene={scene} />
   if (!visible) {
     if (staff.error)
       return (
@@ -112,7 +113,7 @@ export function ClinicWorkspace({ children }: { children: ReactNode }) {
           {staff.error}
         </AppStatus>
       )
-    if (staff.loading || state?.key !== key) return <AppStatus />
+    if (staff.loading || state?.key !== key) return <AppStatus scene={scene} />
     return (
       <AppStatus
         alert

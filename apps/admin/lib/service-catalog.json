@@ -406,42 +406,42 @@
     "preco_sugerido_brl": 130
   },
   {
-    "categoria": "Massoterapia",
+    "categoria": "Massagem e Massoterapia",
     "nome": "Massagem relaxante",
     "descricao": "Massagem corporal com foco em relaxamento.",
     "duracao_minutos": 60,
     "preco_sugerido_brl": 140
   },
   {
-    "categoria": "Massoterapia",
+    "categoria": "Massagem e Massoterapia",
     "nome": "Massagem terapêutica",
     "descricao": "Massagem localizada conforme avaliação e objetivo do atendimento.",
     "duracao_minutos": 60,
     "preco_sugerido_brl": 170
   },
   {
-    "categoria": "Massoterapia",
+    "categoria": "Massagem e Massoterapia",
     "nome": "Drenagem linfática manual",
     "descricao": "Sessão de drenagem por manobras manuais.",
     "duracao_minutos": 60,
     "preco_sugerido_brl": 150
   },
   {
-    "categoria": "Massoterapia",
+    "categoria": "Massagem e Massoterapia",
     "nome": "Bambuterapia",
     "descricao": "Massagem com bambus para relaxamento corporal.",
     "duracao_minutos": 60,
     "preco_sugerido_brl": 160
   },
   {
-    "categoria": "Massoterapia",
+    "categoria": "Massagem e Massoterapia",
     "nome": "Reflexologia podal",
     "descricao": "Estimulação manual dos pés com foco em relaxamento.",
     "duracao_minutos": 60,
     "preco_sugerido_brl": 120
   },
   {
-    "categoria": "Massoterapia",
+    "categoria": "Massagem e Massoterapia",
     "nome": "Massagem com pedras quentes",
     "descricao": "Massagem corporal com aplicação controlada de pedras aquecidas.",
     "duracao_minutos": 90,

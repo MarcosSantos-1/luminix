@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { AppStatus } from '@/components/app-status'
 import { useStaff } from '@/components/staff-provider'
-import { DRAFT_CLINIC_NAME, staffHomePath } from '@/lib/staff-destination'
+import { DRAFT_CLINIC_NAME, loadingScene, staffHomePath } from '@/lib/staff-destination'
 
 export default function Page() {
   const staff = useStaff()
@@ -52,6 +52,7 @@ export default function Page() {
   const problem = error || staff.error
   return (
     <AppStatus
+      scene={loadingScene(staff.clinics, staff.loading)}
       alert={Boolean(problem)}
       action={
         problem ? (

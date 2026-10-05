@@ -1,6 +1,7 @@
 import { Analytics } from '@vercel/analytics/next'
 import type { Metadata, Viewport } from 'next'
 import './globals.css'
+import { AppToastProvider } from '@/components/app-toast-provider'
 import { StaffProvider } from '@/components/staff-provider'
 
 export const metadata: Metadata = {
@@ -23,7 +24,10 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
   return (
     <html lang="pt-BR" className="bg-background">
       <body className="antialiased">
-        <StaffProvider>{children}</StaffProvider>
+        <StaffProvider>
+          {children}
+          <AppToastProvider />
+        </StaffProvider>
         {process.env.NODE_ENV === 'production' && <Analytics />}
       </body>
     </html>

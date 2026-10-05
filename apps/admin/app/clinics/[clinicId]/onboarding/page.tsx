@@ -1,6 +1,6 @@
 'use client'
 
-import { Button } from '@heroui/react'
+import { Button, toast } from '@heroui/react'
 import { ArrowRight } from 'lucide-react'
 import { useEffect, useState, type ReactNode } from 'react'
 import { useRouter } from 'next/navigation'
@@ -10,7 +10,6 @@ import { OnboardingShell } from '@/components/onboarding/shell'
 import {
   CatalogStep,
   ClinicStep,
-  ContactStep,
   PreferencesStep,
   ReviewStep,
   HoursStep,
@@ -18,8 +17,10 @@ import {
   ServicesStep,
   TeamStep,
 } from '@/components/onboarding/steps'
+import { WelcomeStep } from '@/components/onboarding/welcome'
 import { useStaff } from '@/components/staff-provider'
-import { formatBrPhone, isCompletePhone } from '@/lib/phone'
+import { isCompletePhone } from '@/lib/phone'
+import { clearSignupPhone, peekSignupPhone } from '@/lib/signup-phone'
 import { untitledClinicName } from '@/lib/staff-destination'
 import { persistedStepKey, stepInfo, type Draft, type Payload } from '@/components/onboarding/model'
 import './onboarding.css'
@@ -37,7 +38,7 @@ function emptyPayload(name: string, email: string, ownerName: string): Payload {
       facebook: '',
       website: '',
       taxId: '',
-      taxIdKind: 'cpf',
+      taxIdKind: 'cnpj',
       addressLine: '',
       addressNumber: '',
       addressNote: '',
@@ -76,6 +77,10 @@ function normalizePayload(value: Partial<Payload>, fallback: Payload): Payload {
   }
 }
 
+function notifyError(message: string) {
+  toast.danger(message, { timeout: 5000 })
+}
+
 export default function OnboardingPage() {
   const { clinic, permissions } = useClinic()
   const staff = useStaff()
@@ -83,11 +88,9 @@ export default function OnboardingPage() {
   const [draft, setDraft] = useState<Draft | null>(null)
   const [payload, setPayload] = useState<Payload | null>(null)
   const [step, setStep] = useState(0)
-  const [phoneText, setPhoneText] = useState('')
   const [busy, setBusy] = useState(false)
-  const [error, setError] = useState('')
+  const [loadError, setLoadError] = useState('')
   const [retry, setRetry] = useState(0)
-  const [glass, setGlass] = useState(true)
 
   useEffect(() => {
     const user = staff.user
@@ -111,9 +114,18 @@ export default function OnboardingPage() {
           data.draft.payload.ownerName || user.displayName || '',
         )
         const next = normalizePayload(data.draft.payload, fallback)
+        if (untitledClinicName(next.name)) next.name = ''
+        if (!next.clinic.taxIdKind) next.clinic.taxIdKind = 'cnpj'
+        if (!next.phone) {
+          const signupPhone = peekSignupPhone(user.uid)
+          if (signupPhone) {
+            next.phone = signupPhone
+            if (!next.clinic.whatsapp) next.clinic.whatsapp = signupPhone
+          }
+        }
         setPayload(next)
-        setPhoneText(next.phone ? formatBrPhone(next.phone) : '')
         setDraft({ ...data.draft, payload: next })
+        setLoadError('')
         const stored = data.draft.step
         const focus = data.draft.payload.uiFocus
         const index =
@@ -123,7 +135,7 @@ export default function OnboardingPage() {
         setStep(Math.max(0, index))
       } catch {
         if (!controller.signal.aborted)
-          setError('Não foi possível carregar seu cadastro. Tente novamente.')
+          setLoadError('Não foi possível carregar seu cadastro. Tente novamente.')
       }
     })()
     return () => controller.abort()
@@ -131,11 +143,6 @@ export default function OnboardingPage() {
 
   function validateCurrent() {
     if (!payload) return 'Cadastro indisponível.'
-    if (
-      step === 0 &&
-      (!payload.ownerName.trim() || !payload.email.includes('@') || !isCompletePhone(payload.phone))
-    )
-      return 'Preencha nome, e-mail e celular com DDD.'
     if (step === 1 && !payload.name.trim()) return 'Informe o nome da clínica ou estúdio.'
     if (step === 2 && payload.services.length === 0)
       return 'Escolha pelo menos um serviço para abrir sua agenda.'
@@ -156,12 +163,12 @@ export default function OnboardingPage() {
     return ''
   }
 
-  async function save(nextStep: number, exit = false) {
+  async function save(nextStep: number) {
     const user = staff.user
     if (!user || !payload || !draft || busy) return
     const problem = validateCurrent()
     if (nextStep > step && problem) {
-      setError(problem)
+      notifyError(problem)
       return
     }
     const nextKey = stepInfo[nextStep].key
@@ -182,7 +189,6 @@ export default function OnboardingPage() {
       uiFocus: nextKey === 'hours' ? 'hours' : nextKey === 'schedule' ? 'address' : undefined,
     }
     setBusy(true)
-    setError('')
     try {
       const response = await fetch(`/api/clinics/${clinic.id}/onboarding`, {
         method: 'PUT',
@@ -199,7 +205,7 @@ export default function OnboardingPage() {
         signal: AbortSignal.timeout(20_000),
       })
       if (!response.ok) {
-        setError(
+        notifyError(
           response.status === 409
             ? 'Este cadastro mudou em outra aba. Recarregue para continuar.'
             : 'Não foi possível salvar esta etapa.',
@@ -210,9 +216,9 @@ export default function OnboardingPage() {
       setPayload(payloadToSave)
       setDraft(data.draft)
       setStep(nextStep)
-      if (exit) router.push(`/clinics/${clinic.id}`)
+      if (isCompletePhone(payloadToSave.phone)) clearSignupPhone(user.uid)
     } catch {
-      setError('Sem conexão para salvar. Seus campos continuam nesta tela.')
+      notifyError('Sem conexão para salvar. Seus campos continuam nesta tela.')
     } finally {
       setBusy(false)
     }
@@ -221,8 +227,12 @@ export default function OnboardingPage() {
   async function complete() {
     const user = staff.user
     if (!user || !draft || busy) return
+    const problem = validateCurrent()
+    if (problem) {
+      notifyError(problem)
+      return
+    }
     setBusy(true)
-    setError('')
     try {
       const response = await fetch(`/api/clinics/${clinic.id}/onboarding/complete`, {
         method: 'POST',
@@ -235,7 +245,7 @@ export default function OnboardingPage() {
         signal: AbortSignal.timeout(20_000),
       })
       if (!response.ok) {
-        setError(
+        notifyError(
           response.status === 409
             ? 'O cadastro mudou. Recarregue e confira o resumo.'
             : 'Não foi possível concluir. Revise os dados obrigatórios.',
@@ -245,7 +255,7 @@ export default function OnboardingPage() {
       staff.refresh()
       router.push(`/clinics/${clinic.id}`)
     } catch {
-      setError('A resposta não chegou. Pode tentar novamente sem risco de duplicar a clínica.')
+      notifyError('A resposta não chegou. Pode tentar novamente sem risco de duplicar a clínica.')
     } finally {
       setBusy(false)
     }
@@ -266,14 +276,14 @@ export default function OnboardingPage() {
       </AppStatus>
     )
   if (!payload || !draft)
-    return error ? (
+    return loadError ? (
       <AppStatus
         alert
         action={
           <Button
             className="ob2-cta"
             onPress={() => {
-              setError('')
+              setLoadError('')
               setRetry((value) => value + 1)
             }}
           >
@@ -281,13 +291,15 @@ export default function OnboardingPage() {
           </Button>
         }
       >
-        {error}
+        {loadError}
       </AppStatus>
     ) : (
-      <AppStatus />
+      <AppStatus scene="onboarding" />
     )
 
   const ready = payload
+  if (step === 0) return <WelcomeStep busy={busy} onStart={() => void save(1)} />
+
   const last = step === stepInfo.length - 1
   const footer: ReactNode = (
     <Button
@@ -300,21 +312,15 @@ export default function OnboardingPage() {
       <ArrowRight size={18} />
     </Button>
   )
-  const stepProps = { payload: ready, setPayload, error, footer }
+  const stepProps = { payload: ready, setPayload, error: '', footer }
 
   return (
     <OnboardingShell
-      glass={glass}
-      onToggleGlass={() => setGlass((value) => !value)}
       step={step}
       busy={busy}
       onBack={() => void save(step - 1)}
       onSelectStep={(index) => void save(index)}
-      onExit={() => void save(step, true)}
     >
-      {step === 0 && (
-        <ContactStep {...stepProps} phoneText={phoneText} setPhoneText={setPhoneText} />
-      )}
       {step === 1 && <ClinicStep {...stepProps} />}
       {step === 2 && <CatalogStep {...stepProps} />}
       {step === 3 && <ServicesStep {...stepProps} />}
@@ -322,7 +328,7 @@ export default function OnboardingPage() {
       {step === 5 && <ScheduleStep {...stepProps} />}
       {step === 6 && <HoursStep {...stepProps} />}
       {step === 7 && <PreferencesStep {...stepProps} />}
-      {step === 8 && <ReviewStep payload={ready} error={error} footer={footer} />}
+      {step === 8 && <ReviewStep payload={ready} error="" footer={footer} />}
     </OnboardingShell>
   )
 }

@@ -15,7 +15,6 @@ import {
   Scissors,
   Sparkles,
   Stethoscope,
-  UserRound,
   Users,
   type LucideIcon,
 } from 'lucide-react'
@@ -80,10 +79,10 @@ export type CatalogItem = (typeof catalog)[number]
 export const stepInfo = [
   {
     key: 'contact',
-    label: 'Você',
-    title: 'Vamos começar',
-    text: 'Seu nome, e-mail e celular identificam quem administra a clínica. Se você sair no meio, o celular serve para retomar este cadastro de onde parou.',
-    icon: UserRound,
+    label: 'Início',
+    title: 'Vamos preparar seu espaço?',
+    text: 'Uma visão do que vamos organizar. Nome, e-mail e celular já vieram da sua conta.',
+    icon: Sparkles,
   },
   {
     key: 'clinic',
@@ -153,21 +152,34 @@ export const dayNames: Record<number, string> = {
   6: 'Sábado',
 }
 
-export const categories = [...new Set(catalog.map((item) => item.categoria))]
+export const categories = [
+  'Estética facial',
+  'Estética corporal',
+  'Depilação',
+  'Massagem e Massoterapia',
+  'Biomedicina',
+  'Quiropraxia',
+  'Cabelo',
+  'Sobrancelhas',
+  'Cílios',
+  'Unhas',
+  'Tatuagem',
+  'Piercing',
+] as const
 
 const categoryIcons: Record<string, LucideIcon> = {
   'Estética facial': Sparkles,
   'Estética corporal': PersonStanding,
   Depilação: Scissors,
+  'Massagem e Massoterapia': Hand,
+  Biomedicina: Stethoscope,
+  Quiropraxia: Activity,
   Cabelo: Flower2,
-  Unhas: Heart,
   Sobrancelhas: Eye,
   Cílios: Eye,
+  Unhas: Heart,
   Tatuagem: PenLine,
   Piercing: Gem,
-  Quiropraxia: Activity,
-  Massoterapia: Hand,
-  Biomedicina: Stethoscope,
 }
 
 export function categoryIcon(name: string) {
