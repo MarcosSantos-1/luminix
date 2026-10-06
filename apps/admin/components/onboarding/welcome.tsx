@@ -44,7 +44,7 @@ export function WelcomeStep({ busy, onStart }: { busy: boolean; onStart: () => v
 
   return (
     <main className="ob2 ob2-is-welcome" data-surface="glass">
-      <section className="ob2-welcome-card">
+      <div className="ob2-welcome-frame">
         <header className="ob2-welcome-head">
           <Image
             className="ob2-logo"
@@ -55,7 +55,7 @@ export function WelcomeStep({ busy, onStart }: { busy: boolean; onStart: () => v
             priority
           />
           <Button
-            className="ob2-welcome-leave"
+            className="ob2-exit"
             variant="ghost"
             isDisabled={busy || leaving}
             onPress={() => void leave()}
@@ -63,9 +63,9 @@ export function WelcomeStep({ busy, onStart }: { busy: boolean; onStart: () => v
             {leaving ? 'Saindo…' : 'Sair'}
           </Button>
         </header>
-        <div className="ob2-welcome-body">
-          <div className="ob2-welcome-copy">
-            <p className="ob2-welcome-kicker">Seu espaço no Luminix</p>
+        <section className="ob2-welcome-card">
+          <div className="ob2-welcome-body">
+            <div className="ob2-welcome-copy">
             <h1>
               Vamos preparar
               <br />
@@ -124,7 +124,8 @@ export function WelcomeStep({ busy, onStart }: { busy: boolean; onStart: () => v
             />
           </figure>
         </div>
-      </section>
+        </section>
+      </div>
     </main>
   )
 }

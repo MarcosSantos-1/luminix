@@ -25,6 +25,7 @@ export function GlassField({
   maxLength,
   isDisabled,
   suffix,
+  className,
 }: {
   label: string
   icon?: ReactNode
@@ -37,10 +38,11 @@ export function GlassField({
   maxLength?: number
   isDisabled?: boolean
   suffix?: ReactNode
+  className?: string
 }) {
   return (
     <TextField
-      className="ob2-field"
+      className={['ob2-field', className].filter(Boolean).join(' ')}
       fullWidth
       type={type}
       value={value}
@@ -110,17 +112,19 @@ export function ChoiceCard({
   detail,
   icon,
   selected,
+  className,
   onPress,
 }: {
   title: string
   detail?: string
   icon: ReactNode
   selected?: boolean
+  className?: string
   onPress: () => void
 }) {
   return (
     <Button
-      className={selected ? 'ob2-choice is-selected' : 'ob2-choice'}
+      className={['ob2-choice', selected ? 'is-selected' : '', className].filter(Boolean).join(' ')}
       variant="ghost"
       onPress={onPress}
     >

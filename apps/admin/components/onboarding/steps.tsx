@@ -11,7 +11,6 @@ import {
   Hash,
   IdCard,
   ImagePlus,
-  MapPin,
   Mars,
   MoreHorizontal,
   Plus,
@@ -23,11 +22,12 @@ import {
   Users,
   Venus,
 } from 'lucide-react'
+import Image from 'next/image'
 import { useRef, useState, type DragEvent, type ReactNode } from 'react'
 import { formatBrPhone } from '@/lib/phone'
 import {
   categories,
-  categoryIcon,
+  categoryArtSrc,
   dayNames,
   durationChoices,
   formatMoney,
@@ -37,6 +37,7 @@ import {
   type Professional,
   type Service,
 } from './model'
+import { defaultBreak, TimePicker } from './time-picker'
 import {
   BlurDrawer,
   ChoiceCard,
@@ -454,13 +455,26 @@ export function CatalogStep({
           ) : (
             <div className="ob2-categories">
               {categories.map((category) => {
-                const Icon = categoryIcon(category)
+                const art = categoryArtSrc(category)
                 const count = payload.services.filter((service) => service.category === category)
                   .length
                 return (
                   <ChoiceCard
                     key={category}
-                    icon={<Icon size={18} />}
+                    className="ob2-category-card"
+                    icon={
+                      art ? (
+                        <Image
+                          className="ob2-category-icon"
+                          src={art}
+                          alt=""
+                          width={512}
+                          height={512}
+                        />
+                      ) : (
+                        <Scissors size={18} />
+                      )
+                    }
                     title={category}
                     detail={count ? `${count} na agenda` : 'Ver serviços'}
                     selected={count > 0}
@@ -717,10 +731,10 @@ export function TeamStep({
         mode === 'solo'
           ? [
               {
-                name: payload.ownerName,
+                name: payload.ownerName.trim() || 'Você',
                 role: 'Proprietária / profissional',
                 audience: 'all',
-                serviceNames: payload.services.map((service) => service.name),
+                serviceNames: payload.services.map((service) => service.name).filter((name) => name.trim()),
               },
             ]
           : [],
@@ -913,9 +927,17 @@ export function ScheduleStep({
         <Card.Content className="ob2-form">
           {open ? (
             <>
+              <div className="ob2-address-hero">
+                <Image
+                  className="ob2-address-art"
+                  src="/brand/onboarding/studio-1.png"
+                  alt=""
+                  width={1254}
+                  height={1254}
+                />
+              </div>
               <GlassField
                 label="CEP"
-                icon={<MapPin size={18} />}
                 inputMode="numeric"
                 value={payload.clinic.postalCode}
                 placeholder="00000-000"
@@ -929,6 +951,7 @@ export function ScheduleStep({
               />
               <div className="ob2-address-line">
                 <GlassField
+                  className="ob2-address-emphasis"
                   label="Endereço"
                   value={payload.clinic.addressLine}
                   placeholder="Rua, avenida ou travessa"
@@ -970,7 +993,13 @@ export function ScheduleStep({
             </>
           ) : (
             <Button className="ob2-address-summary" variant="ghost" onPress={() => setOpen(true)}>
-              <MapPin size={18} />
+              <Image
+                className="ob2-address-art ob2-address-art-small"
+                src="/brand/onboarding/studio-1.png"
+                alt=""
+                width={1254}
+                height={1254}
+              />
               <span>{summary || 'Endereço'}</span>
               <small>Editar</small>
             </Button>
@@ -1002,36 +1031,95 @@ export function HoursStep({
     })
   return (
     <div className="ob2-stack">
-      {payload.businessHours.map((day) => (
-        <div className="ob2-day" key={day.weekday}>
-          <Switch isSelected={day.enabled} onChange={(enabled) => updateDay(day.weekday, { enabled })}>
-            <Switch.Content>
-              <Switch.Control>
-                <Switch.Thumb />
-              </Switch.Control>
-              <Label>{dayNames[day.weekday]}</Label>
-            </Switch.Content>
-          </Switch>
-          {day.enabled ? (
-            <div className="ob2-hours">
-              <GlassField
-                label="Abre"
-                type="time"
-                value={day.start}
-                onChange={(value) => updateDay(day.weekday, { start: value })}
-              />
-              <GlassField
-                label="Fecha"
-                type="time"
-                value={day.end}
-                onChange={(value) => updateDay(day.weekday, { end: value })}
-              />
+      <Card className="ob2-panel ob2-hours-card">
+        <Card.Content className="ob2-hours-list">
+          {payload.businessHours.map((day) => {
+            const breaks = day.breaks ?? []
+            return (
+            <div className="ob2-day" key={day.weekday}>
+              <Switch isSelected={day.enabled} onChange={(enabled) => updateDay(day.weekday, { enabled })}>
+                <Switch.Content>
+                  <Switch.Control>
+                    <Switch.Thumb />
+                  </Switch.Control>
+                  <Label>{dayNames[day.weekday]}</Label>
+                </Switch.Content>
+              </Switch>
+              {day.enabled ? (
+                <div className="ob2-day-schedule">
+                  <div className="ob2-hours">
+                    <TimePicker
+                      label="Abre"
+                      value={day.start}
+                      onChange={(value) => updateDay(day.weekday, { start: value })}
+                    />
+                    <TimePicker
+                      label="Fecha"
+                      value={day.end}
+                      onChange={(value) => updateDay(day.weekday, { end: value })}
+                    />
+                  </div>
+                  {breaks.map((item, index) => (
+                    <div className="ob2-break" key={`${day.weekday}-${index}`}>
+                      <TimePicker
+                        label="Intervalo começa"
+                        value={item.start}
+                        onChange={(value) =>
+                          updateDay(day.weekday, {
+                            breaks: breaks.map((entry, position) =>
+                              position === index ? { ...entry, start: value } : entry,
+                            ),
+                          })
+                        }
+                      />
+                      <TimePicker
+                        label="Intervalo termina"
+                        value={item.end}
+                        onChange={(value) =>
+                          updateDay(day.weekday, {
+                            breaks: breaks.map((entry, position) =>
+                              position === index ? { ...entry, end: value } : entry,
+                            ),
+                          })
+                        }
+                      />
+                      <Button
+                        className="ob2-icon ob2-break-remove"
+                        isIconOnly
+                        variant="ghost"
+                        aria-label={`Remover intervalo de ${dayNames[day.weekday]}`}
+                        onPress={() =>
+                          updateDay(day.weekday, {
+                            breaks: breaks.filter((_, position) => position !== index),
+                          })
+                        }
+                      >
+                        <Trash2 size={16} />
+                      </Button>
+                    </div>
+                  ))}
+                  {breaks.length < 3 ? (
+                    <Button
+                      className="ob2-quiet"
+                      variant="ghost"
+                      onPress={() =>
+                        updateDay(day.weekday, {
+                          breaks: [...breaks, defaultBreak(day.start, day.end)],
+                        })
+                      }
+                    >
+                      <Plus size={16} /> Adicionar intervalo
+                    </Button>
+                  ) : null}
+                </div>
+              ) : (
+                <p className="ob2-copy">Fechado neste dia.</p>
+              )}
             </div>
-          ) : (
-            <p className="ob2-copy">Fechado neste dia.</p>
-          )}
-        </div>
-      ))}
+            )
+          })}
+        </Card.Content>
+      </Card>
       <StepEnd error={error} footer={footer} />
     </div>
   )
@@ -1121,7 +1209,7 @@ export function ReviewStep({ payload, error, footer }: { payload: Payload; error
       value: `${payload.ownerName || 'Sem nome'} · ${formatBrPhone(payload.phone) || 'sem celular'}`,
     },
     {
-      label: 'Catálogo',
+      label: 'Serviços',
       value: `${payload.services.length} ${payload.services.length === 1 ? 'serviço' : 'serviços'} em ${payload.occupations.length} ${payload.occupations.length === 1 ? 'categoria' : 'categorias'}`,
     },
     {

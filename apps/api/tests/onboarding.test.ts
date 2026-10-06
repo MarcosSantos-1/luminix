@@ -51,6 +51,7 @@ const payload = {
     enabled: weekday >= 1 && weekday <= 5,
     start: '09:00',
     end: '18:00',
+    ...(weekday === 1 ? { breaks: [{ start: '13:00', end: '14:00' }] } : {}),
   })),
     uiFocus: 'address',
     preferences: {
@@ -205,6 +206,18 @@ describe('versioned clinic onboarding', () => {
     expect(
       (await db.query('SELECT * FROM luminix.business_hours WHERE clinic_id = $1', [clinicA])).rows,
     ).toHaveLength(5)
+    const monday = (
+      await db.query(
+        'SELECT periods FROM luminix.weekly_availability WHERE clinic_id = $1 AND weekday = 1',
+        [clinicA],
+      )
+    ).rows[0]
+    const periods =
+      typeof monday.periods === 'string' ? JSON.parse(monday.periods) : monday.periods
+    expect(periods).toEqual([
+      { start: '09:00', end: '13:00' },
+      { start: '14:00', end: '18:00' },
+    ])
     expect(
       (await db.query('SELECT * FROM luminix.booking_policies WHERE clinic_id = $1', [clinicA]))
         .rows,

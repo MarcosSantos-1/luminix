@@ -55,6 +55,7 @@ function emptyPayload(name: string, email: string, ownerName: string): Payload {
       enabled: weekday > 0 && weekday < 6,
       start: '09:00',
       end: weekday === 6 ? '13:00' : '18:00',
+      breaks: [],
     })),
     preferences: {
       cancellationHours: 12,
@@ -71,9 +72,40 @@ function normalizePayload(value: Partial<Payload>, fallback: Payload): Payload {
     ...value,
     clinic: { ...fallback.clinic, ...(value.clinic ?? {}) },
     preferences: { ...fallback.preferences, ...(value.preferences ?? {}) },
-    businessHours: value.businessHours?.length === 7 ? value.businessHours : fallback.businessHours,
+    businessHours:
+      value.businessHours?.length === 7
+        ? value.businessHours.map((day) => ({ ...day, breaks: day.breaks ?? [] }))
+        : fallback.businessHours,
     services: value.services ?? [],
     professionals: value.professionals ?? [],
+  }
+}
+
+function teamPayload(payload: Payload, step: number): Payload {
+  if (step !== 4) return payload
+  if (payload.teamMode === 'solo') {
+    return {
+      ...payload,
+      professionals: [
+        {
+          name: payload.ownerName.trim() || 'Você',
+          role: 'Proprietária / profissional',
+          audience: 'all',
+          serviceNames: payload.services.map((service) => service.name).filter((name) => name.trim()),
+        },
+      ],
+    }
+  }
+  return {
+    ...payload,
+    professionals: payload.professionals
+      .filter((person) => person.name.trim() && person.role.trim())
+      .map((person) => ({
+        ...person,
+        name: person.name.trim(),
+        role: person.role.trim(),
+        serviceNames: person.serviceNames.filter((name) => name.trim()),
+      })),
   }
 }
 
@@ -153,13 +185,27 @@ export default function OnboardingPage() {
       )
     )
       return 'Revise nome, duração e valor dos serviços.'
-    if (step === 4 && payload.teamMode === 'team' && payload.professionals.length === 0)
-      return 'Adicione ao menos uma profissional ou marque “somente eu”.'
-    if (
-      stepInfo[step]?.key === 'hours' &&
-      payload.businessHours.filter((day) => day.enabled).some((day) => day.start >= day.end)
-    )
-      return 'O horário de encerramento deve ser depois da abertura.'
+    if (step === 4 && payload.teamMode === 'team') {
+      if (payload.professionals.length === 0)
+        return 'Adicione ao menos uma profissional ou marque “somente eu”.'
+      if (payload.professionals.some((person) => !person.name.trim() || !person.role.trim()))
+        return 'Informe o nome e a função de cada profissional para continuar.'
+    }
+    if (stepInfo[step]?.key === 'hours') {
+      for (const day of payload.businessHours) {
+        if (!day.enabled) continue
+        if (day.start >= day.end) return 'O horário de encerramento deve ser depois da abertura.'
+        let cursor = day.start
+        for (const item of [...(day.breaks ?? [])].sort((left, right) =>
+          left.start.localeCompare(right.start),
+        )) {
+          if (item.start >= item.end) return 'O fim do intervalo deve ser depois do início.'
+          if (item.start < day.start || item.end > day.end || item.start < cursor)
+            return 'Cada intervalo precisa caber dentro do horário, sem sobrepor outro.'
+          cursor = item.end
+        }
+      }
+    }
     return ''
   }
 
@@ -173,19 +219,7 @@ export default function OnboardingPage() {
     }
     const nextKey = stepInfo[nextStep].key
     const payloadToSave: Payload = {
-      ...(step === 4 && payload.teamMode === 'solo'
-        ? {
-            ...payload,
-            professionals: [
-              {
-                name: payload.ownerName,
-                role: 'Proprietária / profissional',
-                audience: 'all',
-                serviceNames: payload.services.map((service) => service.name),
-              },
-            ],
-          }
-        : payload),
+      ...teamPayload(payload, step),
       uiFocus: nextKey === 'hours' ? 'hours' : nextKey === 'schedule' ? 'address' : undefined,
     }
     setBusy(true)

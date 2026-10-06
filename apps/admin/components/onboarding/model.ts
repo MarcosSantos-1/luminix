@@ -1,22 +1,12 @@
 import {
-  Activity,
   MapPin,
   Building2,
   CalendarDays,
   Check,
   CreditCard,
-  Eye,
-  Flower2,
-  Gem,
-  Hand,
-  Heart,
-  PenLine,
-  PersonStanding,
   Scissors,
   Sparkles,
-  Stethoscope,
   Users,
-  type LucideIcon,
 } from 'lucide-react'
 import catalog from '@/lib/service-catalog.json'
 
@@ -59,7 +49,13 @@ export type Payload = {
   services: Service[]
   teamMode: 'solo' | 'team'
   professionals: Professional[]
-  businessHours: { weekday: number; enabled: boolean; start: string; end: string }[]
+  businessHours: {
+    weekday: number
+    enabled: boolean
+    start: string
+    end: string
+    breaks: { start: string; end: string }[]
+  }[]
   preferences: {
     cancellationHours: number
     specialCancellationHours: number
@@ -93,7 +89,7 @@ export const stepInfo = [
   },
   {
     key: 'catalog',
-    label: 'Catálogo',
+    label: 'Serviços',
     title: 'O que a clínica oferece?',
     text: 'Escolha uma área e marque os atendimentos que entram na agenda. Os valores são sugestões — na próxima etapa você ajusta o que for diferente.',
     icon: Scissors,
@@ -123,7 +119,7 @@ export const stepInfo = [
     key: 'hours',
     label: 'Horários',
     title: 'Quando a clínica abre?',
-    text: 'Este horário vale para o espaço inteiro. A agenda de cada profissional pode ser refinada no painel.',
+    text: 'Este horário vale para o espaço inteiro. Se a clínica para no meio do dia, adicione um intervalo — uma hora, como das 13h às 14h.',
     icon: CalendarDays,
   },
   {
@@ -167,23 +163,23 @@ export const categories = [
   'Piercing',
 ] as const
 
-const categoryIcons: Record<string, LucideIcon> = {
-  'Estética facial': Sparkles,
-  'Estética corporal': PersonStanding,
-  Depilação: Scissors,
-  'Massagem e Massoterapia': Hand,
-  Biomedicina: Stethoscope,
-  Quiropraxia: Activity,
-  Cabelo: Flower2,
-  Sobrancelhas: Eye,
-  Cílios: Eye,
-  Unhas: Heart,
-  Tatuagem: PenLine,
-  Piercing: Gem,
+const categoryArt: Record<string, string> = {
+  'Estética facial': '/brand/services/facial-1.png',
+  'Estética corporal': '/brand/services/corporal-2.png',
+  Depilação: '/brand/services/depilacao-3.png',
+  'Massagem e Massoterapia': '/brand/services/massagem-4.png',
+  Biomedicina: '/brand/services/biomedicina-5.png',
+  Quiropraxia: '/brand/services/quiroplaxia-6.png',
+  Cabelo: '/brand/services/cabeleleira-7.png',
+  Sobrancelhas: '/brand/services/sobrancelhas-8.png',
+  Cílios: '/brand/services/cilios-9.png',
+  Unhas: '/brand/services/unhas-10.png',
+  Tatuagem: '/brand/services/tatuagem-11.png',
+  Piercing: '/brand/services/piercing-12.png',
 }
 
-export function categoryIcon(name: string) {
-  return categoryIcons[name] ?? Sparkles
+export function categoryArtSrc(name: string) {
+  return categoryArt[name] ?? ''
 }
 
 export function servicesInCategory(name: string) {

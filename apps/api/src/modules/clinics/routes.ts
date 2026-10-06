@@ -55,7 +55,13 @@ type OnboardingPayload = {
     audience: 'all' | 'women' | 'men'
     serviceNames: string[]
   }[]
-  businessHours: { weekday: number; enabled: boolean; start: string; end: string }[]
+  businessHours: {
+    weekday: number
+    enabled: boolean
+    start: string
+    end: string
+    breaks?: { start: string; end: string }[]
+  }[]
   preferences: {
     cancellationHours: number
     specialCancellationHours: number
@@ -93,14 +99,31 @@ function validPayload(payload: OnboardingPayload): boolean {
     payload.services.every((service) => service.name.trim()) &&
     payload.businessHours.length === 7 &&
     unique(payload.businessHours.map((day) => String(day.weekday))) &&
-    payload.businessHours.every(
-      (day) =>
-        day.weekday >= 0 &&
-        day.weekday <= 6 &&
-        /^(?:[01][0-9]|2[0-3]):[0-5][0-9]$/.test(day.start) &&
-        /^(?:[01][0-9]|2[0-3]):[0-5][0-9]$/.test(day.end) &&
-        (!day.enabled || day.start < day.end),
-    ) &&
+    payload.businessHours.every((day) => {
+      const clock = /^(?:[01][0-9]|2[0-3]):[0-5][0-9]$/
+      const breaks = day.breaks ?? []
+      if (
+        day.weekday < 0 ||
+        day.weekday > 6 ||
+        !clock.test(day.start) ||
+        !clock.test(day.end) ||
+        (day.enabled && day.start >= day.end) ||
+        breaks.length > 4
+      )
+        return false
+      let cursor = day.start
+      return [...breaks]
+        .sort((left, right) => left.start.localeCompare(right.start))
+        .every((item) => {
+          const fits =
+            clock.test(item.start) &&
+            clock.test(item.end) &&
+            item.start < item.end &&
+            (!day.enabled || (item.start >= day.start && item.end <= day.end && item.start >= cursor))
+          cursor = item.end
+          return fits
+        })
+    }) &&
     unique(payload.professionals.map((professional) => professional.name)),
   )
 }
@@ -135,6 +158,7 @@ function emptyPayload(clinicName: string): OnboardingPayload {
       enabled: weekday >= 1 && weekday <= 5,
       start: '09:00',
       end: weekday === 6 ? '13:00' : '18:00',
+      breaks: [],
     })),
     preferences: {
       cancellationHours: 12,
@@ -354,6 +378,19 @@ export async function clinicRoutes(
             enabled: { type: 'boolean' },
             start: { type: 'string', pattern: '^(?:[01][0-9]|2[0-3]):[0-5][0-9]$' },
             end: { type: 'string', pattern: '^(?:[01][0-9]|2[0-3]):[0-5][0-9]$' },
+            breaks: {
+              type: 'array',
+              maxItems: 4,
+              items: {
+                type: 'object',
+                additionalProperties: false,
+                required: ['start', 'end'],
+                properties: {
+                  start: { type: 'string', pattern: '^(?:[01][0-9]|2[0-3]):[0-5][0-9]$' },
+                  end: { type: 'string', pattern: '^(?:[01][0-9]|2[0-3]):[0-5][0-9]$' },
+                },
+              },
+            },
           },
         },
       },
