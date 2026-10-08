@@ -1,4 +1,5 @@
 import {
+  Banknote,
   MapPin,
   Building2,
   CalendarDays,
@@ -23,7 +24,28 @@ export type Service = {
   resourceName: string
   cancellationHours: number | null
 }
-export type Professional = { name: string; role: string; audience: Audience; serviceNames: string[] }
+export type ProfessionalGender = 'female' | 'male'
+export type Professional = {
+  name: string
+  role: string
+  gender: ProfessionalGender
+  audience: Audience
+  serviceNames: string[]
+  photoPreview?: string
+}
+
+export const professionalAvatarSrc: Record<ProfessionalGender, string> = {
+  female: '/brand/onboarding/avatarF.png',
+  male: '/brand/onboarding/avatarM.png',
+}
+export type DaySchedule = {
+  weekday: number
+  enabled: boolean
+  start: string
+  end: string
+  breaks: { start: string; end: string }[]
+}
+export type ProfessionalSchedule = { name: string; days: DaySchedule[] }
 export type Payload = {
   name: string
   ownerName: string
@@ -44,18 +66,13 @@ export type Payload = {
     state: string
     postalCode: string
   }
-  uiFocus?: 'address' | 'hours'
+  uiFocus?: 'address' | 'hours' | 'payments' | 'rules'
   occupations: string[]
   services: Service[]
   teamMode: 'solo' | 'team'
   professionals: Professional[]
-  businessHours: {
-    weekday: number
-    enabled: boolean
-    start: string
-    end: string
-    breaks: { start: string; end: string }[]
-  }[]
+  businessHours: DaySchedule[]
+  professionalSchedules: ProfessionalSchedule[]
   preferences: {
     cancellationHours: number
     specialCancellationHours: number
@@ -119,15 +136,22 @@ export const stepInfo = [
     key: 'hours',
     label: 'Horários',
     title: 'Quando a clínica abre?',
-    text: 'Este horário vale para o espaço inteiro. Se a clínica para no meio do dia, adicione um intervalo — uma hora, como das 13h às 14h.',
+    text: 'Primeiro o horário do espaço. Depois, ajuste o atendimento de cada profissional — sempre dentro do que a clínica permite.',
     icon: CalendarDays,
   },
   {
-    key: 'preferences',
-    label: 'Regras',
-    title: 'Como você combina com a cliente?',
-    text: 'Defina até quando ela pode cancelar e onde o pagamento acontece. Nenhuma cobrança é feita nesta etapa.',
+    key: 'payments',
+    label: 'Pagamentos',
+    title: 'Como você prefere receber?',
+    text: 'Escolha se cobrança fica fora do app ou se quer pagamentos no app. Nada é cobrado agora; o Stripe Connect vem depois.',
     icon: CreditCard,
+  },
+  {
+    key: 'rules',
+    label: 'Regras',
+    title: 'Cancelamento e pacotes',
+    text: 'Defina prazos de cancelamento e como pacotes de sessões podem ser pagos.',
+    icon: Banknote,
   },
   {
     key: 'review',
@@ -193,5 +217,29 @@ export function formatMoney(cents: number) {
 export const durationChoices = [30, 45, 60, 90, 120, 150, 180, 240]
 
 export function persistedStepKey(key: string) {
-  return key === 'hours' ? 'schedule' : key
+  if (key === 'preferences') return 'payments'
+  return key
+}
+
+export function resumeStepIndex(stored: string, focus?: Payload['uiFocus']) {
+  if (stored === 'preferences') {
+    if (focus === 'rules') return stepInfo.findIndex((item) => item.key === 'rules')
+    return stepInfo.findIndex((item) => item.key === 'payments')
+  }
+  if (stored === 'payments') return stepInfo.findIndex((item) => item.key === 'payments')
+  if (stored === 'rules') return stepInfo.findIndex((item) => item.key === 'rules')
+  if (stored === 'hours') return stepInfo.findIndex((item) => item.key === 'hours')
+  if (stored === 'schedule' && focus === 'hours')
+    return stepInfo.findIndex((item) => item.key === 'hours')
+  if (stored === 'schedule') return stepInfo.findIndex((item) => item.key === 'schedule')
+  const index = stepInfo.findIndex((item) => item.key === stored)
+  return index >= 0 ? index : stepInfo.findIndex((item) => item.key === 'clinic')
+}
+
+export function uiFocusForStepKey(key: (typeof stepInfo)[number]['key']): Payload['uiFocus'] | undefined {
+  if (key === 'schedule') return 'address'
+  if (key === 'hours') return 'hours'
+  if (key === 'payments') return 'payments'
+  if (key === 'rules') return 'rules'
+  return undefined
 }

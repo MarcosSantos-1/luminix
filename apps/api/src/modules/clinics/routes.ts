@@ -2,6 +2,7 @@ import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify'
 import type { SqlConnection } from '../../shared/database/migrations.js'
 import { withClinicTransaction, type TenantPool } from '../../shared/tenant/clinic-transaction.js'
 import type { TenantContext } from '../../shared/tenant/tenant-context.js'
+import { saveOnboardingDraft } from './onboarding-persist.js'
 
 const onboardingSteps = [
   'contact',
@@ -10,8 +11,11 @@ const onboardingSteps = [
   'services',
   'structure',
   'schedule',
-  'preferences',
+  'hours',
+  'payments',
+  'rules',
   'review',
+  'preferences',
 ] as const
 
 type OnboardingPayload = {
@@ -34,7 +38,7 @@ type OnboardingPayload = {
     state: string
     postalCode: string
   }
-  uiFocus?: 'address' | 'hours'
+  uiFocus?: 'address' | 'hours' | 'payments' | 'rules'
   occupations: string[]
   services: {
     category: string
@@ -52,6 +56,7 @@ type OnboardingPayload = {
   professionals: {
     name: string
     role: string
+    gender: 'female' | 'male'
     audience: 'all' | 'women' | 'men'
     serviceNames: string[]
   }[]
@@ -61,6 +66,16 @@ type OnboardingPayload = {
     start: string
     end: string
     breaks?: { start: string; end: string }[]
+  }[]
+  professionalSchedules: {
+    name: string
+    days: {
+      weekday: number
+      enabled: boolean
+      start: string
+      end: string
+      breaks?: { start: string; end: string }[]
+    }[]
   }[]
   preferences: {
     cancellationHours: number
@@ -91,11 +106,16 @@ function validPayload(payload: OnboardingPayload): boolean {
         Number(foundedYear) <= 2200)) &&
     (!payload.clinic.taxId || (taxDigits.length >= 11 && taxDigits.length <= 14)) &&
     (!payload.clinic.state || /^[A-Z]{2}$/.test(payload.clinic.state)) &&
-    (!payload.clinic.postalCode || /^[0-9-]{8,9}$/.test(payload.clinic.postalCode)) &&
+    (!payload.clinic.postalCode.trim() ||
+      payload.clinic.postalCode.replace(/\D/g, '').length === 8) &&
     unique(payload.occupations) &&
     unique(payload.services.map((service) => service.name)) &&
     payload.occupations.every((name) => name.trim()) &&
-    payload.professionals.every((professional) => professional.name.trim()) &&
+    payload.professionals.every(
+      (professional) =>
+        professional.name.trim() &&
+        (professional.gender === 'female' || professional.gender === 'male'),
+    ) &&
     payload.services.every((service) => service.name.trim()) &&
     payload.businessHours.length === 7 &&
     unique(payload.businessHours.map((day) => String(day.weekday))) &&
@@ -124,7 +144,42 @@ function validPayload(payload: OnboardingPayload): boolean {
           return fits
         })
     }) &&
-    unique(payload.professionals.map((professional) => professional.name)),
+    unique(payload.professionals.map((professional) => professional.name)) &&
+    (!payload.preferences.acceptInApp
+      ? payload.preferences.packagePaymentMode === 'clinic_only'
+      : true) &&
+    (payload.professionalSchedules ?? []).every(
+      (entry) =>
+        entry.name.trim() &&
+        entry.days.length === 7 &&
+        unique(entry.days.map((day) => String(day.weekday))) &&
+        entry.days.every((day) => {
+          const clock = /^(?:[01][0-9]|2[0-3]):[0-5][0-9]$/
+          const breaks = day.breaks ?? []
+          if (
+            day.weekday < 0 ||
+            day.weekday > 6 ||
+            !clock.test(day.start) ||
+            !clock.test(day.end) ||
+            (day.enabled && day.start >= day.end) ||
+            breaks.length > 4
+          )
+            return false
+          let cursor = day.start
+          return [...breaks]
+            .sort((left, right) => left.start.localeCompare(right.start))
+            .every((item) => {
+              const fits =
+                clock.test(item.start) &&
+                clock.test(item.end) &&
+                item.start < item.end &&
+                (!day.enabled ||
+                  (item.start >= day.start && item.end <= day.end && item.start >= cursor))
+              cursor = item.end
+              return fits
+            })
+        }),
+    ),
   )
 }
 
@@ -160,6 +215,7 @@ function emptyPayload(clinicName: string): OnboardingPayload {
       end: weekday === 6 ? '13:00' : '18:00',
       breaks: [],
     })),
+    professionalSchedules: [],
     preferences: {
       cancellationHours: 12,
       specialCancellationHours: 24,
@@ -268,6 +324,7 @@ export async function clinicRoutes(
       'teamMode',
       'professionals',
       'businessHours',
+      'professionalSchedules',
       'preferences',
     ],
     properties: {
@@ -286,6 +343,9 @@ export async function clinicRoutes(
           'website',
           'taxId',
           'addressLine',
+          'addressNumber',
+          'addressNote',
+          'taxIdKind',
           'city',
           'state',
           'postalCode',
@@ -352,10 +412,11 @@ export async function clinicRoutes(
         items: {
           type: 'object',
           additionalProperties: false,
-          required: ['name', 'role', 'audience', 'serviceNames'],
+          required: ['name', 'role', 'gender', 'audience', 'serviceNames'],
           properties: {
             name: { type: 'string', minLength: 1, maxLength: 160 },
             role: { type: 'string', minLength: 1, maxLength: 120 },
+            gender: { type: 'string', enum: ['female', 'male'] },
             audience: { type: 'string', enum: ['all', 'women', 'men'] },
             serviceNames: {
               type: 'array',
@@ -394,7 +455,51 @@ export async function clinicRoutes(
           },
         },
       },
-      uiFocus: { type: 'string', enum: ['address', 'hours'] },
+      uiFocus: { type: 'string', enum: ['address', 'hours', 'payments', 'rules'] },
+      professionalSchedules: {
+        type: 'array',
+        maxItems: 30,
+        items: {
+          type: 'object',
+          additionalProperties: false,
+          required: ['name', 'days'],
+          properties: {
+            name: { type: 'string', minLength: 1, maxLength: 160 },
+            days: {
+              type: 'array',
+              minItems: 7,
+              maxItems: 7,
+              items: {
+                type: 'object',
+                additionalProperties: false,
+                required: ['weekday', 'enabled', 'start', 'end'],
+                properties: {
+                  weekday: { type: 'integer', minimum: 0, maximum: 6 },
+                  enabled: { type: 'boolean' },
+                  start: { type: 'string', pattern: '^(?:[01][0-9]|2[0-3]):[0-5][0-9]$' },
+                  end: { type: 'string', pattern: '^(?:[01][0-9]|2[0-3]):[0-5][0-9]$' },
+                  breaks: {
+                    type: 'array',
+                    maxItems: 4,
+                    items: {
+                      type: 'object',
+                      additionalProperties: false,
+                      required: ['start', 'end'],
+                      properties: {
+                        start: {
+                          type: 'string',
+                          pattern: '^(?:[01][0-9]|2[0-3]):[0-5][0-9]$',
+                        },
+                        end: { type: 'string', pattern: '^(?:[01][0-9]|2[0-3]):[0-5][0-9]$' },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
       preferences: {
         type: 'object',
         additionalProperties: false,
@@ -484,17 +589,13 @@ export async function clinicRoutes(
       if (!validPayload(request.body.payload))
         return reply.code(400).send({ error: 'Invalid onboarding data' })
       return authorized(request, reply, 'onboarding:manage', async (connection, tenant) => {
-        const row = (
-          await connection.query(
-            'SELECT * FROM luminix.save_onboarding_draft($1::uuid, $2::integer, $3::text, $4::jsonb)',
-            [
-              tenant.clinicId,
-              request.body.version,
-              request.body.step,
-              JSON.stringify(request.body.payload),
-            ],
-          )
-        ).rows[0]
+        const row = await saveOnboardingDraft(
+          connection,
+          tenant.clinicId,
+          request.body.version,
+          request.body.step,
+          request.body.payload,
+        )
         return {
           draft: {
             version: Number(row.draft_version),

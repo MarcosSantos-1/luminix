@@ -1,6 +1,7 @@
 import {
   Button,
   Drawer,
+  Modal,
   InputGroup,
   Label,
   ListBox,
@@ -113,6 +114,7 @@ export function ChoiceCard({
   icon,
   selected,
   className,
+  isDisabled,
   onPress,
 }: {
   title: string
@@ -120,12 +122,16 @@ export function ChoiceCard({
   icon: ReactNode
   selected?: boolean
   className?: string
+  isDisabled?: boolean
   onPress: () => void
 }) {
   return (
     <Button
-      className={['ob2-choice', selected ? 'is-selected' : '', className].filter(Boolean).join(' ')}
+      className={['ob2-choice', selected ? 'is-selected' : '', isDisabled ? 'is-disabled' : '', className]
+        .filter(Boolean)
+        .join(' ')}
       variant="ghost"
+      isDisabled={isDisabled}
       onPress={onPress}
     >
       <span className="ob2-choice-icon" aria-hidden>
@@ -136,6 +142,38 @@ export function ChoiceCard({
         {detail ? <small>{detail}</small> : null}
       </span>
     </Button>
+  )
+}
+
+export function BlurDialog({
+  isOpen,
+  onOpenChange,
+  title,
+  description,
+  children,
+  footer,
+}: {
+  isOpen: boolean
+  onOpenChange: (open: boolean) => void
+  title: string
+  description?: string
+  children: ReactNode
+  footer?: ReactNode
+}) {
+  return (
+    <Modal.Backdrop className="ob2-dialog-backdrop" isOpen={isOpen} onOpenChange={onOpenChange}>
+      <Modal.Container className="ob2-dialog-container" size="full">
+        <Modal.Dialog className="ob2-dialog">
+          <Modal.CloseTrigger aria-label="Fechar" />
+          <Modal.Header>
+            <Modal.Heading>{title}</Modal.Heading>
+            {description ? <p className="ob2-dialog-lead">{description}</p> : null}
+          </Modal.Header>
+          <Modal.Body className="ob2-form ob2-dialog-form">{children}</Modal.Body>
+          {footer ? <Modal.Footer className="ob2-dialog-footer">{footer}</Modal.Footer> : null}
+        </Modal.Dialog>
+      </Modal.Container>
+    </Modal.Backdrop>
   )
 }
 

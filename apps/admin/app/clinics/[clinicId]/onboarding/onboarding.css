@@ -657,6 +657,62 @@
   display: grid;
 }
 
+.ob2-hours-section {
+  display: grid;
+  gap: 10px;
+}
+
+.ob2-section-title {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.ob2-pro-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.ob2 .button.ob2-pro-tab {
+  min-height: 40px;
+  padding: 0 14px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.ob2 .button.ob2-pro-tab.is-active {
+  border-color: rgba(255, 141, 183, 0.85);
+  background: rgba(255, 45, 121, 0.22);
+}
+
+.ob2-hours-pro-name {
+  margin: 0 0 8px;
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.ob2-grid-payments,
+.ob2-grid-packages {
+  grid-template-columns: 1fr;
+  gap: 14px;
+}
+
+.ob2 .button.ob2-choice.is-disabled {
+  opacity: 0.48;
+  cursor: not-allowed;
+}
+
+.ob2-package-choices {
+  gap: 14px;
+}
+
+.ob2-stripe-link {
+  justify-self: start;
+}
+
 .ob2-hours-card .ob2-day:last-child {
   border-bottom: 0;
   padding-bottom: 4px;
@@ -711,6 +767,494 @@
   display: grid;
   grid-template-columns: 1fr;
   gap: 12px;
+}
+
+.ob2-detail-section {
+  display: grid;
+  gap: 14px;
+}
+
+.ob2-detail-category {
+  margin: 0;
+  padding-bottom: 10px;
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  border-bottom: 2px solid rgba(255, 74, 145, 0.72);
+}
+
+.ob2-pro-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 10px;
+}
+
+.ob2-pro-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-height: 72px;
+  padding: 10px 14px;
+  text-align: left;
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+  --button-bg: rgba(255, 255, 255, 0.1);
+  --button-fg: #fff;
+}
+
+.ob2-pro-card:hover {
+  border-color: rgba(255, 141, 183, 0.75);
+  background: rgba(255, 255, 255, 0.14);
+}
+
+.ob2-pro-card-avatar {
+  width: 48px;
+  height: 48px;
+  flex: 0 0 auto;
+  object-fit: contain;
+}
+
+.ob2-pro-card-copy {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.ob2-pro-card-copy strong {
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 1.25;
+}
+
+.ob2-pro-card-copy small {
+  font-size: 13px;
+  line-height: 1.3;
+  color: rgba(255, 255, 255, 0.78);
+}
+
+.ob2-gender-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.ob2 .button.ob2-gender-choice {
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  min-height: 120px;
+  padding: 14px 10px;
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  border-radius: 18px;
+  --button-bg: rgba(255, 255, 255, 0.08);
+}
+
+.ob2 .button.ob2-gender-choice.is-selected {
+  border-color: rgba(255, 141, 183, 0.9);
+  background: rgba(255, 45, 121, 0.22);
+}
+
+.ob2-gender-avatar {
+  width: 56px;
+  height: 56px;
+  object-fit: contain;
+}
+
+.ob2-field-error {
+  margin: -6px 0 0;
+  font-size: 13px;
+  color: #ffb8d4;
+}
+
+.ob2-service-group {
+  display: grid;
+  gap: 8px;
+}
+
+.ob2-service-group-title {
+  margin: 8px 0 0;
+  font-size: 14px;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.92);
+  padding-bottom: 6px;
+  border-bottom: 1px solid rgba(255, 74, 145, 0.45);
+}
+
+.ob2-dialog-backdrop {
+  background: rgba(8, 0, 4, 0.88) !important;
+  backdrop-filter: blur(6px);
+}
+
+.ob2-dialog-container {
+  width: min(1680px, calc(100vw - 32px)) !important;
+  max-width: 1680px;
+}
+
+.ob2-dialog {
+  --foreground: #fff;
+  --muted: rgba(255, 255, 255, 0.82);
+  --surface: #4a1530;
+  --field-background: #5c2040;
+  --field-foreground: #fff;
+  --field-placeholder: rgba(255, 255, 255, 0.5);
+  --field-border: rgba(255, 180, 210, 0.28);
+  --field-border-hover: rgba(255, 180, 210, 0.42);
+  --field-border-focus: #ff8db7;
+  --focus: #ff8db7;
+  --default: #5c2040;
+  --default-foreground: #fff;
+  --separator: rgba(255, 180, 210, 0.22);
+  width: 100%;
+  max-height: min(92vh, 920px);
+  border: 1px solid rgba(255, 120, 170, 0.42);
+  border-radius: 28px;
+  background: linear-gradient(165deg, #2a0616 0%, #1a040e 48%, #220812 100%);
+  color: #fff;
+  box-shadow:
+    0 32px 96px rgba(0, 0, 0, 0.62),
+    inset 0 1px 0 rgba(255, 200, 220, 0.1);
+  backdrop-filter: none;
+}
+
+.ob2-dialog .modal__header {
+  padding: 26px 28px 12px;
+  border-bottom: 1px solid rgba(255, 180, 210, 0.14);
+}
+
+.ob2-dialog .modal__heading {
+  font-size: clamp(1.35rem, 2.4vw, 1.65rem);
+  font-weight: 700;
+  line-height: 1.22;
+  color: #fff;
+  letter-spacing: -0.025em;
+}
+
+.ob2-dialog-lead {
+  margin: 10px 0 0;
+  max-width: 52ch;
+  font-size: 15px;
+  line-height: 1.5;
+  font-weight: 500;
+  color: rgba(255, 220, 232, 0.82);
+}
+
+.ob2-dialog .modal__close-trigger {
+  color: rgba(255, 255, 255, 0.9);
+  width: 44px;
+  height: 44px;
+}
+
+.ob2-dialog .modal__body {
+  overflow: auto;
+  padding: 22px 28px 10px;
+  scrollbar-gutter: stable;
+  scrollbar-width: auto;
+  scrollbar-color: #ff6aa5 rgba(255, 255, 255, 0.1);
+}
+
+.ob2-dialog .modal__body::-webkit-scrollbar {
+  width: 14px;
+}
+
+.ob2-dialog .modal__body::-webkit-scrollbar-track {
+  margin: 8px 0;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 180, 210, 0.22);
+}
+
+.ob2-dialog .modal__body::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  border: 3px solid rgba(42, 6, 22, 0.85);
+  background: linear-gradient(180deg, #ff8db7 0%, #e72875 100%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.35);
+}
+
+.ob2-dialog .modal__body::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(180deg, #ffa3c8 0%, #ff4a91 100%);
+}
+
+.ob2-dialog .modal__footer,
+.ob2-dialog-footer {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 10px;
+  padding: 18px 28px 26px;
+  border-top: 1px solid rgba(255, 180, 210, 0.14);
+}
+
+.ob2-dialog-form {
+  gap: 20px;
+}
+
+.ob2-dialog-fields {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 22px;
+}
+
+.ob2-dialog-fields--split {
+  gap: 28px;
+  width: 100%;
+  max-width: 980px;
+  margin-inline: auto;
+}
+
+@media (min-width: 720px) {
+  .ob2-dialog-fields--split {
+    grid-template-columns: 1fr 1fr;
+    column-gap: 48px;
+    row-gap: 28px;
+  }
+}
+
+.ob2-dialog-field {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+
+.ob2-dialog-section {
+  margin: 4px 0 0;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: rgba(255, 200, 220, 0.78);
+}
+
+.ob2-dialog-hint {
+  margin: -10px 0 0;
+  font-size: 15px;
+  line-height: 1.45;
+  color: rgba(255, 255, 255, 0.72);
+}
+
+.ob2-dialog .label {
+  font-size: 14px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.94);
+}
+
+.ob2-dialog .input-group,
+.ob2-dialog .select__trigger {
+  min-height: 54px;
+  border-radius: 14px;
+  background: #5c2040;
+  border: 1px solid rgba(255, 180, 210, 0.32);
+  color: #fff;
+  font-size: 16px;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
+}
+
+.ob2-dialog .input-group__input,
+.ob2-dialog .select__value {
+  font-size: 16px;
+  color: #fff;
+}
+
+.ob2-dialog .input-group__input::placeholder {
+  color: rgba(255, 255, 255, 0.48);
+}
+
+.ob2-dialog .input-group__input:focus,
+.ob2-dialog .input-group__input:focus-visible {
+  outline: none;
+  box-shadow: none;
+}
+
+.ob2-dialog .input-group:focus-within {
+  border-color: #ff8db7;
+  box-shadow: 0 0 0 3px rgba(255, 45, 121, 0.32);
+}
+
+.ob2-dialog .input-group__prefix {
+  border-inline-end-color: transparent;
+  color: #ff9ec4;
+}
+
+.ob2-dialog .ob2-field-error {
+  color: #ffc8de;
+}
+
+.ob2-dialog .ob2-service-group-title {
+  color: rgba(255, 255, 255, 0.96);
+  border-bottom-color: rgba(255, 74, 145, 0.65);
+}
+
+.ob2-dialog .checkbox,
+.ob2-dialog .checkbox .label {
+  color: rgba(255, 255, 255, 0.94);
+}
+
+.ob2-dialog .separator {
+  background: rgba(255, 180, 210, 0.18);
+}
+
+.ob2-dialog .ob2-gender-grid {
+  width: fit-content;
+  max-width: 100%;
+  grid-template-columns: repeat(2, minmax(148px, 192px));
+  gap: 10px;
+}
+
+.ob2-dialog .button.ob2-gender-choice {
+  min-height: 136px;
+  border: 1px solid rgba(255, 180, 210, 0.28);
+  background: #4a1530;
+  color: #fff;
+  --button-bg: #4a1530;
+  --button-fg: #fff;
+}
+
+.ob2-dialog .button.ob2-gender-choice.is-selected {
+  border-color: #ff8db7;
+  background: #6b2248;
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 141, 183, 0.45),
+    0 8px 24px rgba(255, 45, 121, 0.22);
+}
+
+.ob2-dialog .ob2-gender-avatar {
+  width: 64px;
+  height: 64px;
+}
+
+.ob2-dialog .button.ob2-cta {
+  min-height: 48px;
+  padding-inline: 22px;
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.ob2-pro-photo-hero {
+  display: grid;
+  justify-items: center;
+  gap: 14px;
+  padding: 22px 20px 20px;
+  border-radius: 22px;
+  border: 1px solid rgba(255, 180, 210, 0.2);
+  background: rgba(255, 255, 255, 0.04);
+  text-align: center;
+}
+
+.ob2-pro-photo-hero.is-dragging {
+  border-color: #ff8db7;
+  background: rgba(255, 45, 121, 0.12);
+}
+
+.ob2-pro-photo-ring {
+  position: relative;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  border-radius: 999px;
+}
+
+.ob2-pro-photo-ring:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(255, 45, 121, 0.45);
+}
+
+.ob2-pro-photo-preview {
+  width: 136px;
+  height: 136px;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  border-radius: 999px;
+  border: 3px solid rgba(255, 141, 183, 0.55);
+  background: #4a1530;
+  box-shadow:
+    0 12px 32px rgba(0, 0, 0, 0.35),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.08);
+}
+
+.ob2-pro-photo-preview .ob2-pro-photo-image {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  padding: 10px;
+}
+
+.ob2-pro-photo-hero.has-upload .ob2-pro-photo-preview .ob2-pro-photo-image {
+  object-fit: cover;
+  padding: 0;
+}
+
+.ob2-pro-photo-badge {
+  position: absolute;
+  right: 2px;
+  bottom: 2px;
+  width: 40px;
+  height: 40px;
+  display: grid;
+  place-items: center;
+  border-radius: 999px;
+  border: 2px solid #2a0616;
+  background: linear-gradient(145deg, #ff4a91, #e72875);
+  color: #fff;
+  box-shadow: 0 6px 16px rgba(255, 45, 121, 0.45);
+}
+
+.ob2-pro-photo-copy {
+  display: grid;
+  gap: 6px;
+  max-width: 420px;
+}
+
+.ob2-pro-photo-copy strong {
+  font-size: 17px;
+  font-weight: 700;
+  color: #fff;
+}
+
+.ob2-pro-photo-copy span {
+  font-size: 14px;
+  line-height: 1.5;
+  color: rgba(255, 220, 232, 0.78);
+}
+
+.ob2-pro-photo-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 6px;
+}
+
+.ob2-dialog .button.ob2-pro-photo-btn {
+  min-height: 44px;
+  border-radius: 12px;
+  --button-bg: rgba(255, 255, 255, 0.12);
+  --button-fg: #fff;
+  border: 1px solid rgba(255, 180, 210, 0.35);
+}
+
+.ob2-dialog .button.ob2-pro-photo-clear {
+  min-height: 44px;
+  color: rgba(255, 220, 232, 0.88);
+}
+
+@media (max-width: 560px) {
+  .ob2-dialog .modal__header,
+  .ob2-dialog .modal__body,
+  .ob2-dialog .modal__footer {
+    padding-inline: 20px;
+  }
+
+  .ob2-pro-photo-preview {
+    width: 120px;
+    height: 120px;
+  }
 }
 
 .ob2-address-hero {
@@ -1408,6 +1952,14 @@
 }
 
 @media (min-width: 1080px) {
+  .ob2-detail-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .ob2-pro-grid {
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  }
+
   .ob2-brand-actions {
     display: flex;
   }
@@ -1621,7 +2173,7 @@
   width: min(1180px, 100%);
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 40px;
 }
 
 .ob2-welcome-card {

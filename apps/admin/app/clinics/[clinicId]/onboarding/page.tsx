@@ -10,19 +10,34 @@ import { OnboardingShell } from '@/components/onboarding/shell'
 import {
   CatalogStep,
   ClinicStep,
-  PreferencesStep,
+  PaymentsStep,
+  RulesStep,
   ReviewStep,
   HoursStep,
   ScheduleStep,
   ServicesStep,
   TeamStep,
 } from '@/components/onboarding/steps'
+import {
+  defaultWeekSchedule,
+  enforcePaymentPreferences,
+  syncProfessionalSchedules,
+  validateClinicAndProfessionalHours,
+} from '@/components/onboarding/schedule-sync'
 import { WelcomeStep } from '@/components/onboarding/welcome'
 import { useStaff } from '@/components/staff-provider'
 import { isCompletePhone } from '@/lib/phone'
 import { clearSignupPhone, peekSignupPhone } from '@/lib/signup-phone'
 import { untitledClinicName } from '@/lib/staff-destination'
-import { persistedStepKey, stepInfo, type Draft, type Payload } from '@/components/onboarding/model'
+import {
+  persistedStepKey,
+  resumeStepIndex,
+  stepInfo,
+  uiFocusForStepKey,
+  type Draft,
+  type Payload,
+  type ProfessionalGender,
+} from '@/components/onboarding/model'
 import './onboarding.css'
 
 function emptyPayload(name: string, email: string, ownerName: string): Payload {
@@ -50,13 +65,8 @@ function emptyPayload(name: string, email: string, ownerName: string): Payload {
     services: [],
     teamMode: 'solo',
     professionals: [],
-    businessHours: [1, 2, 3, 4, 5, 6, 0].map((weekday) => ({
-      weekday,
-      enabled: weekday > 0 && weekday < 6,
-      start: '09:00',
-      end: weekday === 6 ? '13:00' : '18:00',
-      breaks: [],
-    })),
+    businessHours: defaultWeekSchedule(),
+    professionalSchedules: [],
     preferences: {
       cancellationHours: 12,
       specialCancellationHours: 24,
@@ -67,7 +77,7 @@ function emptyPayload(name: string, email: string, ownerName: string): Payload {
 }
 
 function normalizePayload(value: Partial<Payload>, fallback: Payload): Payload {
-  return {
+  const merged = {
     ...fallback,
     ...value,
     clinic: { ...fallback.clinic, ...(value.clinic ?? {}) },
@@ -76,27 +86,40 @@ function normalizePayload(value: Partial<Payload>, fallback: Payload): Payload {
       value.businessHours?.length === 7
         ? value.businessHours.map((day) => ({ ...day, breaks: day.breaks ?? [] }))
         : fallback.businessHours,
+    professionalSchedules: value.professionalSchedules ?? fallback.professionalSchedules,
     services: value.services ?? [],
-    professionals: value.professionals ?? [],
+    professionals: (value.professionals ?? fallback.professionals).map((person) => ({
+      ...person,
+      gender: (person.gender === 'male' ? 'male' : 'female') as ProfessionalGender,
+    })),
+  }
+  return syncProfessionalSchedules(enforcePaymentPreferences(merged))
+}
+
+function payloadForApi(payload: Payload): Payload {
+  return {
+    ...payload,
+    professionals: payload.professionals.map(({ photoPreview: _photo, ...person }) => person),
   }
 }
 
 function teamPayload(payload: Payload, step: number): Payload {
   if (step !== 4) return payload
   if (payload.teamMode === 'solo') {
-    return {
+    return syncProfessionalSchedules({
       ...payload,
       professionals: [
         {
           name: payload.ownerName.trim() || 'Você',
           role: 'Proprietária / profissional',
+          gender: 'female',
           audience: 'all',
           serviceNames: payload.services.map((service) => service.name).filter((name) => name.trim()),
         },
       ],
-    }
+    })
   }
-  return {
+  return syncProfessionalSchedules({
     ...payload,
     professionals: payload.professionals
       .filter((person) => person.name.trim() && person.role.trim())
@@ -106,7 +129,7 @@ function teamPayload(payload: Payload, step: number): Payload {
         role: person.role.trim(),
         serviceNames: person.serviceNames.filter((name) => name.trim()),
       })),
-  }
+  })
 }
 
 function notifyError(message: string) {
@@ -160,11 +183,7 @@ export default function OnboardingPage() {
         setLoadError('')
         const stored = data.draft.step
         const focus = data.draft.payload.uiFocus
-        const index =
-          stored === 'schedule' && focus === 'hours'
-            ? stepInfo.findIndex((item) => item.key === 'hours')
-            : stepInfo.findIndex((item) => item.key === stored)
-        setStep(Math.max(0, index))
+        setStep(Math.max(0, resumeStepIndex(stored, focus)))
       } catch {
         if (!controller.signal.aborted)
           setLoadError('Não foi possível carregar seu cadastro. Tente novamente.')
@@ -188,23 +207,27 @@ export default function OnboardingPage() {
     if (step === 4 && payload.teamMode === 'team') {
       if (payload.professionals.length === 0)
         return 'Adicione ao menos uma profissional ou marque “somente eu”.'
-      if (payload.professionals.some((person) => !person.name.trim() || !person.role.trim()))
-        return 'Informe o nome e a função de cada profissional para continuar.'
+      if (
+        payload.professionals.some(
+          (person) =>
+            !person.name.trim() ||
+            !person.role.trim() ||
+            (person.gender !== 'female' && person.gender !== 'male'),
+        )
+      )
+        return 'Informe nome, função e sexo de cada profissional para continuar.'
     }
-    if (stepInfo[step]?.key === 'hours') {
-      for (const day of payload.businessHours) {
-        if (!day.enabled) continue
-        if (day.start >= day.end) return 'O horário de encerramento deve ser depois da abertura.'
-        let cursor = day.start
-        for (const item of [...(day.breaks ?? [])].sort((left, right) =>
-          left.start.localeCompare(right.start),
-        )) {
-          if (item.start >= item.end) return 'O fim do intervalo deve ser depois do início.'
-          if (item.start < day.start || item.end > day.end || item.start < cursor)
-            return 'Cada intervalo precisa caber dentro do horário, sem sobrepor outro.'
-          cursor = item.end
-        }
-      }
+    if (stepInfo[step]?.key === 'schedule') {
+      const postal = payload.clinic.postalCode.replace(/\D/g, '')
+      if (payload.clinic.postalCode.trim() && postal.length !== 8)
+        return 'Informe o CEP completo ou deixe em branco para completar depois.'
+      if (payload.clinic.state.trim() && !/^[A-Z]{2}$/.test(payload.clinic.state))
+        return 'Use a sigla do estado com duas letras (ex.: SP).'
+    }
+    if (stepInfo[step]?.key === 'hours') return validateClinicAndProfessionalHours(payload)
+    if (stepInfo[step]?.key === 'rules' && !payload.preferences.acceptInApp) {
+      if (payload.preferences.packagePaymentMode !== 'clinic_only')
+        return 'Com recebimento fora do app, pacotes ficam somente na clínica.'
     }
     return ''
   }
@@ -218,9 +241,13 @@ export default function OnboardingPage() {
       return
     }
     const nextKey = stepInfo[nextStep].key
-    const payloadToSave: Payload = {
-      ...teamPayload(payload, step),
-      uiFocus: nextKey === 'hours' ? 'hours' : nextKey === 'schedule' ? 'address' : undefined,
+    let payloadToSave: Payload = syncProfessionalSchedules(teamPayload(payload, step))
+    if (stepInfo[step]?.key === 'payments' || nextKey === 'rules') {
+      payloadToSave = enforcePaymentPreferences(payloadToSave)
+    }
+    payloadToSave = {
+      ...payloadToSave,
+      uiFocus: uiFocusForStepKey(nextKey),
     }
     setBusy(true)
     try {
@@ -233,16 +260,23 @@ export default function OnboardingPage() {
         body: JSON.stringify({
           version: draft.version,
           step: persistedStepKey(stepInfo[nextStep].key),
-          payload: payloadToSave,
+          payload: payloadForApi(payloadToSave),
         }),
         cache: 'no-store',
         signal: AbortSignal.timeout(20_000),
       })
       if (!response.ok) {
+        const body = (await response.json().catch(() => null)) as { error?: string } | null
+        const detail =
+          body?.error === 'Invalid onboarding data'
+            ? 'Algum campo do cadastro não passou na validação. Revise contato, endereço e equipe.'
+            : body?.error === 'Invalid draft'
+              ? 'O servidor ainda não reconhece esta etapa. Rode as migrations da API (pnpm db:migrate).'
+              : ''
         notifyError(
           response.status === 409
             ? 'Este cadastro mudou em outra aba. Recarregue para continuar.'
-            : 'Não foi possível salvar esta etapa.',
+            : detail || 'Não foi possível salvar esta etapa.',
         )
         return
       }
@@ -361,8 +395,9 @@ export default function OnboardingPage() {
       {step === 4 && <TeamStep {...stepProps} />}
       {step === 5 && <ScheduleStep {...stepProps} />}
       {step === 6 && <HoursStep {...stepProps} />}
-      {step === 7 && <PreferencesStep {...stepProps} />}
-      {step === 8 && <ReviewStep payload={ready} error="" footer={footer} />}
+      {step === 7 && <PaymentsStep clinicId={clinic.id} {...stepProps} />}
+      {step === 8 && <RulesStep {...stepProps} />}
+      {step === 9 && <ReviewStep payload={ready} error="" footer={footer} />}
     </OnboardingShell>
   )
 }

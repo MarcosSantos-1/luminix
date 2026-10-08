@@ -2,6 +2,7 @@ import { Button, Card, Checkbox, ScrollShadow, Separator, Switch, Label } from '
 import {
   AtSign,
   Banknote,
+  Briefcase,
   Building2,
   Calendar,
   Check,
@@ -11,6 +12,8 @@ import {
   Hash,
   IdCard,
   ImagePlus,
+  Info,
+  MapPin,
   Mars,
   MoreHorizontal,
   Plus,
@@ -23,7 +26,9 @@ import {
   Venus,
 } from 'lucide-react'
 import Image from 'next/image'
+import Link from 'next/link'
 import { useRef, useState, type DragEvent, type ReactNode } from 'react'
+import { syncProfessionalSchedules } from './schedule-sync'
 import { formatBrPhone } from '@/lib/phone'
 import {
   categories,
@@ -31,14 +36,17 @@ import {
   dayNames,
   durationChoices,
   formatMoney,
+  professionalAvatarSrc,
   servicesInCategory,
   type Audience,
+  type DaySchedule,
   type Payload,
   type Professional,
   type Service,
 } from './model'
 import { defaultBreak, TimePicker } from './time-picker'
 import {
+  BlurDialog,
   BlurDrawer,
   ChoiceCard,
   GlassField,
@@ -107,6 +115,34 @@ function maskTaxId(kind: 'cpf' | 'cnpj', value: string) {
     .replace(/^(\d{2})\.(\d{3})(\d)/, '$1.$2.$3')
     .replace(/\.(\d{3})(\d)/, '.$1/$2')
     .replace(/(\d{4})(\d{1,2})$/, '$1-$2')
+}
+
+function groupIndexedServices<T extends { item: Service; position: number }>(entries: T[]) {
+  const grouped = new Map<string, T[]>()
+  for (const entry of entries) {
+    const list = grouped.get(entry.item.category) ?? []
+    list.push(entry)
+    grouped.set(entry.item.category, list)
+  }
+  const order: string[] = [...categories.filter((name) => grouped.has(name))]
+  for (const name of grouped.keys()) {
+    if (!order.includes(name)) order.push(name)
+  }
+  return order.map((category) => ({ category, entries: grouped.get(category)! }))
+}
+
+function groupServicesByCategory(services: Service[]) {
+  const grouped = new Map<string, Service[]>()
+  for (const service of services) {
+    const list = grouped.get(service.category) ?? []
+    list.push(service)
+    grouped.set(service.category, list)
+  }
+  const order: string[] = [...categories.filter((name) => grouped.has(name))]
+  for (const name of grouped.keys()) {
+    if (!order.includes(name)) order.push(name)
+  }
+  return order.map((category) => ({ category, services: grouped.get(category)! }))
 }
 
 function selectedByCategory(services: Payload['services']) {
@@ -254,20 +290,30 @@ export function ClinicStep({
   )
 }
 
-function ClinicLogoDropzone() {
+function ImageDropzone({
+  label,
+  emptyHint,
+  fileHint,
+  preview,
+  fileName,
+  onPreviewChange,
+  className = 'ob2-logo-drop',
+}: {
+  label: string
+  emptyHint: string
+  fileHint: string
+  preview: string | null
+  fileName: string
+  onPreviewChange: (preview: string | null, fileName: string) => void
+  className?: string
+}) {
   const inputRef = useRef<HTMLInputElement>(null)
-  const [preview, setPreview] = useState<string | null>(null)
-  const [fileName, setFileName] = useState('')
   const [dragging, setDragging] = useState(false)
 
   function acceptFile(file: File | undefined) {
     if (!file || !file.type.startsWith('image/')) return
-    setFileName(file.name)
     const url = URL.createObjectURL(file)
-    setPreview((current) => {
-      if (current) URL.revokeObjectURL(current)
-      return url
-    })
+    onPreviewChange(url, file.name)
   }
 
   function onDrop(event: DragEvent<HTMLDivElement>) {
@@ -278,7 +324,7 @@ function ClinicLogoDropzone() {
 
   return (
     <div
-      className={`ob2-logo-drop${dragging ? ' is-dragging' : ''}${preview ? ' has-preview' : ''}`}
+      className={`${className}${dragging ? ' is-dragging' : ''}${preview ? ' has-preview' : ''}`}
       onDragEnter={(event) => {
         event.preventDefault()
         setDragging(true)
@@ -298,7 +344,7 @@ function ClinicLogoDropzone() {
           inputRef.current?.click()
         }
       }}
-      aria-label="Adicionar logo da clínica"
+      aria-label={label}
     >
       <input
         ref={inputRef}
@@ -311,8 +357,8 @@ function ClinicLogoDropzone() {
         <>
           <img src={preview} alt="" className="ob2-logo-preview" />
           <div className="ob2-logo-drop-meta">
-            <strong>{fileName || 'Logo selecionada'}</strong>
-            <span>Clique ou arraste para trocar · envio depois no painel</span>
+            <strong>{fileName || label}</strong>
+            <span>{fileHint}</span>
           </div>
         </>
       ) : (
@@ -320,11 +366,11 @@ function ClinicLogoDropzone() {
           <span className="ob2-logo-drop-icon" aria-hidden>
             <ImagePlus size={28} />
           </span>
-          <strong>Logo da clínica</strong>
+          <strong>{label}</strong>
           <span>
             Arraste uma imagem ou <em>escolha o arquivo</em>
           </span>
-          <small>PNG, JPG ou WebP</small>
+          <small>{emptyHint}</small>
         </>
       )}
       {!preview ? (
@@ -333,6 +379,116 @@ function ClinicLogoDropzone() {
         </span>
       ) : null}
     </div>
+  )
+}
+
+function ProfessionalPhotoField({
+  gender,
+  preview,
+  onPreviewChange,
+}: {
+  gender: Professional['gender']
+  preview: string | null
+  onPreviewChange: (preview: string | null) => void
+}) {
+  const inputRef = useRef<HTMLInputElement>(null)
+  const [dragging, setDragging] = useState(false)
+
+  function acceptFile(file: File | undefined) {
+    if (!file || !file.type.startsWith('image/')) return
+    onPreviewChange(URL.createObjectURL(file))
+  }
+
+  const photoTitle = gender === 'male' ? 'Foto do profissional' : 'Foto da profissional'
+
+  return (
+    <div
+      className={`ob2-pro-photo-hero${dragging ? ' is-dragging' : ''}${preview ? ' has-upload' : ''}`}
+      onDragEnter={(event) => {
+        event.preventDefault()
+        setDragging(true)
+      }}
+      onDragOver={(event) => event.preventDefault()}
+      onDragLeave={(event) => {
+        event.preventDefault()
+        setDragging(false)
+      }}
+      onDrop={(event) => {
+        event.preventDefault()
+        setDragging(false)
+        acceptFile(event.dataTransfer.files?.[0])
+      }}
+    >
+      <input
+        ref={inputRef}
+        type="file"
+        accept="image/png,image/jpeg,image/webp"
+        hidden
+        onChange={(event) => acceptFile(event.target.files?.[0])}
+      />
+      <button
+        type="button"
+        className="ob2-pro-photo-ring"
+        aria-label={preview ? 'Trocar foto' : 'Escolher foto'}
+        onClick={() => inputRef.current?.click()}
+      >
+        <span className="ob2-pro-photo-preview" aria-hidden>
+          {preview ? (
+            <img src={preview} alt="" className="ob2-pro-photo-image" />
+          ) : (
+            <Image
+              className="ob2-pro-photo-image"
+              src={professionalAvatarSrc[gender]}
+              alt=""
+              width={512}
+              height={512}
+            />
+          )}
+        </span>
+        <span className="ob2-pro-photo-badge" aria-hidden>
+          <ImagePlus size={18} />
+        </span>
+      </button>
+      <div className="ob2-pro-photo-copy">
+        <strong>{photoTitle}</strong>
+        <span>Opcional · PNG, JPG ou WebP. O envio definitivo fica no painel da clínica.</span>
+        <div className="ob2-pro-photo-actions">
+          <Button
+            className="ob2-pro-photo-btn"
+            variant="secondary"
+            onPress={() => inputRef.current?.click()}
+          >
+            Escolher arquivo
+          </Button>
+          {preview ? (
+            <Button className="ob2-pro-photo-clear" variant="ghost" onPress={() => onPreviewChange(null)}>
+              Usar avatar padrão
+            </Button>
+          ) : null}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function ClinicLogoDropzone() {
+  const [preview, setPreview] = useState<string | null>(null)
+  const [fileName, setFileName] = useState('')
+  return (
+    <ImageDropzone
+      label="Logo da clínica"
+      emptyHint="PNG, JPG ou WebP"
+      fileHint="Clique ou arraste para trocar · envio depois no painel"
+      preview={preview}
+      fileName={fileName}
+      onPreviewChange={(next, name) => {
+        setPreview((current) => {
+          if (current && current !== next) URL.revokeObjectURL(current)
+          return next
+        })
+        setFileName(name)
+      }}
+    />
   )
 }
 
@@ -624,20 +780,25 @@ export function ServicesStep({
       ) : visibleServices.length === 0 ? (
         <p className="ob2-copy">Nenhum serviço com esse nome.</p>
       ) : (
-        <div className="ob2-detail-grid">
-          {visibleServices.map(({ item, position }) => (
-            <Card className="ob2-panel" key={`${item.name}-${position}`}>
-              <Card.Content className="ob2-summary">
-                <strong>{item.name}</strong>
-                <p>
-                  {item.category} · {item.durationMinutes} min
-                </p>
-                <b>{priceLabel(item)}</b>
-                <Button className="ob2-quiet" variant="ghost" onPress={() => open(position)}>
-                  Ajustar este serviço
-                </Button>
-              </Card.Content>
-            </Card>
+        <div className="ob2-stack">
+          {groupIndexedServices(visibleServices).map((group) => (
+            <section className="ob2-detail-section" key={group.category}>
+              <h2 className="ob2-detail-category">{group.category}</h2>
+              <div className="ob2-detail-grid">
+                {group.entries.map(({ item, position }) => (
+                  <Card className="ob2-panel" key={`${item.name}-${position}`}>
+                    <Card.Content className="ob2-summary">
+                      <strong>{item.name}</strong>
+                      <p>{item.durationMinutes} min</p>
+                      <b>{priceLabel(item)}</b>
+                      <Button className="ob2-quiet" variant="ghost" onPress={() => open(position)}>
+                        Ajustar este serviço
+                      </Button>
+                    </Card.Content>
+                  </Card>
+                ))}
+              </div>
+            </section>
           ))}
         </div>
       )}
@@ -708,6 +869,18 @@ export function ServicesStep({
   )
 }
 
+type ProfessionalDraft = Professional
+
+function emptyProfessionalDraft(services: Service[]): ProfessionalDraft {
+  return {
+    name: '',
+    role: '',
+    gender: 'female',
+    audience: 'all',
+    serviceNames: services.map((service) => service.name).filter((name) => name.trim()),
+  }
+}
+
 export function TeamStep({
   payload,
   setPayload,
@@ -719,9 +892,10 @@ export function TeamStep({
   error: string
   footer: ReactNode
 }) {
-  const editor = useOverlayState()
+  const [dialogOpen, setDialogOpen] = useState(false)
   const [index, setIndex] = useState<number | null>(null)
-  const professional = index != null ? payload.professionals[index] : undefined
+  const [draft, setDraft] = useState<ProfessionalDraft>(() => emptyProfessionalDraft(payload.services))
+  const [formErrors, setFormErrors] = useState<{ name?: string; role?: string; gender?: string }>({})
 
   function setMode(mode: 'solo' | 'team') {
     setPayload({
@@ -733,6 +907,7 @@ export function TeamStep({
               {
                 name: payload.ownerName.trim() || 'Você',
                 role: 'Proprietária / profissional',
+                gender: 'female',
                 audience: 'all',
                 serviceNames: payload.services.map((service) => service.name).filter((name) => name.trim()),
               },
@@ -741,14 +916,57 @@ export function TeamStep({
     })
   }
 
-  function update(patch: Partial<Professional>) {
-    if (index == null) return
+  function openEditor(position: number | null) {
+    if (position == null) {
+      setDraft(emptyProfessionalDraft(payload.services))
+    } else {
+      setDraft({ ...payload.professionals[position] })
+    }
+    setIndex(position)
+    setFormErrors({})
+    setDialogOpen(true)
+  }
+
+  function patchDraft(patch: Partial<ProfessionalDraft>) {
+    setDraft((current) => ({ ...current, ...patch }))
+    setFormErrors({})
+  }
+
+  function validateDraft() {
+    const next: { name?: string; role?: string; gender?: string } = {}
+    if (!draft.name.trim()) next.name = 'Informe o nome da profissional.'
+    if (!draft.role.trim()) next.role = 'Informe a função ou especialidade.'
+    if (draft.gender !== 'female' && draft.gender !== 'male') next.gender = 'Escolha o sexo.'
+    setFormErrors(next)
+    return Object.keys(next).length === 0
+  }
+
+  function saveDraft() {
+    if (!validateDraft()) return
+    const saved: Professional = {
+      ...draft,
+      name: draft.name.trim(),
+      role: draft.role.trim(),
+    }
+    if (index == null) {
+      setPayload({ ...payload, professionals: [...payload.professionals, saved] })
+    } else {
+      setPayload({
+        ...payload,
+        professionals: payload.professionals.map((item, position) => (position === index ? saved : item)),
+      })
+    }
+    setDialogOpen(false)
+    setIndex(null)
+  }
+
+  function removeAt(position: number) {
     setPayload({
       ...payload,
-      professionals: payload.professionals.map((item, position) =>
-        position === index ? { ...item, ...patch } : item,
-      ),
+      professionals: payload.professionals.filter((_, current) => current !== position),
     })
+    setDialogOpen(false)
+    setIndex(null)
   }
 
   return (
@@ -783,46 +1001,34 @@ export function TeamStep({
         </Card>
       ) : (
         <>
-          {payload.professionals.map((item, position) => (
-            <Card className="ob2-panel" key={position}>
-              <Card.Content className="ob2-summary">
-                <strong>{item.name || 'Profissional sem nome'}</strong>
-                <p>
-                  {item.role || 'Sem função'} · {item.serviceNames.length}{' '}
-                  {item.serviceNames.length === 1 ? 'serviço' : 'serviços'}
-                </p>
+          {payload.professionals.length > 0 ? (
+            <div className="ob2-pro-grid">
+              {payload.professionals.map((item, position) => (
                 <Button
-                  className="ob2-quiet"
+                  key={`${item.name}-${position}`}
+                  className="ob2-pro-card"
                   variant="ghost"
-                  onPress={() => {
-                    setIndex(position)
-                    editor.open()
-                  }}
+                  onPress={() => openEditor(position)}
                 >
-                  Ajustar profissional
+                  <Image
+                    className="ob2-pro-card-avatar"
+                    src={professionalAvatarSrc[item.gender]}
+                    alt=""
+                    width={512}
+                    height={512}
+                  />
+                  <span className="ob2-pro-card-copy">
+                    <strong>{item.name}</strong>
+                    <small>
+                      {item.role} · {item.serviceNames.length}{' '}
+                      {item.serviceNames.length === 1 ? 'serviço' : 'serviços'}
+                    </small>
+                  </span>
                 </Button>
-              </Card.Content>
-            </Card>
-          ))}
-          <QuietButton
-            onPress={() => {
-              const next = payload.professionals.length
-              setPayload({
-                ...payload,
-                professionals: [
-                  ...payload.professionals,
-                  {
-                    name: '',
-                    role: '',
-                    audience: 'all',
-                    serviceNames: payload.services.map((service) => service.name),
-                  },
-                ],
-              })
-              setIndex(next)
-              editor.open()
-            }}
-          >
+              ))}
+            </div>
+          ) : null}
+          <QuietButton onPress={() => openEditor(null)}>
             <Plus size={16} /> Adicionar profissional
           </QuietButton>
           <p className="ob2-copy">
@@ -832,41 +1038,115 @@ export function TeamStep({
         </>
       )}
       <StepEnd error={error} footer={footer} />
-      <BlurDrawer state={editor} title={professional?.name || 'Nova profissional'}>
-        {professional && index != null ? (
+      <BlurDialog
+        isOpen={dialogOpen}
+        onOpenChange={(open) => {
+          setDialogOpen(open)
+          if (!open) setIndex(null)
+        }}
+        title={index == null ? 'Nova profissional' : draft.name.trim() || 'Profissional'}
+        description="Identificação, público atendido e serviços desta pessoa na clínica."
+        footer={
           <>
+            {index != null ? (
+              <Button className="ob2-quiet" variant="danger-soft" onPress={() => removeAt(index)}>
+                <Trash2 size={16} /> Remover
+              </Button>
+            ) : null}
+            <Button className="ob2-cta" onPress={saveDraft}>
+              Salvar profissional
+            </Button>
+          </>
+        }
+      >
+        <ProfessionalPhotoField
+          gender={draft.gender}
+          preview={draft.photoPreview ?? null}
+          onPreviewChange={(preview) => patchDraft({ photoPreview: preview ?? undefined })}
+        />
+        <div className="ob2-dialog-fields ob2-dialog-fields--split">
+          <div className="ob2-dialog-field">
             <GlassField
               label="Nome"
               icon={<UserRound size={18} />}
-              value={professional.name}
-              placeholder="Nome da profissional"
-              onChange={(value) => update({ name: value })}
+              value={draft.name}
+              placeholder="Nome completo"
+              onChange={(value) => patchDraft({ name: value })}
             />
+            {formErrors.name ? (
+              <p className="ob2-field-error" role="alert">
+                {formErrors.name}
+              </p>
+            ) : null}
+          </div>
+          <div className="ob2-dialog-field">
             <GlassField
               label="Função"
-              value={professional.role}
+              icon={<Briefcase size={18} />}
+              value={draft.role}
               placeholder="Cargo ou especialidade"
-              onChange={(value) => update({ role: value })}
+              onChange={(value) => patchDraft({ role: value })}
             />
-            <p className="ob2-copy">Público</p>
-            <AudienceChoices
-              value={professional.audience}
-              onChange={(audience) => update({ audience })}
-            />
-            <Separator />
-            <p className="ob2-copy">Serviços que esta pessoa realiza.</p>
+            {formErrors.role ? (
+              <p className="ob2-field-error" role="alert">
+                {formErrors.role}
+              </p>
+            ) : null}
+          </div>
+        </div>
+        <p className="ob2-dialog-section">Sexo</p>
+        <div className="ob2-gender-grid">
+          {(
+            [
+              { id: 'female' as const, label: 'Feminino' },
+              { id: 'male' as const, label: 'Masculino' },
+            ] as const
+          ).map((option) => (
+            <Button
+              key={option.id}
+              className={['ob2-gender-choice', draft.gender === option.id ? 'is-selected' : '']
+                .filter(Boolean)
+                .join(' ')}
+              variant="ghost"
+              onPress={() => patchDraft({ gender: option.id })}
+            >
+              <Image
+                className="ob2-gender-avatar"
+                src={professionalAvatarSrc[option.id]}
+                alt=""
+                width={512}
+                height={512}
+              />
+              <span>{option.label}</span>
+            </Button>
+          ))}
+        </div>
+        {formErrors.gender ? (
+          <p className="ob2-field-error" role="alert">
+            {formErrors.gender}
+          </p>
+        ) : null}
+        <Separator />
+        <p className="ob2-dialog-section">Público atendido</p>
+        <AudienceChoices value={draft.audience} onChange={(audience) => patchDraft({ audience })} />
+        <Separator />
+        <p className="ob2-dialog-section">Serviços</p>
+        <p className="ob2-dialog-hint">Marque o que esta pessoa realiza na clínica.</p>
+        {groupServicesByCategory(payload.services).map((group) => (
+          <div className="ob2-service-group" key={group.category}>
+            <p className="ob2-service-group-title">{group.category}</p>
             <div className="ob2-checks">
-              {payload.services.map((service) => {
-                const selected = professional.serviceNames.includes(service.name)
+              {group.services.map((service) => {
+                const selected = draft.serviceNames.includes(service.name)
                 return (
                   <Checkbox
                     key={service.name}
                     isSelected={selected}
                     onChange={(isSelected) =>
-                      update({
+                      patchDraft({
                         serviceNames: isSelected
-                          ? [...professional.serviceNames, service.name]
-                          : professional.serviceNames.filter((name) => name !== service.name),
+                          ? [...draft.serviceNames, service.name]
+                          : draft.serviceNames.filter((name) => name !== service.name),
                       })
                     }
                   >
@@ -880,23 +1160,9 @@ export function TeamStep({
                 )
               })}
             </div>
-            <Button
-              className="ob2-quiet"
-              variant="danger-soft"
-              onPress={() => {
-                setPayload({
-                  ...payload,
-                  professionals: payload.professionals.filter((_, position) => position !== index),
-                })
-                setIndex(null)
-                editor.close()
-              }}
-            >
-              <Trash2 size={16} /> Remover
-            </Button>
-          </>
-        ) : null}
-      </BlurDrawer>
+          </div>
+        ))}
+      </BlurDialog>
     </div>
   )
 }
@@ -927,17 +1193,9 @@ export function ScheduleStep({
         <Card.Content className="ob2-form">
           {open ? (
             <>
-              <div className="ob2-address-hero">
-                <Image
-                  className="ob2-address-art"
-                  src="/brand/onboarding/studio-1.png"
-                  alt=""
-                  width={1254}
-                  height={1254}
-                />
-              </div>
               <GlassField
                 label="CEP"
+                icon={<Hash size={18} />}
                 inputMode="numeric"
                 value={payload.clinic.postalCode}
                 placeholder="00000-000"
@@ -953,6 +1211,7 @@ export function ScheduleStep({
                 <GlassField
                   className="ob2-address-emphasis"
                   label="Endereço"
+                  icon={<MapPin size={18} />}
                   value={payload.clinic.addressLine}
                   placeholder="Rua, avenida ou travessa"
                   onChange={(value) => changeClinic('addressLine', value)}
@@ -967,6 +1226,7 @@ export function ScheduleStep({
               <div className="ob2-city-state">
                 <GlassField
                   label="Cidade"
+                  icon={<Building2 size={18} />}
                   value={payload.clinic.city}
                   placeholder="Cidade"
                   onChange={(value) => changeClinic('city', value)}
@@ -981,6 +1241,7 @@ export function ScheduleStep({
               </div>
               <GlassField
                 label="Observação do endereço (opcional)"
+                icon={<Info size={18} />}
                 value={payload.clinic.addressNote}
                 placeholder="Sala, bloco ou ponto de referência"
                 onChange={(value) => changeClinic('addressNote', value)}
@@ -1011,6 +1272,106 @@ export function ScheduleStep({
   )
 }
 
+function WeeklyHoursEditor({
+  days,
+  onChangeDay,
+  closedCopy = 'Fechado neste dia.',
+}: {
+  days: DaySchedule[]
+  onChangeDay: (weekday: number, patch: Partial<DaySchedule>) => void
+  closedCopy?: string
+}) {
+  return (
+    <div className="ob2-hours-list">
+      {days.map((day) => {
+        const breaks = day.breaks ?? []
+        return (
+          <div className="ob2-day" key={day.weekday}>
+            <Switch isSelected={day.enabled} onChange={(enabled) => onChangeDay(day.weekday, { enabled })}>
+              <Switch.Content>
+                <Switch.Control>
+                  <Switch.Thumb />
+                </Switch.Control>
+                <Label>{dayNames[day.weekday]}</Label>
+              </Switch.Content>
+            </Switch>
+            {day.enabled ? (
+              <div className="ob2-day-schedule">
+                <div className="ob2-hours">
+                  <TimePicker
+                    label="Início"
+                    value={day.start}
+                    onChange={(value) => onChangeDay(day.weekday, { start: value })}
+                  />
+                  <TimePicker
+                    label="Fim"
+                    value={day.end}
+                    onChange={(value) => onChangeDay(day.weekday, { end: value })}
+                  />
+                </div>
+                {breaks.map((item, index) => (
+                  <div className="ob2-break" key={`${day.weekday}-${index}`}>
+                    <TimePicker
+                      label="Intervalo começa"
+                      value={item.start}
+                      onChange={(value) =>
+                        onChangeDay(day.weekday, {
+                          breaks: breaks.map((entry, position) =>
+                            position === index ? { ...entry, start: value } : entry,
+                          ),
+                        })
+                      }
+                    />
+                    <TimePicker
+                      label="Intervalo termina"
+                      value={item.end}
+                      onChange={(value) =>
+                        onChangeDay(day.weekday, {
+                          breaks: breaks.map((entry, position) =>
+                            position === index ? { ...entry, end: value } : entry,
+                          ),
+                        })
+                      }
+                    />
+                    <Button
+                      className="ob2-icon ob2-break-remove"
+                      isIconOnly
+                      variant="ghost"
+                      aria-label={`Remover intervalo de ${dayNames[day.weekday]}`}
+                      onPress={() =>
+                        onChangeDay(day.weekday, {
+                          breaks: breaks.filter((_, position) => position !== index),
+                        })
+                      }
+                    >
+                      <Trash2 size={16} />
+                    </Button>
+                  </div>
+                ))}
+                {breaks.length < 3 ? (
+                  <Button
+                    className="ob2-quiet"
+                    variant="ghost"
+                    onPress={() =>
+                      onChangeDay(day.weekday, {
+                        breaks: [...breaks, defaultBreak(day.start, day.end)],
+                      })
+                    }
+                  >
+                    <Plus size={16} /> Adicionar intervalo
+                  </Button>
+                ) : null}
+              </div>
+            ) : (
+              <p className="ob2-copy">{closedCopy}</p>
+            )}
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
 export function HoursStep({
   payload,
   setPayload,
@@ -1022,110 +1383,160 @@ export function HoursStep({
   error: string
   footer: ReactNode
 }) {
-  const updateDay = (weekday: number, patch: Partial<Payload['businessHours'][number]>) =>
+  const ready = syncProfessionalSchedules(payload)
+  const [activePro, setActivePro] = useState(0)
+  const professionals = ready.professionalSchedules
+  const solo = ready.teamMode === 'solo'
+
+  const updateClinicDay = (weekday: number, patch: Partial<DaySchedule>) =>
     setPayload({
-      ...payload,
-      businessHours: payload.businessHours.map((day) =>
+      ...ready,
+      businessHours: ready.businessHours.map((day) =>
         day.weekday === weekday ? { ...day, ...patch } : day,
       ),
     })
+
+  const updateProDay = (personIndex: number, weekday: number, patch: Partial<DaySchedule>) =>
+    setPayload({
+      ...ready,
+      professionalSchedules: ready.professionalSchedules.map((person, index) =>
+        index === personIndex
+          ? {
+              ...person,
+              days: person.days.map((day) => (day.weekday === weekday ? { ...day, ...patch } : day)),
+            }
+          : person,
+      ),
+    })
+
   return (
     <div className="ob2-stack">
-      <Card className="ob2-panel ob2-hours-card">
-        <Card.Content className="ob2-hours-list">
-          {payload.businessHours.map((day) => {
-            const breaks = day.breaks ?? []
-            return (
-            <div className="ob2-day" key={day.weekday}>
-              <Switch isSelected={day.enabled} onChange={(enabled) => updateDay(day.weekday, { enabled })}>
-                <Switch.Content>
-                  <Switch.Control>
-                    <Switch.Thumb />
-                  </Switch.Control>
-                  <Label>{dayNames[day.weekday]}</Label>
-                </Switch.Content>
-              </Switch>
-              {day.enabled ? (
-                <div className="ob2-day-schedule">
-                  <div className="ob2-hours">
-                    <TimePicker
-                      label="Abre"
-                      value={day.start}
-                      onChange={(value) => updateDay(day.weekday, { start: value })}
-                    />
-                    <TimePicker
-                      label="Fecha"
-                      value={day.end}
-                      onChange={(value) => updateDay(day.weekday, { end: value })}
-                    />
-                  </div>
-                  {breaks.map((item, index) => (
-                    <div className="ob2-break" key={`${day.weekday}-${index}`}>
-                      <TimePicker
-                        label="Intervalo começa"
-                        value={item.start}
-                        onChange={(value) =>
-                          updateDay(day.weekday, {
-                            breaks: breaks.map((entry, position) =>
-                              position === index ? { ...entry, start: value } : entry,
-                            ),
-                          })
-                        }
-                      />
-                      <TimePicker
-                        label="Intervalo termina"
-                        value={item.end}
-                        onChange={(value) =>
-                          updateDay(day.weekday, {
-                            breaks: breaks.map((entry, position) =>
-                              position === index ? { ...entry, end: value } : entry,
-                            ),
-                          })
-                        }
-                      />
-                      <Button
-                        className="ob2-icon ob2-break-remove"
-                        isIconOnly
-                        variant="ghost"
-                        aria-label={`Remover intervalo de ${dayNames[day.weekday]}`}
-                        onPress={() =>
-                          updateDay(day.weekday, {
-                            breaks: breaks.filter((_, position) => position !== index),
-                          })
-                        }
-                      >
-                        <Trash2 size={16} />
-                      </Button>
-                    </div>
-                  ))}
-                  {breaks.length < 3 ? (
-                    <Button
-                      className="ob2-quiet"
-                      variant="ghost"
-                      onPress={() =>
-                        updateDay(day.weekday, {
-                          breaks: [...breaks, defaultBreak(day.start, day.end)],
-                        })
-                      }
-                    >
-                      <Plus size={16} /> Adicionar intervalo
-                    </Button>
-                  ) : null}
-                </div>
-              ) : (
-                <p className="ob2-copy">Fechado neste dia.</p>
-              )}
-            </div>
-            )
-          })}
-        </Card.Content>
-      </Card>
+      <section className="ob2-hours-section">
+        <h2 className="ob2-section-title">Horário da clínica</h2>
+        <p className="ob2-copy">
+          Vale para o espaço inteiro. Intervalos aqui são pausas gerais — almoço ou fechamento
+          parcial do salão.
+        </p>
+        <Card className="ob2-panel ob2-hours-card">
+          <Card.Content>
+            <WeeklyHoursEditor days={ready.businessHours} onChangeDay={updateClinicDay} />
+          </Card.Content>
+        </Card>
+      </section>
+
+      <section className="ob2-hours-section">
+        <h2 className="ob2-section-title">
+          {solo ? 'Seu horário de atendimento' : 'Horário por profissional'}
+        </h2>
+        <p className="ob2-copy">
+          {solo
+            ? 'Como você atende dentro do horário da clínica. Ajuste intervalos pessoais se precisar.'
+            : 'Cada profissional atende dentro do horário da clínica. Escolha quem configurar abaixo.'}
+        </p>
+        {!solo && professionals.length > 1 ? (
+          <div className="ob2-pro-tabs" role="tablist" aria-label="Profissionais">
+            {professionals.map((person, index) => (
+              <Button
+                key={person.name}
+                className={['ob2-pro-tab', index === activePro ? 'is-active' : ''].filter(Boolean).join(' ')}
+                variant="ghost"
+                onPress={() => setActivePro(index)}
+              >
+                {person.name}
+              </Button>
+            ))}
+          </div>
+        ) : null}
+        {professionals[activePro] ? (
+          <Card className="ob2-panel ob2-hours-card">
+            <Card.Content>
+              {!solo ? (
+                <p className="ob2-hours-pro-name">{professionals[activePro].name}</p>
+              ) : null}
+              <WeeklyHoursEditor
+                days={professionals[activePro].days}
+                onChangeDay={(weekday, patch) => updateProDay(activePro, weekday, patch)}
+                closedCopy="Sem atendimento neste dia."
+              />
+            </Card.Content>
+          </Card>
+        ) : null}
+      </section>
       <StepEnd error={error} footer={footer} />
     </div>
   )
 }
 
-export function PreferencesStep({
+export function PaymentsStep({
+  clinicId,
+  payload,
+  setPayload,
+  error,
+  footer,
+}: {
+  clinicId: string
+  payload: Payload
+  setPayload: (value: Payload) => void
+  error: string
+  footer: ReactNode
+}) {
+  const selectOutside = () =>
+    setPayload({
+      ...payload,
+      preferences: {
+        ...payload.preferences,
+        acceptInApp: false,
+        packagePaymentMode: 'clinic_only',
+      },
+    })
+  const selectInApp = () =>
+    setPayload({
+      ...payload,
+      preferences: { ...payload.preferences, acceptInApp: true },
+    })
+
+  return (
+    <div className="ob2-stack">
+      <div className="ob2-grid ob2-grid-payments">
+        <ChoiceCard
+          title="Receber fora do app"
+          detail="Pix, maquininha ou link da própria clínica"
+          icon={<CreditCard size={22} />}
+          selected={!payload.preferences.acceptInApp}
+          onPress={selectOutside}
+        />
+        <ChoiceCard
+          title="Pagamentos no app"
+          detail="Cliente paga pelo app quando você ativar o recebimento"
+          icon={<Banknote size={22} />}
+          selected={payload.preferences.acceptInApp}
+          onPress={selectInApp}
+        />
+      </div>
+      {payload.preferences.acceptInApp ? (
+        <Card className="ob2-panel ob2-stripe-card">
+          <Card.Content className="ob2-form">
+            <p className="ob2-copy">
+              Ainda não conectamos sua conta. Depois de abrir a clínica, finalize o Stripe Connect
+              no painel — é lá que entram taxas, verificação e repasse.
+            </p>
+            <Link className="ob2-quiet ob2-stripe-link" href={`/clinics/${clinicId}`}>
+              Ver esboço de pagamentos no painel
+            </Link>
+          </Card.Content>
+        </Card>
+      ) : (
+        <p className="ob2-copy">
+          Pacotes de sessões ficam limitados ao recebimento na clínica enquanto esta opção estiver
+          ativa. Você ajusta isso na próxima etapa.
+        </p>
+      )}
+      <StepEnd error={error} footer={footer} />
+    </div>
+  )
+}
+
+export function RulesStep({
   payload,
   setPayload,
   error,
@@ -1138,24 +1549,34 @@ export function PreferencesStep({
 }) {
   const change = (patch: Partial<Payload['preferences']>) =>
     setPayload({ ...payload, preferences: { ...payload.preferences, ...patch } })
+  const inApp = payload.preferences.acceptInApp
+  const packageMode = payload.preferences.packagePaymentMode
+  const packageChoices = [
+    {
+      id: 'clinic_only' as const,
+      title: 'Receber somente na clínica',
+      detail: 'Pacotes pagos presencialmente ou por link próprio',
+      icon: <Building2 size={22} />,
+      disabled: false,
+    },
+    {
+      id: 'in_app' as const,
+      title: 'Receber somente no app',
+      detail: 'Exige pagamentos no app e Stripe Connect ativo',
+      icon: <CreditCard size={22} />,
+      disabled: !inApp,
+    },
+    {
+      id: 'both' as const,
+      title: 'Aceitar das duas formas',
+      detail: 'Cliente escolhe na hora de fechar o pacote',
+      icon: <Banknote size={22} />,
+      disabled: !inApp,
+    },
+  ]
+
   return (
     <div className="ob2-stack">
-      <div className="ob2-grid">
-        <ChoiceCard
-          title="Receber fora do app"
-          detail="Pix, maquininha ou link da própria clínica"
-          icon={<CreditCard size={18} />}
-          selected={!payload.preferences.acceptInApp}
-          onPress={() => change({ acceptInApp: false })}
-        />
-        <ChoiceCard
-          title="Pagamentos no app"
-          detail="Guardamos a preferência. O Stripe Connect fica para o painel"
-          icon={<CreditCard size={18} />}
-          selected={payload.preferences.acceptInApp}
-          onPress={() => change({ acceptInApp: true })}
-        />
-      </div>
       <Card className="ob2-panel">
         <Card.Content className="ob2-form">
           <GlassSelect
@@ -1176,26 +1597,30 @@ export function PreferencesStep({
             }))}
             onChange={(value) => change({ specialCancellationHours: Number(value) })}
           />
-          <GlassSelect
-            label="Pacotes de sessões"
-            value={payload.preferences.packagePaymentMode}
-            options={[
-              { id: 'clinic_only', label: 'Receber somente na clínica' },
-              { id: 'in_app', label: 'Receber somente no app' },
-              { id: 'both', label: 'Aceitar das duas formas' },
-            ]}
-            onChange={(value) =>
-              change({
-                packagePaymentMode: value as Payload['preferences']['packagePaymentMode'],
-              })
-            }
-          />
-          <p className="ob2-copy">
-            Nenhuma cobrança acontece agora. Prazos, taxas e a verificação do recebimento aparecem
-            antes de qualquer ativação.
-          </p>
         </Card.Content>
       </Card>
+      <div className="ob2-stack ob2-package-choices">
+        <h2 className="ob2-section-title">Pacotes de sessões</h2>
+        <div className="ob2-grid ob2-grid-packages">
+          {packageChoices.map((option) => (
+            <ChoiceCard
+              key={option.id}
+              title={option.title}
+              detail={option.detail}
+              icon={option.icon}
+              selected={packageMode === option.id}
+              isDisabled={option.disabled}
+              onPress={() => change({ packagePaymentMode: option.id })}
+            />
+          ))}
+        </div>
+        {!inApp ? (
+          <p className="ob2-copy">
+            Para liberar recebimento de pacotes no app, volte à etapa Pagamentos e escolha
+            pagamentos no app.
+          </p>
+        ) : null}
+      </div>
       <StepEnd error={error} footer={footer} />
     </div>
   )
@@ -1232,6 +1657,15 @@ export function ReviewStep({ payload, error, footer }: { payload: Payload; error
       value: payload.preferences.acceptInApp
         ? 'Interesse em receber no app'
         : 'Recebimento fora do app',
+    },
+    {
+      label: 'Pacotes',
+      value:
+        payload.preferences.packagePaymentMode === 'clinic_only'
+          ? 'Somente na clínica'
+          : payload.preferences.packagePaymentMode === 'in_app'
+            ? 'Somente no app'
+            : 'Clínica ou app',
     },
     {
       label: 'Endereço',

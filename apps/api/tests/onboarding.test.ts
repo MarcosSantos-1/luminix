@@ -20,6 +20,7 @@ const payload = {
     facebook: '',
     website: '',
     taxId: '',
+    taxIdKind: 'cnpj',
     addressLine: 'Rua A',
     addressNumber: '10',
     addressNote: 'Sala 2',
@@ -44,16 +45,34 @@ const payload = {
   ],
   teamMode: 'solo',
   professionals: [
-    { name: 'Ana', role: 'Esteticista', audience: 'all', serviceNames: ['Limpeza de pele'] },
+    {
+      name: 'Ana',
+      role: 'Esteticista',
+      gender: 'female',
+      audience: 'all',
+      serviceNames: ['Limpeza de pele'],
+    },
   ],
   businessHours: [1, 2, 3, 4, 5, 6, 0].map((weekday) => ({
     weekday,
     enabled: weekday >= 1 && weekday <= 5,
     start: '09:00',
     end: '18:00',
-    ...(weekday === 1 ? { breaks: [{ start: '13:00', end: '14:00' }] } : {}),
+    breaks: weekday === 1 ? [{ start: '13:00', end: '14:00' }] : [],
   })),
-    uiFocus: 'address',
+  professionalSchedules: [
+    {
+      name: 'Ana',
+      days: [1, 2, 3, 4, 5, 6, 0].map((weekday) => ({
+        weekday,
+        enabled: weekday >= 1 && weekday <= 5,
+        start: '09:00',
+        end: '18:00',
+        breaks: weekday === 1 ? [{ start: '13:00', end: '14:00' }] : [],
+      })),
+    },
+  ],
+  uiFocus: 'address',
     preferences: {
       cancellationHours: 12,
       specialCancellationHours: 24,
@@ -222,6 +241,14 @@ describe('versioned clinic onboarding', () => {
       (await db.query('SELECT * FROM luminix.booking_policies WHERE clinic_id = $1', [clinicA]))
         .rows,
     ).toHaveLength(1)
+    expect(
+      (
+        await db.query(
+          'SELECT * FROM luminix.professional_weekly_availability WHERE clinic_id = $1',
+          [clinicA],
+        )
+      ).rows,
+    ).toHaveLength(7)
     await db.query("SELECT set_config('luminix.clinic_id', '', false)")
     const other = (await call('onboarding-b', 'GET', clinicB, 'overview')).json()
     expect(other.services).toHaveLength(0)
