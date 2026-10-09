@@ -114,8 +114,9 @@ describe('HTTP staff authorization using runtime role', () => {
     const response = await get('a', '/auth/clinics', { 'x-identity-id': dual, 'x-clinic-id': b })
     expect(response.statusCode).toBe(200)
     expect(response.json().clinics).toEqual([
-      { id: a, name: 'Clínica A', status: 'draft', role: 'owner' },
+      expect.objectContaining({ id: a, name: 'Clínica A', status: 'draft', role: 'owner' }),
     ])
+    expect(response.json().clinics[0].code).toMatch(/^(?!CU|KU|FU|SH)[A-Z]{2}-[0-9]{4}$/)
     expect(response.json().nextCursor).toBeNull()
     expect(response.headers['cache-control']).toBe('no-store')
     expect((await get('unknown', '/auth/clinics')).json().clinics).toEqual([])

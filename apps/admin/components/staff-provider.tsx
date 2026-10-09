@@ -17,7 +17,13 @@ import {
 } from 'firebase/auth'
 import { getFirebaseAuth } from '@/lib/firebase'
 
-export type StaffClinic = { id: string; name: string; status: 'draft' | 'active'; role: string }
+export type StaffClinic = {
+  id: string
+  code?: string
+  name: string
+  status: 'draft' | 'active'
+  role: string
+}
 type StaffState = {
   user: User | null
   loading: boolean
@@ -34,6 +40,7 @@ function sameClinics(left: StaffClinic[], right: StaffClinic[]) {
   return left.every(
     (clinic, index) =>
       clinic.id === right[index]?.id &&
+      clinic.code === right[index]?.code &&
       clinic.name === right[index]?.name &&
       clinic.status === right[index]?.status &&
       clinic.role === right[index]?.role,

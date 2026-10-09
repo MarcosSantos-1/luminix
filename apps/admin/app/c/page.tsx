@@ -62,7 +62,7 @@ export default function ClinicsPage() {
       const data = await response.json()
       if (getFirebaseAuth().currentUser?.uid === user.uid) {
         staff.refresh()
-        router.push(`/clinics/${data.clinic.id}`)
+        router.push(`/c/${data.clinic.code || data.clinic.id}`)
       }
     } catch {
       setError('Não foi possível confirmar a criação. Tente novamente com o mesmo nome.')
@@ -108,7 +108,7 @@ export default function ClinicsPage() {
   return (
     <main className="mx-auto max-w-2xl space-y-5 p-6">
       <header className="flex items-center justify-between gap-4">
-        <h1 className="text-2xl font-bold">Suas clínicas</h1>
+        <h1 className="text-2xl font-bold">Seu acesso</h1>
         <button
           onClick={() => {
             void signOut(getFirebaseAuth()).catch(() =>
@@ -119,13 +119,13 @@ export default function ClinicsPage() {
           Sair
         </button>
       </header>
-      <p>Escolha a clínica que deseja acessar. A troca mantém sua sessão.</p>
+      <p>Abra a clínica vinculada a esta conta.</p>
       <ul className="space-y-3">
         {clinics.map((clinic) => (
           <li key={clinic.id}>
             <Link
               className="flex items-center justify-between gap-3 rounded-2xl border border-border bg-card p-5"
-              href={`/clinics/${clinic.id}`}
+              href={`/c/${clinic.code || clinic.id}`}
             >
               <span>
                 <b>{clinic.name}</b>
@@ -147,7 +147,7 @@ export default function ClinicsPage() {
       )}
       {cursor && (
         <button disabled={busy} onClick={() => void loadMore()}>
-          Carregar mais clínicas
+          Carregar mais
         </button>
       )}
       <button disabled={busy} onClick={staff.refresh}>

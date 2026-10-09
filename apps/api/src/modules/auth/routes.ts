@@ -37,6 +37,7 @@ export async function authRoutes(app: FastifyInstance, dependencies: AuthDepende
         )
         const clinics = result.rows.slice(0, 50).map((row) => ({
           id: String(row.clinic_id),
+          code: row.clinic_code ? String(row.clinic_code) : String(row.clinic_id),
           name: String(row.clinic_name),
           status: String(row.clinic_status),
           role: String(row.role_name),
@@ -78,6 +79,7 @@ export async function authRoutes(app: FastifyInstance, dependencies: AuthDepende
         return reply.code(clinic.created ? 201 : 200).send({
           clinic: {
             id: String(clinic.clinic_id),
+            code: clinic.clinic_code ? String(clinic.clinic_code) : String(clinic.clinic_id),
             name: String(clinic.clinic_name),
             slug: String(clinic.clinic_slug),
             status: String(clinic.clinic_status),

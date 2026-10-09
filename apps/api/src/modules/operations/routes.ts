@@ -98,7 +98,12 @@ export async function operationRoutes(
     type: 'object',
     additionalProperties: false,
     required: ['clinicId'],
-    properties: { clinicId: { type: 'string', pattern: uuid } },
+    properties: {
+      clinicId: {
+        type: 'string',
+        pattern: `^(?:${uuid.slice(1, -1)}|[A-Za-z]{2}-[0-9]{4})$`,
+      },
+    },
   } as const
 
   async function authorized(

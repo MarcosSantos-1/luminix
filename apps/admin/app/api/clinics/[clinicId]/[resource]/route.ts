@@ -1,3 +1,4 @@
+import { isClinicRef } from '@/lib/clinic-ref'
 import { staffApiGet, staffApiWrite } from '@/lib/staff-api-proxy'
 export async function GET(
   request: Request,
@@ -5,7 +6,7 @@ export async function GET(
 ) {
   const { clinicId, resource } = await params
   if (
-    !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(clinicId) ||
+    !isClinicRef(clinicId) ||
     !['context', 'settings', 'onboarding', 'overview', 'clients', 'agenda'].includes(resource)
   )
     return Response.json(
@@ -32,7 +33,7 @@ export async function PUT(
 ) {
   const { clinicId, resource } = await params
   if (
-    !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(clinicId) ||
+    !isClinicRef(clinicId) ||
     !['onboarding', 'availability'].includes(resource)
   )
     return Response.json(
@@ -53,7 +54,7 @@ export async function POST(
 ) {
   const { clinicId, resource } = await params
   if (
-    !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(clinicId) ||
+    !isClinicRef(clinicId) ||
     !['clients', 'appointments'].includes(resource)
   )
     return Response.json(

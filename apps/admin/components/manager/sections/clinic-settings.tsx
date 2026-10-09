@@ -171,7 +171,7 @@ export function ClinicSettings({
           <Card.Title>Conclua a configuração da sua clínica</Card.Title>
           <p>Seu rascunho está salvo. Continue de onde parou.</p>
           {canContinueOnboarding && (
-            <Link href={`/clinics/${clinic.id}/onboarding`}>Continuar onboarding →</Link>
+            <Link href={`/c/${shareCode || clinic.id}/onboarding`}>Continuar onboarding →</Link>
           )}
         </Card>
       )}

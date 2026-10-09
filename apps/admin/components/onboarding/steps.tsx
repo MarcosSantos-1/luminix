@@ -1,4 +1,4 @@
-import { Button, Card, Checkbox, ScrollShadow, Separator, Switch, Label } from '@heroui/react'
+import { Button, Card, Checkbox, Label, Link as TextLink, ScrollShadow, Separator, Switch, toast } from '@heroui/react'
 import {
   AtSign,
   Banknote,
@@ -13,6 +13,7 @@ import {
   IdCard,
   ImagePlus,
   Info,
+  ListChecks,
   MapPin,
   Mars,
   MoreHorizontal,
@@ -22,6 +23,7 @@ import {
   Shield,
   Trash2,
   Upload,
+  UserPlus,
   UserRound,
   Users,
   Venus,
@@ -619,15 +621,56 @@ export function CatalogStep({
 
   const items = area ? servicesInCategory(area) : []
   const picked = selectedByCategory(payload.services)
+  const room = Math.max(0, 80 - payload.services.length)
+  const unmarked = items.filter((item) => !selectedNames.has(item.nome))
+  const canSelectAll = unmarked.length > 0 && room > 0
+
+  function selectAllInArea() {
+    if (!area || !canSelectAll) return
+    const adding = unmarked.slice(0, room).map((item) => serviceFromCatalog(item, payload.clinic.defaultAudience))
+    setPayload({
+      ...payload,
+      occupations: [...new Set([...payload.occupations, area])],
+      services: [...payload.services, ...adding],
+    })
+  }
   return (
     <div className="ob2-stack">
       <div className={picked.length ? 'ob2-catalog has-picked' : 'ob2-catalog'}>
         <div className="ob2-catalog-main">
           {area ? (
             <>
-              <p className="ob2-catalog-note">
-                Marque o que {area.toLowerCase()} oferece. Para seguir, volte a todas as áreas.
-              </p>
+              <Card className="ob2-panel ob2-guide-card">
+                <Card.Content className="ob2-guide-body">
+                  <span className="ob2-guide-icon" aria-hidden>
+                    <Check size={18} />
+                  </span>
+                  <p className="ob2-guide-copy">
+                    Marque os atendimentos de {area}. Para seguir, volte a{' '}
+                    <TextLink
+                      className="ob2-areas-link"
+                      href="#todas-as-areas"
+                      onClick={(event) => {
+                        event.preventDefault()
+                        setArea(null)
+                      }}
+                    >
+                      todas as áreas
+                      <TextLink.Icon />
+                    </TextLink>
+                    .
+                  </p>
+                  <Button
+                    className="ob2-exit ob2-guide-all"
+                    variant="ghost"
+                    isDisabled={!canSelectAll}
+                    onPress={selectAllInArea}
+                  >
+                    <ListChecks size={16} />
+                    Marcar todos
+                  </Button>
+                </Card.Content>
+              </Card>
               <div className="ob2-services">
                 {items.map((item) => {
                   const selected = selectedNames.has(item.nome)
@@ -643,15 +686,20 @@ export function CatalogStep({
                     />
                   )
                 })}
-                <QuietButton
+                <Button
+                  className="ob2-choice ob2-add-service"
+                  variant="ghost"
                   onPress={custom.open}
                   isDisabled={payload.services.length >= 80}
                 >
-                  <span className="ob2-add-service-icon" aria-hidden>
-                    <Plus size={16} />
+                  <span className="ob2-choice-icon ob2-add-service-icon" aria-hidden>
+                    <Plus size={18} />
                   </span>
-                  Adicionar serviço
-                </QuietButton>
+                  <span className="ob2-choice-copy">
+                    <strong>Adicionar serviço</strong>
+                    <small>Não achou na lista? Crie o seu.</small>
+                  </span>
+                </Button>
               </div>
             </>
           ) : (
@@ -793,10 +841,6 @@ export function ServicesStep({
     updateAt(index, patch)
   }
 
-  const sensitiveServices = payload.services
-    .map((item, position) => ({ item, position }))
-    .filter(({ item }) => serviceIsIntimate(item))
-
   function open(position: number) {
     setPayload({
       ...payload,
@@ -822,15 +866,6 @@ export function ServicesStep({
 
   return (
     <div className="ob2-stack">
-      <IntimateAudienceCards
-        services={sensitiveServices.map(({ item }) => item)}
-        audienceFor={(service) => service.audience}
-        question="Qual é o público padrão deste serviço?"
-        onChange={(service, audience) => {
-          const position = payload.services.findIndex((item) => item.name === service.name)
-          if (position >= 0) updateAt(position, { audience })
-        }}
-      />
       <GlassField
         label="Buscar serviço"
         icon={<Search size={18} />}
@@ -1002,7 +1037,9 @@ export function TeamStep({
     if (!draft.role.trim()) next.role = 'Informe a função ou especialidade.'
     if (draft.gender !== 'female' && draft.gender !== 'male') next.gender = 'Escolha o sexo.'
     setFormErrors(next)
-    return Object.keys(next).length === 0
+    const message = next.name && next.role ? 'Informe o nome e a função.' : next.name || next.role || next.gender
+    if (message) toast.danger(message, { timeout: 5000 })
+    return !message
   }
 
   function saveDraft() {
@@ -1067,9 +1104,7 @@ export function TeamStep({
               {payload.services.length === 1
                 ? 'O serviço escolhido fica vinculado a você.'
                 : `Os ${payload.services.length} serviços escolhidos ficam vinculados a você.`}{' '}
-              {intimateServices.length > 0
-                ? 'Nos serviços íntimos, vale o público definido nos detalhes. '
-                : ''}
+              {intimateServices.length > 0 ? 'Confirme o público dos serviços íntimos abaixo. ' : ''}
               Convites de recepção continuam para o painel.
             </p>
           </Card.Content>
@@ -1117,9 +1152,15 @@ export function TeamStep({
               ))}
             </div>
           ) : null}
-          <QuietButton onPress={() => openEditor(null)}>
-            <Plus size={16} /> Adicionar profissional
-          </QuietButton>
+          <Button className="ob2-add-pro" variant="ghost" onPress={() => openEditor(null)}>
+            <span className="ob2-add-pro-icon" aria-hidden>
+              <UserPlus size={22} />
+            </span>
+            <span className="ob2-add-pro-copy">
+              <strong>Adicionar profissional</strong>
+              <small>Nome, função e o que esta pessoa atende</small>
+            </span>
+          </Button>
           <p className="ob2-copy">
             Contas, convites e permissões de recepção ou financeiro ficam para depois, com acesso
             individual.
@@ -1668,7 +1709,7 @@ export function PaymentsStep({
               Ainda não conectamos sua conta. Depois de abrir a clínica, finalize o Stripe Connect
               no painel — é lá que entram taxas, verificação e repasse.
             </p>
-            <Link className="ob2-quiet ob2-stripe-link" href={`/clinics/${clinicId}`}>
+            <Link className="ob2-quiet ob2-stripe-link" href={`/c/${clinicId}`}>
               Ver esboço de pagamentos no painel
             </Link>
           </Card.Content>

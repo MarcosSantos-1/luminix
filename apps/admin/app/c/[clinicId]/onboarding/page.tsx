@@ -369,7 +369,7 @@ export default function OnboardingPage() {
         return
       }
       staff.refresh()
-      router.push(`/clinics/${clinic.id}`)
+      router.push(`/c/${clinic.share_code || clinic.id}`)
     } catch {
       notifyError('A resposta não chegou. Pode tentar novamente sem risco de duplicar a clínica.')
     } finally {
@@ -383,7 +383,7 @@ export default function OnboardingPage() {
     return (
       <AppStatus
         action={
-          <Button className="ob2-cta" onPress={() => router.push(`/clinics/${clinic.id}`)}>
+          <Button className="ob2-cta" onPress={() => router.push(`/c/${clinic.share_code || clinic.id}`)}>
             Ir para a clínica
           </Button>
         }
@@ -443,7 +443,7 @@ export default function OnboardingPage() {
       {step === 4 && <TeamStep {...stepProps} />}
       {step === 5 && <ScheduleStep {...stepProps} />}
       {step === 6 && <HoursStep {...stepProps} />}
-      {step === 7 && <PaymentsStep clinicId={clinic.id} {...stepProps} />}
+      {step === 7 && <PaymentsStep clinicId={clinic.share_code || clinic.id} {...stepProps} />}
       {step === 8 && <RulesStep {...stepProps} />}
       {step === 9 && <ReviewStep payload={ready} error="" footer={footer} />}
     </OnboardingShell>

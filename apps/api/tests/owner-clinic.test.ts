@@ -76,8 +76,9 @@ describe('first owner clinic', () => {
     expect(responses[0].json().clinic).toMatchObject({
       name: 'Clínica A',
       status: 'draft',
-      slug: `clinica-${a}`,
     })
+    expect(responses[0].json().clinic.slug).toMatch(/^(?!cu|ku|fu|sh)[a-z]{2}-[0-9]{4}$/)
+    expect(responses[0].json().clinic.code).toBe(responses[0].json().clinic.slug.toUpperCase())
     const member = (
       await database.query('SELECT * FROM luminix.clinic_memberships WHERE clinic_id = $1', [a])
     ).rows[0]
@@ -142,7 +143,7 @@ describe('first owner clinic', () => {
       GRANT SELECT ON luminix.identities, luminix.clinics, luminix.roles, luminix.role_permissions, luminix.clinic_memberships, luminix.clinic_settings TO bootstrap_probe;
       GRANT UPDATE (id) ON luminix.clinics, luminix.roles, luminix.clinic_memberships TO bootstrap_probe;
       GRANT UPDATE (permission_code) ON luminix.role_permissions TO bootstrap_probe;
-      GRANT EXECUTE ON FUNCTION luminix.authorize_staff_clinic(uuid, uuid, text) TO bootstrap_probe;
+      GRANT EXECUTE ON FUNCTION luminix.authorize_staff_clinic(uuid, uuid, text), luminix.resolve_clinic_ref(text) TO bootstrap_probe;
       SET ROLE bootstrap_probe;`)
     try {
       await expect(

@@ -60,7 +60,7 @@ beforeAll(async () => {
     REVOKE ALL ON luminix.identities, luminix.client_profiles, luminix.permissions, luminix.audit_logs FROM tenant_test;
     GRANT SELECT (id, status) ON luminix.identities TO tenant_test;
     GRANT SELECT ON luminix.permissions, luminix.audit_logs TO tenant_test;
-    GRANT EXECUTE ON FUNCTION luminix.authorize_staff_clinic(uuid, uuid, text) TO tenant_test;
+    GRANT EXECUTE ON FUNCTION luminix.authorize_staff_clinic(uuid, uuid, text), luminix.resolve_clinic_ref(text) TO tenant_test;
   `)
 }, 30000)
 
@@ -120,6 +120,7 @@ describe('versioned core migration', () => {
       { name: '0008_onboarding_breaks.sql' },
       { name: '0009_onboarding_hours_payments_rules.sql' },
       { name: '0010_professional_service_audience.sql' },
+      { name: '0011_clinic_public_code.sql' },
     ])
   })
 

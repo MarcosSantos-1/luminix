@@ -2090,3 +2090,16 @@ p {
   transform: rotate(-45deg) translateY(-1px);
 }
 
+[data-slot='toast-region'],
+[data-toast-region] {
+  z-index: 400;
+}
+
+[data-slot='toast'],
+[data-toast] {
+  min-width: min(440px, calc(100vw - 32px));
+  font-size: 16px;
+  font-weight: 650;
+  box-shadow: 0 18px 40px rgba(40, 0, 16, 0.28);
+}
+

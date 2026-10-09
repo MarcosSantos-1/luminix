@@ -245,7 +245,13 @@ export async function clinicRoutes(
     type: 'object',
     additionalProperties: false,
     required: ['clinicId'],
-    properties: { clinicId: { type: 'string', format: 'uuid' } },
+    properties: {
+      clinicId: {
+        type: 'string',
+        pattern:
+          '^(?:[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}|[A-Za-z]{2}-[0-9]{4})$',
+      },
+    },
   }
   async function authorized(
     request: FastifyRequest<{ Params: { clinicId: string } }>,

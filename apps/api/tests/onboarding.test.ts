@@ -221,7 +221,7 @@ describe('versioned clinic onboarding', () => {
     })
     expect(completed.statusCode).toBe(200)
     expect(completed.json().replayed).toBe(false)
-    expect(completed.json().clinic.shareCode).toMatch(/^LX-[A-F0-9]{12}$/)
+    expect(completed.json().clinic.shareCode).toMatch(/^(?!CU|KU|FU|SH)[A-Z]{2}-[0-9]{4}$/)
     const replay = await call('onboarding-a', 'POST', clinicA, 'onboarding/complete', {
       version: 4,
     })

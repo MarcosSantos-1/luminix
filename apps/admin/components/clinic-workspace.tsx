@@ -8,7 +8,7 @@ import {
   type ReactNode,
 } from 'react'
 import Link from 'next/link'
-import { useParams, usePathname, useRouter } from 'next/navigation'
+import { useParams, usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { signOut } from 'firebase/auth'
 import { AppStatus } from '@/components/app-status'
 import { useStaff } from '@/components/staff-provider'
@@ -39,6 +39,7 @@ function rememberClinic(id: string, data: ClinicContext) {
 export function ClinicWorkspace({ children }: { children: ReactNode }) {
   const { clinicId } = useParams<{ clinicId: string }>()
   const pathname = usePathname()
+  const searchParams = useSearchParams()
   const router = useRouter()
   const onboarding = pathname.endsWith('/onboarding')
   const staff = useStaff()
@@ -80,7 +81,10 @@ export function ClinicWorkspace({ children }: { children: ReactNode }) {
           return
         }
         const data = await response.json()
-        if (active && data.clinic.id === clinicId) {
+        const opened =
+          data.clinic.id === clinicId ||
+          data.clinic.share_code?.toUpperCase() === clinicId.toUpperCase()
+        if (active && opened) {
           rememberClinic(key, data)
           setState({ key, data })
         }
@@ -104,6 +108,13 @@ export function ClinicWorkspace({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!staff.loading && !staff.user) router.replace('/login')
   }, [staff.loading, staff.user, router])
+  useEffect(() => {
+    const code = visible?.clinic.share_code
+    const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+    if (!code || !uuid.test(clinicId)) return
+    const query = searchParams.toString()
+    router.replace(`${pathname.replace(clinicId, code)}${query ? `?${query}` : ''}`)
+  }, [visible, clinicId, pathname, router, searchParams])
   const scene = onboarding ? 'onboarding' : 'workspace'
   if (!staff.loading && !staff.user) return <AppStatus scene={scene} />
   if (!visible) {
@@ -117,20 +128,15 @@ export function ClinicWorkspace({ children }: { children: ReactNode }) {
     return (
       <AppStatus
         alert
-        action={
-          <>
-            <Link href="/clinics">Voltar às minhas clínicas</Link>
-            <button onClick={staff.refresh}>Tentar novamente</button>
-          </>
-        }
+        action={<button onClick={staff.refresh}>Tentar novamente</button>}
       >
         {state?.denied
-          ? 'Seu vínculo não permite acessar esta clínica. Escolha outro acesso.'
+          ? 'Não foi possível abrir esta clínica. Tente novamente.'
           : state?.error}
       </AppStatus>
     )
   }
-  if (onboarding || pathname === `/clinics/${clinicId}` || pathname.endsWith('/settings'))
+  if (onboarding || pathname === `/c/${clinicId}` || pathname.endsWith('/settings'))
     return <Context.Provider value={visible}>{children}</Context.Provider>
   return (
     <Context.Provider value={visible}>
@@ -155,9 +161,9 @@ export function ClinicWorkspace({ children }: { children: ReactNode }) {
           </div>
         </header>
         <nav className="flex gap-4" aria-label="Navegação da clínica">
-          <Link href={`/clinics/${clinicId}`}>Início</Link>
+          <Link href={`/c/${clinicId}`}>Início</Link>
           {visible.permissions.includes('settings:manage') && (
-            <Link href={`/clinics/${clinicId}?secao=configuracoes`}>Configurações</Link>
+            <Link href={`/c/${clinicId}?secao=configuracoes`}>Configurações</Link>
           )}
           <button onClick={staff.refresh}>Atualizar acesso</button>
         </nav>

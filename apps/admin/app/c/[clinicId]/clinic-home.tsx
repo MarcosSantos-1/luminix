@@ -32,8 +32,7 @@ export function ClinicHome({ initialSection }: { initialSection: string }) {
   if (!permissions.includes('clinic:manage'))
     return (
       <div className="p-6" role="alert">
-        Seu acesso não inclui a visão geral da clínica.{' '}
-        <Link href="/clinics">Voltar às minhas clínicas</Link>
+        Seu acesso não inclui a visão geral desta clínica.
       </div>
     )
   return (
@@ -64,7 +63,7 @@ export function ClinicHome({ initialSection }: { initialSection: string }) {
             <Card.Title>Conclua a configuração da sua clínica</Card.Title>
             <p>Seu rascunho está salvo. Continue de onde parou.</p>
             {permissions.includes('onboarding:manage') && (
-              <Link href={`/clinics/${clinic.id}/onboarding`} className="underline">
+              <Link href={`/c/${clinic.share_code || clinic.id}/onboarding`} className="underline">
                 Continuar onboarding →
               </Link>
             )}

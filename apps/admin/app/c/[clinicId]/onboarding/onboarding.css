@@ -243,23 +243,98 @@
   gap: 8px;
 }
 
-.ob2-catalog-note {
-  margin: 0;
-  padding: 6px 0;
-  font-size: 17px;
-  line-height: 1.55;
-  color: rgba(255, 255, 255, 0.92);
+.ob2 .card.ob2-panel.ob2-guide-card {
+  padding: 14px 16px;
+  margin-bottom: 22px;
 }
 
-.ob2-add-service-icon {
+.ob2 .card.ob2-guide-card .card__content.ob2-guide-body {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 12px;
+  padding: 0;
+}
+
+.ob2-guide-copy {
+  flex: 1 1 auto;
+  min-width: 0;
+  margin: 0;
+  text-align: left;
+  font-size: 18px;
+  line-height: 1.3;
+  color: rgba(255, 255, 255, 0.94);
+}
+
+.ob2-areas-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  color: #ff8dba;
+  font-weight: 700;
+  vertical-align: baseline;
+}
+
+.ob2 .button.ob2-choice.ob2-add-service {
+  height: 100%;
+  min-height: 112px;
+  border-style: dashed;
+  border-width: 1.5px;
+  border-color: rgba(255, 141, 183, 0.78);
+  background: linear-gradient(
+    145deg,
+    rgba(255, 45, 121, 0.2) 0%,
+    rgba(255, 255, 255, 0.1) 55%
+  );
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.28),
+    0 12px 32px rgba(255, 45, 121, 0.22);
+  --button-bg: rgba(255, 45, 121, 0.16);
+  --button-bg-hover: rgba(255, 45, 121, 0.28);
+  --button-bg-pressed: rgba(255, 45, 121, 0.22);
+}
+
+.ob2 .button.ob2-choice.ob2-add-service .ob2-choice-icon {
+  background: #ff2d79;
+  color: #fff;
+  box-shadow: 0 8px 20px rgba(255, 45, 121, 0.45);
+}
+
+.ob2-guide-icon {
+  width: 36px;
+  height: 36px;
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+  border-radius: 12px;
+  color: #fff;
+  background: rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  backdrop-filter: blur(16px) saturate(140%);
+}
+
+.ob2 .button.ob2-guide-all {
+  flex: 0 0 auto;
+  align-self: center;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 0 auto;
+  white-space: nowrap;
+}
+
+.ob2-add-service-icon,
+.ob2 .button.ob2-choice.ob2-add-service .ob2-add-service-icon {
   display: inline-grid;
   place-items: center;
-  width: 28px;
-  height: 28px;
-  border-radius: 9px;
-  background: rgba(255, 45, 121, 0.95);
+  width: 36px;
+  height: 36px;
+  flex: 0 0 auto;
+  border-radius: 12px;
+  background: #ff2d79;
   color: #fff;
-  box-shadow: 0 6px 14px rgba(255, 45, 121, 0.35);
+  box-shadow: 0 8px 20px rgba(255, 45, 121, 0.45);
 }
 
 .ob2-services .button.ob2-quiet {
@@ -785,6 +860,52 @@
   font-weight: 700;
   letter-spacing: -0.02em;
   border-bottom: 2px solid rgba(255, 74, 145, 0.72);
+}
+
+.ob2 .button.ob2-add-pro {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 16px;
+  width: 100%;
+  min-height: 92px;
+  margin-top: 8px;
+  padding: 18px 20px;
+  border-radius: 22px;
+  border: 1px solid rgba(255, 255, 255, 0.34);
+  --button-bg: rgba(255, 45, 121, 0.22);
+  --button-bg-hover: rgba(255, 45, 121, 0.34);
+  --button-fg: #fff;
+  color: #fff;
+  text-align: left;
+}
+
+.ob2-add-pro-icon {
+  width: 48px;
+  height: 48px;
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+  border-radius: 16px;
+  color: #fff;
+  background: #ff2d79;
+}
+
+.ob2-add-pro-copy {
+  display: grid;
+  gap: 4px;
+}
+
+.ob2-add-pro-copy strong {
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.ob2-add-pro-copy small {
+  font-size: 14px;
+  line-height: 1.35;
+  color: rgba(255, 255, 255, 0.82);
 }
 
 .ob2-pro-grid {
@@ -1515,25 +1636,21 @@
   display: grid;
   place-items: center;
   border-radius: 10px;
+  color: #fff;
 }
 
 .ob2-audience-option.is-all .ob2-audience-icon {
-  background: rgba(255, 45, 121, 0.18);
-  color: #ff2d79;
+  background: #ff2d79;
+  color: #fff;
 }
 
 .ob2-audience-option.is-women .ob2-audience-icon {
-  background: rgba(255, 74, 145, 0.18);
-  color: #e21870;
+  background: #e21870;
+  color: #fff;
 }
 
 .ob2-audience-option.is-men .ob2-audience-icon {
-  background: rgba(126, 182, 255, 0.2);
-  color: #3b82f6;
-}
-
-.ob2-audience-option[data-selected='true'] .ob2-audience-icon,
-.ob2-audience-option:has([data-selected='true']) .ob2-audience-icon {
+  background: #2563eb;
   color: #fff;
 }
 
@@ -2061,7 +2178,7 @@
 
 .ob2[data-surface='solid'] .ob2-heading p,
 .ob2[data-surface='solid'] .ob2-copy,
-.ob2[data-surface='solid'] .ob2-catalog-note,
+.ob2[data-surface='solid'] .ob2-guide-copy,
 .ob2[data-surface='solid'] .label,
 .ob2[data-surface='solid'] .ob2-choice-copy small,
 .ob2[data-surface='solid'] .ob2-summary p,
@@ -2079,6 +2196,16 @@
   color: #34101f;
   border-color: #f0cfdb;
   backdrop-filter: none;
+}
+
+.ob2[data-surface='solid'] .button.ob2-choice.ob2-add-service {
+  background: linear-gradient(145deg, rgba(255, 45, 121, 0.1) 0%, #fff 60%);
+  border-color: #f0a0c0;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.9),
+    0 10px 24px rgba(255, 45, 121, 0.12);
+  --button-bg: rgba(255, 45, 121, 0.08);
+  --button-bg-hover: rgba(255, 45, 121, 0.14);
 }
 
 .ob2[data-surface='solid'] .input-group__input,
@@ -2110,6 +2237,10 @@
     grid-template-columns: 1fr 1fr;
   }
 
+  .ob2-services > .ob2-add-service:last-child:nth-child(odd) {
+    grid-column: span 2;
+  }
+
   .ob2-cep-short {
     display: none;
   }
@@ -2124,8 +2255,21 @@
 }
 
 @media (min-width: 1080px) {
-  .ob2-detail-grid {
+  .ob2-detail-grid,
+  .ob2-services {
     grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .ob2-services > .ob2-add-service:last-child:nth-child(3n + 1) {
+    grid-column: span 3;
+  }
+
+  .ob2-services > .ob2-add-service:last-child:nth-child(3n + 2) {
+    grid-column: span 2;
+  }
+
+  .ob2-services > .ob2-add-service:last-child:nth-child(3n) {
+    grid-column: span 1;
   }
 
   .ob2-pro-grid {

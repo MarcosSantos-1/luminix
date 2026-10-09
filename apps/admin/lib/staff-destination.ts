@@ -12,11 +12,15 @@ export function loadingScene(clinics: StaffClinic[], loading: boolean): 'workspa
   return awaitsOnboarding(clinics) ? 'onboarding' : 'workspace'
 }
 
+export function clinicRef(clinic: { id: string; code?: string | null }) {
+  return clinic.code || clinic.id
+}
+
 export function staffHomePath(clinics: StaffClinic[]): string | null {
   const draft = clinics.find((clinic) => clinic.status === 'draft')
-  if (draft) return `/clinics/${draft.id}/onboarding`
-  if (clinics.length === 1) return `/clinics/${clinics[0].id}`
-  if (clinics.length > 1) return '/clinics'
+  if (draft) return `/c/${clinicRef(draft)}/onboarding`
+  if (clinics.length === 1) return `/c/${clinicRef(clinics[0])}`
+  if (clinics.length > 1) return '/c'
   return null
 }
 

@@ -23,7 +23,7 @@ export async function withClinicTransaction<T>(
   work: (connection: SqlConnection, tenant: TenantContext) => Promise<T>,
 ): Promise<T> {
   const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
-  if (!uuid.test(identityId) || !uuid.test(selectedClinicId)) throw forbidden()
+  if (!uuid.test(identityId)) throw forbidden()
   const connection = await pool.connect()
   let begun = false
   let discard = false
@@ -31,13 +31,19 @@ export async function withClinicTransaction<T>(
     await connection.query('BEGIN')
     begun = true
     try {
+      const resolved = await connection.query(
+        'SELECT luminix.resolve_clinic_ref($1) AS id',
+        [selectedClinicId],
+      )
+      const clinicId = resolved.rows[0]?.id ? String(resolved.rows[0].id) : ''
+      if (!uuid.test(clinicId)) throw forbidden()
       await connection.query(
         "SELECT set_config('luminix.clinic_id', $1, true), set_config('luminix.identity_id', $2, true)",
-        [selectedClinicId, identityId],
+        [clinicId, identityId],
       )
       const result = await connection.query(
         'SELECT * FROM luminix.authorize_staff_clinic($1::uuid, $2::uuid, $3::text)',
-        [identityId, selectedClinicId, requiredPermission],
+        [identityId, clinicId, requiredPermission],
       )
       const membership = result.rows[0]
       if (!membership) throw forbidden()
