@@ -7,7 +7,10 @@ export function awaitsOnboarding(clinics: StaffClinic[]) {
 }
 
 /** Words for the gate loader: onboarding only after we know the space is still a draft. */
-export function loadingScene(clinics: StaffClinic[], loading: boolean): 'workspace' | 'onboarding' | 'entry' {
+export function loadingScene(
+  clinics: StaffClinic[],
+  loading: boolean,
+): 'workspace' | 'onboarding' | 'entry' {
   if (loading && clinics.length === 0) return 'entry'
   return awaitsOnboarding(clinics) ? 'onboarding' : 'workspace'
 }

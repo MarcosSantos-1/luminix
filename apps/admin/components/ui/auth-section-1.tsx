@@ -88,7 +88,10 @@ export default function AuthSectionOne({
             </p>
           </div>
 
-          <form className="mt-5 space-y-3 sm:mt-7 sm:space-y-4 xl:mt-9 xl:space-y-5" onSubmit={handleSubmit}>
+          <form
+            className="mt-5 space-y-3 sm:mt-7 sm:space-y-4 xl:mt-9 xl:space-y-5"
+            onSubmit={handleSubmit}
+          >
             <FieldBox
               label="Nome"
               name="firstName"

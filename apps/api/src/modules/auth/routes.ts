@@ -54,6 +54,44 @@ export async function authRoutes(app: FastifyInstance, dependencies: AuthDepende
     if (!identityId) return
     return { identity: { id: identityId } }
   })
+  app.get<{ Params: { cep: string } }>(
+    '/address/postal-code/:cep',
+    {
+      schema: {
+        params: {
+          type: 'object',
+          additionalProperties: false,
+          required: ['cep'],
+          properties: { cep: { type: 'string', pattern: '^[0-9]{8}$' } },
+        },
+      },
+    },
+    async (request, reply) => {
+      const identityId = await authenticate(request, reply)
+      if (!identityId) return
+      try {
+        const response = await fetch(`https://viacep.com.br/ws/${request.params.cep}/json/`, {
+          headers: { Accept: 'application/json' },
+          signal: AbortSignal.timeout(5_000),
+        })
+        if (!response.ok) throw new Error('Postal code provider unavailable')
+        const data = (await response.json()) as Record<string, unknown>
+        if (data.erro === true) return reply.code(404).send({ error: 'Postal code not found' })
+        return {
+          address: {
+            postalCode: String(data.cep ?? ''),
+            street: String(data.logradouro ?? ''),
+            district: String(data.bairro ?? ''),
+            city: String(data.localidade ?? ''),
+            state: String(data.uf ?? '').toUpperCase(),
+          },
+        }
+      } catch {
+        request.log.info({ event: 'postal_code_lookup_unavailable' })
+        return reply.code(503).send({ error: 'Postal code lookup unavailable' })
+      }
+    },
+  )
   app.post<{ Body: { name: string } }>(
     '/auth/owner-clinic',
     {

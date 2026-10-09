@@ -126,13 +126,8 @@ export function ClinicWorkspace({ children }: { children: ReactNode }) {
       )
     if (staff.loading || state?.key !== key) return <AppStatus scene={scene} />
     return (
-      <AppStatus
-        alert
-        action={<button onClick={staff.refresh}>Tentar novamente</button>}
-      >
-        {state?.denied
-          ? 'Não foi possível abrir esta clínica. Tente novamente.'
-          : state?.error}
+      <AppStatus alert action={<button onClick={staff.refresh}>Tentar novamente</button>}>
+        {state?.denied ? 'Não foi possível abrir esta clínica. Tente novamente.' : state?.error}
       </AppStatus>
     )
   }

@@ -31,10 +31,9 @@ export async function withClinicTransaction<T>(
     await connection.query('BEGIN')
     begun = true
     try {
-      const resolved = await connection.query(
-        'SELECT luminix.resolve_clinic_ref($1) AS id',
-        [selectedClinicId],
-      )
+      const resolved = await connection.query('SELECT luminix.resolve_clinic_ref($1) AS id', [
+        selectedClinicId,
+      ])
       const clinicId = resolved.rows[0]?.id ? String(resolved.rows[0].id) : ''
       if (!uuid.test(clinicId)) throw forbidden()
       await connection.query(

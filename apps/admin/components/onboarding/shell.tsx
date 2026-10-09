@@ -138,12 +138,7 @@ export function OnboardingShell({
         </aside>
         <div className="ob2-column">{children}</div>
       </div>
-      <Button
-        className="ob2-icon ob2-support"
-        isIconOnly
-        variant="ghost"
-        aria-label="Suporte"
-      >
+      <Button className="ob2-icon ob2-support" isIconOnly variant="ghost" aria-label="Suporte">
         <Headphones />
       </Button>
     </main>

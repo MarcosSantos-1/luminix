@@ -9,6 +9,9 @@ export async function buildApp(options: FastifyServerOptions = {}, auth?: AuthDe
     ...options,
     ajv: { customOptions: { removeAdditional: false, coerceTypes: false } },
   })
+  app.addContentTypeParser('image/webp', { parseAs: 'buffer' }, (_request, body, done) => {
+    done(null, body)
+  })
 
   await registerTenantContext(app)
   await app.register(healthRoutes)

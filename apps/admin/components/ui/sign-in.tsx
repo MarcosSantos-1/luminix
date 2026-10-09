@@ -63,7 +63,10 @@ export const SignInPage: React.FC<SignInPageProps> = ({
       <section className="auth-form-pane order-2 flex items-center justify-center bg-[#fffafa] px-5 py-6 sm:px-8 sm:py-8 lg:order-1 lg:min-h-dvh lg:px-10 lg:py-8 xl:px-16 xl:py-12">
         <div className="w-full max-w-md">
           <div className="flex flex-col gap-4 sm:gap-5 xl:gap-6">
-            <Link href="/" className="auth-logo animate-element animate-delay-100 mb-1 inline-flex w-fit">
+            <Link
+              href="/"
+              className="auth-logo animate-element animate-delay-100 mb-1 inline-flex w-fit"
+            >
               <Image
                 src="/brand/logo-letter-default.png"
                 width={267}

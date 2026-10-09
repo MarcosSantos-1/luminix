@@ -1,4 +1,14 @@
-import { Button, Card, Checkbox, Label, Link as TextLink, ScrollShadow, Separator, Switch, toast } from '@heroui/react'
+import {
+  Button,
+  Card,
+  Checkbox,
+  Label,
+  Link as TextLink,
+  ScrollShadow,
+  Separator,
+  Switch,
+  toast,
+} from '@heroui/react'
 import {
   AtSign,
   Banknote,
@@ -33,6 +43,9 @@ import Link from 'next/link'
 import { useRef, useState, type DragEvent, type ReactNode } from 'react'
 import { syncProfessionalSchedules } from './schedule-sync'
 import { formatBrPhone } from '@/lib/phone'
+import { useStaff } from '@/components/staff-provider'
+import { useClinic } from '@/components/clinic-workspace'
+import { uploadClinicMedia } from '@/lib/media-upload'
 import {
   applyClinicAudience,
   catalogItemIsSensitive,
@@ -96,7 +109,7 @@ function IntimateAudienceCards({
   return (
     <div className="ob2-intimate-list">
       {services.map((service) => (
-        <Card className="ob2-panel ob2-intimate-card" key={service.name}>
+        <Card className="ob2-panel ob2-intimate-card" key={service.id}>
           <Card.Content className="ob2-intimate-body">
             <div className="ob2-intimate-head">
               <span className="ob2-intimate-icon" aria-hidden>
@@ -300,7 +313,7 @@ export function ClinicStep({
                 onChange={(value) => change('taxId', maskTaxId(kind, value))}
               />
             </div>
-            <ClinicLogoDropzone />
+            <ClinicLogoDropzone payload={payload} setPayload={setPayload} />
           </div>
           <div className="ob2-clinic-audience">
             <p className="ob2-dialog-section">Público padrão</p>
@@ -357,6 +370,7 @@ function ImageDropzone({
   preview,
   fileName,
   onPreviewChange,
+  onFile,
   className = 'ob2-logo-drop',
 }: {
   label: string
@@ -365,21 +379,32 @@ function ImageDropzone({
   preview: string | null
   fileName: string
   onPreviewChange: (preview: string | null, fileName: string) => void
+  onFile: (file: File) => Promise<void>
   className?: string
 }) {
   const inputRef = useRef<HTMLInputElement>(null)
   const [dragging, setDragging] = useState(false)
 
-  function acceptFile(file: File | undefined) {
-    if (!file || !file.type.startsWith('image/')) return
+  const [busy, setBusy] = useState(false)
+
+  async function acceptFile(file: File | undefined) {
+    if (!file || busy) return
     const url = URL.createObjectURL(file)
     onPreviewChange(url, file.name)
+    setBusy(true)
+    try {
+      await onFile(file)
+    } catch (error) {
+      toast.danger(error instanceof Error ? error.message : 'Não foi possível enviar a imagem.')
+    } finally {
+      setBusy(false)
+    }
   }
 
   function onDrop(event: DragEvent<HTMLDivElement>) {
     event.preventDefault()
     setDragging(false)
-    acceptFile(event.dataTransfer.files?.[0])
+    void acceptFile(event.dataTransfer.files?.[0])
   }
 
   return (
@@ -409,16 +434,23 @@ function ImageDropzone({
       <input
         ref={inputRef}
         type="file"
-        accept="image/png,image/jpeg,image/webp,image/svg+xml"
+        accept="image/png,image/jpeg,image/webp"
         hidden
-        onChange={(event) => acceptFile(event.target.files?.[0])}
+        onChange={(event) => void acceptFile(event.target.files?.[0])}
       />
       {preview ? (
         <>
-          <img src={preview} alt="" className="ob2-logo-preview" />
+          <Image
+            src={preview}
+            alt=""
+            className="ob2-logo-preview"
+            width={512}
+            height={512}
+            unoptimized
+          />
           <div className="ob2-logo-drop-meta">
             <strong>{fileName || label}</strong>
-            <span>{fileHint}</span>
+            <span>{busy ? 'Otimizando e enviando…' : fileHint}</span>
           </div>
         </>
       ) : (
@@ -446,17 +478,28 @@ function ProfessionalPhotoField({
   gender,
   preview,
   onPreviewChange,
+  onFile,
 }: {
   gender: Professional['gender']
   preview: string | null
   onPreviewChange: (preview: string | null) => void
+  onFile: (file: File) => Promise<void>
 }) {
   const inputRef = useRef<HTMLInputElement>(null)
   const [dragging, setDragging] = useState(false)
+  const [busy, setBusy] = useState(false)
 
-  function acceptFile(file: File | undefined) {
-    if (!file || !file.type.startsWith('image/')) return
+  async function acceptFile(file: File | undefined) {
+    if (!file || busy) return
     onPreviewChange(URL.createObjectURL(file))
+    setBusy(true)
+    try {
+      await onFile(file)
+    } catch (error) {
+      toast.danger(error instanceof Error ? error.message : 'Não foi possível enviar a foto.')
+    } finally {
+      setBusy(false)
+    }
   }
 
   const photoTitle = gender === 'male' ? 'Foto do profissional' : 'Foto da profissional'
@@ -476,7 +519,7 @@ function ProfessionalPhotoField({
       onDrop={(event) => {
         event.preventDefault()
         setDragging(false)
-        acceptFile(event.dataTransfer.files?.[0])
+        void acceptFile(event.dataTransfer.files?.[0])
       }}
     >
       <input
@@ -484,7 +527,7 @@ function ProfessionalPhotoField({
         type="file"
         accept="image/png,image/jpeg,image/webp"
         hidden
-        onChange={(event) => acceptFile(event.target.files?.[0])}
+        onChange={(event) => void acceptFile(event.target.files?.[0])}
       />
       <button
         type="button"
@@ -494,7 +537,14 @@ function ProfessionalPhotoField({
       >
         <span className="ob2-pro-photo-preview" aria-hidden>
           {preview ? (
-            <img src={preview} alt="" className="ob2-pro-photo-image" />
+            <Image
+              src={preview}
+              alt=""
+              className="ob2-pro-photo-image"
+              width={512}
+              height={512}
+              unoptimized
+            />
           ) : (
             <Image
               className="ob2-pro-photo-image"
@@ -511,7 +561,7 @@ function ProfessionalPhotoField({
       </button>
       <div className="ob2-pro-photo-copy">
         <strong>{photoTitle}</strong>
-        <span>Opcional · PNG, JPG ou WebP. O envio definitivo fica no painel da clínica.</span>
+        <span>{busy ? 'Otimizando e enviando…' : 'Opcional · PNG, JPG ou WebP.'}</span>
         <div className="ob2-pro-photo-actions">
           <Button
             className="ob2-pro-photo-btn"
@@ -521,7 +571,11 @@ function ProfessionalPhotoField({
             Escolher arquivo
           </Button>
           {preview ? (
-            <Button className="ob2-pro-photo-clear" variant="ghost" onPress={() => onPreviewChange(null)}>
+            <Button
+              className="ob2-pro-photo-clear"
+              variant="ghost"
+              onPress={() => onPreviewChange(null)}
+            >
               Usar avatar padrão
             </Button>
           ) : null}
@@ -531,14 +585,22 @@ function ProfessionalPhotoField({
   )
 }
 
-function ClinicLogoDropzone() {
-  const [preview, setPreview] = useState<string | null>(null)
+function ClinicLogoDropzone({
+  payload,
+  setPayload,
+}: {
+  payload: Payload
+  setPayload: (value: Payload) => void
+}) {
+  const { clinic } = useClinic()
+  const staff = useStaff()
+  const [preview, setPreview] = useState<string | null>(payload.clinic.logoUrl ?? null)
   const [fileName, setFileName] = useState('')
   return (
     <ImageDropzone
       label="Logo da clínica"
       emptyHint="PNG, JPG ou WebP"
-      fileHint="Clique ou arraste para trocar · envio depois no painel"
+      fileHint="Imagem salva · clique ou arraste para trocar"
       preview={preview}
       fileName={fileName}
       onPreviewChange={(next, name) => {
@@ -547,6 +609,24 @@ function ClinicLogoDropzone() {
           return next
         })
         setFileName(name)
+      }}
+      onFile={async (file) => {
+        if (!staff.user) throw new Error('Sua sessão expirou. Entre novamente.')
+        const result = await uploadClinicMedia({
+          clinicId: clinic.id,
+          token: await staff.user.getIdToken(),
+          kind: 'clinic_logo',
+          file,
+        })
+        setPreview(result.asset.largeUrl)
+        setPayload({
+          ...payload,
+          clinic: {
+            ...payload.clinic,
+            logoAssetId: result.asset.id,
+            logoUrl: result.asset.largeUrl,
+          },
+        })
       }}
     />
   )
@@ -601,6 +681,7 @@ export function CatalogStep({
       services: [
         ...payload.services,
         {
+          id: crypto.randomUUID(),
           category: area,
           name,
           description: '',
@@ -627,7 +708,9 @@ export function CatalogStep({
 
   function selectAllInArea() {
     if (!area || !canSelectAll) return
-    const adding = unmarked.slice(0, room).map((item) => serviceFromCatalog(item, payload.clinic.defaultAudience))
+    const adding = unmarked
+      .slice(0, room)
+      .map((item) => serviceFromCatalog(item, payload.clinic.defaultAudience))
     setPayload({
       ...payload,
       occupations: [...new Set([...payload.occupations, area])],
@@ -706,8 +789,9 @@ export function CatalogStep({
             <div className="ob2-categories">
               {categories.map((category) => {
                 const art = categoryArtSrc(category)
-                const count = payload.services.filter((service) => service.category === category)
-                  .length
+                const count = payload.services.filter(
+                  (service) => service.category === category,
+                ).length
                 return (
                   <ChoiceCard
                     key={category}
@@ -924,7 +1008,9 @@ export function ServicesStep({
               inputMode="decimal"
               isDisabled={service.priceType === 'quote'}
               value={
-                service.priceType === 'quote' ? '' : (service.priceCents / 100).toFixed(2).replace('.', ',')
+                service.priceType === 'quote'
+                  ? ''
+                  : (service.priceCents / 100).toFixed(2).replace('.', ',')
               }
               placeholder="0,00"
               onChange={(value) =>
@@ -941,12 +1027,18 @@ export function ServicesStep({
               }
               menu="ice"
               value={String(service.durationMinutes)}
-              options={durations.map((minutes) => ({ id: String(minutes), label: `${minutes} min` }))}
+              options={durations.map((minutes) => ({
+                id: String(minutes),
+                label: `${minutes} min`,
+              }))}
               onChange={(value) => update({ durationMinutes: Number(value) })}
             />
             <Separator />
             <p className="ob2-copy">Público atendido</p>
-            <AudienceChoices value={service.audience} onChange={(audience) => update({ audience })} />
+            <AudienceChoices
+              value={service.audience}
+              onChange={(audience) => update({ audience })}
+            />
             <Button
               className="ob2-remove-service"
               onPress={() => {
@@ -971,11 +1063,13 @@ type ProfessionalDraft = Professional
 
 function emptyProfessionalDraft(payload: Payload): ProfessionalDraft {
   return {
+    id: '',
     name: '',
     role: '',
     gender: 'female',
     audience: payload.clinic.defaultAudience,
     serviceNames: payload.services.map((service) => service.name).filter((name) => name.trim()),
+    serviceIds: payload.services.map((service) => service.id),
   }
 }
 
@@ -990,10 +1084,14 @@ export function TeamStep({
   error: string
   footer: ReactNode
 }) {
+  const { clinic } = useClinic()
+  const staff = useStaff()
   const [dialogOpen, setDialogOpen] = useState(false)
   const [index, setIndex] = useState<number | null>(null)
   const [draft, setDraft] = useState<ProfessionalDraft>(() => emptyProfessionalDraft(payload))
-  const [formErrors, setFormErrors] = useState<{ name?: string; role?: string; gender?: string }>({})
+  const [formErrors, setFormErrors] = useState<{ name?: string; role?: string; gender?: string }>(
+    {},
+  )
 
   function setMode(mode: 'solo' | 'team') {
     setPayload({
@@ -1003,11 +1101,15 @@ export function TeamStep({
         mode === 'solo'
           ? [
               {
+                id: payload.professionals[0]?.id || crypto.randomUUID(),
                 name: payload.ownerName.trim() || 'Você',
                 role: 'Proprietária / profissional',
                 gender: 'female',
                 audience: payload.clinic.defaultAudience,
-                serviceNames: payload.services.map((service) => service.name).filter((name) => name.trim()),
+                serviceNames: payload.services
+                  .map((service) => service.name)
+                  .filter((name) => name.trim()),
+                serviceIds: payload.services.map((service) => service.id),
                 serviceAudiences: intimateAudiencesFor(payload.services),
               },
             ]
@@ -1017,7 +1119,7 @@ export function TeamStep({
 
   function openEditor(position: number | null) {
     if (position == null) {
-      setDraft(emptyProfessionalDraft(payload))
+      setDraft({ ...emptyProfessionalDraft(payload), id: crypto.randomUUID() })
     } else {
       setDraft({ ...payload.professionals[position] })
     }
@@ -1037,7 +1139,8 @@ export function TeamStep({
     if (!draft.role.trim()) next.role = 'Informe a função ou especialidade.'
     if (draft.gender !== 'female' && draft.gender !== 'male') next.gender = 'Escolha o sexo.'
     setFormErrors(next)
-    const message = next.name && next.role ? 'Informe o nome e a função.' : next.name || next.role || next.gender
+    const message =
+      next.name && next.role ? 'Informe o nome e a função.' : next.name || next.role || next.gender
     if (message) toast.danger(message, { timeout: 5000 })
     return !message
   }
@@ -1054,7 +1157,9 @@ export function TeamStep({
     } else {
       setPayload({
         ...payload,
-        professionals: payload.professionals.map((item, position) => (position === index ? saved : item)),
+        professionals: payload.professionals.map((item, position) =>
+          position === index ? saved : item,
+        ),
       })
     }
     setDialogOpen(false)
@@ -1071,10 +1176,12 @@ export function TeamStep({
   }
 
   const intimateServices = payload.services.filter((service) => serviceIsIntimate(service))
-  const assignedIntimate = intimateServices.filter((service) => draft.serviceNames.includes(service.name))
+  const assignedIntimate = intimateServices.filter((service) =>
+    draft.serviceIds.includes(service.id),
+  )
 
-  function setIntimateAudience(serviceName: string, audience: Audience) {
-    patchDraft({ serviceAudiences: { ...draft.serviceAudiences, [serviceName]: audience } })
+  function setIntimateAudience(serviceId: string, audience: Audience) {
+    patchDraft({ serviceAudiences: { ...draft.serviceAudiences, [serviceId]: audience } })
   }
 
   return (
@@ -1097,31 +1204,33 @@ export function TeamStep({
       </div>
       {payload.teamMode === 'solo' ? (
         <>
-        <Card className="ob2-panel">
-          <Card.Content>
-            <p className="ob2-copy">
-              <strong>{payload.ownerName || 'Você'}</strong> entra como profissional principal.{' '}
-              {payload.services.length === 1
-                ? 'O serviço escolhido fica vinculado a você.'
-                : `Os ${payload.services.length} serviços escolhidos ficam vinculados a você.`}{' '}
-              {intimateServices.length > 0 ? 'Confirme o público dos serviços íntimos abaixo. ' : ''}
-              Convites de recepção continuam para o painel.
-            </p>
-          </Card.Content>
-        </Card>
-        <IntimateAudienceCards
-          services={intimateServices}
-          audienceFor={(service) => service.audience}
-          question="Qual é o público padrão deste serviço?"
-          onChange={(service, audience) =>
-            setPayload({
-              ...payload,
-              services: payload.services.map((item) =>
-                item.name === service.name ? { ...item, audience } : item,
-              ),
-            })
-          }
-        />
+          <Card className="ob2-panel">
+            <Card.Content>
+              <p className="ob2-copy">
+                <strong>{payload.ownerName || 'Você'}</strong> entra como profissional principal.{' '}
+                {payload.services.length === 1
+                  ? 'O serviço escolhido fica vinculado a você.'
+                  : `Os ${payload.services.length} serviços escolhidos ficam vinculados a você.`}{' '}
+                {intimateServices.length > 0
+                  ? 'Confirme o público dos serviços íntimos abaixo. '
+                  : ''}
+                Convites de recepção continuam para o painel.
+              </p>
+            </Card.Content>
+          </Card>
+          <IntimateAudienceCards
+            services={intimateServices}
+            audienceFor={(service) => service.audience}
+            question="Qual é o público padrão deste serviço?"
+            onChange={(service, audience) =>
+              setPayload({
+                ...payload,
+                services: payload.services.map((item) =>
+                  item.id === service.id ? { ...item, audience } : item,
+                ),
+              })
+            }
+          />
         </>
       ) : (
         <>
@@ -1129,14 +1238,14 @@ export function TeamStep({
             <div className="ob2-pro-grid">
               {payload.professionals.map((item, position) => (
                 <Button
-                  key={`${item.name}-${position}`}
+                  key={item.id}
                   className="ob2-pro-card"
                   variant="ghost"
                   onPress={() => openEditor(position)}
                 >
                   <Image
                     className="ob2-pro-card-avatar"
-                    src={professionalAvatarSrc[item.gender]}
+                    src={item.photoUrl || professionalAvatarSrc[item.gender]}
                     alt=""
                     width={512}
                     height={512}
@@ -1144,8 +1253,8 @@ export function TeamStep({
                   <span className="ob2-pro-card-copy">
                     <strong>{item.name}</strong>
                     <small>
-                      {item.role} · {item.serviceNames.length}{' '}
-                      {item.serviceNames.length === 1 ? 'serviço' : 'serviços'}
+                      {item.role} · {item.serviceIds.length}{' '}
+                      {item.serviceIds.length === 1 ? 'serviço' : 'serviços'}
                     </small>
                   </span>
                 </Button>
@@ -1193,12 +1302,33 @@ export function TeamStep({
           services={assignedIntimate}
           audienceFor={(service) => effectiveServiceAudience(draft, service)}
           question="Qual público esta pessoa atende neste serviço?"
-          onChange={(service, audience) => setIntimateAudience(service.name, audience)}
+          onChange={(service, audience) => setIntimateAudience(service.id, audience)}
         />
         <ProfessionalPhotoField
           gender={draft.gender}
-          preview={draft.photoPreview ?? null}
-          onPreviewChange={(preview) => patchDraft({ photoPreview: preview ?? undefined })}
+          preview={draft.photoUrl ?? draft.photoPreview ?? null}
+          onPreviewChange={(preview) =>
+            patchDraft(
+              preview
+                ? { photoPreview: preview }
+                : { photoPreview: undefined, photoUrl: undefined, photoAssetId: undefined },
+            )
+          }
+          onFile={async (file) => {
+            if (!staff.user) throw new Error('Sua sessão expirou. Entre novamente.')
+            const result = await uploadClinicMedia({
+              clinicId: clinic.id,
+              token: await staff.user.getIdToken(),
+              kind: 'professional_photo',
+              subjectRef: draft.id,
+              file,
+            })
+            patchDraft({
+              photoAssetId: result.asset.id,
+              photoUrl: result.asset.largeUrl,
+              photoPreview: undefined,
+            })
+          }}
         />
         <div className="ob2-dialog-fields ob2-dialog-fields--split">
           <div className="ob2-dialog-field">
@@ -1270,85 +1400,97 @@ export function TeamStep({
         <p className="ob2-dialog-hint">Marque o que esta pessoa realiza na clínica.</p>
         {groupServicesByCategory(payload.services).map((group) => {
           const categoryNames = group.services.map((service) => service.name)
-          const selectedInCategory = categoryNames.filter((name) => draft.serviceNames.includes(name))
+          const categoryIds = group.services.map((service) => service.id)
+          const selectedInCategory = categoryIds.filter((id) => draft.serviceIds.includes(id))
           const allInCategorySelected =
             categoryNames.length > 0 && selectedInCategory.length === categoryNames.length
 
           return (
-          <div className="ob2-service-group ob2-service-group-card" key={group.category}>
-            <div className="ob2-service-group-head">
-              <Checkbox
-                className="ob2-service-group-toggle"
-                isSelected={allInCategorySelected}
-                onChange={(isSelected) => {
-                  const namesInCategory = new Set(categoryNames)
-                  patchDraft({
-                    serviceNames: isSelected
-                      ? [...new Set([...draft.serviceNames, ...categoryNames])]
-                      : draft.serviceNames.filter((name) => !namesInCategory.has(name)),
-                  })
-                }}
-              >
-                <Checkbox.Content>
-                  <Checkbox.Control>
-                    <Checkbox.Indicator />
-                  </Checkbox.Control>
-                  <Label className="ob2-service-group-title">{group.category}</Label>
-                </Checkbox.Content>
-              </Checkbox>
-              <span className="ob2-service-group-meta">
-                {allInCategorySelected
-                  ? 'Todos'
-                  : selectedInCategory.length > 0
-                    ? `${selectedInCategory.length}/${categoryNames.length}`
-                    : 'Marcar todos'}
-              </span>
-            </div>
-            <div className="ob2-checks ob2-service-group-items">
-              {group.services.map((service) => {
-                const selected = draft.serviceNames.includes(service.name)
-                const audience = effectiveServiceAudience(draft, service)
-                return (
-                  <div
-                    className={serviceIsIntimate(service) ? 'ob2-service-line is-intimate' : 'ob2-service-line'}
-                    key={service.name}
-                  >
-                    <Checkbox
-                      isSelected={selected}
-                      onChange={(isSelected) =>
-                        patchDraft({
-                          serviceNames: isSelected
-                            ? [...draft.serviceNames, service.name]
-                            : draft.serviceNames.filter((name) => name !== service.name),
-                        })
+            <div className="ob2-service-group ob2-service-group-card" key={group.category}>
+              <div className="ob2-service-group-head">
+                <Checkbox
+                  className="ob2-service-group-toggle"
+                  isSelected={allInCategorySelected}
+                  onChange={(isSelected) => {
+                    const namesInCategory = new Set(categoryNames)
+                    const idsInCategory = new Set(categoryIds)
+                    patchDraft({
+                      serviceNames: isSelected
+                        ? [...new Set([...draft.serviceNames, ...categoryNames])]
+                        : draft.serviceNames.filter((name) => !namesInCategory.has(name)),
+                      serviceIds: isSelected
+                        ? [...new Set([...draft.serviceIds, ...categoryIds])]
+                        : draft.serviceIds.filter((id) => !idsInCategory.has(id)),
+                    })
+                  }}
+                >
+                  <Checkbox.Content>
+                    <Checkbox.Control>
+                      <Checkbox.Indicator />
+                    </Checkbox.Control>
+                    <Label className="ob2-service-group-title">{group.category}</Label>
+                  </Checkbox.Content>
+                </Checkbox>
+                <span className="ob2-service-group-meta">
+                  {allInCategorySelected
+                    ? 'Todos'
+                    : selectedInCategory.length > 0
+                      ? `${selectedInCategory.length}/${categoryNames.length}`
+                      : 'Marcar todos'}
+                </span>
+              </div>
+              <div className="ob2-checks ob2-service-group-items">
+                {group.services.map((service) => {
+                  const selected = draft.serviceIds.includes(service.id)
+                  const audience = effectiveServiceAudience(draft, service)
+                  return (
+                    <div
+                      className={
+                        serviceIsIntimate(service)
+                          ? 'ob2-service-line is-intimate'
+                          : 'ob2-service-line'
                       }
+                      key={service.id}
                     >
-                      <Checkbox.Content>
-                        <Checkbox.Control>
-                          <Checkbox.Indicator />
-                        </Checkbox.Control>
-                        <Label>
-                          {service.name}
-                          {serviceIsIntimate(service) ? (
-                            <span className="ob2-intimate-badge">
-                              {selected ? audienceLabel(audience) : 'Íntimo'}
-                            </span>
-                          ) : null}
-                        </Label>
-                      </Checkbox.Content>
-                    </Checkbox>
-                    {serviceIsIntimate(service) && selected ? (
-                      <AudienceChoices
-                        layout="inline"
-                        value={audience}
-                        onChange={(next) => setIntimateAudience(service.name, next)}
-                      />
-                    ) : null}
-                  </div>
-                )
-              })}
+                      <Checkbox
+                        isSelected={selected}
+                        onChange={(isSelected) =>
+                          patchDraft({
+                            serviceNames: isSelected
+                              ? [...draft.serviceNames, service.name]
+                              : draft.serviceNames.filter((name) => name !== service.name),
+                            serviceIds: isSelected
+                              ? [...draft.serviceIds, service.id]
+                              : draft.serviceIds.filter((id) => id !== service.id),
+                          })
+                        }
+                      >
+                        <Checkbox.Content>
+                          <Checkbox.Control>
+                            <Checkbox.Indicator />
+                          </Checkbox.Control>
+                          <Label>
+                            {service.name}
+                            {serviceIsIntimate(service) ? (
+                              <span className="ob2-intimate-badge">
+                                {selected ? audienceLabel(audience) : 'Íntimo'}
+                              </span>
+                            ) : null}
+                          </Label>
+                        </Checkbox.Content>
+                      </Checkbox>
+                      {serviceIsIntimate(service) && selected ? (
+                        <AudienceChoices
+                          layout="inline"
+                          value={audience}
+                          onChange={(next) => setIntimateAudience(service.id, next)}
+                        />
+                      ) : null}
+                    </div>
+                  )
+                })}
+              </div>
             </div>
-          </div>
           )
         })}
       </BlurDialog>
@@ -1372,10 +1514,56 @@ export function ScheduleStep({
   error: string
   footer: ReactNode
 }) {
+  const staff = useStaff()
+  const [cepBusy, setCepBusy] = useState(false)
+  const [cepError, setCepError] = useState('')
   const changeClinic = (key: keyof Payload['clinic'], value: string) =>
     setPayload({ ...payload, clinic: { ...payload.clinic, [key]: value } })
   const [open, setOpen] = useState(payload.clinic.addressLine.trim() === '')
-  const summary = [payload.clinic.addressLine, payload.clinic.addressNumber].filter(Boolean).join(', ')
+  const summary = [payload.clinic.addressLine, payload.clinic.addressNumber]
+    .filter(Boolean)
+    .join(', ')
+  async function lookupPostalCode() {
+    const cep = payload.clinic.postalCode.replace(/\D/g, '')
+    if (cep.length !== 8 || !staff.user) {
+      setCepError('Informe os 8 números do CEP.')
+      return
+    }
+    setCepBusy(true)
+    setCepError('')
+    try {
+      const response = await fetch(`/api/address/postal-code/${cep}`, {
+        headers: { authorization: `Bearer ${await staff.user.getIdToken()}` },
+        cache: 'no-store',
+        signal: AbortSignal.timeout(10_000),
+      })
+      if (!response.ok) throw new Error('Not found')
+      const data: {
+        address: {
+          postalCode: string
+          street: string
+          district: string
+          city: string
+          state: string
+        }
+      } = await response.json()
+      setPayload({
+        ...payload,
+        clinic: {
+          ...payload.clinic,
+          postalCode: formatCep(data.address.postalCode || cep),
+          addressLine: data.address.street || payload.clinic.addressLine,
+          addressDistrict: data.address.district || payload.clinic.addressDistrict,
+          city: data.address.city || payload.clinic.city,
+          state: data.address.state || payload.clinic.state,
+        },
+      })
+    } catch {
+      setCepError('CEP não encontrado agora. Você pode preencher o endereço manualmente.')
+    } finally {
+      setCepBusy(false)
+    }
+  }
   return (
     <div className="ob2-stack">
       <Card className="ob2-panel">
@@ -1390,12 +1578,24 @@ export function ScheduleStep({
                 placeholder="00000-000"
                 onChange={(value) => changeClinic('postalCode', formatCep(value))}
                 suffix={
-                  <Button className="ob2-cep" variant="primary" onPress={() => undefined}>
-                    <span className="ob2-cep-long">Procurar endereço</span>
-                    <span className="ob2-cep-short">Procurar</span>
+                  <Button
+                    className="ob2-cep"
+                    variant="primary"
+                    isDisabled={cepBusy}
+                    onPress={() => void lookupPostalCode()}
+                  >
+                    <span className="ob2-cep-long">
+                      {cepBusy ? 'Procurando…' : 'Procurar endereço'}
+                    </span>
+                    <span className="ob2-cep-short">{cepBusy ? '…' : 'Procurar'}</span>
                   </Button>
                 }
               />
+              {cepError ? (
+                <p className="ob2-field-error" role="alert">
+                  {cepError}
+                </p>
+              ) : null}
               <div className="ob2-address-line">
                 <GlassField
                   className="ob2-address-emphasis"
@@ -1413,6 +1613,12 @@ export function ScheduleStep({
                 />
               </div>
               <div className="ob2-city-state">
+                <GlassField
+                  label="Bairro"
+                  value={payload.clinic.addressDistrict}
+                  placeholder="Bairro"
+                  onChange={(value) => changeClinic('addressDistrict', value)}
+                />
                 <GlassField
                   label="Cidade"
                   icon={<Building2 size={18} />}
@@ -1476,7 +1682,10 @@ function WeeklyHoursEditor({
         const breaks = day.breaks ?? []
         return (
           <div className="ob2-day" key={day.weekday}>
-            <Switch isSelected={day.enabled} onChange={(enabled) => onChangeDay(day.weekday, { enabled })}>
+            <Switch
+              isSelected={day.enabled}
+              onChange={(enabled) => onChangeDay(day.weekday, { enabled })}
+            >
               <Switch.Content>
                 <Switch.Control>
                   <Switch.Thumb />
@@ -1592,7 +1801,9 @@ export function HoursStep({
         index === personIndex
           ? {
               ...person,
-              days: person.days.map((day) => (day.weekday === weekday ? { ...day, ...patch } : day)),
+              days: person.days.map((day) =>
+                day.weekday === weekday ? { ...day, ...patch } : day,
+              ),
             }
           : person,
       ),
@@ -1627,7 +1838,9 @@ export function HoursStep({
             {professionals.map((person, index) => (
               <Button
                 key={person.name}
-                className={['ob2-pro-tab', index === activePro ? 'is-active' : ''].filter(Boolean).join(' ')}
+                className={['ob2-pro-tab', index === activePro ? 'is-active' : '']
+                  .filter(Boolean)
+                  .join(' ')}
                 variant="ghost"
                 onPress={() => setActivePro(index)}
               >
@@ -1639,9 +1852,7 @@ export function HoursStep({
         {professionals[activePro] ? (
           <Card className="ob2-panel ob2-hours-card">
             <Card.Content>
-              {!solo ? (
-                <p className="ob2-hours-pro-name">{professionals[activePro].name}</p>
-              ) : null}
+              {!solo ? <p className="ob2-hours-pro-name">{professionals[activePro].name}</p> : null}
               <WeeklyHoursEditor
                 days={professionals[activePro].days}
                 onChangeDay={(weekday, patch) => updateProDay(activePro, weekday, patch)}
@@ -1815,7 +2026,15 @@ export function RulesStep({
   )
 }
 
-export function ReviewStep({ payload, error, footer }: { payload: Payload; error: string; footer: ReactNode }) {
+export function ReviewStep({
+  payload,
+  error,
+  footer,
+}: {
+  payload: Payload
+  error: string
+  footer: ReactNode
+}) {
   const facts = [
     { label: 'Clínica', value: payload.name || 'Nome ainda não informado' },
     {

@@ -33,12 +33,10 @@ export async function saveOnboardingDraft(
   payload: OnboardingPayload,
 ): Promise<OnboardingDraftRow> {
   const persist = (draftStep: string, draftPayload: OnboardingPayload) =>
-    connection.query('SELECT * FROM luminix.save_onboarding_draft($1::uuid, $2::integer, $3::text, $4::jsonb)', [
-      clinicId,
-      version,
-      draftStep,
-      JSON.stringify(draftPayload),
-    ])
+    connection.query(
+      'SELECT * FROM luminix.save_onboarding_draft($1::uuid, $2::integer, $3::text, $4::jsonb)',
+      [clinicId, version, draftStep, JSON.stringify(draftPayload)],
+    )
 
   try {
     return (await persist(step, payload)).rows[0] as OnboardingDraftRow

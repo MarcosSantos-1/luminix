@@ -121,6 +121,7 @@ describe('versioned core migration', () => {
       { name: '0009_onboarding_hours_payments_rules.sql' },
       { name: '0010_professional_service_audience.sql' },
       { name: '0011_clinic_public_code.sql' },
+      { name: '0012_onboarding_v3_media.sql' },
     ])
   })
 
@@ -224,11 +225,10 @@ describe('Clinic A × Clinic B foreign keys', () => {
   })
 
   it('accepts same-clinic relationships', async () => {
-    await db.query('INSERT INTO luminix.professional_services (clinic_id, professional_id, service_id) VALUES ($1, $2, $3)', [
-      ids.a,
-      ids.professionalA,
-      ids.serviceA,
-    ])
+    await db.query(
+      'INSERT INTO luminix.professional_services (clinic_id, professional_id, service_id) VALUES ($1, $2, $3)',
+      [ids.a, ids.professionalA, ids.serviceA],
+    )
     await db.query('INSERT INTO luminix.professional_occupations VALUES ($1, $2, $3)', [
       ids.a,
       ids.professionalA,
@@ -285,7 +285,7 @@ describe('authorized database scope', () => {
     }>(
       "SELECT relname, relrowsecurity, relforcerowsecurity FROM pg_class WHERE relnamespace = 'luminix'::regnamespace AND relkind = 'r' AND relname NOT IN ('identities', 'client_profiles', 'permissions')",
     )
-    expect(tables.rows).toHaveLength(25)
+    expect(tables.rows).toHaveLength(26)
     expect(tables.rows.every((row) => row.relrowsecurity && row.relforcerowsecurity)).toBe(true)
   })
 

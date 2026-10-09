@@ -105,6 +105,9 @@ export function defaultBreak(start: string, end: string) {
     const split = open + Math.max(15, Math.floor(span / 2))
     return { start, end: fromMinutes(Math.min(split, close)) }
   }
-  const snapped = Math.min(close - 60, Math.max(open, Math.round((open + (span - 60) / 2) / 15) * 15))
+  const snapped = Math.min(
+    close - 60,
+    Math.max(open, Math.round((open + (span - 60) / 2) / 15) * 15),
+  )
   return { start: fromMinutes(snapped), end: fromMinutes(snapped + 60) }
 }

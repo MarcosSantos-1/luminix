@@ -129,7 +129,12 @@ export function ChoiceCard({
 }) {
   return (
     <Button
-      className={['ob2-choice', selected ? 'is-selected' : '', isDisabled ? 'is-disabled' : '', className]
+      className={[
+        'ob2-choice',
+        selected ? 'is-selected' : '',
+        isDisabled ? 'is-disabled' : '',
+        className,
+      ]
         .filter(Boolean)
         .join(' ')}
       variant="ghost"
@@ -244,7 +249,13 @@ export function QuietButton({
   isDisabled?: boolean
 }) {
   return (
-    <Button className="ob2-quiet" variant="ghost" fullWidth onPress={onPress} isDisabled={isDisabled}>
+    <Button
+      className="ob2-quiet"
+      variant="ghost"
+      fullWidth
+      onPress={onPress}
+      isDisabled={isDisabled}
+    >
       {children}
     </Button>
   )

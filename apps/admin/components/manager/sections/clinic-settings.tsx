@@ -1,6 +1,7 @@
 'use client'
 
 import Link from 'next/link'
+import Image from 'next/image'
 import { useEffect, useState } from 'react'
 import { Button, Card, Chip, Spinner } from '@heroui/react'
 import { useStaff } from '@/components/staff-provider'
@@ -10,9 +11,9 @@ type Settings = { timezone: string; locale: string; currency: string }
 type Overview = {
   occupations: { name: string }[]
   services: { name: string; price_cents: number; duration_minutes: number }[]
-  professionals: { display_name: string }[]
+  professionals: { display_name: string; photo_url: string | null }[]
 }
-type Contact = { ownerName: string; email: string; phone: string }
+type Contact = { ownerName: string; email: string; phone: string; logoUrl?: string | null }
 
 const mockOptions = [
   {
@@ -95,14 +96,15 @@ export function ClinicSettings({
         const [settingsResponse, overviewResponse, onboardingResponse] = await Promise.all([
           fetch(`/api/clinics/${clinic.id}/settings`, { headers, cache: 'no-store', signal }),
           fetch(`/api/clinics/${clinic.id}/overview`, { headers, cache: 'no-store', signal }),
-          canReadOnboarding
+          canReadOnboarding && clinic.status === 'draft'
             ? fetch(`/api/clinics/${clinic.id}/onboarding`, { headers, cache: 'no-store', signal })
             : Promise.resolve(null),
         ])
         if (!settingsResponse.ok || !overviewResponse.ok) throw new Error('Unavailable')
-        const settingsBody: { settings: Settings } = await settingsResponse.json()
+        const settingsBody: { settings: Settings; profile: Contact | null } =
+          await settingsResponse.json()
         const overviewBody: Overview = await overviewResponse.json()
-        let contact: Contact | null = null
+        let contact: Contact | null = settingsBody.profile
         let contactError: string | undefined
         if (onboardingResponse) {
           if (!onboardingResponse.ok) {
@@ -141,7 +143,7 @@ export function ClinicSettings({
       active = false
       abort.abort()
     }
-  }, [staff.user, clinic.id, key, retry, canReadOnboarding])
+  }, [staff.user, clinic.id, clinic.status, key, retry, canReadOnboarding])
 
   if (state?.key !== key || !state.settings || !state.overview) {
     if (state?.key === key && state.error)
@@ -186,6 +188,14 @@ export function ClinicSettings({
               </Chip>
             </Card.Header>
             <Card.Content>
+              {contact?.logoUrl ? (
+                <Image
+                  src={contact.logoUrl}
+                  alt={`Logo de ${clinic.name}`}
+                  width={72}
+                  height={72}
+                />
+              ) : null}
               <dl className="manager-definition">
                 <Field label="Nome" value={clinic.name} />
                 <Field label="Identificador" value={clinic.slug} />
@@ -210,7 +220,7 @@ export function ClinicSettings({
                   <p role="alert">{contactError}</p>
                   <Button onPress={() => setRetry((value) => value + 1)}>Tentar novamente</Button>
                 </div>
-              ) : canReadOnboarding ? (
+              ) : contact ? (
                 <dl className="manager-definition">
                   <Field label="Responsável" value={contact?.ownerName || 'Ainda não informado'} />
                   <Field label="E-mail" value={contact?.email || 'Ainda não informado'} />
@@ -218,7 +228,7 @@ export function ClinicSettings({
                 </dl>
               ) : (
                 <p className="manager-real-muted">
-                  O contato do cadastro fica visível para quem gerencia o onboarding.
+                  O contato definitivo ainda não foi materializado.
                 </p>
               )}
             </Card.Content>
@@ -243,7 +253,7 @@ export function ClinicSettings({
                 `${item.name} · ${(item.price_cents / 100).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })} · ${item.duration_minutes} min`,
             )}
           />
-          <Summary title="Equipe" items={overview.professionals.map((item) => item.display_name)} />
+          <TeamSummary professionals={overview.professionals} />
         </div>
         <p className="manager-real-muted">
           Estes dados vieram do cadastro. A edição entra nas próximas etapas.
@@ -275,6 +285,39 @@ export function ClinicSettings({
         </div>
       </div>
     </div>
+  )
+}
+
+function TeamSummary({
+  professionals,
+}: {
+  professionals: { display_name: string; photo_url: string | null }[]
+}) {
+  return (
+    <Card className="manager-panel">
+      <Card.Header className="manager-panel-heading">
+        <Card.Title>Equipe</Card.Title>
+        <Chip size="sm" variant="soft">
+          {professionals.length}
+        </Chip>
+      </Card.Header>
+      <Card.Content>
+        {professionals.length ? (
+          <ul className="manager-settings-list">
+            {professionals.map((professional) => (
+              <li key={professional.display_name}>
+                {professional.photo_url ? (
+                  <Image src={professional.photo_url} alt="" width={40} height={40} />
+                ) : null}
+                {professional.display_name}
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="manager-real-muted">Nenhum cadastro ainda.</p>
+        )}
+      </Card.Content>
+    </Card>
   )
 }
 

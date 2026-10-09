@@ -23,6 +23,7 @@ export type CatalogItem = {
 const catalog = rawCatalog as CatalogItem[]
 
 export type Service = {
+  id: string
   category: string
   name: string
   description: string
@@ -37,13 +38,17 @@ export type Service = {
 }
 export type ProfessionalGender = 'female' | 'male'
 export type Professional = {
+  id: string
   name: string
   role: string
   gender: ProfessionalGender
   audience: Audience
   serviceNames: string[]
+  serviceIds: string[]
   serviceAudiences?: Partial<Record<string, Audience>>
   photoPreview?: string
+  photoAssetId?: string
+  photoUrl?: string
 }
 
 export const professionalAvatarSrc: Record<ProfessionalGender, string> = {
@@ -57,7 +62,7 @@ export type DaySchedule = {
   end: string
   breaks: { start: string; end: string }[]
 }
-export type ProfessionalSchedule = { name: string; days: DaySchedule[] }
+export type ProfessionalSchedule = { professionalId: string; name: string; days: DaySchedule[] }
 export type Payload = {
   name: string
   ownerName: string
@@ -74,10 +79,13 @@ export type Payload = {
     defaultAudience: Audience
     addressLine: string
     addressNumber: string
+    addressDistrict: string
     addressNote: string
     city: string
     state: string
     postalCode: string
+    logoAssetId?: string
+    logoUrl?: string
   }
   uiFocus?: 'address' | 'hours' | 'payments' | 'rules'
   occupations: string[]
@@ -105,7 +113,9 @@ const legacyServiceNames: Record<string, string> = {
   'Depilação a laser: virilha': 'Depilação a laser: virilha simples',
 }
 
-const sensitiveCatalogNames = new Set(catalog.filter((item) => item.sensivel).map((item) => item.nome))
+const sensitiveCatalogNames = new Set(
+  catalog.filter((item) => item.sensivel).map((item) => item.nome),
+)
 
 export function canonicalServiceName(name: string) {
   return legacyServiceNames[name] ?? name
@@ -128,7 +138,9 @@ export function serviceIsIntimate(service: { name: string; sensitive?: boolean }
 }
 
 export function applyClinicAudience(payload: Payload, next: Audience): Payload {
-  const previous = isAudience(payload.clinic.defaultAudience) ? payload.clinic.defaultAudience : 'all'
+  const previous = isAudience(payload.clinic.defaultAudience)
+    ? payload.clinic.defaultAudience
+    : 'all'
   if (previous === next) return { ...payload, clinic: { ...payload.clinic, defaultAudience: next } }
   return {
     ...payload,
@@ -153,6 +165,7 @@ export function applyClinicAudience(payload: Payload, next: Audience): Payload {
 
 export function serviceFromCatalog(item: CatalogItem, audience: Audience): Service {
   return {
+    id: crypto.randomUUID(),
     category: item.categoria,
     name: item.nome,
     description: item.descricao,
@@ -169,12 +182,14 @@ export function serviceFromCatalog(item: CatalogItem, audience: Audience): Servi
 
 export function intimateAudiencesFor(services: Service[]): Record<string, Audience> {
   return Object.fromEntries(
-    services.filter((service) => serviceIsIntimate(service) && service.name.trim()).map((service) => [service.name, service.audience]),
+    services
+      .filter((service) => serviceIsIntimate(service) && service.id)
+      .map((service) => [service.id, service.audience]),
   )
 }
 
 export function effectiveServiceAudience(person: Professional, service: Service): Audience {
-  const override = person.serviceAudiences?.[service.name]
+  const override = person.serviceAudiences?.[service.id]
   return isAudience(override) ? override : service.audience
 }
 
@@ -325,7 +340,9 @@ export function resumeStepIndex(stored: string, focus?: Payload['uiFocus']) {
   return index >= 0 ? index : stepInfo.findIndex((item) => item.key === 'clinic')
 }
 
-export function uiFocusForStepKey(key: (typeof stepInfo)[number]['key']): Payload['uiFocus'] | undefined {
+export function uiFocusForStepKey(
+  key: (typeof stepInfo)[number]['key'],
+): Payload['uiFocus'] | undefined {
   if (key === 'schedule') return 'address'
   if (key === 'hours') return 'hours'
   if (key === 'payments') return 'payments'

@@ -17,33 +17,17 @@ export function cloneWeekSchedule(source: Payload['businessHours']): Payload['bu
   }))
 }
 
-function professionalKey(name: string) {
-  return name.trim().toLocaleLowerCase('pt-BR')
-}
-
 export function syncProfessionalSchedules(payload: Payload): Payload {
-  const roster =
-    payload.professionals.length > 0
-      ? payload.professionals
-      : payload.teamMode === 'solo'
-        ? [
-            {
-              name: payload.ownerName.trim() || 'Você',
-              role: 'Proprietária / profissional',
-              audience: 'all' as const,
-              serviceNames: payload.services.map((service) => service.name).filter(Boolean),
-            },
-          ]
-        : []
+  const roster = payload.professionals
 
   const existing = new Map(
-    (payload.professionalSchedules ?? []).map((entry) => [professionalKey(entry.name), entry]),
+    (payload.professionalSchedules ?? []).map((entry) => [entry.professionalId, entry]),
   )
   const clinicTemplate = cloneWeekSchedule(payload.businessHours)
   const professionalSchedules: ProfessionalSchedule[] = roster.map((person) => {
-    const key = professionalKey(person.name)
-    const prior = existing.get(key)
+    const prior = existing.get(person.id)
     return {
+      professionalId: person.id,
       name: person.name.trim(),
       days: prior ? cloneWeekSchedule(prior.days) : cloneWeekSchedule(clinicTemplate),
     }

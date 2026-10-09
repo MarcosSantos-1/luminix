@@ -3,6 +3,7 @@ export async function staffApiGet(
   request: Request,
   path:
     | '/auth/clinics'
+    | `/address/postal-code/${string}`
     | `/clinics/${string}/context`
     | `/clinics/${string}/settings`
     | `/clinics/${string}/overview`
@@ -68,7 +69,9 @@ export async function staffApiWrite(
     | `/clinics/${string}/onboarding/complete`
     | `/clinics/${string}/clients`
     | `/clinics/${string}/appointments`
-    | `/clinics/${string}/availability`,
+    | `/clinics/${string}/availability`
+    | `/clinics/${string}/media`
+    | `/clinics/${string}/media/${string}/finalize`,
 ) {
   const headers = { 'Cache-Control': 'no-store' }
   const authorization = request.headers.get('authorization') ?? ''
@@ -102,6 +105,50 @@ export async function staffApiWrite(
       })
     }
     return Response.json(await response.json(), { headers })
+  } catch {
+    return Response.json({ error: 'API unavailable' }, { status: 503, headers })
+  }
+}
+
+export async function staffApiImageWrite(
+  request: Request,
+  path: `/clinics/${string}/media/${string}/${'small' | 'large'}`,
+) {
+  const headers = { 'Cache-Control': 'no-store' }
+  const authorization = request.headers.get('authorization') ?? ''
+  if (!/^Bearer [^\s,]{1,8192}$/i.test(authorization))
+    return Response.json({ error: 'Authentication required' }, { status: 401, headers })
+  if (request.headers.get('content-type') !== 'image/webp')
+    return Response.json({ error: 'Invalid image' }, { status: 400, headers })
+  try {
+    const base = process.env.API_URL ?? process.env.NEXT_PUBLIC_API_URL
+    if (!base) throw new Error('API unavailable')
+    const url = new URL(path, base)
+    if (
+      url.protocol !== 'https:' &&
+      !(process.env.NODE_ENV !== 'production' && url.hostname === 'localhost')
+    )
+      throw new Error('Invalid API URL')
+    const body = await request.arrayBuffer()
+    if (body.byteLength > 2_500_000)
+      return Response.json({ error: 'Payload too large' }, { status: 413, headers })
+    const response = await fetch(url, {
+      method: 'PUT',
+      headers: { authorization, 'Content-Type': 'image/webp' },
+      body,
+      cache: 'no-store',
+      redirect: 'error',
+      signal: AbortSignal.timeout(30_000),
+    })
+    const responseBody = await response.json().catch(() => ({ error: 'Request failed' }))
+    return Response.json(responseBody, {
+      status: response.ok
+        ? response.status
+        : [400, 401, 403, 409, 413, 429].includes(response.status)
+          ? response.status
+          : 503,
+      headers,
+    })
   } catch {
     return Response.json({ error: 'API unavailable' }, { status: 503, headers })
   }

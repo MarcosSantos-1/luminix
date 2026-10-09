@@ -8,6 +8,9 @@ let connection: SqlConnection
 let app: Awaited<ReturnType<typeof buildApp>>
 let clinicA: string
 let clinicB: string
+const serviceA = '11111111-1111-4111-8111-111111111111'
+const serviceB = '22222222-2222-4222-8222-222222222222'
+const professionalA = '33333333-3333-4333-8333-333333333333'
 const payload = {
   name: 'Clínica A final',
   ownerName: 'Ana Souza',
@@ -19,10 +22,12 @@ const payload = {
     instagram: '@clinicaa',
     facebook: '',
     website: '',
-    taxId: '',
+    taxId: '04.252.011/0001-10',
     taxIdKind: 'cnpj',
+    defaultAudience: 'all',
     addressLine: 'Rua A',
     addressNumber: '10',
+    addressDistrict: 'Sé',
     addressNote: 'Sala 2',
     city: 'São Paulo',
     state: 'SP',
@@ -31,8 +36,9 @@ const payload = {
   occupations: ['Estética facial'],
   services: [
     {
+      id: serviceA,
       category: 'Estética facial',
-      name: 'Limpeza de pele',
+      name: 'Limpeza facial premium',
       description: 'Limpeza completa',
       priceCents: 9000,
       durationMinutes: 60,
@@ -43,6 +49,7 @@ const payload = {
       cancellationHours: null,
     },
     {
+      id: serviceB,
       category: 'Depilação',
       name: 'Depilação com cera: íntima completa',
       description: 'Depilação íntima conforme cobertura definida pela clínica.',
@@ -59,12 +66,14 @@ const payload = {
   teamMode: 'solo',
   professionals: [
     {
-      name: 'Ana',
+      id: professionalA,
+      name: 'Ana Renomeada',
       role: 'Esteticista',
       gender: 'female',
       audience: 'all',
       serviceNames: ['Limpeza de pele', 'Depilação com cera: íntima completa'],
-      serviceAudiences: { 'Depilação com cera: íntima completa': 'men' },
+      serviceIds: [serviceA, serviceB],
+      serviceAudiences: { [serviceB]: 'men' },
     },
   ],
   businessHours: [1, 2, 3, 4, 5, 6, 0].map((weekday) => ({
@@ -76,6 +85,7 @@ const payload = {
   })),
   professionalSchedules: [
     {
+      professionalId: professionalA,
       name: 'Ana',
       days: [1, 2, 3, 4, 5, 6, 0].map((weekday) => ({
         weekday,
@@ -87,13 +97,13 @@ const payload = {
     },
   ],
   uiFocus: 'address',
-    preferences: {
-      cancellationHours: 12,
-      specialCancellationHours: 24,
-      acceptInApp: false,
-      packagePaymentMode: 'clinic_only',
-    },
-  }
+  preferences: {
+    cancellationHours: 12,
+    specialCancellationHours: 24,
+    acceptInApp: false,
+    packagePaymentMode: 'clinic_only',
+  },
+}
 beforeAll(async () => {
   db = new PGlite()
   connection = {
@@ -187,6 +197,22 @@ describe('versioned clinic onboarding', () => {
     expect(savedContact.statusCode).toBe(200)
     expect(savedContact.json().draft.payload.phone).toBe('+5511999990001')
     expect((await call('onboarding-b', 'GET', clinicA, 'onboarding')).statusCode).toBe(403)
+    const outsideClinicHours = {
+      ...payload,
+      professionalSchedules: payload.professionalSchedules.map((schedule) => ({
+        ...schedule,
+        days: schedule.days.map((day) => (day.weekday === 1 ? { ...day, start: '08:00' } : day)),
+      })),
+    }
+    expect(
+      (
+        await call('onboarding-a', 'PUT', clinicA, 'onboarding', {
+          version: 2,
+          step: 'review',
+          payload: outsideClinicHours,
+        })
+      ).statusCode,
+    ).toBe(400)
     const saved = await call('onboarding-a', 'PUT', clinicA, 'onboarding', {
       version: 2,
       step: 'review',
@@ -232,10 +258,39 @@ describe('versioned clinic onboarding', () => {
     expect(overview.services).toHaveLength(2)
     expect(overview.professionals).toHaveLength(1)
     await db.query("SELECT set_config('luminix.clinic_id', $1, false)", [clinicA])
+    const profile = (
+      await db.query(
+        'SELECT tax_id_kind, default_audience FROM luminix.clinic_profiles WHERE clinic_id = $1',
+        [clinicA],
+      )
+    ).rows
+    expect(profile).toEqual([{ tax_id_kind: 'cnpj', default_audience: 'all' }])
     expect(
-      (await db.query('SELECT * FROM luminix.clinic_profiles WHERE clinic_id = $1', [clinicA]))
-        .rows,
-    ).toHaveLength(1)
+      (
+        await db.query(
+          'SELECT address_number, district, address_note FROM luminix.locations WHERE clinic_id = $1',
+          [clinicA],
+        )
+      ).rows,
+    ).toEqual([{ address_number: '10', district: 'Sé', address_note: 'Sala 2' }])
+    expect(
+      (
+        await db.query(
+          'SELECT id, is_sensitive FROM luminix.services WHERE clinic_id = $1 ORDER BY id',
+          [clinicA],
+        )
+      ).rows,
+    ).toEqual([
+      { id: serviceA, is_sensitive: false },
+      { id: serviceB, is_sensitive: true },
+    ])
+    expect(
+      (
+        await db.query('SELECT id, display_name FROM luminix.professionals WHERE clinic_id = $1', [
+          clinicA,
+        ])
+      ).rows,
+    ).toEqual([{ id: professionalA, display_name: 'Ana Renomeada' }])
     expect(
       (await db.query('SELECT * FROM luminix.business_hours WHERE clinic_id = $1', [clinicA])).rows,
     ).toHaveLength(5)
@@ -245,8 +300,7 @@ describe('versioned clinic onboarding', () => {
         [clinicA],
       )
     ).rows[0]
-    const periods =
-      typeof monday.periods === 'string' ? JSON.parse(monday.periods) : monday.periods
+    const periods = typeof monday.periods === 'string' ? JSON.parse(monday.periods) : monday.periods
     expect(periods).toEqual([
       { start: '09:00', end: '13:00' },
       { start: '14:00', end: '18:00' },
@@ -275,7 +329,7 @@ describe('versioned clinic onboarding', () => {
     ).rows
     expect(links).toEqual([
       { name: 'Depilação com cera: íntima completa', audience: 'men' },
-      { name: 'Limpeza de pele', audience: null },
+      { name: 'Limpeza facial premium', audience: null },
     ])
     await db.query("SELECT set_config('luminix.clinic_id', '', false)")
     const other = (await call('onboarding-b', 'GET', clinicB, 'overview')).json()

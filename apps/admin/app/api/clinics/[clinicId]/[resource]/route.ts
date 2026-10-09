@@ -32,10 +32,7 @@ export async function PUT(
   { params }: { params: Promise<{ clinicId: string; resource: string }> },
 ) {
   const { clinicId, resource } = await params
-  if (
-    !isClinicRef(clinicId) ||
-    !['onboarding', 'availability'].includes(resource)
-  )
+  if (!isClinicRef(clinicId) || !['onboarding', 'availability'].includes(resource))
     return Response.json(
       { error: 'Not found' },
       { status: 404, headers: { 'Cache-Control': 'no-store' } },
@@ -53,10 +50,7 @@ export async function POST(
   { params }: { params: Promise<{ clinicId: string; resource: string }> },
 ) {
   const { clinicId, resource } = await params
-  if (
-    !isClinicRef(clinicId) ||
-    !['clients', 'appointments'].includes(resource)
-  )
+  if (!isClinicRef(clinicId) || !['clients', 'appointments'].includes(resource))
     return Response.json(
       { error: 'Not found' },
       { status: 404, headers: { 'Cache-Control': 'no-store' } },

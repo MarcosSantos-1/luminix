@@ -28,7 +28,8 @@ Decisões de base recentes: [ADR-003 — Bootstrap do workspace](decisions/ADR-0
 e [ADR-004 — Ambiente local e integrações](decisions/ADR-004-AMBIENTE-LOCAL-E-INTEGRACOES.md),
 [ADR-005 — Container e deploy da API](decisions/ADR-005-CONTAINER-E-DEPLOY-DA-API.md) e
 [ADR-006 — Deploy do admin na Vercel](decisions/ADR-006-DEPLOY-DO-ADMIN-NA-VERCEL.md) e
-[ADR-007 — Deploy web do cliente](decisions/ADR-007-DEPLOY-WEB-DO-CLIENTE-NA-VERCEL.md).
+[ADR-007 — Deploy web do cliente](decisions/ADR-007-DEPLOY-WEB-DO-CLIENTE-NA-VERCEL.md) e
+[ADR-014 — Onboarding v3 e mídia](decisions/ADR-014-ONBOARDING-V3-E-MIDIA.md).
 
 Agenda e clientes do gestor: [ADR-012](decisions/ADR-012-AGENDA-E-CLIENTES-DO-GESTOR.md).
 
