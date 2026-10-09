@@ -34,6 +34,7 @@ type OnboardingPayload = {
     addressNumber?: string
     addressNote?: string
     taxIdKind?: 'cpf' | 'cnpj'
+    defaultAudience?: 'all' | 'women' | 'men'
     city: string
     state: string
     postalCode: string
@@ -49,6 +50,7 @@ type OnboardingPayload = {
     priceType: 'fixed' | 'from' | 'quote'
     bookingMode: 'instant' | 'request' | 'manual_release'
     audience: 'all' | 'women' | 'men'
+    sensitive?: boolean
     resourceName: string
     cancellationHours: number | null
   }[]
@@ -59,6 +61,7 @@ type OnboardingPayload = {
     gender: 'female' | 'male'
     audience: 'all' | 'women' | 'men'
     serviceNames: string[]
+    serviceAudiences?: Record<string, 'all' | 'women' | 'men'>
   }[]
   businessHours: {
     weekday: number
@@ -114,8 +117,15 @@ function validPayload(payload: OnboardingPayload): boolean {
     payload.professionals.every(
       (professional) =>
         professional.name.trim() &&
-        (professional.gender === 'female' || professional.gender === 'male'),
+        (professional.gender === 'female' || professional.gender === 'male') &&
+        Object.values(professional.serviceAudiences ?? {}).every(
+          (audience) => audience === 'all' || audience === 'women' || audience === 'men',
+        ),
     ) &&
+    (!payload.clinic.defaultAudience ||
+      payload.clinic.defaultAudience === 'all' ||
+      payload.clinic.defaultAudience === 'women' ||
+      payload.clinic.defaultAudience === 'men') &&
     payload.services.every((service) => service.name.trim()) &&
     payload.businessHours.length === 7 &&
     unique(payload.businessHours.map((day) => String(day.weekday))) &&
@@ -197,6 +207,7 @@ function emptyPayload(clinicName: string): OnboardingPayload {
       website: '',
       taxId: '',
       taxIdKind: 'cnpj',
+      defaultAudience: 'all',
       addressLine: '',
       addressNumber: '',
       addressNote: '',
@@ -361,6 +372,7 @@ export async function clinicRoutes(
           addressNumber: { type: 'string', maxLength: 20 },
           addressNote: { type: 'string', maxLength: 240 },
           taxIdKind: { type: 'string', enum: ['cpf', 'cnpj'] },
+          defaultAudience: { type: 'string', enum: ['all', 'women', 'men'] },
           city: { type: 'string', maxLength: 120 },
           state: { type: 'string', maxLength: 2, pattern: '^$|^[A-Z]{2}$' },
           postalCode: { type: 'string', maxLength: 9, pattern: '^$|^[0-9-]{1,9}$' },
@@ -398,6 +410,7 @@ export async function clinicRoutes(
             priceType: { type: 'string', enum: ['fixed', 'from', 'quote'] },
             bookingMode: { type: 'string', enum: ['instant', 'request', 'manual_release'] },
             audience: { type: 'string', enum: ['all', 'women', 'men'] },
+            sensitive: { type: 'boolean' },
             resourceName: { type: 'string', maxLength: 160 },
             cancellationHours: {
               anyOf: [{ type: 'integer', minimum: 0, maximum: 168 }, { type: 'null' }],
@@ -422,6 +435,11 @@ export async function clinicRoutes(
               type: 'array',
               maxItems: 80,
               items: { type: 'string', minLength: 1, maxLength: 160 },
+            },
+            serviceAudiences: {
+              type: 'object',
+              maxProperties: 80,
+              additionalProperties: { type: 'string', enum: ['all', 'women', 'men'] },
             },
           },
         },

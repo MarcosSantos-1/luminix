@@ -119,6 +119,7 @@ describe('versioned core migration', () => {
       { name: '0007_full_onboarding.sql' },
       { name: '0008_onboarding_breaks.sql' },
       { name: '0009_onboarding_hours_payments_rules.sql' },
+      { name: '0010_professional_service_audience.sql' },
     ])
   })
 
@@ -199,12 +200,12 @@ describe('Clinic A × Clinic B foreign keys', () => {
     ],
     [
       'professional service',
-      'INSERT INTO luminix.professional_services VALUES ($1, $2, $3)',
+      'INSERT INTO luminix.professional_services (clinic_id, professional_id, service_id) VALUES ($1, $2, $3)',
       [ids.a, ids.professionalA, ids.serviceB],
     ],
     [
       'service professional',
-      'INSERT INTO luminix.professional_services VALUES ($1, $2, $3)',
+      'INSERT INTO luminix.professional_services (clinic_id, professional_id, service_id) VALUES ($1, $2, $3)',
       [ids.a, ids.professionalB, ids.serviceA],
     ],
     [
@@ -222,7 +223,7 @@ describe('Clinic A × Clinic B foreign keys', () => {
   })
 
   it('accepts same-clinic relationships', async () => {
-    await db.query('INSERT INTO luminix.professional_services VALUES ($1, $2, $3)', [
+    await db.query('INSERT INTO luminix.professional_services (clinic_id, professional_id, service_id) VALUES ($1, $2, $3)', [
       ids.a,
       ids.professionalA,
       ids.serviceA,

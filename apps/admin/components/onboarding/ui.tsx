@@ -112,6 +112,7 @@ export function ChoiceCard({
   title,
   detail,
   icon,
+  badge,
   selected,
   className,
   isDisabled,
@@ -120,6 +121,7 @@ export function ChoiceCard({
   title: string
   detail?: string
   icon: ReactNode
+  badge?: string
   selected?: boolean
   className?: string
   isDisabled?: boolean
@@ -138,7 +140,10 @@ export function ChoiceCard({
         {icon}
       </span>
       <span className="ob2-choice-copy">
-        <strong>{title}</strong>
+        <strong>
+          {title}
+          {badge ? <span className="ob2-intimate-badge">{badge}</span> : null}
+        </strong>
         {detail ? <small>{detail}</small> : null}
       </span>
     </Button>

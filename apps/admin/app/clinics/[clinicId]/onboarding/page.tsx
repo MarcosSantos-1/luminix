@@ -30,13 +30,19 @@ import { isCompletePhone } from '@/lib/phone'
 import { clearSignupPhone, peekSignupPhone } from '@/lib/signup-phone'
 import { untitledClinicName } from '@/lib/staff-destination'
 import {
+  canonicalServiceName,
+  catalogNameIsSensitive,
+  intimateAudiencesFor,
+  isAudience,
   persistedStepKey,
   resumeStepIndex,
   stepInfo,
   uiFocusForStepKey,
+  type Audience,
   type Draft,
   type Payload,
-  type ProfessionalGender,
+  type Professional,
+  type Service,
 } from '@/components/onboarding/model'
 import './onboarding.css'
 
@@ -54,6 +60,7 @@ function emptyPayload(name: string, email: string, ownerName: string): Payload {
       website: '',
       taxId: '',
       taxIdKind: 'cnpj',
+      defaultAudience: 'all',
       addressLine: '',
       addressNumber: '',
       addressNote: '',
@@ -76,22 +83,52 @@ function emptyPayload(name: string, email: string, ownerName: string): Payload {
   }
 }
 
+function normalizeService(service: Service): Service {
+  const name = canonicalServiceName(service.name)
+  return {
+    ...service,
+    name,
+    audience: isAudience(service.audience) ? service.audience : 'all',
+    sensitive: typeof service.sensitive === 'boolean' ? service.sensitive : catalogNameIsSensitive(name),
+  }
+}
+
+function normalizeProfessional(person: Professional): Professional {
+  const serviceNames = person.serviceNames.map((name) => canonicalServiceName(name))
+  const serviceAudiences = Object.fromEntries(
+    Object.entries(person.serviceAudiences ?? {})
+      .map(([name, audience]) => [canonicalServiceName(name), audience] as const)
+      .filter((entry): entry is [string, Audience] => isAudience(entry[1])),
+  )
+  return {
+    ...person,
+    gender: person.gender === 'male' ? 'male' : 'female',
+    audience: isAudience(person.audience) ? person.audience : 'all',
+    serviceNames,
+    serviceAudiences: Object.keys(serviceAudiences).length > 0 ? serviceAudiences : undefined,
+  }
+}
+
 function normalizePayload(value: Partial<Payload>, fallback: Payload): Payload {
+  const clinicAudience = value.clinic?.defaultAudience
   const merged = {
     ...fallback,
     ...value,
-    clinic: { ...fallback.clinic, ...(value.clinic ?? {}) },
+    clinic: {
+      ...fallback.clinic,
+      ...(value.clinic ?? {}),
+      defaultAudience: isAudience(clinicAudience) ? clinicAudience : 'all',
+    },
     preferences: { ...fallback.preferences, ...(value.preferences ?? {}) },
     businessHours:
       value.businessHours?.length === 7
         ? value.businessHours.map((day) => ({ ...day, breaks: day.breaks ?? [] }))
         : fallback.businessHours,
     professionalSchedules: value.professionalSchedules ?? fallback.professionalSchedules,
-    services: value.services ?? [],
-    professionals: (value.professionals ?? fallback.professionals).map((person) => ({
-      ...person,
-      gender: (person.gender === 'male' ? 'male' : 'female') as ProfessionalGender,
-    })),
+    services: (value.services ?? []).map((service) => normalizeService(service)),
+    professionals: (value.professionals ?? fallback.professionals).map((person) =>
+      normalizeProfessional(person),
+    ),
   }
   return syncProfessionalSchedules(enforcePaymentPreferences(merged))
 }
@@ -104,7 +141,9 @@ function payloadForApi(payload: Payload): Payload {
 }
 
 function teamPayload(payload: Payload, step: number): Payload {
-  if (step !== 4) return payload
+  const enteringTeam = step === 3 && payload.teamMode === 'solo'
+  if (step !== 4 && !enteringTeam) return payload
+  const serviceNames = payload.services.map((service) => service.name).filter((name) => name.trim())
   if (payload.teamMode === 'solo') {
     return syncProfessionalSchedules({
       ...payload,
@@ -113,22 +152,31 @@ function teamPayload(payload: Payload, step: number): Payload {
           name: payload.ownerName.trim() || 'Você',
           role: 'Proprietária / profissional',
           gender: 'female',
-          audience: 'all',
-          serviceNames: payload.services.map((service) => service.name).filter((name) => name.trim()),
+          audience: payload.clinic.defaultAudience,
+          serviceNames,
+          serviceAudiences: intimateAudiencesFor(payload.services),
         },
       ],
     })
   }
+  const selected = new Set(serviceNames)
   return syncProfessionalSchedules({
     ...payload,
     professionals: payload.professionals
       .filter((person) => person.name.trim() && person.role.trim())
-      .map((person) => ({
-        ...person,
-        name: person.name.trim(),
-        role: person.role.trim(),
-        serviceNames: person.serviceNames.filter((name) => name.trim()),
-      })),
+      .map((person) => {
+        const names = person.serviceNames.filter((name) => name.trim() && selected.has(name))
+        const serviceAudiences = Object.fromEntries(
+          Object.entries(person.serviceAudiences ?? {}).filter(([name]) => names.includes(name)),
+        )
+        return {
+          ...person,
+          name: person.name.trim(),
+          role: person.role.trim(),
+          serviceNames: names,
+          serviceAudiences: Object.keys(serviceAudiences).length > 0 ? serviceAudiences : undefined,
+        }
+      }),
   })
 }
 

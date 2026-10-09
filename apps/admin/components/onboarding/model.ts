@@ -9,9 +9,19 @@ import {
   Sparkles,
   Users,
 } from 'lucide-react'
-import catalog from '@/lib/service-catalog.json'
+import rawCatalog from '@/lib/service-catalog.json'
 
 export type Audience = 'all' | 'women' | 'men'
+export type CatalogItem = {
+  categoria: string
+  nome: string
+  descricao: string
+  duracao_minutos: number
+  preco_sugerido_brl: number
+  sensivel?: boolean
+}
+const catalog = rawCatalog as CatalogItem[]
+
 export type Service = {
   category: string
   name: string
@@ -21,6 +31,7 @@ export type Service = {
   priceType: 'fixed' | 'from' | 'quote'
   bookingMode: 'instant' | 'request' | 'manual_release'
   audience: Audience
+  sensitive: boolean
   resourceName: string
   cancellationHours: number | null
 }
@@ -31,6 +42,7 @@ export type Professional = {
   gender: ProfessionalGender
   audience: Audience
   serviceNames: string[]
+  serviceAudiences?: Partial<Record<string, Audience>>
   photoPreview?: string
 }
 
@@ -59,6 +71,7 @@ export type Payload = {
     website: string
     taxId: string
     taxIdKind?: 'cpf' | 'cnpj'
+    defaultAudience: Audience
     addressLine: string
     addressNumber: string
     addressNote: string
@@ -87,7 +100,79 @@ export type Draft = {
   status: string
   payload: Payload
 }
-export type CatalogItem = (typeof catalog)[number]
+const legacyServiceNames: Record<string, string> = {
+  'Depilação com cera: virilha': 'Depilação com cera: virilha simples',
+  'Depilação a laser: virilha': 'Depilação a laser: virilha simples',
+}
+
+const sensitiveCatalogNames = new Set(catalog.filter((item) => item.sensivel).map((item) => item.nome))
+
+export function canonicalServiceName(name: string) {
+  return legacyServiceNames[name] ?? name
+}
+
+export function isAudience(value: unknown): value is Audience {
+  return value === 'all' || value === 'women' || value === 'men'
+}
+
+export function catalogItemIsSensitive(item: { sensivel?: boolean }) {
+  return item.sensivel === true
+}
+
+export function catalogNameIsSensitive(name: string) {
+  return sensitiveCatalogNames.has(canonicalServiceName(name))
+}
+
+export function applyClinicAudience(payload: Payload, next: Audience): Payload {
+  const previous = isAudience(payload.clinic.defaultAudience) ? payload.clinic.defaultAudience : 'all'
+  if (previous === next) return { ...payload, clinic: { ...payload.clinic, defaultAudience: next } }
+  return {
+    ...payload,
+    clinic: { ...payload.clinic, defaultAudience: next },
+    services: payload.services.map((service) =>
+      service.audience === previous ? { ...service, audience: next } : service,
+    ),
+    professionals: payload.professionals.map((person) => ({
+      ...person,
+      audience: person.audience === previous ? next : person.audience,
+      serviceAudiences: person.serviceAudiences
+        ? Object.fromEntries(
+            Object.entries(person.serviceAudiences).map(([name, audience]) => [
+              name,
+              audience === previous ? next : audience,
+            ]),
+          )
+        : person.serviceAudiences,
+    })),
+  }
+}
+
+export function serviceFromCatalog(item: CatalogItem, audience: Audience): Service {
+  return {
+    category: item.categoria,
+    name: item.nome,
+    description: item.descricao,
+    durationMinutes: item.duracao_minutos,
+    priceCents: Math.round(item.preco_sugerido_brl * 100),
+    priceType: item.preco_sugerido_brl ? 'fixed' : 'quote',
+    bookingMode: 'instant',
+    audience,
+    sensitive: catalogItemIsSensitive(item),
+    resourceName: '',
+    cancellationHours: null,
+  }
+}
+
+export function intimateAudiencesFor(services: Service[]): Record<string, Audience> {
+  return Object.fromEntries(
+    services.filter((service) => service.sensitive && service.name.trim()).map((service) => [service.name, service.audience]),
+  )
+}
+
+export function effectiveServiceAudience(person: Professional, service: Service): Audience {
+  const override = person.serviceAudiences?.[service.name]
+  return isAudience(override) ? override : service.audience
+}
 
 export const stepInfo = [
   {

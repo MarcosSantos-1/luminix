@@ -42,6 +42,19 @@ const payload = {
       resourceName: '',
       cancellationHours: null,
     },
+    {
+      category: 'Depilação',
+      name: 'Depilação com cera: íntima completa',
+      description: 'Depilação íntima conforme cobertura definida pela clínica.',
+      priceCents: 8500,
+      durationMinutes: 60,
+      priceType: 'fixed',
+      bookingMode: 'instant',
+      audience: 'women',
+      sensitive: true,
+      resourceName: '',
+      cancellationHours: null,
+    },
   ],
   teamMode: 'solo',
   professionals: [
@@ -50,7 +63,8 @@ const payload = {
       role: 'Esteticista',
       gender: 'female',
       audience: 'all',
-      serviceNames: ['Limpeza de pele'],
+      serviceNames: ['Limpeza de pele', 'Depilação com cera: íntima completa'],
+      serviceAudiences: { 'Depilação com cera: íntima completa': 'men' },
     },
   ],
   businessHours: [1, 2, 3, 4, 5, 6, 0].map((weekday) => ({
@@ -215,7 +229,7 @@ describe('versioned clinic onboarding', () => {
     expect(replay.json().replayed).toBe(true)
     const overview = (await call('onboarding-a', 'GET', clinicA, 'overview')).json()
     expect(overview.occupations).toHaveLength(1)
-    expect(overview.services).toHaveLength(1)
+    expect(overview.services).toHaveLength(2)
     expect(overview.professionals).toHaveLength(1)
     await db.query("SELECT set_config('luminix.clinic_id', $1, false)", [clinicA])
     expect(
@@ -226,7 +240,7 @@ describe('versioned clinic onboarding', () => {
       (await db.query('SELECT * FROM luminix.business_hours WHERE clinic_id = $1', [clinicA])).rows,
     ).toHaveLength(5)
     const monday = (
-      await db.query(
+      await db.query<{ periods: string | { start: string; end: string }[] }>(
         'SELECT periods FROM luminix.weekly_availability WHERE clinic_id = $1 AND weekday = 1',
         [clinicA],
       )
@@ -249,6 +263,20 @@ describe('versioned clinic onboarding', () => {
         )
       ).rows,
     ).toHaveLength(7)
+    const links = (
+      await db.query(
+        `SELECT s.name, ps.audience
+         FROM luminix.professional_services ps
+         JOIN luminix.services s ON s.clinic_id = ps.clinic_id AND s.id = ps.service_id
+         WHERE ps.clinic_id = $1
+         ORDER BY s.name`,
+        [clinicA],
+      )
+    ).rows
+    expect(links).toEqual([
+      { name: 'Depilação com cera: íntima completa', audience: 'men' },
+      { name: 'Limpeza de pele', audience: null },
+    ])
     await db.query("SELECT set_config('luminix.clinic_id', '', false)")
     const other = (await call('onboarding-b', 'GET', clinicB, 'overview')).json()
     expect(other.services).toHaveLength(0)

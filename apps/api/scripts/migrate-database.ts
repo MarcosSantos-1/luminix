@@ -118,7 +118,7 @@ try {
         if (failedCode !== expectedCode) throw new Error('Database invariant verification failed')
       }
       await expectFailure(
-        'INSERT INTO luminix.professional_services VALUES ($1, $2, $3)',
+        'INSERT INTO luminix.professional_services (clinic_id, professional_id, service_id) VALUES ($1, $2, $3)',
         [a, professionalA, serviceB],
         '23503',
       )

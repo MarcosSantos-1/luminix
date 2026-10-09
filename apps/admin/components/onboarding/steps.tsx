@@ -19,6 +19,7 @@ import {
   Plus,
   Scissors,
   Search,
+  Shield,
   Trash2,
   Upload,
   UserRound,
@@ -31,12 +32,17 @@ import { useRef, useState, type DragEvent, type ReactNode } from 'react'
 import { syncProfessionalSchedules } from './schedule-sync'
 import { formatBrPhone } from '@/lib/phone'
 import {
+  applyClinicAudience,
+  catalogItemIsSensitive,
   categories,
   categoryArtSrc,
   dayNames,
   durationChoices,
+  effectiveServiceAudience,
   formatMoney,
+  intimateAudiencesFor,
   professionalAvatarSrc,
+  serviceFromCatalog,
   servicesInCategory,
   type Audience,
   type DaySchedule,
@@ -64,19 +70,25 @@ const priceOptions = [
 
 const audienceChoices = [
   { id: 'all', label: 'Todos', icon: Users, tone: 'all' },
-  { id: 'women', label: 'Somente mulheres', icon: Venus, tone: 'women' },
-  { id: 'men', label: 'Somente homens', icon: Mars, tone: 'men' },
+  { id: 'women', label: 'Feminino', icon: Venus, tone: 'women' },
+  { id: 'men', label: 'Masculino', icon: Mars, tone: 'men' },
 ] as const
+
+function audienceLabel(value: Audience) {
+  return audienceChoices.find((option) => option.id === value)?.label ?? 'Todos'
+}
 
 function AudienceChoices({
   value,
   onChange,
+  layout = 'stack',
 }: {
   value: Audience
   onChange: (value: Audience) => void
+  layout?: 'stack' | 'inline'
 }) {
   return (
-    <div className="ob2-audience">
+    <div className={layout === 'inline' ? 'ob2-audience is-inline' : 'ob2-audience'}>
       {audienceChoices.map((option) => {
         const Icon = option.icon
         return (
@@ -249,6 +261,14 @@ export function ClinicStep({
               />
             </div>
             <ClinicLogoDropzone />
+          </div>
+          <div className="ob2-clinic-audience">
+            <p className="ob2-dialog-section">Público padrão</p>
+            <AudienceChoices
+              layout="inline"
+              value={payload.clinic.defaultAudience || 'all'}
+              onChange={(audience) => setPayload(applyClinicAudience(payload, audience))}
+            />
           </div>
           <div className="ob2-clinic-more">
             <QuietButton onPress={details.open}>
@@ -508,7 +528,7 @@ export function CatalogStep({
   const [customName, setCustomName] = useState('')
   const selectedNames = new Set(payload.services.map((service) => service.name))
 
-  function toggle(item: { categoria: string; nome: string; descricao: string; duracao_minutos: number; preco_sugerido_brl: number }) {
+  function toggle(item: Parameters<typeof serviceFromCatalog>[0]) {
     if (selectedNames.has(item.nome)) {
       const services = payload.services.filter((service) => service.name !== item.nome)
       setPayload({
@@ -523,21 +543,7 @@ export function CatalogStep({
     setPayload({
       ...payload,
       occupations: [...new Set([...payload.occupations, item.categoria])],
-      services: [
-        ...payload.services,
-        {
-          category: item.categoria,
-          name: item.nome,
-          description: item.descricao,
-          durationMinutes: item.duracao_minutos,
-          priceCents: Math.round(item.preco_sugerido_brl * 100),
-          priceType: item.preco_sugerido_brl ? 'fixed' : 'quote',
-          bookingMode: 'instant',
-          audience: 'all',
-          resourceName: '',
-          cancellationHours: null,
-        },
-      ],
+      services: [...payload.services, serviceFromCatalog(item, payload.clinic.defaultAudience)],
     })
   }
 
@@ -562,7 +568,8 @@ export function CatalogStep({
           priceCents: 0,
           priceType: 'quote',
           bookingMode: 'instant',
-          audience: 'all',
+          audience: payload.clinic.defaultAudience,
+          sensitive: false,
           resourceName: '',
           cancellationHours: null,
         },
@@ -592,6 +599,7 @@ export function CatalogStep({
                       selected={selected}
                       icon={selected ? <Check size={18} /> : <Plus size={18} />}
                       title={item.nome}
+                      badge={catalogItemIsSensitive(item) ? 'Íntimo' : undefined}
                       detail={`${item.duracao_minutos} min · sugestão ${formatMoney(Math.round(item.preco_sugerido_brl * 100))}`}
                       onPress={() => toggle(item)}
                     />
@@ -733,15 +741,23 @@ export function ServicesStep({
     .map((item, position) => ({ item, position }))
     .filter(({ item }) => item.name.toLowerCase().includes(query.trim().toLowerCase()))
 
-  function update(patch: Partial<Service>) {
-    if (index == null) return
+  function updateAt(position: number, patch: Partial<Service>) {
     setPayload({
       ...payload,
-      services: payload.services.map((item, position) =>
-        position === index ? { ...item, ...patch } : item,
+      services: payload.services.map((item, current) =>
+        current === position ? { ...item, ...patch } : item,
       ),
     })
   }
+
+  function update(patch: Partial<Service>) {
+    if (index == null) return
+    updateAt(index, patch)
+  }
+
+  const sensitiveServices = payload.services
+    .map((item, position) => ({ item, position }))
+    .filter(({ item }) => item.sensitive)
 
   function open(position: number) {
     setPayload({
@@ -768,6 +784,29 @@ export function ServicesStep({
 
   return (
     <div className="ob2-stack">
+      {sensitiveServices.length > 0 ? (
+        <div className="ob2-intimate-list">
+          {sensitiveServices.map(({ item, position }) => (
+            <Card className="ob2-panel ob2-intimate-card" key={`${item.name}-${position}`}>
+              <Card.Content className="ob2-intimate-body">
+                <div className="ob2-intimate-head">
+                  <span className="ob2-intimate-icon" aria-hidden>
+                    <Shield size={18} />
+                  </span>
+                  <div>
+                    <strong>{item.name}</strong>
+                    <p>Qual é o público padrão deste serviço?</p>
+                  </div>
+                </div>
+                <AudienceChoices
+                  value={item.audience}
+                  onChange={(audience) => updateAt(position, { audience })}
+                />
+              </Card.Content>
+            </Card>
+          ))}
+        </div>
+      ) : null}
       <GlassField
         label="Buscar serviço"
         icon={<Search size={18} />}
@@ -871,13 +910,13 @@ export function ServicesStep({
 
 type ProfessionalDraft = Professional
 
-function emptyProfessionalDraft(services: Service[]): ProfessionalDraft {
+function emptyProfessionalDraft(payload: Payload): ProfessionalDraft {
   return {
     name: '',
     role: '',
     gender: 'female',
-    audience: 'all',
-    serviceNames: services.map((service) => service.name).filter((name) => name.trim()),
+    audience: payload.clinic.defaultAudience,
+    serviceNames: payload.services.map((service) => service.name).filter((name) => name.trim()),
   }
 }
 
@@ -894,7 +933,7 @@ export function TeamStep({
 }) {
   const [dialogOpen, setDialogOpen] = useState(false)
   const [index, setIndex] = useState<number | null>(null)
-  const [draft, setDraft] = useState<ProfessionalDraft>(() => emptyProfessionalDraft(payload.services))
+  const [draft, setDraft] = useState<ProfessionalDraft>(() => emptyProfessionalDraft(payload))
   const [formErrors, setFormErrors] = useState<{ name?: string; role?: string; gender?: string }>({})
 
   function setMode(mode: 'solo' | 'team') {
@@ -908,8 +947,9 @@ export function TeamStep({
                 name: payload.ownerName.trim() || 'Você',
                 role: 'Proprietária / profissional',
                 gender: 'female',
-                audience: 'all',
+                audience: payload.clinic.defaultAudience,
                 serviceNames: payload.services.map((service) => service.name).filter((name) => name.trim()),
+                serviceAudiences: intimateAudiencesFor(payload.services),
               },
             ]
           : [],
@@ -918,7 +958,7 @@ export function TeamStep({
 
   function openEditor(position: number | null) {
     if (position == null) {
-      setDraft(emptyProfessionalDraft(payload.services))
+      setDraft(emptyProfessionalDraft(payload))
     } else {
       setDraft({ ...payload.professionals[position] })
     }
@@ -969,6 +1009,14 @@ export function TeamStep({
     setIndex(null)
   }
 
+  const assignedIntimate = payload.services.filter(
+    (service) => service.sensitive && draft.serviceNames.includes(service.name),
+  )
+
+  function setIntimateAudience(serviceName: string, audience: Audience) {
+    patchDraft({ serviceAudiences: { ...draft.serviceAudiences, [serviceName]: audience } })
+  }
+
   return (
     <div className="ob2-stack">
       <div className="ob2-grid">
@@ -995,6 +1043,9 @@ export function TeamStep({
               {payload.services.length === 1
                 ? 'O serviço escolhido fica vinculado a você.'
                 : `Os ${payload.services.length} serviços escolhidos ficam vinculados a você.`}{' '}
+              {payload.services.some((service) => service.sensitive)
+                ? 'Nos serviços íntimos, vale o público definido nos detalhes. '
+                : ''}
               Convites de recepção continuam para o painel.
             </p>
           </Card.Content>
@@ -1132,36 +1183,112 @@ export function TeamStep({
         <Separator />
         <p className="ob2-dialog-section">Serviços</p>
         <p className="ob2-dialog-hint">Marque o que esta pessoa realiza na clínica.</p>
-        {groupServicesByCategory(payload.services).map((group) => (
-          <div className="ob2-service-group" key={group.category}>
-            <p className="ob2-service-group-title">{group.category}</p>
-            <div className="ob2-checks">
+        {assignedIntimate.length > 0 ? (
+          <div className="ob2-intimate-list">
+            {assignedIntimate.map((service) => (
+              <Card className="ob2-panel ob2-intimate-card" key={service.name}>
+                <Card.Content className="ob2-intimate-body">
+                  <div className="ob2-intimate-head">
+                    <span className="ob2-intimate-icon" aria-hidden>
+                      <Shield size={18} />
+                    </span>
+                    <div>
+                      <strong>{service.name}</strong>
+                      <p>Qual público esta pessoa atende neste serviço?</p>
+                    </div>
+                  </div>
+                  <AudienceChoices
+                    value={effectiveServiceAudience(draft, service)}
+                    onChange={(audience) => setIntimateAudience(service.name, audience)}
+                  />
+                </Card.Content>
+              </Card>
+            ))}
+          </div>
+        ) : null}
+        {groupServicesByCategory(payload.services).map((group) => {
+          const categoryNames = group.services.map((service) => service.name)
+          const selectedInCategory = categoryNames.filter((name) => draft.serviceNames.includes(name))
+          const allInCategorySelected =
+            categoryNames.length > 0 && selectedInCategory.length === categoryNames.length
+
+          return (
+          <div className="ob2-service-group ob2-service-group-card" key={group.category}>
+            <div className="ob2-service-group-head">
+              <Checkbox
+                className="ob2-service-group-toggle"
+                isSelected={allInCategorySelected}
+                onChange={(isSelected) => {
+                  const namesInCategory = new Set(categoryNames)
+                  patchDraft({
+                    serviceNames: isSelected
+                      ? [...new Set([...draft.serviceNames, ...categoryNames])]
+                      : draft.serviceNames.filter((name) => !namesInCategory.has(name)),
+                  })
+                }}
+              >
+                <Checkbox.Content>
+                  <Checkbox.Control>
+                    <Checkbox.Indicator />
+                  </Checkbox.Control>
+                  <Label className="ob2-service-group-title">{group.category}</Label>
+                </Checkbox.Content>
+              </Checkbox>
+              <span className="ob2-service-group-meta">
+                {allInCategorySelected
+                  ? 'Todos'
+                  : selectedInCategory.length > 0
+                    ? `${selectedInCategory.length}/${categoryNames.length}`
+                    : 'Marcar todos'}
+              </span>
+            </div>
+            <div className="ob2-checks ob2-service-group-items">
               {group.services.map((service) => {
                 const selected = draft.serviceNames.includes(service.name)
+                const audience = effectiveServiceAudience(draft, service)
                 return (
-                  <Checkbox
+                  <div
+                    className={service.sensitive ? 'ob2-service-line is-intimate' : 'ob2-service-line'}
                     key={service.name}
-                    isSelected={selected}
-                    onChange={(isSelected) =>
-                      patchDraft({
-                        serviceNames: isSelected
-                          ? [...draft.serviceNames, service.name]
-                          : draft.serviceNames.filter((name) => name !== service.name),
-                      })
-                    }
                   >
-                    <Checkbox.Content>
-                      <Checkbox.Control>
-                        <Checkbox.Indicator />
-                      </Checkbox.Control>
-                      <Label>{service.name}</Label>
-                    </Checkbox.Content>
-                  </Checkbox>
+                    <Checkbox
+                      isSelected={selected}
+                      onChange={(isSelected) =>
+                        patchDraft({
+                          serviceNames: isSelected
+                            ? [...draft.serviceNames, service.name]
+                            : draft.serviceNames.filter((name) => name !== service.name),
+                        })
+                      }
+                    >
+                      <Checkbox.Content>
+                        <Checkbox.Control>
+                          <Checkbox.Indicator />
+                        </Checkbox.Control>
+                        <Label>
+                          {service.name}
+                          {service.sensitive ? (
+                            <span className="ob2-intimate-badge">
+                              {selected ? audienceLabel(audience) : 'Íntimo'}
+                            </span>
+                          ) : null}
+                        </Label>
+                      </Checkbox.Content>
+                    </Checkbox>
+                    {service.sensitive && selected ? (
+                      <AudienceChoices
+                        layout="inline"
+                        value={audience}
+                        onChange={(next) => setIntimateAudience(service.name, next)}
+                      />
+                    ) : null}
+                  </div>
                 )
               })}
             </div>
           </div>
-        ))}
+          )
+        })}
       </BlurDialog>
     </div>
   )
