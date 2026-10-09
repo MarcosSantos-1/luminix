@@ -6,19 +6,22 @@ import { stepInfo } from './model'
 
 export function OnboardingShell({
   step,
+  availableThrough,
   busy,
   onBack,
   onSelectStep,
   children,
 }: {
   step: number
+  availableThrough: number
   busy: boolean
   onBack: () => void
   onSelectStep: (index: number) => void
   children: ReactNode
 }) {
   const current = stepInfo[step]
-  const progress = Math.round(((step + 1) / stepInfo.length) * 100)
+  const progress = Math.round(((availableThrough + 1) / stepInfo.length) * 100)
+  const minimumStep = availableThrough > 0 ? 1 : 0
   return (
     <main className="ob2" data-surface="glass">
       <div className="ob2-top">
@@ -36,7 +39,7 @@ export function OnboardingShell({
               isIconOnly
               variant="ghost"
               aria-label="Voltar"
-              isDisabled={step === 0 || busy}
+              isDisabled={step <= minimumStep || busy}
               onPress={onBack}
             >
               <ArrowLeft />
@@ -52,7 +55,7 @@ export function OnboardingShell({
             isIconOnly
             variant="ghost"
             aria-label="Voltar"
-            isDisabled={step === 0 || busy}
+            isDisabled={step <= minimumStep || busy}
             onPress={onBack}
           >
             <ArrowLeft />
@@ -82,13 +85,28 @@ export function OnboardingShell({
                       {stepInfo.map((item, index) => (
                         <li
                           key={item.key}
-                          className={index === step ? 'current' : index < step ? 'done' : ''}
+                          className={
+                            index === step ? 'current' : index <= availableThrough ? 'done' : ''
+                          }
                         >
-                          <span>{index < step ? <Check size={16} /> : index + 1}</span>
-                          <div>
-                            <strong>{item.label}</strong>
-                            <small>{item.title}</small>
-                          </div>
+                          <Button
+                            className="ob2-drawer-step"
+                            variant="ghost"
+                            isDisabled={busy || index < minimumStep || index > availableThrough}
+                            onPress={() => onSelectStep(index)}
+                          >
+                            <span>
+                              {index !== step && index <= availableThrough ? (
+                                <Check size={16} />
+                              ) : (
+                                index + 1
+                              )}
+                            </span>
+                            <div>
+                              <strong>{item.label}</strong>
+                              <small>{item.title}</small>
+                            </div>
+                          </Button>
                         </li>
                       ))}
                     </ol>
@@ -119,17 +137,17 @@ export function OnboardingShell({
                   className={
                     index === step
                       ? 'ob2-rail-item is-current'
-                      : index < step
+                      : index <= availableThrough
                         ? 'ob2-rail-item is-done'
                         : 'ob2-rail-item'
                   }
                   variant="ghost"
-                  isDisabled={busy || index > step}
-                  onPress={() => {
-                    if (index < step) onSelectStep(index)
-                  }}
+                  isDisabled={busy || index < minimumStep || index > availableThrough}
+                  onPress={() => onSelectStep(index)}
                 >
-                  <span>{index < step ? <Check size={15} /> : index + 1}</span>
+                  <span>
+                    {index !== step && index <= availableThrough ? <Check size={15} /> : index + 1}
+                  </span>
                   {item.label}
                 </Button>
               </li>

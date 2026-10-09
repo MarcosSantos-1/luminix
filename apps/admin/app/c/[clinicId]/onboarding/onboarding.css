@@ -838,6 +838,18 @@
   font-weight: 650;
 }
 
+.ob2-fact-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.ob2-fact-heading .button.ob2-quiet {
+  min-height: 34px;
+  padding-inline: 10px;
+}
+
 .ob2-detail-grid {
   display: grid;
   grid-template-columns: 1fr;
@@ -913,13 +925,13 @@
 .ob2-pro-card {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 16px;
   width: 100%;
-  min-height: 72px;
-  padding: 10px 14px;
+  min-height: 96px;
+  padding: 16px 18px;
   text-align: left;
   border: 1px solid rgba(255, 255, 255, 0.28);
-  border-radius: 18px;
+  border-radius: 22px;
   background: rgba(255, 255, 255, 0.1);
   color: #fff;
   --button-bg: rgba(255, 255, 255, 0.1);
@@ -932,10 +944,16 @@
 }
 
 .ob2-pro-card-avatar {
-  width: 48px;
-  height: 48px;
+  width: 72px;
+  height: 72px;
   flex: 0 0 auto;
-  object-fit: contain;
+  object-fit: cover;
+  border-radius: 999px;
+  border: 3px solid rgba(255, 141, 183, 0.55);
+  background: #4a1530;
+  box-shadow:
+    0 10px 24px rgba(0, 0, 0, 0.28),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.08);
 }
 
 .ob2-pro-card-copy {
@@ -945,14 +963,14 @@
 }
 
 .ob2-pro-card-copy strong {
-  font-size: 15px;
+  font-size: 18px;
   font-weight: 700;
   line-height: 1.25;
 }
 
 .ob2-pro-card-copy small {
-  font-size: 13px;
-  line-height: 1.3;
+  font-size: 14px;
+  line-height: 1.35;
   color: rgba(255, 255, 255, 0.78);
 }
 
@@ -1459,14 +1477,22 @@
 
 .ob2-address-line {
   display: grid;
-  grid-template-columns: minmax(0, 4fr) minmax(72px, 1fr);
+  grid-template-columns: minmax(0, 1fr) minmax(96px, 140px);
   gap: 10px;
+  align-items: end;
 }
 
 .ob2-city-state {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 96px;
+  grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr) minmax(56px, 72px);
   gap: 10px;
+  align-items: end;
+}
+
+.ob2-address-state .input-group__input {
+  text-align: center;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
 }
 
 .ob2 .button.ob2-address-summary {
@@ -1513,6 +1539,81 @@
 
 .ob2-audience.is-inline {
   grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.ob2-audience.is-compact {
+  gap: 8px;
+}
+
+.ob2-audience.is-compact .checkbox__content {
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 10px 8px;
+  min-height: 88px;
+  text-align: center;
+}
+
+.ob2-audience.is-compact .label {
+  font-size: 12px;
+  font-weight: 650;
+  line-height: 1.2;
+}
+
+.ob2-audience.is-compact .ob2-audience-icon {
+  width: 28px;
+  height: 28px;
+  border-radius: 9px;
+}
+
+.ob2-services-step {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  min-height: 0;
+}
+
+.ob2-services-step-body {
+  padding-bottom: calc(76px + env(safe-area-inset-bottom, 0px));
+}
+
+.ob2-float-continue {
+  position: fixed;
+  left: max(16px, env(safe-area-inset-left, 0px));
+  right: max(16px, env(safe-area-inset-right, 0px));
+  bottom: calc(12px + env(safe-area-inset-bottom, 0px));
+  z-index: 32;
+  padding: 10px 12px;
+  border-radius: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  background: linear-gradient(
+    180deg,
+    rgba(74, 21, 48, 0.82) 0%,
+    rgba(48, 10, 28, 0.92) 100%
+  );
+  backdrop-filter: blur(18px) saturate(140%);
+  box-shadow: 0 16px 40px rgba(39, 1, 19, 0.42);
+  transition:
+    opacity 0.2s ease,
+    transform 0.2s ease,
+    visibility 0.2s;
+}
+
+.ob2-float-continue.is-hidden {
+  visibility: hidden;
+  pointer-events: none;
+  opacity: 0;
+  transform: translateY(12px);
+}
+
+@media (min-width: 1080px) {
+  .ob2-float-continue {
+    left: calc(50% + 120px);
+    right: max(48px, env(safe-area-inset-right, 0px));
+    max-width: 720px;
+  }
 }
 
 .ob2-clinic-audience {
@@ -1744,7 +1845,7 @@
   color: rgba(255, 255, 255, 0.72);
 }
 
-.ob2-step-list li > span {
+.ob2 .button.ob2-drawer-step > span {
   width: 32px;
   height: 32px;
   display: grid;
@@ -1759,11 +1860,24 @@
   color: #fff;
 }
 
-.ob2-step-list li.current > span,
-.ob2-step-list li.done > span {
+.ob2-step-list li.current .button.ob2-drawer-step > span,
+.ob2-step-list li.done .button.ob2-drawer-step > span {
   border-color: transparent;
   background: linear-gradient(135deg, #ff2d79, #ff91ba);
   color: #fff;
+}
+
+.ob2 .button.ob2-drawer-step {
+  width: 100%;
+  height: auto;
+  min-height: 48px;
+  justify-content: flex-start;
+  gap: 12px;
+  padding: 6px;
+  text-align: left;
+  --button-bg: transparent;
+  --button-bg-hover: rgba(255, 45, 121, 0.08);
+  --button-fg: inherit;
 }
 
 .ob2-step-list strong,
@@ -2005,6 +2119,30 @@
   font-size: 15px;
 }
 
+.ob2-contact-fields {
+  display: grid;
+  gap: 14px;
+  border-top: 1px solid rgba(255, 255, 255, 0.18);
+  padding-top: 18px;
+}
+
+.ob2-contact-heading {
+  display: grid;
+  gap: 4px;
+}
+
+.ob2-contact-heading small {
+  color: rgba(255, 255, 255, 0.72);
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.ob2-contact-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  gap: 14px;
+}
+
 .ob2-logo-drop {
   position: relative;
   display: flex;
@@ -2088,8 +2226,8 @@
 }
 
 .ob2-logo-preview {
-  width: min(100%, 160px);
-  height: 120px;
+  width: min(100%, 200px);
+  height: 150px;
   object-fit: contain;
   border-radius: 14px;
   background: rgba(255, 255, 255, 0.12);

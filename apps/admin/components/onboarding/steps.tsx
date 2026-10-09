@@ -24,10 +24,12 @@ import {
   ImagePlus,
   Info,
   ListChecks,
+  Mail,
   MapPin,
   Mars,
   MoreHorizontal,
   Plus,
+  Phone,
   Scissors,
   Search,
   Shield,
@@ -42,7 +44,7 @@ import Image from 'next/image'
 import Link from 'next/link'
 import { useRef, useState, type DragEvent, type ReactNode } from 'react'
 import { syncProfessionalSchedules } from './schedule-sync'
-import { formatBrPhone } from '@/lib/phone'
+import { formatBrPhone, toE164Phone } from '@/lib/phone'
 import { useStaff } from '@/components/staff-provider'
 import { useClinic } from '@/components/clinic-workspace'
 import { uploadClinicMedia } from '@/lib/media-upload'
@@ -57,6 +59,7 @@ import {
   effectiveServiceAudience,
   formatMoney,
   intimateAudiencesFor,
+  isAudience,
   professionalAvatarSrc,
   serviceFromCatalog,
   servicesInCategory,
@@ -121,6 +124,7 @@ function IntimateAudienceCards({
               </div>
             </div>
             <AudienceChoices
+              layout="compact"
               value={audienceFor(service)}
               onChange={(audience) => onChange(service, audience)}
             />
@@ -131,24 +135,34 @@ function IntimateAudienceCards({
   )
 }
 
+function clinicServesSingleGender(audience: Audience | undefined) {
+  return audience === 'women' || audience === 'men'
+}
+
 function AudienceChoices({
   value,
   onChange,
   layout = 'stack',
 }: {
-  value: Audience
+  value?: Audience
   onChange: (value: Audience) => void
-  layout?: 'stack' | 'inline'
+  layout?: 'stack' | 'inline' | 'compact'
 }) {
+  const layoutClass =
+    layout === 'compact'
+      ? 'ob2-audience is-inline is-compact'
+      : layout === 'inline'
+        ? 'ob2-audience is-inline'
+        : 'ob2-audience'
   return (
-    <div className={layout === 'inline' ? 'ob2-audience is-inline' : 'ob2-audience'}>
+    <div className={layoutClass}>
       {audienceChoices.map((option) => {
         const Icon = option.icon
         return (
           <Checkbox
             key={option.id}
             className={`ob2-audience-option is-${option.tone}`}
-            isSelected={value === option.id}
+            isSelected={value != null && value === option.id}
             onChange={() => onChange(option.id)}
           >
             <Checkbox.Content>
@@ -247,6 +261,10 @@ export function ClinicStep({
   const details = useOverlayState()
   const change = (key: keyof Payload['clinic'], value: string) =>
     setPayload({ ...payload, clinic: { ...payload.clinic, [key]: value } })
+  const changePhone = (value: string) => {
+    const normalized = toE164Phone(value)
+    setPayload({ ...payload, phone: normalized || formatBrPhone(value) })
+  }
   const kind = payload.clinic.taxIdKind === 'cpf' ? 'cpf' : 'cnpj'
   return (
     <>
@@ -305,7 +323,7 @@ export function ClinicStep({
                 </Button>
               </div>
               <GlassField
-                label={kind === 'cnpj' ? 'CNPJ' : 'CPF'}
+                label={kind === 'cnpj' ? 'CNPJ' : 'CPF do responsável'}
                 icon={<IdCard size={18} />}
                 inputMode="numeric"
                 value={payload.clinic.taxId}
@@ -322,6 +340,44 @@ export function ClinicStep({
               value={payload.clinic.defaultAudience || 'all'}
               onChange={(audience) => setPayload(applyClinicAudience(payload, audience))}
             />
+          </div>
+          <div className="ob2-contact-fields">
+            <div className="ob2-contact-heading">
+              <p className="ob2-dialog-section">Contato da pessoa responsável</p>
+              <small>
+                Trouxemos estes dados da conta. Eles podem ser corrigidos aqui sem alterar a senha.
+              </small>
+            </div>
+            <div className="ob2-contact-grid">
+              <GlassField
+                label="Nome"
+                icon={<UserRound size={18} />}
+                value={payload.ownerName}
+                placeholder="Pessoa responsável"
+                autoComplete="name"
+                onChange={(value) => setPayload({ ...payload, ownerName: value })}
+              />
+              <GlassField
+                label="E-mail de contato"
+                icon={<Mail size={18} />}
+                type="email"
+                inputMode="email"
+                value={payload.email}
+                placeholder="contato@clinica.com"
+                autoComplete="email"
+                onChange={(value) => setPayload({ ...payload, email: value })}
+              />
+              <GlassField
+                label="Celular"
+                icon={<Phone size={18} />}
+                type="tel"
+                inputMode="tel"
+                value={formatBrPhone(payload.phone) || payload.phone}
+                placeholder="(11) 99999-9999"
+                autoComplete="tel"
+                onChange={changePhone}
+              />
+            </div>
           </div>
           <div className="ob2-clinic-more">
             <QuietButton onPress={details.open}>
@@ -949,43 +1005,55 @@ export function ServicesStep({
     : durationChoices
 
   return (
-    <div className="ob2-stack">
-      <GlassField
-        label="Buscar serviço"
-        icon={<Search size={18} />}
-        value={query}
-        placeholder="Nome do atendimento"
-        onChange={setQuery}
-      />
-      {payload.services.length === 0 ? (
-        <p className="ob2-copy">Volte ao catálogo e escolha pelo menos um serviço.</p>
-      ) : visibleServices.length === 0 ? (
-        <p className="ob2-copy">Nenhum serviço com esse nome.</p>
-      ) : (
-        <div className="ob2-stack">
-          {groupIndexedServices(visibleServices).map((group) => (
-            <section className="ob2-detail-section" key={group.category}>
-              <h2 className="ob2-detail-category">{group.category}</h2>
-              <div className="ob2-detail-grid">
-                {group.entries.map(({ item, position }) => (
-                  <Card className="ob2-panel" key={`${item.name}-${position}`}>
-                    <Card.Content className="ob2-summary">
-                      <strong>{item.name}</strong>
-                      <p>{item.durationMinutes} min</p>
-                      <b>{priceLabel(item)}</b>
-                      <Button className="ob2-quiet" variant="ghost" onPress={() => open(position)}>
-                        Ajustar este serviço
-                      </Button>
-                    </Card.Content>
-                  </Card>
-                ))}
-              </div>
-            </section>
-          ))}
-        </div>
-      )}
-      <StepEnd error={error} footer={footer} />
-      <BlurDrawer state={editor} title={service?.name || 'Ajustar serviço'}>
+    <div className="ob2-services-step">
+      <div className="ob2-services-step-body ob2-stack">
+        <GlassField
+          label="Buscar serviço"
+          icon={<Search size={18} />}
+          value={query}
+          placeholder="Nome do atendimento"
+          onChange={setQuery}
+        />
+        {payload.services.length === 0 ? (
+          <p className="ob2-copy">Volte ao catálogo e escolha pelo menos um serviço.</p>
+        ) : visibleServices.length === 0 ? (
+          <p className="ob2-copy">Nenhum serviço com esse nome.</p>
+        ) : (
+          <div className="ob2-stack">
+            {groupIndexedServices(visibleServices).map((group) => (
+              <section className="ob2-detail-section" key={group.category}>
+                <h2 className="ob2-detail-category">{group.category}</h2>
+                <div className="ob2-detail-grid">
+                  {group.entries.map(({ item, position }) => (
+                    <Card className="ob2-panel" key={`${item.name}-${position}`}>
+                      <Card.Content className="ob2-summary">
+                        <strong>{item.name}</strong>
+                        <p>{item.durationMinutes} min</p>
+                        <b>{priceLabel(item)}</b>
+                        <Button
+                          className="ob2-quiet"
+                          variant="ghost"
+                          onPress={() => open(position)}
+                        >
+                          Ajustar este serviço
+                        </Button>
+                      </Card.Content>
+                    </Card>
+                  ))}
+                </div>
+              </section>
+            ))}
+          </div>
+        )}
+      </div>
+      <div className={editor.isOpen ? 'ob2-float-continue is-hidden' : 'ob2-float-continue'}>
+        <StepEnd error={error} footer={footer} />
+      </div>
+      <BlurDrawer
+        state={editor}
+        placement="bottom"
+        title={service?.name || 'Ajustar serviço'}
+      >
         {service && index != null ? (
           <>
             <GlassField
@@ -1059,15 +1127,16 @@ export function ServicesStep({
   )
 }
 
-type ProfessionalDraft = Professional
+type ProfessionalDraft = Omit<Professional, 'audience'> & { audience?: Audience }
 
 function emptyProfessionalDraft(payload: Payload): ProfessionalDraft {
+  const clinicAudience = payload.clinic.defaultAudience || 'all'
   return {
     id: '',
     name: '',
     role: '',
     gender: 'female',
-    audience: payload.clinic.defaultAudience,
+    audience: clinicServesSingleGender(clinicAudience) ? clinicAudience : undefined,
     serviceNames: payload.services.map((service) => service.name).filter((name) => name.trim()),
     serviceIds: payload.services.map((service) => service.id),
   }
@@ -1089,9 +1158,13 @@ export function TeamStep({
   const [dialogOpen, setDialogOpen] = useState(false)
   const [index, setIndex] = useState<number | null>(null)
   const [draft, setDraft] = useState<ProfessionalDraft>(() => emptyProfessionalDraft(payload))
-  const [formErrors, setFormErrors] = useState<{ name?: string; role?: string; gender?: string }>(
-    {},
-  )
+  const [formErrors, setFormErrors] = useState<{
+    name?: string
+    role?: string
+    gender?: string
+    audience?: string
+  }>({})
+  const singleGenderClinic = clinicServesSingleGender(payload.clinic.defaultAudience)
 
   function setMode(mode: 'solo' | 'team') {
     setPayload({
@@ -1134,23 +1207,38 @@ export function TeamStep({
   }
 
   function validateDraft() {
-    const next: { name?: string; role?: string; gender?: string } = {}
+    const next: {
+      name?: string
+      role?: string
+      gender?: string
+      audience?: string
+    } = {}
     if (!draft.name.trim()) next.name = 'Informe o nome da profissional.'
     if (!draft.role.trim()) next.role = 'Informe a função ou especialidade.'
     if (draft.gender !== 'female' && draft.gender !== 'male') next.gender = 'Escolha o sexo.'
+    if (!singleGenderClinic && !isAudience(draft.audience))
+      next.audience = 'Escolha o público atendido.'
     setFormErrors(next)
     const message =
-      next.name && next.role ? 'Informe o nome e a função.' : next.name || next.role || next.gender
+      next.name && next.role
+        ? 'Informe o nome e a função.'
+        : next.name || next.role || next.gender || next.audience
     if (message) toast.danger(message, { timeout: 5000 })
     return !message
   }
 
   function saveDraft() {
     if (!validateDraft()) return
+    const audience =
+      draft.audience ??
+      (clinicServesSingleGender(payload.clinic.defaultAudience)
+        ? payload.clinic.defaultAudience
+        : 'all')
     const saved: Professional = {
       ...draft,
       name: draft.name.trim(),
       role: draft.role.trim(),
+      audience,
     }
     if (index == null) {
       setPayload({ ...payload, professionals: [...payload.professionals, saved] })
@@ -1182,6 +1270,13 @@ export function TeamStep({
 
   function setIntimateAudience(serviceId: string, audience: Audience) {
     patchDraft({ serviceAudiences: { ...draft.serviceAudiences, [serviceId]: audience } })
+  }
+
+  function draftForServiceAudience(): Professional {
+    return {
+      ...draft,
+      audience: draft.audience ?? payload.clinic.defaultAudience ?? 'all',
+    }
   }
 
   return (
@@ -1298,12 +1393,6 @@ export function TeamStep({
           </>
         }
       >
-        <IntimateAudienceCards
-          services={assignedIntimate}
-          audienceFor={(service) => effectiveServiceAudience(draft, service)}
-          question="Qual público esta pessoa atende neste serviço?"
-          onChange={(service, audience) => setIntimateAudience(service.id, audience)}
-        />
         <ProfessionalPhotoField
           gender={draft.gender}
           preview={draft.photoUrl ?? draft.photoPreview ?? null}
@@ -1394,7 +1483,22 @@ export function TeamStep({
         ) : null}
         <Separator />
         <p className="ob2-dialog-section">Público atendido</p>
-        <AudienceChoices value={draft.audience} onChange={(audience) => patchDraft({ audience })} />
+        <AudienceChoices
+          layout="compact"
+          value={draft.audience}
+          onChange={(audience) => patchDraft({ audience })}
+        />
+        {formErrors.audience ? (
+          <p className="ob2-field-error" role="alert">
+            {formErrors.audience}
+          </p>
+        ) : null}
+        <IntimateAudienceCards
+          services={assignedIntimate}
+          audienceFor={(service) => effectiveServiceAudience(draftForServiceAudience(), service)}
+          question="Qual público esta pessoa atende neste serviço?"
+          onChange={(service, audience) => setIntimateAudience(service.id, audience)}
+        />
         <Separator />
         <p className="ob2-dialog-section">Serviços</p>
         <p className="ob2-dialog-hint">Marque o que esta pessoa realiza na clínica.</p>
@@ -1442,7 +1546,7 @@ export function TeamStep({
               <div className="ob2-checks ob2-service-group-items">
                 {group.services.map((service) => {
                   const selected = draft.serviceIds.includes(service.id)
-                  const audience = effectiveServiceAudience(draft, service)
+                  const audience = effectiveServiceAudience(draftForServiceAudience(), service)
                   return (
                     <div
                       className={
@@ -1481,7 +1585,7 @@ export function TeamStep({
                       </Checkbox>
                       {serviceIsIntimate(service) && selected ? (
                         <AudienceChoices
-                          layout="inline"
+                          layout="compact"
                           value={audience}
                           onChange={(next) => setIntimateAudience(service.id, next)}
                         />
@@ -1606,7 +1710,9 @@ export function ScheduleStep({
                   onChange={(value) => changeClinic('addressLine', value)}
                 />
                 <GlassField
+                  className="ob2-address-emphasis"
                   label="Número"
+                  icon={<Hash size={18} />}
                   value={payload.clinic.addressNumber}
                   placeholder="Nº"
                   onChange={(value) => changeClinic('addressNumber', value)}
@@ -1627,6 +1733,7 @@ export function ScheduleStep({
                   onChange={(value) => changeClinic('city', value)}
                 />
                 <GlassField
+                  className="ob2-address-state"
                   label="Estado"
                   value={payload.clinic.state}
                   maxLength={2}
@@ -2030,20 +2137,24 @@ export function ReviewStep({
   payload,
   error,
   footer,
+  onEdit,
 }: {
   payload: Payload
   error: string
   footer: ReactNode
+  onEdit: (step: number) => void
 }) {
   const facts = [
-    { label: 'Clínica', value: payload.name || 'Nome ainda não informado' },
+    { label: 'Clínica', value: payload.name || 'Nome ainda não informado', step: 1 },
     {
       label: 'Contato',
       value: `${payload.ownerName || 'Sem nome'} · ${formatBrPhone(payload.phone) || 'sem celular'}`,
+      step: 1,
     },
     {
       label: 'Serviços',
       value: `${payload.services.length} ${payload.services.length === 1 ? 'serviço' : 'serviços'} em ${payload.occupations.length} ${payload.occupations.length === 1 ? 'categoria' : 'categorias'}`,
+      step: 3,
     },
     {
       label: 'Equipe',
@@ -2051,20 +2162,24 @@ export function ReviewStep({
         payload.teamMode === 'solo'
           ? 'Somente você'
           : `${payload.professionals.length} ${payload.professionals.length === 1 ? 'profissional' : 'profissionais'}`,
+      step: 4,
     },
     {
       label: 'Agenda',
       value: `${payload.businessHours.filter((day) => day.enabled).length} dias por semana`,
+      step: 6,
     },
     {
       label: 'Cancelamento',
       value: `${payload.preferences.cancellationHours}h no padrão e ${payload.preferences.specialCancellationHours}h nos especiais`,
+      step: 8,
     },
     {
       label: 'Pagamento',
       value: payload.preferences.acceptInApp
         ? 'Interesse em receber no app'
         : 'Recebimento fora do app',
+      step: 7,
     },
     {
       label: 'Pacotes',
@@ -2074,12 +2189,14 @@ export function ReviewStep({
           : payload.preferences.packagePaymentMode === 'in_app'
             ? 'Somente no app'
             : 'Clínica ou app',
+      step: 8,
     },
     {
       label: 'Endereço',
       value: payload.clinic.city
         ? `${[payload.clinic.addressLine, payload.clinic.addressNumber].filter(Boolean).join(', ') || 'A definir'}, ${payload.clinic.city}/${payload.clinic.state || '—'}`
         : 'Pode completar depois',
+      step: 5,
     },
   ]
   return (
@@ -2091,7 +2208,12 @@ export function ReviewStep({
       {facts.map((fact) => (
         <Card className="ob2-panel" key={fact.label}>
           <Card.Content className="ob2-fact">
-            <span>{fact.label}</span>
+            <div className="ob2-fact-heading">
+              <span>{fact.label}</span>
+              <Button className="ob2-quiet" variant="ghost" onPress={() => onEdit(fact.step)}>
+                Editar
+              </Button>
+            </div>
             <strong>{fact.value}</strong>
           </Card.Content>
         </Card>
