@@ -35,6 +35,7 @@ import {
   applyClinicAudience,
   catalogItemIsSensitive,
   categories,
+  serviceIsIntimate,
   categoryArtSrc,
   dayNames,
   durationChoices,
@@ -76,6 +77,43 @@ const audienceChoices = [
 
 function audienceLabel(value: Audience) {
   return audienceChoices.find((option) => option.id === value)?.label ?? 'Todos'
+}
+
+function IntimateAudienceCards({
+  services,
+  audienceFor,
+  onChange,
+  question,
+}: {
+  services: Service[]
+  audienceFor: (service: Service) => Audience
+  onChange: (service: Service, audience: Audience) => void
+  question: string
+}) {
+  if (services.length === 0) return null
+  return (
+    <div className="ob2-intimate-list">
+      {services.map((service) => (
+        <Card className="ob2-panel ob2-intimate-card" key={service.name}>
+          <Card.Content className="ob2-intimate-body">
+            <div className="ob2-intimate-head">
+              <span className="ob2-intimate-icon" aria-hidden>
+                <Shield size={18} />
+              </span>
+              <div>
+                <strong>{service.name}</strong>
+                <p>{question}</p>
+              </div>
+            </div>
+            <AudienceChoices
+              value={audienceFor(service)}
+              onChange={(audience) => onChange(service, audience)}
+            />
+          </Card.Content>
+        </Card>
+      ))}
+    </div>
+  )
 }
 
 function AudienceChoices({
@@ -757,7 +795,7 @@ export function ServicesStep({
 
   const sensitiveServices = payload.services
     .map((item, position) => ({ item, position }))
-    .filter(({ item }) => item.sensitive)
+    .filter(({ item }) => serviceIsIntimate(item))
 
   function open(position: number) {
     setPayload({
@@ -784,29 +822,15 @@ export function ServicesStep({
 
   return (
     <div className="ob2-stack">
-      {sensitiveServices.length > 0 ? (
-        <div className="ob2-intimate-list">
-          {sensitiveServices.map(({ item, position }) => (
-            <Card className="ob2-panel ob2-intimate-card" key={`${item.name}-${position}`}>
-              <Card.Content className="ob2-intimate-body">
-                <div className="ob2-intimate-head">
-                  <span className="ob2-intimate-icon" aria-hidden>
-                    <Shield size={18} />
-                  </span>
-                  <div>
-                    <strong>{item.name}</strong>
-                    <p>Qual é o público padrão deste serviço?</p>
-                  </div>
-                </div>
-                <AudienceChoices
-                  value={item.audience}
-                  onChange={(audience) => updateAt(position, { audience })}
-                />
-              </Card.Content>
-            </Card>
-          ))}
-        </div>
-      ) : null}
+      <IntimateAudienceCards
+        services={sensitiveServices.map(({ item }) => item)}
+        audienceFor={(service) => service.audience}
+        question="Qual é o público padrão deste serviço?"
+        onChange={(service, audience) => {
+          const position = payload.services.findIndex((item) => item.name === service.name)
+          if (position >= 0) updateAt(position, { audience })
+        }}
+      />
       <GlassField
         label="Buscar serviço"
         icon={<Search size={18} />}
@@ -1009,9 +1033,8 @@ export function TeamStep({
     setIndex(null)
   }
 
-  const assignedIntimate = payload.services.filter(
-    (service) => service.sensitive && draft.serviceNames.includes(service.name),
-  )
+  const intimateServices = payload.services.filter((service) => serviceIsIntimate(service))
+  const assignedIntimate = intimateServices.filter((service) => draft.serviceNames.includes(service.name))
 
   function setIntimateAudience(serviceName: string, audience: Audience) {
     patchDraft({ serviceAudiences: { ...draft.serviceAudiences, [serviceName]: audience } })
@@ -1036,6 +1059,7 @@ export function TeamStep({
         />
       </div>
       {payload.teamMode === 'solo' ? (
+        <>
         <Card className="ob2-panel">
           <Card.Content>
             <p className="ob2-copy">
@@ -1043,13 +1067,27 @@ export function TeamStep({
               {payload.services.length === 1
                 ? 'O serviço escolhido fica vinculado a você.'
                 : `Os ${payload.services.length} serviços escolhidos ficam vinculados a você.`}{' '}
-              {payload.services.some((service) => service.sensitive)
+              {intimateServices.length > 0
                 ? 'Nos serviços íntimos, vale o público definido nos detalhes. '
                 : ''}
               Convites de recepção continuam para o painel.
             </p>
           </Card.Content>
         </Card>
+        <IntimateAudienceCards
+          services={intimateServices}
+          audienceFor={(service) => service.audience}
+          question="Qual é o público padrão deste serviço?"
+          onChange={(service, audience) =>
+            setPayload({
+              ...payload,
+              services: payload.services.map((item) =>
+                item.name === service.name ? { ...item, audience } : item,
+              ),
+            })
+          }
+        />
+        </>
       ) : (
         <>
           {payload.professionals.length > 0 ? (
@@ -1110,6 +1148,12 @@ export function TeamStep({
           </>
         }
       >
+        <IntimateAudienceCards
+          services={assignedIntimate}
+          audienceFor={(service) => effectiveServiceAudience(draft, service)}
+          question="Qual público esta pessoa atende neste serviço?"
+          onChange={(service, audience) => setIntimateAudience(service.name, audience)}
+        />
         <ProfessionalPhotoField
           gender={draft.gender}
           preview={draft.photoPreview ?? null}
@@ -1183,29 +1227,6 @@ export function TeamStep({
         <Separator />
         <p className="ob2-dialog-section">Serviços</p>
         <p className="ob2-dialog-hint">Marque o que esta pessoa realiza na clínica.</p>
-        {assignedIntimate.length > 0 ? (
-          <div className="ob2-intimate-list">
-            {assignedIntimate.map((service) => (
-              <Card className="ob2-panel ob2-intimate-card" key={service.name}>
-                <Card.Content className="ob2-intimate-body">
-                  <div className="ob2-intimate-head">
-                    <span className="ob2-intimate-icon" aria-hidden>
-                      <Shield size={18} />
-                    </span>
-                    <div>
-                      <strong>{service.name}</strong>
-                      <p>Qual público esta pessoa atende neste serviço?</p>
-                    </div>
-                  </div>
-                  <AudienceChoices
-                    value={effectiveServiceAudience(draft, service)}
-                    onChange={(audience) => setIntimateAudience(service.name, audience)}
-                  />
-                </Card.Content>
-              </Card>
-            ))}
-          </div>
-        ) : null}
         {groupServicesByCategory(payload.services).map((group) => {
           const categoryNames = group.services.map((service) => service.name)
           const selectedInCategory = categoryNames.filter((name) => draft.serviceNames.includes(name))
@@ -1248,7 +1269,7 @@ export function TeamStep({
                 const audience = effectiveServiceAudience(draft, service)
                 return (
                   <div
-                    className={service.sensitive ? 'ob2-service-line is-intimate' : 'ob2-service-line'}
+                    className={serviceIsIntimate(service) ? 'ob2-service-line is-intimate' : 'ob2-service-line'}
                     key={service.name}
                   >
                     <Checkbox
@@ -1267,7 +1288,7 @@ export function TeamStep({
                         </Checkbox.Control>
                         <Label>
                           {service.name}
-                          {service.sensitive ? (
+                          {serviceIsIntimate(service) ? (
                             <span className="ob2-intimate-badge">
                               {selected ? audienceLabel(audience) : 'Íntimo'}
                             </span>
@@ -1275,7 +1296,7 @@ export function TeamStep({
                         </Label>
                       </Checkbox.Content>
                     </Checkbox>
-                    {service.sensitive && selected ? (
+                    {serviceIsIntimate(service) && selected ? (
                       <AudienceChoices
                         layout="inline"
                         value={audience}

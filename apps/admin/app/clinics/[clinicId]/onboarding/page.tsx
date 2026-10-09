@@ -31,7 +31,7 @@ import { clearSignupPhone, peekSignupPhone } from '@/lib/signup-phone'
 import { untitledClinicName } from '@/lib/staff-destination'
 import {
   canonicalServiceName,
-  catalogNameIsSensitive,
+  serviceIsIntimate,
   intimateAudiencesFor,
   isAudience,
   persistedStepKey,
@@ -89,7 +89,7 @@ function normalizeService(service: Service): Service {
     ...service,
     name,
     audience: isAudience(service.audience) ? service.audience : 'all',
-    sensitive: typeof service.sensitive === 'boolean' ? service.sensitive : catalogNameIsSensitive(name),
+    sensitive: serviceIsIntimate({ name, sensitive: service.sensitive }),
   }
 }
 

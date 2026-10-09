@@ -123,6 +123,10 @@ export function catalogNameIsSensitive(name: string) {
   return sensitiveCatalogNames.has(canonicalServiceName(name))
 }
 
+export function serviceIsIntimate(service: { name: string; sensitive?: boolean }) {
+  return service.sensitive === true || catalogNameIsSensitive(service.name)
+}
+
 export function applyClinicAudience(payload: Payload, next: Audience): Payload {
   const previous = isAudience(payload.clinic.defaultAudience) ? payload.clinic.defaultAudience : 'all'
   if (previous === next) return { ...payload, clinic: { ...payload.clinic, defaultAudience: next } }
@@ -165,7 +169,7 @@ export function serviceFromCatalog(item: CatalogItem, audience: Audience): Servi
 
 export function intimateAudiencesFor(services: Service[]): Record<string, Audience> {
   return Object.fromEntries(
-    services.filter((service) => service.sensitive && service.name.trim()).map((service) => [service.name, service.audience]),
+    services.filter((service) => serviceIsIntimate(service) && service.name.trim()).map((service) => [service.name, service.audience]),
   )
 }
 
