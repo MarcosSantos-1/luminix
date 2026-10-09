@@ -47,3 +47,8 @@ do provedor não bloqueia edição manual nem é tratada como validação defini
   Cloudflare próprio. O cutover de DNS continua manual conforme a documentação de domínios.
 - Limpeza automática de assets abandonados/superseded e reprocessamento integral no servidor ficam
   registrados como dívida antes de dados reais.
+
+## Registro operacional
+
+Em 2026-10-09, a migration 0012 foi aplicada e verificada no banco principal autorizado. A API com
+o contrato v3 foi publicada no Fly.io e respondeu `200` em `/health` após o deploy.
