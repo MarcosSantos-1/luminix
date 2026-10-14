@@ -62,6 +62,7 @@ function emptyPayload(name: string, email: string, ownerName: string): Payload {
       taxId: '',
       taxIdKind: 'cnpj',
       defaultAudience: 'all',
+      homeService: false,
       addressLine: '',
       addressNumber: '',
       addressDistrict: '',
@@ -138,6 +139,16 @@ function normalizePayload(value: Partial<Payload>, fallback: Payload): Payload {
       ...fallback.clinic,
       ...(value.clinic ?? {}),
       defaultAudience: isAudience(clinicAudience) ? clinicAudience : 'all',
+      homeService: value.clinic?.homeService === true,
+      defaultBreak:
+        value.clinic?.defaultBreak &&
+        /^\d{2}:\d{2}$/.test(value.clinic.defaultBreak.start) &&
+        /^\d{2}:\d{2}$/.test(value.clinic.defaultBreak.end)
+          ? {
+              start: value.clinic.defaultBreak.start,
+              end: value.clinic.defaultBreak.end,
+            }
+          : undefined,
     },
     preferences: { ...fallback.preferences, ...(value.preferences ?? {}) },
     businessHours:
@@ -218,6 +229,9 @@ function teamPayload(payload: Payload, step: number): Payload {
           serviceNames,
           serviceIds: payload.services.map((service) => service.id),
           serviceAudiences: intimateAudiencesFor(payload.services),
+          photoAssetId: payload.professionals[0]?.photoAssetId,
+          photoUrl: payload.professionals[0]?.photoUrl,
+          photoPreview: payload.professionals[0]?.photoPreview,
         },
       ],
     })
@@ -260,6 +274,7 @@ export default function OnboardingPage() {
   const [availableThrough, setAvailableThrough] = useState(0)
   const [stepError, setStepError] = useState('')
   const [busy, setBusy] = useState(false)
+  const [uploadingMedia, setUploadingMedia] = useState(false)
   const [loadError, setLoadError] = useState('')
   const [retry, setRetry] = useState(0)
 
@@ -381,14 +396,14 @@ export default function OnboardingPage() {
 
   function navigateTo(targetStep: number) {
     const minimumStep = availableThrough > 0 ? 1 : 0
-    if (busy || targetStep < minimumStep || targetStep > availableThrough) return
+    if (busy || uploadingMedia || targetStep < minimumStep || targetStep > availableThrough) return
     setStepError('')
     setStep(targetStep)
   }
 
   async function save(nextStep: number) {
     const user = staff.user
-    if (!user || !payload || !draft || busy) return
+    if (!user || !payload || !draft || busy || uploadingMedia) return
     const problem = nextStep > step ? firstProblem(step) : null
     if (problem) {
       setStep(problem.step)
@@ -453,7 +468,7 @@ export default function OnboardingPage() {
 
   async function complete() {
     const user = staff.user
-    if (!user || !draft || busy) return
+    if (!user || !draft || busy || uploadingMedia) return
     const problem = firstProblem(stepInfo.length - 2)
     if (problem) {
       setStep(problem.step)
@@ -534,20 +549,23 @@ export default function OnboardingPage() {
   if (step === 0) return <WelcomeStep busy={busy} onStart={() => void save(1)} />
 
   const last = step === stepInfo.length - 1
+  const locked = busy || uploadingMedia
   const footer: ReactNode = (
     <Button
       className="ob2-cta"
       fullWidth
-      isDisabled={busy}
+      isDisabled={locked}
       onPress={() => (last ? void complete() : void save(step + 1))}
     >
-      {busy
-        ? last
-          ? 'Criando sua clínica…'
-          : 'Salvando…'
-        : last
-          ? 'Abrir minha clínica'
-          : 'Continuar'}
+      {uploadingMedia
+        ? 'Enviando imagem…'
+        : busy
+          ? last
+            ? 'Criando sua clínica…'
+            : 'Salvando…'
+          : last
+            ? 'Abrir minha clínica'
+            : 'Continuar'}
       <ArrowRight size={18} />
     </Button>
   )
@@ -561,14 +579,14 @@ export default function OnboardingPage() {
     <OnboardingShell
       step={step}
       availableThrough={availableThrough}
-      busy={busy}
+      busy={locked}
       onBack={() => navigateTo(step - 1)}
       onSelectStep={navigateTo}
     >
-      {step === 1 && <ClinicStep {...stepProps} />}
+      {step === 1 && <ClinicStep {...stepProps} onUploadingChange={setUploadingMedia} />}
       {step === 2 && <CatalogStep {...stepProps} />}
       {step === 3 && <ServicesStep {...stepProps} />}
-      {step === 4 && <TeamStep {...stepProps} />}
+      {step === 4 && <TeamStep {...stepProps} onUploadingChange={setUploadingMedia} />}
       {step === 5 && <ScheduleStep {...stepProps} />}
       {step === 6 && <HoursStep {...stepProps} />}
       {step === 7 && <PaymentsStep clinicId={clinic.share_code || clinic.id} {...stepProps} />}

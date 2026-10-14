@@ -3,6 +3,7 @@ export async function staffApiGet(
   request: Request,
   path:
     | '/auth/clinics'
+    | '/address/geocode'
     | `/address/postal-code/${string}`
     | `/clinics/${string}/context`
     | `/clinics/${string}/settings`
@@ -10,6 +11,7 @@ export async function staffApiGet(
     | `/clinics/${string}/onboarding`
     | `/clinics/${string}/clients`
     | `/clinics/${string}/agenda`,
+  options?: { query?: Record<string, string> },
 ) {
   const headers = { 'Cache-Control': 'no-store' }
   const authorization = request.headers.get('authorization') ?? ''
@@ -24,6 +26,9 @@ export async function staffApiGet(
       !(process.env.NODE_ENV !== 'production' && url.hostname === 'localhost')
     )
       throw new Error('Invalid API URL')
+    if (options?.query) {
+      for (const [key, value] of Object.entries(options.query)) url.searchParams.set(key, value)
+    }
     if (path === '/auth/clinics') {
       const after = new URL(request.url).searchParams.get('after')
       if (after) {
@@ -53,7 +58,10 @@ export async function staffApiGet(
     if (!response.ok) {
       return Response.json(
         { error: 'Access unavailable' },
-        { status: [400, 401, 403, 429].includes(response.status) ? response.status : 503, headers },
+        {
+          status: [400, 401, 403, 404, 429].includes(response.status) ? response.status : 503,
+          headers,
+        },
       )
     }
     return Response.json(await response.json(), { headers })

@@ -46,8 +46,7 @@ export function validateDaySchedule(
   for (const item of [...breaks].sort((left, right) => left.start.localeCompare(right.start))) {
     if (item.start >= item.end)
       return `${enabledLabel}: o fim do intervalo deve ser depois do início.`
-    if (item.start < day.start || item.end > day.end || item.start < cursor)
-      return `${enabledLabel}: cada intervalo precisa caber no horário, sem sobrepor outro.`
+    if (item.start < cursor) return `${enabledLabel}: os intervalos não podem se sobrepor.`
     cursor = item.end
   }
   return ''
@@ -55,18 +54,9 @@ export function validateDaySchedule(
 
 export function validateProfessionalDay(
   proDay: Payload['businessHours'][number],
-  clinicDay: Payload['businessHours'][number],
   personName: string,
 ): string {
-  const dayLabel = `${personName}`
-  const base = validateDaySchedule(proDay, dayLabel)
-  if (base) return base
-  if (!proDay.enabled) return ''
-  if (!clinicDay.enabled)
-    return `${personName} não pode atender quando a clínica está fechada neste dia.`
-  if (proDay.start < clinicDay.start || proDay.end > clinicDay.end)
-    return `${personName}: o atendimento precisa ficar dentro do horário da clínica (${clinicDay.start}–${clinicDay.end}).`
-  return ''
+  return validateDaySchedule(proDay, personName)
 }
 
 export function validateClinicAndProfessionalHours(payload: Payload): string {
@@ -75,12 +65,9 @@ export function validateClinicAndProfessionalHours(payload: Payload): string {
     if (problem) return problem
   }
   const synced = syncProfessionalSchedules(payload)
-  const clinicByWeekday = new Map(synced.businessHours.map((day) => [day.weekday, day]))
   for (const person of synced.professionalSchedules) {
     for (const day of person.days) {
-      const clinicDay = clinicByWeekday.get(day.weekday)
-      if (!clinicDay) continue
-      const problem = validateProfessionalDay(day, clinicDay, person.name)
+      const problem = validateProfessionalDay(day, person.name)
       if (problem) return problem
     }
   }

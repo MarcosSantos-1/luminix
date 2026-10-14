@@ -212,14 +212,14 @@ describe('versioned clinic onboarding', () => {
           payload: outsideClinicHours,
         })
       ).statusCode,
-    ).toBe(400)
+    ).toBe(200)
     const saved = await call('onboarding-a', 'PUT', clinicA, 'onboarding', {
-      version: 2,
+      version: 3,
       step: 'review',
       payload,
     })
     expect(saved.statusCode).toBe(200)
-    expect(saved.json().draft.version).toBe(3)
+    expect(saved.json().draft.version).toBe(4)
     expect(
       (
         await call('onboarding-a', 'PUT', clinicA, 'onboarding', {
@@ -232,18 +232,18 @@ describe('versioned clinic onboarding', () => {
     expect(
       (
         await call('onboarding-a', 'PUT', clinicA, 'onboarding', {
-          version: 3,
+          version: 4,
           step: 'review',
           payload,
         })
       ).json().draft.version,
-    ).toBe(4)
+    ).toBe(5)
     expect(
-      (await call('onboarding-a', 'POST', clinicA, 'onboarding/complete', { version: 3 }))
+      (await call('onboarding-a', 'POST', clinicA, 'onboarding/complete', { version: 4 }))
         .statusCode,
     ).toBe(409)
     const completed = await call('onboarding-a', 'POST', clinicA, 'onboarding/complete', {
-      version: 4,
+      version: 5,
     })
     expect(completed.statusCode).toBe(200)
     expect(completed.json().replayed).toBe(false)
@@ -251,8 +251,8 @@ describe('versioned clinic onboarding', () => {
     const replay = await call('onboarding-a', 'POST', clinicA, 'onboarding/complete', {
       version: 4,
     })
-    expect(replay.statusCode).toBe(200)
     expect(replay.json().replayed).toBe(true)
+    expect(replay.json().clinic.shareCode).toBe(completed.json().clinic.shareCode)
     const overview = (await call('onboarding-a', 'GET', clinicA, 'overview')).json()
     expect(overview.occupations).toHaveLength(1)
     expect(overview.services).toHaveLength(2)

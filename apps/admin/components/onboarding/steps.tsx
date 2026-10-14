@@ -6,7 +6,6 @@ import {
   Link as TextLink,
   ScrollShadow,
   Separator,
-  Switch,
   toast,
 } from '@heroui/react'
 import {
@@ -20,10 +19,12 @@ import {
   CreditCard,
   Globe,
   Hash,
+  House,
   IdCard,
   ImagePlus,
   Info,
   ListChecks,
+  Loader2,
   Mail,
   MapPin,
   Mars,
@@ -42,12 +43,13 @@ import {
 } from 'lucide-react'
 import Image from 'next/image'
 import Link from 'next/link'
-import { useRef, useState, type DragEvent, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type DragEvent, type ReactNode } from 'react'
 import { syncProfessionalSchedules } from './schedule-sync'
 import { formatBrPhone, toE164Phone } from '@/lib/phone'
 import { useStaff } from '@/components/staff-provider'
 import { useClinic } from '@/components/clinic-workspace'
 import { uploadClinicMedia } from '@/lib/media-upload'
+import { AddressMap } from './address-map'
 import {
   applyClinicAudience,
   catalogItemIsSensitive,
@@ -62,6 +64,7 @@ import {
   isAudience,
   professionalAvatarSrc,
   serviceFromCatalog,
+  syncIntimateServiceAudiences,
   servicesInCategory,
   type Audience,
   type DaySchedule,
@@ -69,7 +72,6 @@ import {
   type Professional,
   type Service,
 } from './model'
-import { defaultBreak, TimePicker } from './time-picker'
 import {
   BlurDialog,
   BlurDrawer,
@@ -124,7 +126,7 @@ function IntimateAudienceCards({
               </div>
             </div>
             <AudienceChoices
-              layout="compact"
+              layout="inline"
               value={audienceFor(service)}
               onChange={(audience) => onChange(service, audience)}
             />
@@ -252,15 +254,30 @@ export function ClinicStep({
   setPayload,
   error,
   footer,
+  onUploadingChange,
 }: {
   payload: Payload
   setPayload: (value: Payload) => void
   error: string
   footer: ReactNode
+  onUploadingChange?: (busy: boolean) => void
 }) {
   const details = useOverlayState()
   const change = (key: keyof Payload['clinic'], value: string) =>
     setPayload({ ...payload, clinic: { ...payload.clinic, [key]: value } })
+  const setHomeService = (homeService: boolean) => {
+    const clearDay = (day: Payload['businessHours'][number]) =>
+      homeService ? day : { ...day, homeVisit: false }
+    setPayload({
+      ...payload,
+      clinic: { ...payload.clinic, homeService },
+      businessHours: payload.businessHours.map(clearDay),
+      professionalSchedules: payload.professionalSchedules.map((person) => ({
+        ...person,
+        days: person.days.map(clearDay),
+      })),
+    })
+  }
   const changePhone = (value: string) => {
     const normalized = toE164Phone(value)
     setPayload({ ...payload, phone: normalized || formatBrPhone(value) })
@@ -331,7 +348,11 @@ export function ClinicStep({
                 onChange={(value) => change('taxId', maskTaxId(kind, value))}
               />
             </div>
-            <ClinicLogoDropzone payload={payload} setPayload={setPayload} />
+            <ClinicLogoDropzone
+              payload={payload}
+              setPayload={setPayload}
+              onBusyChange={onUploadingChange}
+            />
           </div>
           <div className="ob2-clinic-audience">
             <p className="ob2-dialog-section">Público padrão</p>
@@ -340,6 +361,42 @@ export function ClinicStep({
               value={payload.clinic.defaultAudience || 'all'}
               onChange={(audience) => setPayload(applyClinicAudience(payload, audience))}
             />
+          </div>
+          <div className="ob2-clinic-home">
+            <p className="ob2-dialog-section">Atende na casa da cliente?</p>
+            <p className="ob2-copy">
+              O padrão é não. Marque sim só se alguém da clínica vai até o endereço da cliente. Aí,
+              em cada dia dos horários, dá para ligar o atendimento em domicílio.
+            </p>
+            <div className="ob2-clinic-home-choices">
+              <Checkbox
+                className="ob2-audience-option is-all"
+                isSelected={payload.clinic.homeService !== true}
+                onChange={() => setHomeService(false)}
+              >
+                <Checkbox.Content>
+                  <Checkbox.Control>
+                    <Checkbox.Indicator />
+                  </Checkbox.Control>
+                  <Label>Não</Label>
+                </Checkbox.Content>
+              </Checkbox>
+              <Checkbox
+                className="ob2-audience-option is-women"
+                isSelected={payload.clinic.homeService === true}
+                onChange={() => setHomeService(true)}
+              >
+                <Checkbox.Content>
+                  <Checkbox.Control>
+                    <Checkbox.Indicator />
+                  </Checkbox.Control>
+                  <span className="ob2-audience-icon" aria-hidden>
+                    <House size={18} />
+                  </span>
+                  <Label>Sim, atende em domicílio</Label>
+                </Checkbox.Content>
+              </Checkbox>
+            </div>
           </div>
           <div className="ob2-contact-fields">
             <div className="ob2-contact-heading">
@@ -454,6 +511,7 @@ function ImageDropzone({
       toast.danger(error instanceof Error ? error.message : 'Não foi possível enviar a imagem.')
     } finally {
       setBusy(false)
+      if (inputRef.current) inputRef.current.value = ''
     }
   }
 
@@ -465,10 +523,10 @@ function ImageDropzone({
 
   return (
     <div
-      className={`${className}${dragging ? ' is-dragging' : ''}${preview ? ' has-preview' : ''}`}
+      className={`${className}${dragging ? ' is-dragging' : ''}${preview ? ' has-preview' : ''}${busy ? ' is-uploading' : ''}`}
       onDragEnter={(event) => {
         event.preventDefault()
-        setDragging(true)
+        if (!busy) setDragging(true)
       }}
       onDragOver={(event) => event.preventDefault()}
       onDragLeave={(event) => {
@@ -477,9 +535,14 @@ function ImageDropzone({
       }}
       onDrop={onDrop}
       role="button"
-      tabIndex={0}
-      onClick={() => inputRef.current?.click()}
+      tabIndex={busy ? -1 : 0}
+      aria-busy={busy}
+      aria-disabled={busy}
+      onClick={() => {
+        if (!busy) inputRef.current?.click()
+      }}
       onKeyDown={(event) => {
+        if (busy) return
         if (event.key === 'Enter' || event.key === ' ') {
           event.preventDefault()
           inputRef.current?.click()
@@ -492,8 +555,15 @@ function ImageDropzone({
         type="file"
         accept="image/png,image/jpeg,image/webp"
         hidden
+        disabled={busy}
         onChange={(event) => void acceptFile(event.target.files?.[0])}
       />
+      {busy ? (
+        <span className="ob2-upload-veil" role="status">
+          <Loader2 className="ob2-upload-spinner" size={28} />
+          Enviando imagem…
+        </span>
+      ) : null}
       {preview ? (
         <>
           <Image
@@ -555,6 +625,7 @@ function ProfessionalPhotoField({
       toast.danger(error instanceof Error ? error.message : 'Não foi possível enviar a foto.')
     } finally {
       setBusy(false)
+      if (inputRef.current) inputRef.current.value = ''
     }
   }
 
@@ -562,10 +633,11 @@ function ProfessionalPhotoField({
 
   return (
     <div
-      className={`ob2-pro-photo-hero${dragging ? ' is-dragging' : ''}${preview ? ' has-upload' : ''}`}
+      className={`ob2-pro-photo-hero${dragging ? ' is-dragging' : ''}${preview ? ' has-upload' : ''}${busy ? ' is-uploading' : ''}`}
+      aria-busy={busy}
       onDragEnter={(event) => {
         event.preventDefault()
-        setDragging(true)
+        if (!busy) setDragging(true)
       }}
       onDragOver={(event) => event.preventDefault()}
       onDragLeave={(event) => {
@@ -583,13 +655,17 @@ function ProfessionalPhotoField({
         type="file"
         accept="image/png,image/jpeg,image/webp"
         hidden
+        disabled={busy}
         onChange={(event) => void acceptFile(event.target.files?.[0])}
       />
       <button
         type="button"
         className="ob2-pro-photo-ring"
         aria-label={preview ? 'Trocar foto' : 'Escolher foto'}
-        onClick={() => inputRef.current?.click()}
+        disabled={busy}
+        onClick={() => {
+          if (!busy) inputRef.current?.click()
+        }}
       >
         <span className="ob2-pro-photo-preview" aria-hidden>
           {preview ? (
@@ -610,6 +686,11 @@ function ProfessionalPhotoField({
               height={512}
             />
           )}
+          {busy ? (
+            <span className="ob2-pro-photo-veil">
+              <Loader2 className="ob2-upload-spinner" size={28} />
+            </span>
+          ) : null}
         </span>
         <span className="ob2-pro-photo-badge" aria-hidden>
           <ImagePlus size={18} />
@@ -617,11 +698,12 @@ function ProfessionalPhotoField({
       </button>
       <div className="ob2-pro-photo-copy">
         <strong>{photoTitle}</strong>
-        <span>{busy ? 'Otimizando e enviando…' : 'Opcional · PNG, JPG ou WebP.'}</span>
+        <span aria-live="polite">{busy ? 'Otimizando e enviando…' : 'Opcional · PNG, JPG ou WebP.'}</span>
         <div className="ob2-pro-photo-actions">
           <Button
             className="ob2-pro-photo-btn"
             variant="secondary"
+            isDisabled={busy}
             onPress={() => inputRef.current?.click()}
           >
             Escolher arquivo
@@ -630,6 +712,7 @@ function ProfessionalPhotoField({
             <Button
               className="ob2-pro-photo-clear"
               variant="ghost"
+              isDisabled={busy}
               onPress={() => onPreviewChange(null)}
             >
               Usar avatar padrão
@@ -644,14 +727,21 @@ function ProfessionalPhotoField({
 function ClinicLogoDropzone({
   payload,
   setPayload,
+  onBusyChange,
 }: {
   payload: Payload
   setPayload: (value: Payload) => void
+  onBusyChange?: (busy: boolean) => void
 }) {
   const { clinic } = useClinic()
   const staff = useStaff()
   const [preview, setPreview] = useState<string | null>(payload.clinic.logoUrl ?? null)
   const [fileName, setFileName] = useState('')
+  const payloadRef = useRef(payload)
+  payloadRef.current = payload
+  useEffect(() => {
+    if (payload.clinic.logoUrl) setPreview(payload.clinic.logoUrl)
+  }, [payload.clinic.logoUrl])
   return (
     <ImageDropzone
       label="Logo da clínica"
@@ -667,22 +757,28 @@ function ClinicLogoDropzone({
         setFileName(name)
       }}
       onFile={async (file) => {
-        if (!staff.user) throw new Error('Sua sessão expirou. Entre novamente.')
-        const result = await uploadClinicMedia({
-          clinicId: clinic.id,
-          token: await staff.user.getIdToken(),
-          kind: 'clinic_logo',
-          file,
-        })
-        setPreview(result.asset.largeUrl)
-        setPayload({
-          ...payload,
-          clinic: {
-            ...payload.clinic,
-            logoAssetId: result.asset.id,
-            logoUrl: result.asset.largeUrl,
-          },
-        })
+        onBusyChange?.(true)
+        try {
+          if (!staff.user) throw new Error('Sua sessão expirou. Entre novamente.')
+          const result = await uploadClinicMedia({
+            clinicId: clinic.id,
+            token: await staff.user.getIdToken(),
+            kind: 'clinic_logo',
+            file,
+          })
+          setPreview(result.asset.largeUrl)
+          const current = payloadRef.current
+          setPayload({
+            ...current,
+            clinic: {
+              ...current.clinic,
+              logoAssetId: result.asset.id,
+              logoUrl: result.asset.largeUrl,
+            },
+          })
+        } finally {
+          onBusyChange?.(false)
+        }
       }}
     />
   )
@@ -960,6 +1056,8 @@ export function ServicesStep({
   footer: ReactNode
 }) {
   const editor = useOverlayState()
+  const continueSlot = useRef<HTMLDivElement>(null)
+  const [continueDocked, setContinueDocked] = useState(false)
   const [index, setIndex] = useState<number | null>(null)
   const [query, setQuery] = useState('')
   const service = index != null ? payload.services[index] : undefined
@@ -997,6 +1095,22 @@ export function ServicesStep({
     setIndex(position)
     editor.open()
   }
+
+  useEffect(() => {
+    const slot = continueSlot.current
+    if (!slot) return
+    const update = () => {
+      const top = slot.getBoundingClientRect().top
+      setContinueDocked(top <= window.innerHeight - 24)
+    }
+    update()
+    window.addEventListener('scroll', update, { passive: true })
+    window.addEventListener('resize', update)
+    return () => {
+      window.removeEventListener('scroll', update)
+      window.removeEventListener('resize', update)
+    }
+  }, [payload.services.length, query])
 
   const durations = service
     ? durationChoices.includes(service.durationMinutes)
@@ -1046,9 +1160,18 @@ export function ServicesStep({
           </div>
         )}
       </div>
-      <div className={editor.isOpen ? 'ob2-float-continue is-hidden' : 'ob2-float-continue'}>
-        <StepEnd error={error} footer={footer} />
+      <div ref={continueSlot} className="ob2-continue-slot">
+        {continueDocked && !editor.isOpen ? (
+          <div className="ob2-continue-inline">
+            <StepEnd error={error} footer={footer} />
+          </div>
+        ) : null}
       </div>
+      {!continueDocked ? (
+        <div className={editor.isOpen ? 'ob2-float-continue is-hidden' : 'ob2-float-continue'}>
+          <StepEnd error={error} footer={footer} />
+        </div>
+      ) : null}
       <BlurDrawer
         state={editor}
         placement="bottom"
@@ -1131,14 +1254,16 @@ type ProfessionalDraft = Omit<Professional, 'audience'> & { audience?: Audience 
 
 function emptyProfessionalDraft(payload: Payload): ProfessionalDraft {
   const clinicAudience = payload.clinic.defaultAudience || 'all'
+  const audience = clinicServesSingleGender(clinicAudience) ? clinicAudience : undefined
   return {
     id: '',
     name: '',
     role: '',
     gender: 'female',
-    audience: clinicServesSingleGender(clinicAudience) ? clinicAudience : undefined,
+    audience,
     serviceNames: payload.services.map((service) => service.name).filter((name) => name.trim()),
     serviceIds: payload.services.map((service) => service.id),
+    serviceAudiences: syncIntimateServiceAudiences(payload.services, audience),
   }
 }
 
@@ -1147,23 +1272,28 @@ export function TeamStep({
   setPayload,
   error,
   footer,
+  onUploadingChange,
 }: {
   payload: Payload
   setPayload: (value: Payload) => void
   error: string
   footer: ReactNode
+  onUploadingChange?: (busy: boolean) => void
 }) {
   const { clinic } = useClinic()
   const staff = useStaff()
   const [dialogOpen, setDialogOpen] = useState(false)
   const [index, setIndex] = useState<number | null>(null)
   const [draft, setDraft] = useState<ProfessionalDraft>(() => emptyProfessionalDraft(payload))
+  const draftRef = useRef(draft)
+  draftRef.current = draft
   const [formErrors, setFormErrors] = useState<{
     name?: string
     role?: string
     gender?: string
     audience?: string
   }>({})
+  const [photoUploading, setPhotoUploading] = useState(false)
   const singleGenderClinic = clinicServesSingleGender(payload.clinic.defaultAudience)
 
   function setMode(mode: 'solo' | 'team') {
@@ -1202,7 +1332,11 @@ export function TeamStep({
   }
 
   function patchDraft(patch: Partial<ProfessionalDraft>) {
-    setDraft((current) => ({ ...current, ...patch }))
+    setDraft((current) => {
+      const next = { ...current, ...patch }
+      draftRef.current = next
+      return next
+    })
     setFormErrors({})
   }
 
@@ -1228,17 +1362,18 @@ export function TeamStep({
   }
 
   function saveDraft() {
+    if (photoUploading) return
+    const currentDraft = draftRef.current
     if (!validateDraft()) return
-    const audience =
-      draft.audience ??
-      (clinicServesSingleGender(payload.clinic.defaultAudience)
-        ? payload.clinic.defaultAudience
-        : 'all')
     const saved: Professional = {
-      ...draft,
-      name: draft.name.trim(),
-      role: draft.role.trim(),
-      audience,
+      ...currentDraft,
+      name: currentDraft.name.trim(),
+      role: currentDraft.role.trim(),
+      audience:
+        currentDraft.audience ??
+        (clinicServesSingleGender(payload.clinic.defaultAudience)
+          ? payload.clinic.defaultAudience
+          : 'all'),
     }
     if (index == null) {
       setPayload({ ...payload, professionals: [...payload.professionals, saved] })
@@ -1267,6 +1402,24 @@ export function TeamStep({
   const assignedIntimate = intimateServices.filter((service) =>
     draft.serviceIds.includes(service.id),
   )
+
+  function setAudience(audience: Audience) {
+    setDraft((current) => {
+      if (current.audience === audience) return current
+      const next = {
+        ...current,
+        audience,
+        serviceAudiences: syncIntimateServiceAudiences(
+          payload.services,
+          audience,
+          current.serviceAudiences,
+        ),
+      }
+      draftRef.current = next
+      return next
+    })
+    setFormErrors({})
+  }
 
   function setIntimateAudience(serviceId: string, audience: Audience) {
     patchDraft({ serviceAudiences: { ...draft.serviceAudiences, [serviceId]: audience } })
@@ -1375,6 +1528,7 @@ export function TeamStep({
       <BlurDialog
         isOpen={dialogOpen}
         onOpenChange={(open) => {
+          if (!open && photoUploading) return
           setDialogOpen(open)
           if (!open) setIndex(null)
         }}
@@ -1387,8 +1541,8 @@ export function TeamStep({
                 <Trash2 size={16} /> Remover
               </Button>
             ) : null}
-            <Button className="ob2-cta" onPress={saveDraft}>
-              Salvar profissional
+            <Button className="ob2-cta" isDisabled={photoUploading} onPress={saveDraft}>
+              {photoUploading ? 'Enviando foto…' : 'Salvar profissional'}
             </Button>
           </>
         }
@@ -1404,19 +1558,26 @@ export function TeamStep({
             )
           }
           onFile={async (file) => {
-            if (!staff.user) throw new Error('Sua sessão expirou. Entre novamente.')
-            const result = await uploadClinicMedia({
-              clinicId: clinic.id,
-              token: await staff.user.getIdToken(),
-              kind: 'professional_photo',
-              subjectRef: draft.id,
-              file,
-            })
-            patchDraft({
-              photoAssetId: result.asset.id,
-              photoUrl: result.asset.largeUrl,
-              photoPreview: undefined,
-            })
+            onUploadingChange?.(true)
+            setPhotoUploading(true)
+            try {
+              if (!staff.user) throw new Error('Sua sessão expirou. Entre novamente.')
+              const result = await uploadClinicMedia({
+                clinicId: clinic.id,
+                token: await staff.user.getIdToken(),
+                kind: 'professional_photo',
+                subjectRef: draft.id,
+                file,
+              })
+              patchDraft({
+                photoAssetId: result.asset.id,
+                photoUrl: result.asset.largeUrl,
+                photoPreview: undefined,
+              })
+            } finally {
+              setPhotoUploading(false)
+              onUploadingChange?.(false)
+            }
           }}
         />
         <div className="ob2-dialog-fields ob2-dialog-fields--split">
@@ -1484,9 +1645,9 @@ export function TeamStep({
         <Separator />
         <p className="ob2-dialog-section">Público atendido</p>
         <AudienceChoices
-          layout="compact"
+          layout="inline"
           value={draft.audience}
-          onChange={(audience) => patchDraft({ audience })}
+          onChange={(audience) => setAudience(audience)}
         />
         {formErrors.audience ? (
           <p className="ob2-field-error" role="alert">
@@ -1585,7 +1746,7 @@ export function TeamStep({
                       </Checkbox>
                       {serviceIsIntimate(service) && selected ? (
                         <AudienceChoices
-                          layout="compact"
+                          layout="inline"
                           value={audience}
                           onChange={(next) => setIntimateAudience(service.id, next)}
                         />
@@ -1607,6 +1768,16 @@ function formatCep(value: string) {
   return digits.length > 5 ? `${digits.slice(0, 5)}-${digits.slice(5)}` : digits
 }
 
+function addressSummary(clinic: Payload['clinic']) {
+  const place = [clinic.addressLine, clinic.addressNumber]
+    .map((part) => part.trim())
+    .filter(Boolean)
+    .join(', ')
+  const district = clinic.addressDistrict.trim()
+  if (!place) return 'Endereço'
+  return district ? `${place} - ${district}` : place
+}
+
 export function ScheduleStep({
   payload,
   setPayload,
@@ -1621,18 +1792,23 @@ export function ScheduleStep({
   const staff = useStaff()
   const [cepBusy, setCepBusy] = useState(false)
   const [cepError, setCepError] = useState('')
+  const [closing, setClosing] = useState(false)
+  const payloadRef = useRef(payload)
+  const lookedUpCep = useRef('')
+  const lookupRequest = useRef(0)
+  payloadRef.current = payload
   const changeClinic = (key: keyof Payload['clinic'], value: string) =>
     setPayload({ ...payload, clinic: { ...payload.clinic, [key]: value } })
   const [open, setOpen] = useState(payload.clinic.addressLine.trim() === '')
-  const summary = [payload.clinic.addressLine, payload.clinic.addressNumber]
-    .filter(Boolean)
-    .join(', ')
-  async function lookupPostalCode() {
-    const cep = payload.clinic.postalCode.replace(/\D/g, '')
+  const summary = addressSummary(payload.clinic)
+  async function lookupPostalCode(raw?: string) {
+    const current = payloadRef.current
+    const cep = (raw ?? current.clinic.postalCode).replace(/\D/g, '')
     if (cep.length !== 8 || !staff.user) {
       setCepError('Informe os 8 números do CEP.')
       return
     }
+    const request = ++lookupRequest.current
     setCepBusy(true)
     setCepError('')
     try {
@@ -1641,6 +1817,7 @@ export function ScheduleStep({
         cache: 'no-store',
         signal: AbortSignal.timeout(10_000),
       })
+      if (request !== lookupRequest.current) return
       if (!response.ok) throw new Error('Not found')
       const data: {
         address: {
@@ -1651,30 +1828,52 @@ export function ScheduleStep({
           state: string
         }
       } = await response.json()
+      const latest = payloadRef.current
+      if (request !== lookupRequest.current) return
+      lookedUpCep.current = cep
       setPayload({
-        ...payload,
+        ...latest,
         clinic: {
-          ...payload.clinic,
+          ...latest.clinic,
           postalCode: formatCep(data.address.postalCode || cep),
-          addressLine: data.address.street || payload.clinic.addressLine,
-          addressDistrict: data.address.district || payload.clinic.addressDistrict,
-          city: data.address.city || payload.clinic.city,
-          state: data.address.state || payload.clinic.state,
+          addressLine: data.address.street || latest.clinic.addressLine,
+          addressDistrict: data.address.district || latest.clinic.addressDistrict,
+          city: data.address.city || latest.clinic.city,
+          state: data.address.state || latest.clinic.state,
         },
       })
     } catch {
+      if (request !== lookupRequest.current) return
+      lookedUpCep.current = ''
       setCepError('CEP não encontrado agora. Você pode preencher o endereço manualmente.')
     } finally {
-      setCepBusy(false)
+      if (request === lookupRequest.current) setCepBusy(false)
     }
+  }
+  useEffect(() => {
+    const cep = payload.clinic.postalCode.replace(/\D/g, '')
+    if (cep.length !== 8 || cep === lookedUpCep.current) return
+    const timer = window.setTimeout(() => {
+      void lookupPostalCode(cep)
+    }, 280)
+    return () => window.clearTimeout(timer)
+  }, [payload.clinic.postalCode])
+  function collapseAddress() {
+    if (closing) return
+    setClosing(true)
+    window.setTimeout(() => {
+      setOpen(false)
+      setClosing(false)
+    }, 220)
   }
   return (
     <div className="ob2-stack">
       <Card className="ob2-panel">
         <Card.Content className="ob2-form">
           {open ? (
-            <>
+            <div className={closing ? 'ob2-address-fields is-closing' : 'ob2-address-fields'}>
               <GlassField
+                className="ob2-cep-field ob2-address-emphasis"
                 label="CEP"
                 icon={<Hash size={18} />}
                 inputMode="numeric"
@@ -1686,7 +1885,10 @@ export function ScheduleStep({
                     className="ob2-cep"
                     variant="primary"
                     isDisabled={cepBusy}
-                    onPress={() => void lookupPostalCode()}
+                    onPress={() => {
+                      lookedUpCep.current = ''
+                      void lookupPostalCode()
+                    }}
                   >
                     <span className="ob2-cep-long">
                       {cepBusy ? 'Procurando…' : 'Procurar endereço'}
@@ -1710,7 +1912,7 @@ export function ScheduleStep({
                   onChange={(value) => changeClinic('addressLine', value)}
                 />
                 <GlassField
-                  className="ob2-address-emphasis"
+                  className="ob2-address-emphasis ob2-address-number"
                   label="Número"
                   icon={<Hash size={18} />}
                   value={payload.clinic.addressNumber}
@@ -1749,11 +1951,11 @@ export function ScheduleStep({
                 onChange={(value) => changeClinic('addressNote', value)}
               />
               {payload.clinic.addressLine.trim() ? (
-                <Button className="ob2-quiet" variant="ghost" onPress={() => setOpen(false)}>
+                <Button className="ob2-quiet" variant="ghost" onPress={collapseAddress}>
                   Recolher endereço
                 </Button>
               ) : null}
-            </>
+            </div>
           ) : (
             <Button className="ob2-address-summary" variant="ghost" onPress={() => setOpen(true)}>
               <Image
@@ -1763,10 +1965,20 @@ export function ScheduleStep({
                 width={1254}
                 height={1254}
               />
-              <span>{summary || 'Endereço'}</span>
+              <span>{summary}</span>
               <small>Editar</small>
             </Button>
           )}
+          <AddressMap
+            line={payload.clinic.addressLine}
+            number={payload.clinic.addressNumber}
+            district={payload.clinic.addressDistrict}
+            city={payload.clinic.city}
+            state={payload.clinic.state}
+            postalCode={payload.clinic.postalCode}
+            logoUrl={payload.clinic.logoUrl ?? null}
+            clinicName={payload.name}
+          />
         </Card.Content>
       </Card>
       <StepEnd error={error} footer={footer} />
@@ -1774,205 +1986,7 @@ export function ScheduleStep({
   )
 }
 
-function WeeklyHoursEditor({
-  days,
-  onChangeDay,
-  closedCopy = 'Fechado neste dia.',
-}: {
-  days: DaySchedule[]
-  onChangeDay: (weekday: number, patch: Partial<DaySchedule>) => void
-  closedCopy?: string
-}) {
-  return (
-    <div className="ob2-hours-list">
-      {days.map((day) => {
-        const breaks = day.breaks ?? []
-        return (
-          <div className="ob2-day" key={day.weekday}>
-            <Switch
-              isSelected={day.enabled}
-              onChange={(enabled) => onChangeDay(day.weekday, { enabled })}
-            >
-              <Switch.Content>
-                <Switch.Control>
-                  <Switch.Thumb />
-                </Switch.Control>
-                <Label>{dayNames[day.weekday]}</Label>
-              </Switch.Content>
-            </Switch>
-            {day.enabled ? (
-              <div className="ob2-day-schedule">
-                <div className="ob2-hours">
-                  <TimePicker
-                    label="Início"
-                    value={day.start}
-                    onChange={(value) => onChangeDay(day.weekday, { start: value })}
-                  />
-                  <TimePicker
-                    label="Fim"
-                    value={day.end}
-                    onChange={(value) => onChangeDay(day.weekday, { end: value })}
-                  />
-                </div>
-                {breaks.map((item, index) => (
-                  <div className="ob2-break" key={`${day.weekday}-${index}`}>
-                    <TimePicker
-                      label="Intervalo começa"
-                      value={item.start}
-                      onChange={(value) =>
-                        onChangeDay(day.weekday, {
-                          breaks: breaks.map((entry, position) =>
-                            position === index ? { ...entry, start: value } : entry,
-                          ),
-                        })
-                      }
-                    />
-                    <TimePicker
-                      label="Intervalo termina"
-                      value={item.end}
-                      onChange={(value) =>
-                        onChangeDay(day.weekday, {
-                          breaks: breaks.map((entry, position) =>
-                            position === index ? { ...entry, end: value } : entry,
-                          ),
-                        })
-                      }
-                    />
-                    <Button
-                      className="ob2-icon ob2-break-remove"
-                      isIconOnly
-                      variant="ghost"
-                      aria-label={`Remover intervalo de ${dayNames[day.weekday]}`}
-                      onPress={() =>
-                        onChangeDay(day.weekday, {
-                          breaks: breaks.filter((_, position) => position !== index),
-                        })
-                      }
-                    >
-                      <Trash2 size={16} />
-                    </Button>
-                  </div>
-                ))}
-                {breaks.length < 3 ? (
-                  <Button
-                    className="ob2-quiet"
-                    variant="ghost"
-                    onPress={() =>
-                      onChangeDay(day.weekday, {
-                        breaks: [...breaks, defaultBreak(day.start, day.end)],
-                      })
-                    }
-                  >
-                    <Plus size={16} /> Adicionar intervalo
-                  </Button>
-                ) : null}
-              </div>
-            ) : (
-              <p className="ob2-copy">{closedCopy}</p>
-            )}
-          </div>
-        )
-      })}
-    </div>
-  )
-}
-
-export function HoursStep({
-  payload,
-  setPayload,
-  error,
-  footer,
-}: {
-  payload: Payload
-  setPayload: (value: Payload) => void
-  error: string
-  footer: ReactNode
-}) {
-  const ready = syncProfessionalSchedules(payload)
-  const [activePro, setActivePro] = useState(0)
-  const professionals = ready.professionalSchedules
-  const solo = ready.teamMode === 'solo'
-
-  const updateClinicDay = (weekday: number, patch: Partial<DaySchedule>) =>
-    setPayload({
-      ...ready,
-      businessHours: ready.businessHours.map((day) =>
-        day.weekday === weekday ? { ...day, ...patch } : day,
-      ),
-    })
-
-  const updateProDay = (personIndex: number, weekday: number, patch: Partial<DaySchedule>) =>
-    setPayload({
-      ...ready,
-      professionalSchedules: ready.professionalSchedules.map((person, index) =>
-        index === personIndex
-          ? {
-              ...person,
-              days: person.days.map((day) =>
-                day.weekday === weekday ? { ...day, ...patch } : day,
-              ),
-            }
-          : person,
-      ),
-    })
-
-  return (
-    <div className="ob2-stack">
-      <section className="ob2-hours-section">
-        <h2 className="ob2-section-title">Horário da clínica</h2>
-        <p className="ob2-copy">
-          Vale para o espaço inteiro. Intervalos aqui são pausas gerais — almoço ou fechamento
-          parcial do salão.
-        </p>
-        <Card className="ob2-panel ob2-hours-card">
-          <Card.Content>
-            <WeeklyHoursEditor days={ready.businessHours} onChangeDay={updateClinicDay} />
-          </Card.Content>
-        </Card>
-      </section>
-
-      <section className="ob2-hours-section">
-        <h2 className="ob2-section-title">
-          {solo ? 'Seu horário de atendimento' : 'Horário por profissional'}
-        </h2>
-        <p className="ob2-copy">
-          {solo
-            ? 'Como você atende dentro do horário da clínica. Ajuste intervalos pessoais se precisar.'
-            : 'Cada profissional atende dentro do horário da clínica. Escolha quem configurar abaixo.'}
-        </p>
-        {!solo && professionals.length > 1 ? (
-          <div className="ob2-pro-tabs" role="tablist" aria-label="Profissionais">
-            {professionals.map((person, index) => (
-              <Button
-                key={person.name}
-                className={['ob2-pro-tab', index === activePro ? 'is-active' : '']
-                  .filter(Boolean)
-                  .join(' ')}
-                variant="ghost"
-                onPress={() => setActivePro(index)}
-              >
-                {person.name}
-              </Button>
-            ))}
-          </div>
-        ) : null}
-        {professionals[activePro] ? (
-          <Card className="ob2-panel ob2-hours-card">
-            <Card.Content>
-              {!solo ? <p className="ob2-hours-pro-name">{professionals[activePro].name}</p> : null}
-              <WeeklyHoursEditor
-                days={professionals[activePro].days}
-                onChangeDay={(weekday, patch) => updateProDay(activePro, weekday, patch)}
-                closedCopy="Sem atendimento neste dia."
-              />
-            </Card.Content>
-          </Card>
-        ) : null}
-      </section>
-      <StepEnd error={error} footer={footer} />
-    </div>
-  )
-}
+export { HoursStep } from './hours-editor'
 
 export function PaymentsStep({
   clinicId,

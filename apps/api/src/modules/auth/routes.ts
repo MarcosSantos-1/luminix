@@ -2,12 +2,14 @@ import type { FastifyInstance } from 'fastify'
 import { createStaffAuthenticator, type AuthDependencies } from '../../shared/auth/staff-session.js'
 import { clinicRoutes } from '../clinics/routes.js'
 import { operationRoutes } from '../operations/routes.js'
+import { formatClinicGeocodeAddress, pickGeocodedPoint } from './geocode.js'
 export type { AuthDependencies } from '../../shared/auth/staff-session.js'
 
 export async function authRoutes(app: FastifyInstance, dependencies: AuthDependencies) {
   app.addHook('onSend', async (request, reply, payload) => {
     if (
       request.routeOptions.url?.startsWith('/auth/') ||
+      request.routeOptions.url?.startsWith('/address/') ||
       request.routeOptions.url?.startsWith('/clinics/')
     )
       reply.header('Cache-Control', 'no-store')
@@ -89,6 +91,87 @@ export async function authRoutes(app: FastifyInstance, dependencies: AuthDepende
       } catch {
         request.log.info({ event: 'postal_code_lookup_unavailable' })
         return reply.code(503).send({ error: 'Postal code lookup unavailable' })
+      }
+    },
+  )
+  app.get<{
+    Querystring: {
+      line: string
+      number?: string
+      district?: string
+      city?: string
+      state?: string
+      postalCode?: string
+    }
+  }>(
+    '/address/geocode',
+    {
+      schema: {
+        querystring: {
+          type: 'object',
+          additionalProperties: false,
+          required: ['line'],
+          properties: {
+            line: { type: 'string', minLength: 3, maxLength: 240 },
+            number: { type: 'string', maxLength: 20 },
+            district: { type: 'string', maxLength: 120 },
+            city: { type: 'string', maxLength: 120 },
+            state: { type: 'string', maxLength: 2 },
+            postalCode: { type: 'string', maxLength: 9 },
+          },
+        },
+      },
+    },
+    async (request, reply) => {
+      const identityId = await authenticate(request, reply)
+      if (!identityId) return
+      const city = request.query.city?.trim() ?? ''
+      const state = request.query.state?.trim().toUpperCase() ?? ''
+      const postalCode = (request.query.postalCode ?? '').replace(/\D/g, '')
+      if (state && !/^[A-Z]{2}$/.test(state))
+        return reply.code(400).send({ error: 'Invalid state' })
+      if (city.length < 2 && postalCode.length !== 8)
+        return reply.code(400).send({ error: 'Incomplete address' })
+      const key = process.env.GOOGLE_MAPS_API_KEY?.trim()
+      if (!key) return reply.code(503).send({ error: 'Geocoding unavailable' })
+      try {
+        const url = new URL('https://maps.googleapis.com/maps/api/geocode/json')
+        url.searchParams.set(
+          'address',
+          formatClinicGeocodeAddress({
+            line: request.query.line,
+            number: request.query.number,
+            district: request.query.district,
+            city,
+            state,
+            postalCode,
+          }),
+        )
+        url.searchParams.set('components', 'country:BR')
+        url.searchParams.set('region', 'br')
+        url.searchParams.set('language', 'pt-BR')
+        url.searchParams.set('key', key)
+        const response = await fetch(url, { signal: AbortSignal.timeout(8_000) })
+        if (!response.ok) throw new Error('Geocoder unavailable')
+        const body = (await response.json()) as {
+          status?: string
+          results?: Array<{
+            geometry?: {
+              location?: { lat?: unknown; lng?: unknown }
+              location_type?: string
+            }
+          }>
+        }
+        if (body.status === 'REQUEST_DENIED' || body.status === 'OVER_QUERY_LIMIT') {
+          request.log.warn({ event: 'geocode_denied', status: body.status })
+          return reply.code(503).send({ error: 'Geocoding unavailable' })
+        }
+        const location = pickGeocodedPoint(body)
+        if (!location) return reply.code(404).send({ error: 'Location not found' })
+        return { location }
+      } catch {
+        request.log.info({ event: 'geocode_unavailable' })
+        return reply.code(503).send({ error: 'Geocoding unavailable' })
       }
     },
   )

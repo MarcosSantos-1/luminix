@@ -49,6 +49,7 @@ export type Professional = {
   photoPreview?: string
   photoAssetId?: string
   photoUrl?: string
+  homeVisit?: boolean
 }
 
 export const professionalAvatarSrc: Record<ProfessionalGender, string> = {
@@ -61,8 +62,23 @@ export type DaySchedule = {
   start: string
   end: string
   breaks: { start: string; end: string }[]
+  homeVisit?: boolean
+  customBreak?: boolean
 }
-export type ProfessionalSchedule = { professionalId: string; name: string; days: DaySchedule[] }
+export type HolidayHours = {
+  enabled: boolean
+  start: string
+  end: string
+  breaks: { start: string; end: string }[]
+  homeVisit?: boolean
+  customBreak?: boolean
+}
+export type ProfessionalSchedule = {
+  professionalId: string
+  name: string
+  days: DaySchedule[]
+  holidayHours?: HolidayHours
+}
 export type Payload = {
   name: string
   ownerName: string
@@ -77,6 +93,8 @@ export type Payload = {
     taxId: string
     taxIdKind?: 'cpf' | 'cnpj'
     defaultAudience: Audience
+    homeService?: boolean
+    defaultBreak?: { start: string; end: string }
     addressLine: string
     addressNumber: string
     addressDistrict: string
@@ -86,6 +104,7 @@ export type Payload = {
     postalCode: string
     logoAssetId?: string
     logoUrl?: string
+    holidayHours?: HolidayHours
   }
   uiFocus?: 'address' | 'hours' | 'payments' | 'rules'
   occupations: string[]
@@ -188,6 +207,19 @@ export function intimateAudiencesFor(services: Service[]): Record<string, Audien
   )
 }
 
+export function syncIntimateServiceAudiences(
+  services: Service[],
+  audience: Audience | undefined,
+  current?: Partial<Record<string, Audience>>,
+): Partial<Record<string, Audience>> | undefined {
+  if (audience !== 'women' && audience !== 'men') return current
+  const next: Partial<Record<string, Audience>> = { ...current }
+  for (const service of services) {
+    if (serviceIsIntimate(service) && service.id) next[service.id] = audience
+  }
+  return next
+}
+
 export function effectiveServiceAudience(person: Professional, service: Service): Audience {
   const override = person.serviceAudiences?.[service.id]
   return isAudience(override) ? override : service.audience
@@ -240,7 +272,7 @@ export const stepInfo = [
     key: 'hours',
     label: 'Horários',
     title: 'Quando a clínica abre?',
-    text: 'Primeiro o horário do espaço. Depois, ajuste o atendimento de cada profissional — sempre dentro do que a clínica permite.',
+    text: 'Ligue cada dia em que a clínica abre e escolha o horário daquele dia. O intervalo fica no card da clínica.',
     icon: CalendarDays,
   },
   {

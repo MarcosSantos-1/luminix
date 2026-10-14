@@ -44,10 +44,21 @@ type OnboardingPayload = {
     addressNote?: string
     taxIdKind?: 'cpf' | 'cnpj'
     defaultAudience?: 'all' | 'women' | 'men'
+    homeService?: boolean
+    defaultBreak?: { start: string; end: string }
     city: string
     state: string
     postalCode: string
     logoAssetId?: string
+    logoUrl?: string
+    holidayHours?: {
+      enabled: boolean
+      start: string
+      end: string
+      breaks?: { start: string; end: string }[]
+      homeVisit?: boolean
+      customBreak?: boolean
+    }
   }
   uiFocus?: 'address' | 'hours' | 'payments' | 'rules'
   occupations: string[]
@@ -76,6 +87,8 @@ type OnboardingPayload = {
     serviceIds: string[]
     serviceAudiences?: Record<string, 'all' | 'women' | 'men'>
     photoAssetId?: string
+    photoUrl?: string
+    homeVisit?: boolean
   }[]
   businessHours: {
     weekday: number
@@ -83,6 +96,8 @@ type OnboardingPayload = {
     start: string
     end: string
     breaks?: { start: string; end: string }[]
+    homeVisit?: boolean
+    customBreak?: boolean
   }[]
   professionalSchedules: {
     professionalId: string
@@ -93,7 +108,17 @@ type OnboardingPayload = {
       start: string
       end: string
       breaks?: { start: string; end: string }[]
+      homeVisit?: boolean
+      customBreak?: boolean
     }[]
+    holidayHours?: {
+      enabled: boolean
+      start: string
+      end: string
+      breaks?: { start: string; end: string }[]
+      homeVisit?: boolean
+      customBreak?: boolean
+    }
   }[]
   preferences: {
     cancellationHours: number
@@ -108,10 +133,7 @@ function validPayload(payload: OnboardingPayload): boolean {
     new Set(names.map((name) => name.trim().toLocaleLowerCase('pt-BR'))).size === names.length
   const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
   const clock = /^(?:[01][0-9]|2[0-3]):[0-5][0-9]$/
-  const validDay = (
-    day: OnboardingPayload['businessHours'][number],
-    clinicDay?: OnboardingPayload['businessHours'][number],
-  ) => {
+  const validDay = (day: OnboardingPayload['businessHours'][number]) => {
     const breaks = day.breaks ?? []
     if (
       day.weekday < 0 ||
@@ -119,10 +141,7 @@ function validPayload(payload: OnboardingPayload): boolean {
       !clock.test(day.start) ||
       !clock.test(day.end) ||
       (day.enabled && day.start >= day.end) ||
-      breaks.length > 4 ||
-      (day.enabled &&
-        clinicDay &&
-        (!clinicDay.enabled || day.start < clinicDay.start || day.end > clinicDay.end))
+      breaks.length > 4
     )
       return false
     let cursor = day.start
@@ -133,7 +152,7 @@ function validPayload(payload: OnboardingPayload): boolean {
           clock.test(item.start) &&
           clock.test(item.end) &&
           item.start < item.end &&
-          (!day.enabled || (item.start >= day.start && item.end <= day.end && item.start >= cursor))
+          item.start >= cursor
         cursor = item.end
         return fits
       })
@@ -145,7 +164,6 @@ function validPayload(payload: OnboardingPayload): boolean {
   const taxKind = payload.clinic.taxIdKind === 'cpf' ? 'cpf' : 'cnpj'
   const serviceIds = new Set(payload.services.map((service) => service.id))
   const professionalIds = new Set(payload.professionals.map((professional) => professional.id))
-  const clinicHours = new Map(payload.businessHours.map((day) => [day.weekday, day]))
   return Boolean(
     payload.name.length <= 160 &&
     payload.ownerName.length <= 120 &&
@@ -200,7 +218,7 @@ function validPayload(payload: OnboardingPayload): boolean {
           entry.name.trim() &&
           entry.days.length === 7 &&
           unique(entry.days.map((day) => String(day.weekday))) &&
-          entry.days.every((day) => validDay(day, clinicHours.get(day.weekday))),
+          entry.days.every((day) => validDay(day)),
       )),
   )
 }
@@ -547,10 +565,45 @@ export async function clinicRoutes(
           addressNote: { type: 'string', maxLength: 240 },
           taxIdKind: { type: 'string', enum: ['cpf', 'cnpj'] },
           defaultAudience: { type: 'string', enum: ['all', 'women', 'men'] },
+          homeService: { type: 'boolean' },
+          defaultBreak: {
+            type: 'object',
+            additionalProperties: false,
+            required: ['start', 'end'],
+            properties: {
+              start: { type: 'string', pattern: '^(?:[01][0-9]|2[0-3]):[0-5][0-9]$' },
+              end: { type: 'string', pattern: '^(?:[01][0-9]|2[0-3]):[0-5][0-9]$' },
+            },
+          },
           city: { type: 'string', maxLength: 120 },
           state: { type: 'string', maxLength: 2, pattern: '^$|^[A-Z]{2}$' },
           postalCode: { type: 'string', maxLength: 9, pattern: '^$|^[0-9-]{1,9}$' },
           logoAssetId: { type: 'string', format: 'uuid' },
+          holidayHours: {
+            type: 'object',
+            additionalProperties: false,
+            required: ['enabled', 'start', 'end'],
+            properties: {
+              enabled: { type: 'boolean' },
+              start: { type: 'string', pattern: '^(?:[01][0-9]|2[0-3]):[0-5][0-9]$' },
+              end: { type: 'string', pattern: '^(?:[01][0-9]|2[0-3]):[0-5][0-9]$' },
+              homeVisit: { type: 'boolean' },
+              customBreak: { type: 'boolean' },
+              breaks: {
+                type: 'array',
+                maxItems: 4,
+                items: {
+                  type: 'object',
+                  additionalProperties: false,
+                  required: ['start', 'end'],
+                  properties: {
+                    start: { type: 'string', pattern: '^(?:[01][0-9]|2[0-3]):[0-5][0-9]$' },
+                    end: { type: 'string', pattern: '^(?:[01][0-9]|2[0-3]):[0-5][0-9]$' },
+                  },
+                },
+              },
+            },
+          },
         },
       },
       occupations: {
@@ -625,6 +678,7 @@ export async function clinicRoutes(
               additionalProperties: { type: 'string', enum: ['all', 'women', 'men'] },
             },
             photoAssetId: { type: 'string', format: 'uuid' },
+            homeVisit: { type: 'boolean' },
           },
         },
       },
@@ -641,6 +695,8 @@ export async function clinicRoutes(
             enabled: { type: 'boolean' },
             start: { type: 'string', pattern: '^(?:[01][0-9]|2[0-3]):[0-5][0-9]$' },
             end: { type: 'string', pattern: '^(?:[01][0-9]|2[0-3]):[0-5][0-9]$' },
+            homeVisit: { type: 'boolean' },
+            customBreak: { type: 'boolean' },
             breaks: {
               type: 'array',
               maxItems: 4,
@@ -668,6 +724,31 @@ export async function clinicRoutes(
           properties: {
             professionalId: { type: 'string', format: 'uuid' },
             name: { type: 'string', minLength: 1, maxLength: 160 },
+            holidayHours: {
+              type: 'object',
+              additionalProperties: false,
+              required: ['enabled', 'start', 'end'],
+              properties: {
+                enabled: { type: 'boolean' },
+                start: { type: 'string', pattern: '^(?:[01][0-9]|2[0-3]):[0-5][0-9]$' },
+                end: { type: 'string', pattern: '^(?:[01][0-9]|2[0-3]):[0-5][0-9]$' },
+                homeVisit: { type: 'boolean' },
+                customBreak: { type: 'boolean' },
+                breaks: {
+                  type: 'array',
+                  maxItems: 4,
+                  items: {
+                    type: 'object',
+                    additionalProperties: false,
+                    required: ['start', 'end'],
+                    properties: {
+                      start: { type: 'string', pattern: '^(?:[01][0-9]|2[0-3]):[0-5][0-9]$' },
+                      end: { type: 'string', pattern: '^(?:[01][0-9]|2[0-3]):[0-5][0-9]$' },
+                    },
+                  },
+                },
+              },
+            },
             days: {
               type: 'array',
               minItems: 7,
@@ -697,6 +778,8 @@ export async function clinicRoutes(
                       },
                     },
                   },
+                  homeVisit: { type: 'boolean' },
+                  customBreak: { type: 'boolean' },
                 },
               },
             },
@@ -738,6 +821,42 @@ export async function clinicRoutes(
           ])
         ).rows[0]
         if (!clinic) throw new Error('Clinic unavailable')
+        const stored =
+          draft?.payload && typeof draft.payload === 'object' && !Array.isArray(draft.payload)
+            ? (draft.payload as OnboardingPayload)
+            : emptyPayload(String(clinic.name))
+        const payload = {
+          ...emptyPayload(String(clinic.name)),
+          ...stored,
+          clinic: { ...emptyPayload(String(clinic.name)).clinic, ...stored.clinic },
+          professionals: stored.professionals ?? [],
+        }
+        const assetIds = [
+          payload.clinic.logoAssetId,
+          ...payload.professionals.map((person) => person.photoAssetId),
+        ].filter((id): id is string => Boolean(id))
+        if (assetIds.length > 0) {
+          const assets = await connection.query(
+            `SELECT id::text AS id, large_object_key
+               FROM luminix.media_assets
+              WHERE clinic_id = $1 AND status = 'ready' AND id = ANY($2::uuid[])`,
+            [tenant.clinicId, assetIds],
+          )
+          const urls = new Map(
+            assets.rows.map((row) => [
+              String(row.id),
+              publicMediaUrl(String(row.large_object_key)),
+            ]),
+          )
+          const logoUrl = payload.clinic.logoAssetId
+            ? urls.get(payload.clinic.logoAssetId)
+            : undefined
+          if (logoUrl) payload.clinic = { ...payload.clinic, logoUrl }
+          payload.professionals = payload.professionals.map((person) => {
+            const photoUrl = person.photoAssetId ? urls.get(person.photoAssetId) : undefined
+            return photoUrl ? { ...person, photoUrl } : person
+          })
+        }
         return {
           draft: draft
             ? {
@@ -745,14 +864,7 @@ export async function clinicRoutes(
                 formatVersion: 3,
                 step: draft.step,
                 status: draft.status,
-                payload: {
-                  ...emptyPayload(String(clinic.name)),
-                  ...(draft.payload &&
-                  typeof draft.payload === 'object' &&
-                  !Array.isArray(draft.payload)
-                    ? draft.payload
-                    : {}),
-                },
+                payload,
               }
             : {
                 version: 0,
