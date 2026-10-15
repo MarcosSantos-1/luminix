@@ -272,7 +272,7 @@ export const stepInfo = [
     key: 'hours',
     label: 'Horários',
     title: 'Quando a clínica abre?',
-    text: 'Ligue cada dia em que a clínica abre e escolha o horário daquele dia. O intervalo fica no card da clínica.',
+    text: '',
     icon: CalendarDays,
   },
   {

@@ -118,7 +118,7 @@ export function OnboardingShell({
         </header>
         <div className="ob2-heading">
           <h1>{current.title}</h1>
-          <p>{current.text}</p>
+          {current.text ? <p>{current.text}</p> : null}
         </div>
       </div>
       <div className="ob2-board">

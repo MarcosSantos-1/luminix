@@ -1,7 +1,7 @@
 'use client'
 
 import { Button, Card, Label, Switch } from '@heroui/react'
-import { Building2, Check, Star } from 'lucide-react'
+import { Building2, Check, Info, Star, UserRound } from 'lucide-react'
 import Image from 'next/image'
 import { useState, type ReactNode } from 'react'
 import {
@@ -146,7 +146,7 @@ function personPhoto(person: Professional | undefined) {
   return person.photoUrl || person.photoPreview || professionalAvatarSrc[person.gender]
 }
 
-function DayDots({ days }: { days: DaySchedule[] }) {
+function DayDots({ days, holidayOpen }: { days: DaySchedule[]; holidayOpen: boolean }) {
   const rows = [
     [1, 2, 3, 4, 5],
     [6, 0],
@@ -169,6 +169,16 @@ function DayDots({ days }: { days: DaySchedule[] }) {
               </span>
             )
           })}
+          {row.includes(0) ? (
+            <span className={holidayOpen ? 'ob2-hours-dot is-on is-holiday' : 'ob2-hours-dot is-holiday'}>
+              {holidayOpen ? (
+                <span className="ob2-hours-dot-check">
+                  <Check size={10} strokeWidth={3} />
+                </span>
+              ) : null}
+              <Star size={12} fill={holidayOpen ? '#ffe14a' : 'transparent'} />
+            </span>
+          ) : null}
         </div>
       ))}
     </div>
@@ -232,26 +242,25 @@ function DayCards({
                     : 'Fechado. Ligue o botão se abre neste dia.'}
               </p>
             </div>
-            {open ? (
-              <div className="ob2-hours-toggles">
-                {forPerson ? null : (
-                  <Switch
-                    className="ob2-switch"
-                    isSelected={day.enabled}
-                    aria-label={`${dayNames[day.weekday]} ${day.enabled ? 'abre' : 'está fechado'}`}
-                    onChange={(enabled) =>
-                      onChange(patchDay(days, day.weekday, { enabled }, template))
-                    }
-                  >
-                    <Switch.Content>
-                      <Label>{day.enabled ? 'Abre neste dia' : 'Não abre neste dia'}</Label>
-                      <Switch.Control>
-                        <Switch.Thumb />
-                      </Switch.Control>
-                    </Switch.Content>
-                  </Switch>
-                )}
-                {template.enabled && !forPerson ? (
+            <div className="ob2-hours-toggles">
+              {forPerson ? null : (
+                <Switch
+                  className="ob2-switch"
+                  isSelected={day.enabled}
+                  aria-label={`${dayNames[day.weekday]} ${day.enabled ? 'abre' : 'está fechado'}`}
+                  onChange={(enabled) =>
+                    onChange(patchDay(days, day.weekday, { enabled }, template))
+                  }
+                >
+                  <Switch.Content>
+                    <Label>{day.enabled ? 'Abre neste dia' : 'Não abre neste dia'}</Label>
+                    <Switch.Control>
+                      <Switch.Thumb />
+                    </Switch.Control>
+                  </Switch.Content>
+                </Switch>
+              )}
+              {open && template.enabled && !forPerson ? (
                   <Switch
                     className="ob2-switch"
                     isSelected={hasBreak}
@@ -319,7 +328,6 @@ function DayCards({
                   </Switch>
                 ) : null}
               </div>
-            ) : null}
             {open && forPerson && clinicBreak && !usingClinic ? (
               <div className="ob2-hours is-compact">
                 <TimePicker
@@ -351,6 +359,34 @@ function DayCards({
                   label="Que horas fecha"
                   value={day.end}
                   onChange={(end) => onChange(patchDay(days, day.weekday, { end }, template))}
+                />
+              </div>
+            ) : null}
+            {open && !forPerson && !template.enabled ? (
+              <div className="ob2-hours is-compact">
+                <TimePicker
+                  label="Intervalo começa"
+                  value={ownBreak?.start || defaultBreak(day.start, day.end).start}
+                  onChange={(start) => {
+                    const end = ownBreak?.end || defaultBreak(day.start, day.end).end
+                    onChange(
+                      days.map((item) =>
+                        item.weekday === day.weekday ? { ...item, breaks: [{ start, end }] } : item,
+                      ),
+                    )
+                  }}
+                />
+                <TimePicker
+                  label="Intervalo termina"
+                  value={ownBreak?.end || defaultBreak(day.start, day.end).end}
+                  onChange={(end) => {
+                    const start = ownBreak?.start || defaultBreak(day.start, day.end).start
+                    onChange(
+                      days.map((item) =>
+                        item.weekday === day.weekday ? { ...item, breaks: [{ start, end }] } : item,
+                      ),
+                    )
+                  }}
                 />
               </div>
             ) : null}
@@ -411,30 +447,30 @@ function HolidayCard({
               : 'Fechado. Ligue o botão se a clínica abre em feriados.'}
         </p>
       </div>
-      {open ? (
-        <div className="ob2-hours-toggles">
-          {forPerson ? null : (
-            <Switch
-              className="ob2-switch"
-              isSelected={holiday.enabled}
-              aria-label="Feriados abrem"
-              onChange={(enabled) =>
-                onChange({
-                  ...holiday,
-                  enabled,
-                  breaks: enabled && template.enabled ? [{ start: template.start, end: template.end }] : [],
-                })
-              }
-            >
-              <Switch.Content>
-                <Label>{holiday.enabled ? 'Abre neste dia' : 'Não abre neste dia'}</Label>
-                <Switch.Control>
-                  <Switch.Thumb />
-                </Switch.Control>
-              </Switch.Content>
-            </Switch>
-          )}
-          {template.enabled && !forPerson ? (
+      <div className="ob2-hours-toggles">
+        {forPerson ? null : (
+          <Switch
+            className="ob2-switch"
+            isSelected={holiday.enabled}
+            aria-label="Feriados abrem"
+            onChange={(enabled) =>
+              onChange({
+                ...holiday,
+                enabled,
+                breaks:
+                  enabled && template.enabled ? [{ start: template.start, end: template.end }] : [],
+              })
+            }
+          >
+            <Switch.Content>
+              <Label>{holiday.enabled ? 'Abre neste dia' : 'Não abre neste dia'}</Label>
+              <Switch.Control>
+                <Switch.Thumb />
+              </Switch.Control>
+            </Switch.Content>
+          </Switch>
+        )}
+        {open && template.enabled && !forPerson ? (
             <Switch
               className="ob2-switch"
               isSelected={hasBreak}
@@ -495,7 +531,6 @@ function HolidayCard({
             </Switch>
           ) : null}
         </div>
-      ) : null}
       {open && forPerson && clinicBreak && !usingClinic ? (
         <div className="ob2-hours is-compact">
           <TimePicker
@@ -533,6 +568,40 @@ function HolidayCard({
             label="Que horas fecha"
             value={holiday.end}
             onChange={(end) => onChange({ ...holiday, end })}
+          />
+        </div>
+      ) : null}
+      {open && !forPerson && !template.enabled ? (
+        <div className="ob2-hours is-compact">
+          <TimePicker
+            label="Intervalo começa"
+            value={ownBreak?.start || defaultBreak(holiday.start, holiday.end).start}
+            onChange={(start) =>
+              onChange({
+                ...holiday,
+                breaks: [
+                  {
+                    start,
+                    end: ownBreak?.end || defaultBreak(holiday.start, holiday.end).end,
+                  },
+                ],
+              })
+            }
+          />
+          <TimePicker
+            label="Intervalo termina"
+            value={ownBreak?.end || defaultBreak(holiday.start, holiday.end).end}
+            onChange={(end) =>
+              onChange({
+                ...holiday,
+                breaks: [
+                  {
+                    start: ownBreak?.start || defaultBreak(holiday.start, holiday.end).start,
+                    end,
+                  },
+                ],
+              })
+            }
           />
         </div>
       ) : null}
@@ -675,13 +744,19 @@ export function HoursStep({
             aria-pressed={active}
             onPress={() => setPicked(person.professionalId)}
           >
-            <Image
-              className="ob2-hours-person-avatar"
-              src={personPhoto(profile)}
-              alt=""
-              width={112}
-              height={112}
-            />
+            {solo ? (
+              <span className="ob2-hours-person-mark is-solo" aria-hidden>
+                <UserRound size={28} />
+              </span>
+            ) : (
+              <Image
+                className="ob2-hours-person-avatar"
+                src={personPhoto(profile)}
+                alt=""
+                width={112}
+                height={112}
+              />
+            )}
             <span className="ob2-hours-person-copy">
               {solo ? <small className="ob2-hours-person-kicker">Seu atendimento</small> : null}
               <strong>{solo ? 'Você' : person.name}</strong>
@@ -695,11 +770,26 @@ export function HoursStep({
 
   return (
     <div className="ob2-stack ob2-hours-step">
-      <p className="ob2-hours-lead">
-        {solo
-          ? 'A clínica e o seu atendimento ficam separados. Comece pela clínica: ligue os dias, o horário e o intervalo. Depois toque em Você para ajustar os dias em que você atende. O intervalo já vem ligado, e dá para desligar em um dia.'
-          : 'Comece pelo card da clínica. Lá ficam os dias, o horário e o intervalo padrão. Depois toque na profissional: o intervalo já vem ligado nos dias em que cabe, e ela pode desligar.'}
-      </p>
+      {solo ? (
+        <Card className="ob2-panel ob2-guide-card">
+          <Card.Content className="ob2-guide-body">
+            <span className="ob2-guide-icon" aria-hidden>
+              <Info size={18} />
+            </span>
+            <p className="ob2-guide-copy">
+              A clínica e o seu atendimento ficam separados. Comece pela clínica: ligue os dias, o
+              horário e o intervalo. Depois toque em Você para ajustar os dias em que você atende. O
+              intervalo já vem ligado, e dá para desligar em um dia.
+            </p>
+          </Card.Content>
+        </Card>
+      ) : (
+        <p className="ob2-hours-lead">
+          Comece pelo card da clínica. Lá ficam os dias, o horário e o intervalo padrão. Depois
+          toque na profissional: o intervalo já vem ligado nos dias em que cabe, e ela pode
+          desligar.
+        </p>
+      )}
       {cards}
       <Card className="ob2-panel ob2-hours-card">
         <Card.Content className="ob2-hours-editor">
@@ -738,7 +828,7 @@ export function HoursStep({
                   </div>
                 ) : null}
               </div>
-              <DayDots days={activeDays} />
+              <DayDots days={activeDays} holidayOpen={activeHoliday.enabled} />
             </div>
           ) : (
             <div className="ob2-hours-pause-split">
@@ -750,7 +840,7 @@ export function HoursStep({
                     : 'A clínica ainda não tem intervalo padrão. Se quiser uma pausa na agenda, volte no card Clínica e ligue o intervalo.'}
                 </p>
               </div>
-              <DayDots days={activeDays} />
+              <DayDots days={activeDays} holidayOpen={activeHoliday.enabled} />
             </div>
           )}
 
