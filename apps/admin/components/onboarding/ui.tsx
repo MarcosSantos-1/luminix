@@ -162,6 +162,8 @@ export function BlurDialog({
   description,
   children,
   footer,
+  className,
+  size = 'full',
 }: {
   isOpen: boolean
   onOpenChange: (open: boolean) => void
@@ -169,10 +171,15 @@ export function BlurDialog({
   description?: string
   children: ReactNode
   footer?: ReactNode
+  className?: string
+  size?: 'full' | 'md'
 }) {
   return (
     <Modal.Backdrop className="ob2-dialog-backdrop" isOpen={isOpen} onOpenChange={onOpenChange}>
-      <Modal.Container className="ob2-dialog-container" size="full">
+      <Modal.Container
+        className={['ob2-dialog-container', className].filter(Boolean).join(' ')}
+        size={size}
+      >
         <Modal.Dialog className="ob2-dialog">
           <Modal.CloseTrigger aria-label="Fechar" />
           <Modal.Header>

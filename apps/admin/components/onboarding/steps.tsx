@@ -33,6 +33,7 @@ import {
   Phone,
   Scissors,
   Search,
+  Star,
   Shield,
   Trash2,
   Upload,
@@ -45,6 +46,7 @@ import Image from 'next/image'
 import Link from 'next/link'
 import { useEffect, useRef, useState, type DragEvent, type ReactNode } from 'react'
 import { syncProfessionalSchedules } from './schedule-sync'
+import { SpecialTreatments } from './special-treatments'
 import { formatBrPhone, toE164Phone } from '@/lib/phone'
 import { useStaff } from '@/components/staff-provider'
 import { useClinic } from '@/components/clinic-workspace'
@@ -698,7 +700,9 @@ function ProfessionalPhotoField({
       </button>
       <div className="ob2-pro-photo-copy">
         <strong>{photoTitle}</strong>
-        <span aria-live="polite">{busy ? 'Otimizando e enviando…' : 'Opcional · PNG, JPG ou WebP.'}</span>
+        <span aria-live="polite">
+          {busy ? 'Otimizando e enviando…' : 'Opcional · PNG, JPG ou WebP.'}
+        </span>
         <div className="ob2-pro-photo-actions">
           <Button
             className="ob2-pro-photo-btn"
@@ -1086,7 +1090,6 @@ export function ServicesStep({
         current === position
           ? {
               ...item,
-              bookingMode: 'instant',
               durationMinutes: item.durationMinutes < 30 ? 30 : item.durationMinutes,
             }
           : item,
@@ -1128,6 +1131,7 @@ export function ServicesStep({
           placeholder="Nome do atendimento"
           onChange={setQuery}
         />
+        <SpecialTreatments payload={payload} setPayload={setPayload} />
         {payload.services.length === 0 ? (
           <p className="ob2-copy">Volte ao catálogo e escolha pelo menos um serviço.</p>
         ) : visibleServices.length === 0 ? (
@@ -1139,9 +1143,20 @@ export function ServicesStep({
                 <h2 className="ob2-detail-category">{group.category}</h2>
                 <div className="ob2-detail-grid">
                   {group.entries.map(({ item, position }) => (
-                    <Card className="ob2-panel" key={`${item.name}-${position}`}>
+                    <Card
+                      className={`ob2-panel${item.bookingMode === 'manual_release' ? ' ob2-special-service' : ''}`}
+                      key={item.id}
+                    >
                       <Card.Content className="ob2-summary">
+                        {item.bookingMode === 'manual_release' ? (
+                          <span className="ob2-special-badge">
+                            <Star size={16} fill="currentColor" aria-hidden /> Especial
+                          </span>
+                        ) : null}
                         <strong>{item.name}</strong>
+                        {item.bookingMode === 'manual_release' && item.resourceName ? (
+                          <span className="ob2-special-resource">{item.resourceName}</span>
+                        ) : null}
                         <p>{item.durationMinutes} min</p>
                         <b>{priceLabel(item)}</b>
                         <Button
@@ -1172,11 +1187,7 @@ export function ServicesStep({
           <StepEnd error={error} footer={footer} />
         </div>
       ) : null}
-      <BlurDrawer
-        state={editor}
-        placement="bottom"
-        title={service?.name || 'Ajustar serviço'}
-      >
+      <BlurDrawer state={editor} placement="bottom" title={service?.name || 'Ajustar serviço'}>
         {service && index != null ? (
           <>
             <GlassField

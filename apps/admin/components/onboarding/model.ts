@@ -114,6 +114,7 @@ export type Payload = {
   businessHours: DaySchedule[]
   professionalSchedules: ProfessionalSchedule[]
   preferences: {
+    specialTreatmentsDismissed?: boolean
     cancellationHours: number
     specialCancellationHours: number
     acceptInApp: boolean

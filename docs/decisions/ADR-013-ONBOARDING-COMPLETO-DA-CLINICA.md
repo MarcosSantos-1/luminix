@@ -42,6 +42,31 @@ membership ativo e `onboarding:manage`, e permanece idempotente após sucesso.
 
 ## Consequências
 
+### Evolução da configuração de aparelhos — 2026-10-16
+
+Na etapa de detalhes, o card de aparelhos alugados/compartilhados fica imediatamente abaixo da
+busca. A resposta negativa exige confirmação antes de ocultar o card; um link permite reabrir a
+configuração. A preferência opcional `specialTreatmentsDismissed` acompanha o JSON do rascunho,
+sem nova coluna ou migration. O fluxo usa o contrato v3 vigente da ADR-014.
+
+O modal apresenta cards selecionáveis de aparelhos sugeridos somente a partir dos serviços
+escolhidos. Sugestões não classificam automaticamente um serviço como especial. Aparelhos
+personalizados podem vincular serviços existentes ou criar um novo atendimento, inicialmente
+com 60 minutos e preço sob consulta, valores informados na interface e editáveis nos detalhes.
+Fechar/cancelar o modal descarta a edição local; salvar aplica os vínculos ao rascunho do onboarding,
+persistido ao navegar/salvar pelo fluxo existente.
+
+Serviços vinculados recebem estrela, texto “Especial” e contorno dourado. Reutilizam
+`bookingMode = manual_release` e `resourceName`; a conclusão materializa `resources` e
+`service_resources` com o isolamento já existente. Ajustar preço/duração não redefine o modo de
+agendamento. O contrato atual representa um aparelho por serviço e permite vários serviços no
+mesmo aparelho; capacidades simultâneas e múltiplos aparelhos por serviço exigem evolução própria.
+
+Esta entrega configura dependências. Liberação operacional de datas, bloqueio de conflitos de
+equipamento na agenda, cobrança e multas continuam pendentes e não são ativados por este modal.
+
+### Consequências da decisão original
+
 - Pelo menos um serviço é obrigatório para concluir, mas rascunhos iniciais vazios continuam válidos.
 - Endereço, documento e redes sociais são opcionais; contato, nome, serviço e horário válido são
   revalidados no backend.

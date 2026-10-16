@@ -121,6 +121,7 @@ type OnboardingPayload = {
     }
   }[]
   preferences: {
+    specialTreatmentsDismissed?: boolean
     cancellationHours: number
     specialCancellationHours: number
     acceptInApp: boolean
@@ -796,6 +797,7 @@ export async function clinicRoutes(
           'packagePaymentMode',
         ],
         properties: {
+          specialTreatmentsDismissed: { type: 'boolean' },
           cancellationHours: { type: 'integer', minimum: 0, maximum: 168 },
           specialCancellationHours: { type: 'integer', minimum: 0, maximum: 336 },
           acceptInApp: { type: 'boolean' },
