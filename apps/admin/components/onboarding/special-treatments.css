@@ -103,8 +103,8 @@
 
 .ob2-equipment-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr));
-  align-items: start;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 300px), 1fr));
+  align-items: stretch;
   gap: 16px;
 }
 
@@ -129,47 +129,98 @@
 .ob2-special-modal .button.ob2-equipment-add {
   display: flex;
   flex-direction: column;
-  align-items: flex-start;
-  justify-content: center;
+  align-items: stretch;
+  justify-content: flex-start;
   position: relative;
-  gap: 12px;
+  gap: 0;
   width: 100%;
   height: auto;
-  min-height: 180px;
-  padding: 24px;
+  padding: 0;
   white-space: normal;
   text-align: left;
   color: #fff;
-  border-radius: 18px;
+  border-radius: 20px;
+  overflow: hidden;
 }
 
-.ob2-equipment-toggle strong,
-.ob2-equipment-add strong {
-  padding-right: 22px;
-  font-size: 1rem;
+.ob2-equipment-art {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  height: 178px;
+  background: radial-gradient(ellipse at 50% 80%, rgba(255, 186, 203, 0.22), transparent 70%);
+  border-bottom: 1px solid rgba(255, 180, 210, 0.12);
+}
+
+.ob2-equipment-art img {
+  width: 164px;
+  height: 164px;
+  object-fit: contain;
+  filter: drop-shadow(0 12px 16px rgba(25, 3, 15, 0.24));
+}
+
+.ob2-equipment-copy {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 20px 24px;
+}
+
+.ob2-equipment-copy strong {
+  font-size: 1.05rem;
+  line-height: 1.4;
   overflow-wrap: anywhere;
 }
 
-.ob2-equipment-toggle > span:last-of-type,
-.ob2-equipment-add > span {
+.ob2-equipment-description {
   font-size: 0.85rem;
-  opacity: 0.8;
+  line-height: 1.6;
+  font-weight: 400;
+  color: #ebcad8;
 }
 
-.ob2-equipment-symbol {
-  color: #f4d18c;
+.ob2-equipment-status {
+  margin-top: 4px;
+  padding: 5px 10px;
+  border-radius: 99px;
+  background: rgba(255, 180, 210, 0.1);
+  color: #ffe1ec;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.is-selected .ob2-equipment-status {
+  background: rgba(180, 123, 27, 0.25);
+  color: #ffe1a6;
 }
 
 .ob2-equipment-check {
   position: absolute;
-  top: 24px;
-  right: 20px;
-  color: #f4d18c;
+  top: 16px;
+  right: 16px;
+  box-sizing: content-box;
+  padding: 7px;
+  border-radius: 50%;
+  background: #3d2031;
+  color: #ffe1a6;
 }
 
 .ob2-special-modal .button.ob2-equipment-add {
   border: 1px dashed rgba(244, 200, 113, 0.55);
   background: rgba(244, 200, 113, 0.04);
+}
+
+.ob2-equipment-custom-intro {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  color: #ebcad8;
+  line-height: 1.6;
+}
+
+.ob2-equipment-custom-intro img {
+  flex: 0 0 96px;
 }
 
 .ob2-equipment-related {
@@ -213,7 +264,21 @@
   min-height: 44px;
 }
 
+.ob2-equipment-services .checkbox__content {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 44px;
+}
+
+.ob2-equipment-services .checkbox__control {
+  flex: 0 0 auto;
+}
+
 .ob2-equipment-services .label {
+  min-width: 0;
   white-space: normal;
   overflow-wrap: anywhere;
 }
@@ -244,6 +309,42 @@
 @media (max-width: 640px) {
   .ob2-dialog-container.ob2-special-modal {
     width: calc(100vw - 24px) !important;
+  }
+  .ob2-special-modal .modal__header {
+    padding: 24px 24px 12px;
+  }
+  .ob2-special-modal .modal__body {
+    padding: 16px;
+  }
+  .ob2-special-modal .button.ob2-equipment-toggle,
+  .ob2-special-modal .button.ob2-equipment-add {
+    display: grid;
+    grid-template-columns: 80px minmax(0, 1fr);
+    align-items: center;
+  }
+  .ob2-equipment-art {
+    height: 100%;
+    min-height: 120px;
+    border-bottom: 0;
+  }
+  .ob2-equipment-art img {
+    width: 80px;
+    height: 100px;
+  }
+  .ob2-equipment-copy {
+    padding: 42px 12px 16px;
+    gap: 8px;
+  }
+  .ob2-equipment-copy strong {
+    font-size: 0.95rem;
+  }
+  .ob2-equipment-check {
+    top: 8px;
+    right: 8px;
+    padding: 4px;
+  }
+  .ob2-equipment-related {
+    padding: 0 16px 16px;
   }
   .ob2-special-actions > .button {
     width: 100%;

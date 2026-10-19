@@ -73,3 +73,29 @@ test('renames retain resource links by service id and removing a service drops o
   assert.deepEqual(configuredEquipment(saved), equipment)
   assert.deepEqual(configuredEquipment(saved.filter((item) => item.id !== 'a')), [])
 })
+
+test('new treatments suggest their equipment without mixing technologies', () => {
+  const services = [
+    service('hifu', 'Ultrassom microfocado: papada'),
+    service('co2', 'Laser de CO2 fracionado: rosto completo'),
+    service('tattoo', 'Remoção de tatuagem a laser por sessão'),
+    service('vapor', 'Spa capilar com vapor de ozônio'),
+    service('carbox', 'Carboxiterapia: corporal por área'),
+    service('plasma', 'Jato de plasma: facial por área'),
+    service('pump', 'Pump Up: vacuoterapia de glúteos'),
+    service('pen', 'Microagulhamento capilar'),
+    service('unrelated', 'Design de sobrancelhas'),
+  ]
+  const choices = suggestedEquipment(services)
+  const idsFor = (name) => choices.find((item) => item.name === name)?.serviceIds
+  assert.deepEqual(idsFor('Ultrassom microfocado'), ['hifu'])
+  assert.deepEqual(idsFor('Ultrassom microfocado portátil'), ['hifu'])
+  assert.deepEqual(idsFor('Laser de CO2 fracionado'), ['co2'])
+  assert.deepEqual(idsFor('Laser para remoção de pigmentos'), ['tattoo'])
+  assert.deepEqual(idsFor('Vaporizador de ozônio'), ['vapor'])
+  assert.deepEqual(idsFor('Aparelho de carboxiterapia'), ['carbox'])
+  assert.deepEqual(idsFor('Aparelho de jato de plasma'), ['plasma'])
+  assert.deepEqual(idsFor('Pump Up'), ['pump'])
+  assert.deepEqual(idsFor('Caneta de microagulhamento'), ['pen'])
+  assert.ok(choices.every((item) => !item.serviceIds.includes('unrelated')))
+})

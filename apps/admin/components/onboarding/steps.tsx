@@ -44,7 +44,7 @@ import {
 } from 'lucide-react'
 import Image from 'next/image'
 import Link from 'next/link'
-import { useEffect, useRef, useState, type DragEvent, type ReactNode } from 'react'
+import { Fragment, useEffect, useRef, useState, type DragEvent, type ReactNode } from 'react'
 import { syncProfessionalSchedules } from './schedule-sync'
 import { SpecialTreatments } from './special-treatments'
 import { formatBrPhone, toE164Phone } from '@/lib/phone'
@@ -911,18 +911,24 @@ export function CatalogStep({
                 </Card.Content>
               </Card>
               <div className="ob2-services">
-                {items.map((item) => {
+                {items.map((item, index) => {
                   const selected = selectedNames.has(item.nome)
                   return (
-                    <ChoiceCard
-                      key={item.nome}
-                      selected={selected}
-                      icon={selected ? <Check size={18} /> : <Plus size={18} />}
-                      title={item.nome}
-                      badge={catalogItemIsSensitive(item) ? 'Íntimo' : undefined}
-                      detail={`${item.duracao_minutos} min · sugestão ${formatMoney(Math.round(item.preco_sugerido_brl * 100))}`}
-                      onPress={() => toggle(item)}
-                    />
+                    <Fragment key={item.nome}>
+                      {index > 0 && item.grupo !== items[index - 1]?.grupo ? (
+                        <div className="ob2-catalog-divider">
+                          <Separator />
+                        </div>
+                      ) : null}
+                      <ChoiceCard
+                        selected={selected}
+                        icon={selected ? <Check size={18} /> : <Plus size={18} />}
+                        title={item.nome}
+                        badge={catalogItemIsSensitive(item) ? 'Íntimo' : undefined}
+                        detail={`${item.duracao_minutos} min · sugestão ${formatMoney(Math.round(item.preco_sugerido_brl * 100))}`}
+                        onPress={() => toggle(item)}
+                      />
+                    </Fragment>
                   )
                 })}
                 <Button

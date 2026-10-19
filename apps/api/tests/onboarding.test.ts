@@ -260,11 +260,13 @@ describe('versioned clinic onboarding', () => {
     await db.query("SELECT set_config('luminix.clinic_id', $1, false)", [clinicA])
     const profile = (
       await db.query(
-        'SELECT tax_id_kind, default_audience FROM luminix.clinic_profiles WHERE clinic_id = $1',
+        'SELECT tax_id_kind, default_audience, home_service, team_mode FROM luminix.clinic_profiles WHERE clinic_id = $1',
         [clinicA],
       )
     ).rows
-    expect(profile).toEqual([{ tax_id_kind: 'cnpj', default_audience: 'all' }])
+    expect(profile).toEqual([
+      { tax_id_kind: 'cnpj', default_audience: 'all', home_service: false, team_mode: 'solo' },
+    ])
     expect(
       (
         await db.query(
@@ -286,11 +288,29 @@ describe('versioned clinic onboarding', () => {
     ])
     expect(
       (
-        await db.query('SELECT id, display_name FROM luminix.professionals WHERE clinic_id = $1', [
+        await db.query('SELECT id, display_name, gender FROM luminix.professionals WHERE clinic_id = $1', [
           clinicA,
         ])
       ).rows,
-    ).toEqual([{ id: professionalA, display_name: 'Ana Renomeada' }])
+    ).toEqual([{ id: professionalA, display_name: 'Ana Renomeada', gender: 'female' }])
+    const archived = (
+      await db.query(
+        `SELECT status, step, payload->>'name' AS name, payload->>'teamMode' AS team_mode
+           FROM luminix.onboarding_drafts WHERE clinic_id = $1`,
+        [clinicA],
+      )
+    ).rows
+    expect(archived).toEqual([
+      { status: 'completed', step: 'review', name: 'Clínica A final', team_mode: 'solo' },
+    ])
+    const mondaySchedule = (
+      await db.query(
+        `SELECT day_schedule->>'start' AS start, day_schedule->>'end' AS "end"
+           FROM luminix.weekly_availability WHERE clinic_id = $1 AND weekday = 1`,
+        [clinicA],
+      )
+    ).rows
+    expect(mondaySchedule).toEqual([{ start: '09:00', end: '18:00' }])
     expect(
       (await db.query('SELECT * FROM luminix.business_hours WHERE clinic_id = $1', [clinicA])).rows,
     ).toHaveLength(5)

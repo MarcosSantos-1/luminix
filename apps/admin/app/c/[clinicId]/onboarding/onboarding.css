@@ -1555,8 +1555,8 @@ html:has(.ob2)::-webkit-scrollbar-thumb,
 .ob2-popover .list-box::-webkit-scrollbar-thumb {
   border-radius: 999px;
   border: 2px solid transparent;
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.92), rgba(255, 214, 230, 0.82)) padding-box;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.92), rgba(255, 214, 230, 0.82))
+    padding-box;
   box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.18);
 }
 
@@ -3125,7 +3125,6 @@ html:has(.ob2)::-webkit-scrollbar-thumb:hover,
     grid-column: span 1;
   }
 
-
   .ob2-brand-actions {
     display: flex;
   }
@@ -3239,7 +3238,6 @@ html:has(.ob2)::-webkit-scrollbar-thumb:hover,
     grid-template-columns: minmax(0, 1fr) 220px;
     gap: 28px;
   }
-
 }
 
 @media (min-width: 1800px) {
@@ -3787,4 +3785,14 @@ html:has(.ob2)::-webkit-scrollbar-thumb:hover,
     transition: none;
     animation: none;
   }
+}
+
+.ob2-catalog-divider {
+  grid-column: 1 / -1;
+  padding: 12px 0;
+}
+
+.ob2-catalog-divider .separator {
+  width: 72px;
+  background: rgba(255, 180, 210, 0.45);
 }

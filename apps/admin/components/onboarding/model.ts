@@ -19,6 +19,8 @@ export type CatalogItem = {
   duracao_minutos: number
   preco_sugerido_brl: number
   sensivel?: boolean
+  tipo_preco?: Service['priceType']
+  grupo?: string
 }
 const catalog = rawCatalog as CatalogItem[]
 
@@ -191,7 +193,7 @@ export function serviceFromCatalog(item: CatalogItem, audience: Audience): Servi
     description: item.descricao,
     durationMinutes: item.duracao_minutos,
     priceCents: Math.round(item.preco_sugerido_brl * 100),
-    priceType: item.preco_sugerido_brl ? 'fixed' : 'quote',
+    priceType: item.tipo_preco ?? (item.preco_sugerido_brl ? 'fixed' : 'quote'),
     bookingMode: 'instant',
     audience,
     sensitive: catalogItemIsSensitive(item),

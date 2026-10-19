@@ -1,6 +1,7 @@
 import { Button, Card, Checkbox, Label } from '@heroui/react'
-import { CalendarDays, Check, Plus, Search, Sparkles, Star } from 'lucide-react'
+import { CalendarDays, Check, Plus, Search, Star } from 'lucide-react'
 import { useState } from 'react'
+import Image from 'next/image'
 import './special-treatments.css'
 import { categories, type Payload, type Service } from './model'
 import { BlurDialog, GlassField, GlassSelect } from './ui'
@@ -8,6 +9,7 @@ import {
   applyEquipment,
   configuredEquipment,
   equipmentKey,
+  equipmentPresentation,
   suggestedEquipment,
   type EquipmentChoice,
 } from './special-equipment'
@@ -160,12 +162,12 @@ export function SpecialTreatments({
                 <h2>
                   {specialCount
                     ? 'Tratamentos especiais configurados'
-                    : 'Você utiliza aparelhos alugados ou compartilhados?'}
+                    : 'Você atende com aparelhos alugados ou em datas específicas?'}
                 </h2>
                 <p>
                   {specialCount
                     ? `${specialCount} ${specialCount === 1 ? 'serviço depende' : 'serviços dependem'} de aparelhos disponíveis em datas específicas.`
-                    : 'Como laser e criolipólise: atendimentos que dependem de um aparelho disponível em datas específicas.'}
+                    : 'Ideal para Laser, Criolipólise ou máquinas compartilhadas. O Luminix bloqueará esses serviços na agenda normal e liberará apenas nos dias em que o aparelho estiver na clínica.'}
                 </p>
               </div>
             </div>
@@ -227,12 +229,12 @@ export function SpecialTreatments({
         className="ob2-special-modal"
         size="md"
         title={
-          custom ? 'Cadastrar outro aparelho alugado' : 'Seus aparelhos e tratamentos especiais'
+          custom ? 'Cadastrar outro aparelho alugado' : 'Cada aparelho, seus dias de atendimento'
         }
         description={
           custom
             ? 'Dê um nome ao aparelho e escolha os serviços que dependem dele.'
-            : 'Selecione os aparelhos que você aluga ou compartilha. As sugestões consideram os serviços que você escolheu.'
+            : 'Reconheça seu aparelho e vincule os serviços que dependem dele. As sugestões abaixo vêm dos atendimentos que você escolheu.'
         }
         footer={
           <>
@@ -256,6 +258,13 @@ export function SpecialTreatments({
       >
         {custom ? (
           <>
+            <div className="ob2-equipment-custom-intro">
+              <Image src="/brand/machines/21.webp" alt="" width={96} height={96} />
+              <p>
+                Do kit portátil à máquina compartilhada: escolha um nome fácil de reconhecer na
+                agenda.
+              </p>
+            </div>
             <GlassField
               label="Nome do aparelho"
               value={name}
@@ -280,10 +289,10 @@ export function SpecialTreatments({
                       )
                     }
                   >
-                    <Checkbox.Control>
-                      <Checkbox.Indicator />
-                    </Checkbox.Control>
                     <Checkbox.Content>
+                      <Checkbox.Control>
+                        <Checkbox.Indicator />
+                      </Checkbox.Control>
                       <Label>
                         {service.name}
                         {assigned ? ` — vinculado a ${assigned.name}` : ''}
@@ -331,6 +340,7 @@ export function SpecialTreatments({
                 const active = selected.find(
                   (item) => equipmentKey(item.name) === equipmentKey(choice.name),
                 )
+                const presentation = equipmentPresentation(choice.name)
                 return (
                   <Card
                     key={choice.name}
@@ -343,14 +353,25 @@ export function SpecialTreatments({
                         aria-pressed={Boolean(active)}
                         onPress={() => toggle(choice)}
                       >
-                        <span className="ob2-equipment-symbol">
-                          <Sparkles size={28} aria-hidden />
+                        <span className="ob2-equipment-art">
+                          <Image
+                            src={presentation.image}
+                            alt=""
+                            width={192}
+                            height={192}
+                            sizes="192px"
+                          />
                         </span>
-                        <strong>{choice.name}</strong>
-                        <span>
-                          {active
-                            ? 'Selecionado'
-                            : `${choice.serviceIds.length} ${choice.serviceIds.length === 1 ? 'serviço compatível' : 'serviços compatíveis'}`}
+                        <span className="ob2-equipment-copy">
+                          <strong>{choice.name}</strong>
+                          <span className="ob2-equipment-description">
+                            {presentation.description}
+                          </span>
+                          <span className="ob2-equipment-status">
+                            {active
+                              ? 'Selecionado'
+                              : `${choice.serviceIds.length} ${choice.serviceIds.length === 1 ? 'serviço compatível' : 'serviços compatíveis'}`}
+                          </span>
                         </span>
                         {active ? (
                           <Check className="ob2-equipment-check" size={20} aria-hidden />
@@ -393,10 +414,10 @@ export function SpecialTreatments({
                                     )
                                   }
                                 >
-                                  <Checkbox.Control>
-                                    <Checkbox.Indicator />
-                                  </Checkbox.Control>
                                   <Checkbox.Content>
+                                    <Checkbox.Control>
+                                      <Checkbox.Indicator />
+                                    </Checkbox.Control>
                                     <Label>
                                       {service.name}
                                       {elsewhere ? ' — outro aparelho' : ''}
@@ -420,9 +441,23 @@ export function SpecialTreatments({
                 )
               })}
               <Button variant="ghost" className="ob2-equipment-add" onPress={startCustom}>
-                <Plus size={28} aria-hidden />
-                <strong>Cadastrar outro aparelho alugado</strong>
-                <span>Vincule serviços ou cadastre um novo atendimento.</span>
+                <span className="ob2-equipment-art">
+                  <Image
+                    src="/brand/machines/22.webp"
+                    alt=""
+                    width={192}
+                    height={192}
+                    sizes="192px"
+                  />
+                </span>
+                <span className="ob2-equipment-copy">
+                  <strong>Cadastrar outro aparelho alugado</strong>
+                  <span className="ob2-equipment-description">
+                    Um kit portátil, uma estação multifuncional ou o aparelho que você usa.
+                  </span>
+                  <span className="ob2-equipment-status">Adicionar aparelho e serviços</span>
+                </span>
+                <Plus className="ob2-equipment-check" size={20} aria-hidden />
               </Button>
             </div>
             {!choices.length ? (

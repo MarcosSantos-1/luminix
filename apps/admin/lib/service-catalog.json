@@ -1,6 +1,14 @@
 [
   {
     "categoria": "Estética facial",
+    "nome": "Avaliação facial",
+    "descricao": "Avaliação inicial da pele, objetivos e cuidados realizados para orientar o atendimento.",
+    "duracao_minutos": 30,
+    "preco_sugerido_brl": 0,
+    "tipo_preco": "fixed"
+  },
+  {
+    "categoria": "Estética facial",
     "nome": "Limpeza de pele profunda",
     "descricao": "Higienização, esfoliação, extração e máscara conforme avaliação da pele.",
     "duracao_minutos": 90,
@@ -56,440 +64,6 @@
     "preco_sugerido_brl": 90
   },
   {
-    "categoria": "Estética corporal",
-    "nome": "Drenagem linfática corporal",
-    "descricao": "Manobras manuais de drenagem conforme avaliação individual.",
-    "duracao_minutos": 60,
-    "preco_sugerido_brl": 150
-  },
-  {
-    "categoria": "Estética corporal",
-    "nome": "Massagem modeladora",
-    "descricao": "Manobras corporais intensas com foco em regiões selecionadas.",
-    "duracao_minutos": 60,
-    "preco_sugerido_brl": 170
-  },
-  {
-    "categoria": "Estética corporal",
-    "nome": "Criolipólise por área",
-    "descricao": "Aplicação por área com equipamento específico, conforme avaliação.",
-    "duracao_minutos": 90,
-    "preco_sugerido_brl": 480
-  },
-  {
-    "categoria": "Estética corporal",
-    "nome": "Radiofrequência corporal",
-    "descricao": "Sessão com equipamento aplicada à área corporal selecionada.",
-    "duracao_minutos": 60,
-    "preco_sugerido_brl": 220
-  },
-  {
-    "categoria": "Estética corporal",
-    "nome": "Ultrassom estético",
-    "descricao": "Aplicação de ultrassom estético em região definida.",
-    "duracao_minutos": 60,
-    "preco_sugerido_brl": 180
-  },
-  {
-    "categoria": "Estética corporal",
-    "nome": "Esfoliação corporal",
-    "descricao": "Renovação superficial da pele com esfoliação e finalização hidratante.",
-    "duracao_minutos": 60,
-    "preco_sugerido_brl": 150
-  },
-  {
-    "categoria": "Depilação",
-    "nome": "Depilação com cera: axilas",
-    "descricao": "Remoção dos pelos das axilas com cera.",
-    "duracao_minutos": 30,
-    "preco_sugerido_brl": 35
-  },
-  {
-    "categoria": "Depilação",
-    "nome": "Depilação com cera: meia perna",
-    "descricao": "Remoção dos pelos de meia perna com cera.",
-    "duracao_minutos": 30,
-    "preco_sugerido_brl": 70
-  },
-  {
-    "categoria": "Depilação",
-    "nome": "Depilação com cera: perna inteira",
-    "descricao": "Remoção dos pelos das pernas com cera.",
-    "duracao_minutos": 60,
-    "preco_sugerido_brl": 110
-  },
-  {
-    "categoria": "Depilação",
-    "nome": "Depilação com cera: virilha simples",
-    "descricao": "Depilação com cera só da linha da virilha, sem a região íntima completa.",
-    "duracao_minutos": 30,
-    "preco_sugerido_brl": 75
-  },
-  {
-    "categoria": "Depilação",
-    "nome": "Depilação a laser: axilas",
-    "descricao": "Sessão de depilação a laser na região das axilas.",
-    "duracao_minutos": 30,
-    "preco_sugerido_brl": 120
-  },
-  {
-    "categoria": "Depilação",
-    "nome": "Depilação a laser: pernas",
-    "descricao": "Sessão de depilação a laser nas pernas.",
-    "duracao_minutos": 60,
-    "preco_sugerido_brl": 280
-  },
-  {
-    "categoria": "Depilação",
-    "nome": "Depilação a laser: virilha simples",
-    "descricao": "Sessão de laser só na linha da virilha, sem a região íntima completa.",
-    "duracao_minutos": 30,
-    "preco_sugerido_brl": 160
-  },
-  {
-    "categoria": "Cabelo",
-    "nome": "Corte feminino",
-    "descricao": "Corte e finalização básica de cabelos femininos.",
-    "duracao_minutos": 60,
-    "preco_sugerido_brl": 90
-  },
-  {
-    "categoria": "Cabelo",
-    "nome": "Corte masculino",
-    "descricao": "Corte e acabamento de cabelos masculinos.",
-    "duracao_minutos": 30,
-    "preco_sugerido_brl": 55
-  },
-  {
-    "categoria": "Cabelo",
-    "nome": "Escova simples",
-    "descricao": "Escovação e finalização, com variação conforme comprimento.",
-    "duracao_minutos": 60,
-    "preco_sugerido_brl": 75
-  },
-  {
-    "categoria": "Cabelo",
-    "nome": "Hidratação capilar",
-    "descricao": "Aplicação de tratamento hidratante e finalização básica.",
-    "duracao_minutos": 60,
-    "preco_sugerido_brl": 120
-  },
-  {
-    "categoria": "Cabelo",
-    "nome": "Coloração de raiz",
-    "descricao": "Aplicação de coloração na raiz, conforme avaliação e produtos utilizados.",
-    "duracao_minutos": 120,
-    "preco_sugerido_brl": 180
-  },
-  {
-    "categoria": "Cabelo",
-    "nome": "Mechas",
-    "descricao": "Clareamento parcial e tonalização; preço e duração dependem do cabelo.",
-    "duracao_minutos": 240,
-    "preco_sugerido_brl": 450
-  },
-  {
-    "categoria": "Cabelo",
-    "nome": "Progressiva",
-    "descricao": "Tratamento de alinhamento capilar; preço e duração dependem do cabelo.",
-    "duracao_minutos": 180,
-    "preco_sugerido_brl": 350
-  },
-  {
-    "categoria": "Unhas",
-    "nome": "Manicure tradicional",
-    "descricao": "Preparação das unhas das mãos e esmaltação tradicional.",
-    "duracao_minutos": 60,
-    "preco_sugerido_brl": 40
-  },
-  {
-    "categoria": "Unhas",
-    "nome": "Pedicure tradicional",
-    "descricao": "Preparação das unhas dos pés e esmaltação tradicional.",
-    "duracao_minutos": 60,
-    "preco_sugerido_brl": 50
-  },
-  {
-    "categoria": "Unhas",
-    "nome": "Pé e mão",
-    "descricao": "Manicure e pedicure tradicionais na mesma visita.",
-    "duracao_minutos": 90,
-    "preco_sugerido_brl": 80
-  },
-  {
-    "categoria": "Unhas",
-    "nome": "Esmaltação em gel",
-    "descricao": "Preparação e aplicação de esmalte em gel.",
-    "duracao_minutos": 60,
-    "preco_sugerido_brl": 85
-  },
-  {
-    "categoria": "Unhas",
-    "nome": "Alongamento em gel",
-    "descricao": "Construção e acabamento de unhas alongadas em gel.",
-    "duracao_minutos": 150,
-    "preco_sugerido_brl": 220
-  },
-  {
-    "categoria": "Unhas",
-    "nome": "Manutenção de alongamento",
-    "descricao": "Manutenção de alongamento em gel já existente.",
-    "duracao_minutos": 120,
-    "preco_sugerido_brl": 140
-  },
-  {
-    "categoria": "Unhas",
-    "nome": "Remoção de alongamento",
-    "descricao": "Remoção técnica de alongamento e cuidados básicos.",
-    "duracao_minutos": 60,
-    "preco_sugerido_brl": 65
-  },
-  {
-    "categoria": "Sobrancelhas",
-    "nome": "Design de sobrancelhas",
-    "descricao": "Mapeamento e modelagem dos fios conforme o rosto.",
-    "duracao_minutos": 30,
-    "preco_sugerido_brl": 55
-  },
-  {
-    "categoria": "Sobrancelhas",
-    "nome": "Design com henna",
-    "descricao": "Design seguido de aplicação de henna.",
-    "duracao_minutos": 60,
-    "preco_sugerido_brl": 75
-  },
-  {
-    "categoria": "Sobrancelhas",
-    "nome": "Brow lamination",
-    "descricao": "Alinhamento e fixação temporária dos fios das sobrancelhas.",
-    "duracao_minutos": 60,
-    "preco_sugerido_brl": 140
-  },
-  {
-    "categoria": "Sobrancelhas",
-    "nome": "Micropigmentação de sobrancelhas",
-    "descricao": "Implantação de pigmento conforme técnica e avaliação individual.",
-    "duracao_minutos": 150,
-    "preco_sugerido_brl": 900
-  },
-  {
-    "categoria": "Sobrancelhas",
-    "nome": "Retoque de micropigmentação",
-    "descricao": "Retoque de micropigmentação previamente realizada.",
-    "duracao_minutos": 90,
-    "preco_sugerido_brl": 350
-  },
-  {
-    "categoria": "Cílios",
-    "nome": "Lash lifting",
-    "descricao": "Curvatura e tratamento estético dos cílios naturais.",
-    "duracao_minutos": 60,
-    "preco_sugerido_brl": 150
-  },
-  {
-    "categoria": "Cílios",
-    "nome": "Extensão de cílios clássica",
-    "descricao": "Aplicação de extensões fio a fio em efeito clássico.",
-    "duracao_minutos": 120,
-    "preco_sugerido_brl": 180
-  },
-  {
-    "categoria": "Cílios",
-    "nome": "Extensão de cílios volume brasileiro",
-    "descricao": "Aplicação de extensões para maior volume dos cílios.",
-    "duracao_minutos": 150,
-    "preco_sugerido_brl": 220
-  },
-  {
-    "categoria": "Cílios",
-    "nome": "Manutenção de extensão de cílios",
-    "descricao": "Reposição de extensões dentro do prazo definido pelo estúdio.",
-    "duracao_minutos": 90,
-    "preco_sugerido_brl": 130
-  },
-  {
-    "categoria": "Cílios",
-    "nome": "Remoção de extensão de cílios",
-    "descricao": "Retirada das extensões com produto e técnica adequados.",
-    "duracao_minutos": 30,
-    "preco_sugerido_brl": 55
-  },
-  {
-    "categoria": "Tatuagem",
-    "nome": "Consulta para tatuagem",
-    "descricao": "Conversa sobre ideia, tamanho, local, orçamento e agendamento.",
-    "duracao_minutos": 30,
-    "preco_sugerido_brl": 0
-  },
-  {
-    "categoria": "Tatuagem",
-    "nome": "Tatuagem pequena",
-    "descricao": "Sessão de tatuagem pequena; valor depende de desenho, técnica e local.",
-    "duracao_minutos": 120,
-    "preco_sugerido_brl": 350
-  },
-  {
-    "categoria": "Tatuagem",
-    "nome": "Tatuagem média",
-    "descricao": "Sessão de tatuagem média; orçamento sujeito à arte e complexidade.",
-    "duracao_minutos": 240,
-    "preco_sugerido_brl": 750
-  },
-  {
-    "categoria": "Tatuagem",
-    "nome": "Sessão de tatuagem",
-    "descricao": "Bloco de trabalho para tatuagem personalizada, sujeito a orçamento.",
-    "duracao_minutos": 180,
-    "preco_sugerido_brl": 600
-  },
-  {
-    "categoria": "Tatuagem",
-    "nome": "Retoque de tatuagem",
-    "descricao": "Retoque de trabalho anterior, sujeito a avaliação e política do estúdio.",
-    "duracao_minutos": 90,
-    "preco_sugerido_brl": 180
-  },
-  {
-    "categoria": "Piercing",
-    "nome": "Avaliação para piercing",
-    "descricao": "Escolha de joia, local e orientação sobre o procedimento.",
-    "duracao_minutos": 30,
-    "preco_sugerido_brl": 0
-  },
-  {
-    "categoria": "Piercing",
-    "nome": "Perfuração de lóbulo",
-    "descricao": "Perfuração do lóbulo; valor da joia pode ser cobrado à parte.",
-    "duracao_minutos": 30,
-    "preco_sugerido_brl": 100
-  },
-  {
-    "categoria": "Piercing",
-    "nome": "Perfuração de cartilagem",
-    "descricao": "Perfuração de cartilagem; valor da joia pode ser cobrado à parte.",
-    "duracao_minutos": 30,
-    "preco_sugerido_brl": 140
-  },
-  {
-    "categoria": "Piercing",
-    "nome": "Perfuração de septo",
-    "descricao": "Perfuração de septo; valor da joia pode ser cobrado à parte.",
-    "duracao_minutos": 30,
-    "preco_sugerido_brl": 160
-  },
-  {
-    "categoria": "Piercing",
-    "nome": "Troca de joia",
-    "descricao": "Troca profissional da joia, mediante avaliação da cicatrização.",
-    "duracao_minutos": 30,
-    "preco_sugerido_brl": 60
-  },
-  {
-    "categoria": "Quiropraxia",
-    "nome": "Avaliação quiroprática",
-    "descricao": "Anamnese, avaliação funcional e planejamento de atendimento.",
-    "duracao_minutos": 60,
-    "preco_sugerido_brl": 180
-  },
-  {
-    "categoria": "Quiropraxia",
-    "nome": "Sessão de quiropraxia",
-    "descricao": "Atendimento manual conforme avaliação individual.",
-    "duracao_minutos": 60,
-    "preco_sugerido_brl": 180
-  },
-  {
-    "categoria": "Quiropraxia",
-    "nome": "Retorno quiroprático",
-    "descricao": "Sessão de acompanhamento conforme plano individual.",
-    "duracao_minutos": 30,
-    "preco_sugerido_brl": 130
-  },
-  {
-    "categoria": "Massagem e Massoterapia",
-    "nome": "Massagem relaxante",
-    "descricao": "Massagem corporal com foco em relaxamento.",
-    "duracao_minutos": 60,
-    "preco_sugerido_brl": 140
-  },
-  {
-    "categoria": "Massagem e Massoterapia",
-    "nome": "Massagem terapêutica",
-    "descricao": "Massagem localizada conforme avaliação e objetivo do atendimento.",
-    "duracao_minutos": 60,
-    "preco_sugerido_brl": 170
-  },
-  {
-    "categoria": "Massagem e Massoterapia",
-    "nome": "Drenagem linfática manual",
-    "descricao": "Sessão de drenagem por manobras manuais.",
-    "duracao_minutos": 60,
-    "preco_sugerido_brl": 150
-  },
-  {
-    "categoria": "Massagem e Massoterapia",
-    "nome": "Bambuterapia",
-    "descricao": "Massagem com bambus para relaxamento corporal.",
-    "duracao_minutos": 60,
-    "preco_sugerido_brl": 160
-  },
-  {
-    "categoria": "Massagem e Massoterapia",
-    "nome": "Reflexologia podal",
-    "descricao": "Estimulação manual dos pés com foco em relaxamento.",
-    "duracao_minutos": 60,
-    "preco_sugerido_brl": 120
-  },
-  {
-    "categoria": "Massagem e Massoterapia",
-    "nome": "Massagem com pedras quentes",
-    "descricao": "Massagem corporal com aplicação controlada de pedras aquecidas.",
-    "duracao_minutos": 90,
-    "preco_sugerido_brl": 210
-  },
-  {
-    "categoria": "Biomedicina",
-    "nome": "Avaliação estética avançada",
-    "descricao": "Consulta para avaliar objetivos, histórico e possíveis procedimentos.",
-    "duracao_minutos": 60,
-    "preco_sugerido_brl": 150
-  },
-  {
-    "categoria": "Biomedicina",
-    "nome": "Toxina botulínica facial",
-    "descricao": "Aplicação conforme avaliação, produto, áreas e habilitação profissional.",
-    "duracao_minutos": 60,
-    "preco_sugerido_brl": 1000
-  },
-  {
-    "categoria": "Biomedicina",
-    "nome": "Preenchimento labial",
-    "descricao": "Aplicação de preenchedor conforme avaliação, produto e habilitação.",
-    "duracao_minutos": 60,
-    "preco_sugerido_brl": 1400
-  },
-  {
-    "categoria": "Biomedicina",
-    "nome": "Bioestimulador de colágeno",
-    "descricao": "Aplicação conforme protocolo, produto e habilitação profissional.",
-    "duracao_minutos": 90,
-    "preco_sugerido_brl": 1900
-  },
-  {
-    "categoria": "Biomedicina",
-    "nome": "Skinbooster",
-    "descricao": "Procedimento injetável para hidratação conforme avaliação e habilitação.",
-    "duracao_minutos": 60,
-    "preco_sugerido_brl": 1100
-  },
-  {
-    "categoria": "Estética facial",
-    "nome": "Avaliação facial",
-    "descricao": "Avaliação inicial da pele, objetivos e cuidados realizados para orientar o atendimento.",
-    "duracao_minutos": 30,
-    "preco_sugerido_brl": 80
-  },
-  {
     "categoria": "Estética facial",
     "nome": "Dermaplaning",
     "descricao": "Esfoliação superficial e remoção de pelos finos do rosto conforme avaliação da pele.",
@@ -533,17 +107,95 @@
   },
   {
     "categoria": "Estética facial",
-    "nome": "Limpeza de pele nas costas",
-    "descricao": "Higienização, esfoliação e extração na região das costas conforme avaliação.",
+    "nome": "Ultrassom microfocado: rosto completo",
+    "descricao": "Sessão facial com ultrassom microfocado. Valor e tempo ajustáveis conforme a área e o planejamento profissional.",
     "duracao_minutos": 90,
-    "preco_sugerido_brl": 190
+    "preco_sugerido_brl": 1500
+  },
+  {
+    "categoria": "Estética facial",
+    "nome": "Ultrassom microfocado: papada",
+    "descricao": "Sessão localizada na região da papada, conforme avaliação profissional.",
+    "duracao_minutos": 45,
+    "preco_sugerido_brl": 650
+  },
+  {
+    "categoria": "Estética facial",
+    "nome": "Ultrassom microfocado: pescoço e colo",
+    "descricao": "Sessão de ultrassom microfocado para pescoço e colo, conforme avaliação.",
+    "duracao_minutos": 60,
+    "preco_sugerido_brl": 1000
+  },
+  {
+    "categoria": "Estética facial",
+    "nome": "Limpeza de pele com vapor de ozônio",
+    "descricao": "Limpeza facial com etapa de emoliência por vapor ozonizado, conforme protocolo profissional.",
+    "duracao_minutos": 90,
+    "preco_sugerido_brl": 180
+  },
+  {
+    "categoria": "Estética facial",
+    "nome": "Criofrequência facial",
+    "descricao": "Sessão de criofrequência facial conforme avaliação profissional.",
+    "duracao_minutos": 60,
+    "preco_sugerido_brl": 220
   },
   {
     "categoria": "Estética corporal",
     "nome": "Avaliação corporal",
     "descricao": "Avaliação inicial dos objetivos e áreas de atendimento para planejar os cuidados.",
     "duracao_minutos": 30,
-    "preco_sugerido_brl": 80
+    "preco_sugerido_brl": 0,
+    "tipo_preco": "fixed"
+  },
+  {
+    "categoria": "Estética corporal",
+    "nome": "Drenagem linfática corporal",
+    "descricao": "Manobras manuais de drenagem conforme avaliação individual.",
+    "duracao_minutos": 60,
+    "preco_sugerido_brl": 150
+  },
+  {
+    "categoria": "Estética corporal",
+    "nome": "Massagem modeladora",
+    "descricao": "Manobras corporais intensas com foco em regiões selecionadas.",
+    "duracao_minutos": 60,
+    "preco_sugerido_brl": 170
+  },
+  {
+    "categoria": "Estética corporal",
+    "nome": "Criolipólise por área",
+    "descricao": "Aplicação por área com equipamento específico, conforme avaliação.",
+    "duracao_minutos": 90,
+    "preco_sugerido_brl": 480
+  },
+  {
+    "categoria": "Estética corporal",
+    "nome": "Radiofrequência corporal",
+    "descricao": "Sessão com equipamento aplicada à área corporal selecionada.",
+    "duracao_minutos": 60,
+    "preco_sugerido_brl": 220
+  },
+  {
+    "categoria": "Estética corporal",
+    "nome": "Ultrassom estético",
+    "descricao": "Aplicação de ultrassom estético em região definida.",
+    "duracao_minutos": 60,
+    "preco_sugerido_brl": 180
+  },
+  {
+    "categoria": "Estética corporal",
+    "nome": "Esfoliação corporal",
+    "descricao": "Renovação superficial da pele com esfoliação e finalização hidratante.",
+    "duracao_minutos": 60,
+    "preco_sugerido_brl": 150
+  },
+  {
+    "categoria": "Estética corporal",
+    "nome": "Limpeza de pele nas costas",
+    "descricao": "Higienização, esfoliação e extração na região das costas conforme avaliação.",
+    "duracao_minutos": 90,
+    "preco_sugerido_brl": 190
   },
   {
     "categoria": "Estética corporal",
@@ -595,67 +247,152 @@
     "preco_sugerido_brl": 180
   },
   {
+    "categoria": "Estética corporal",
+    "nome": "Ultrassom microfocado corporal por área",
+    "descricao": "Sessão corporal por área. Ajuste o valor conforme o equipamento e o planejamento profissional.",
+    "duracao_minutos": 90,
+    "preco_sugerido_brl": 1200
+  },
+  {
+    "categoria": "Estética corporal",
+    "nome": "Pump Up: vacuoterapia de glúteos",
+    "descricao": "Sessão de vacuoterapia com ventosas específicas para glúteos.",
+    "duracao_minutos": 45,
+    "preco_sugerido_brl": 130
+  },
+  {
+    "categoria": "Estética corporal",
+    "nome": "Corrente Aussie corporal",
+    "descricao": "Sessão de eletroestimulação corporal conforme planejamento profissional.",
+    "duracao_minutos": 45,
+    "preco_sugerido_brl": 130
+  },
+  {
+    "categoria": "Estética corporal",
+    "nome": "Microagulhamento corporal por área",
+    "descricao": "Sessão de microagulhamento localizada, com avaliação e planejamento individual.",
+    "duracao_minutos": 90,
+    "preco_sugerido_brl": 400
+  },
+  {
+    "categoria": "Depilação",
+    "nome": "Depilação com linha: buço",
+    "descricao": "Remoção dos pelos do buço com técnica de linha.",
+    "duracao_minutos": 30,
+    "preco_sugerido_brl": 35,
+    "grupo": "linha"
+  },
+  {
+    "categoria": "Depilação",
+    "nome": "Depilação com linha: rosto completo",
+    "descricao": "Remoção dos pelos faciais com técnica de linha; confirmar se inclui sobrancelhas.",
+    "duracao_minutos": 60,
+    "preco_sugerido_brl": 90,
+    "grupo": "linha"
+  },
+  {
+    "categoria": "Depilação",
+    "nome": "Depilação com cera: axilas",
+    "descricao": "Remoção dos pelos das axilas com cera.",
+    "duracao_minutos": 30,
+    "preco_sugerido_brl": 35,
+    "grupo": "cera"
+  },
+  {
+    "categoria": "Depilação",
+    "nome": "Depilação com cera: meia perna",
+    "descricao": "Remoção dos pelos de meia perna com cera.",
+    "duracao_minutos": 30,
+    "preco_sugerido_brl": 70,
+    "grupo": "cera"
+  },
+  {
+    "categoria": "Depilação",
+    "nome": "Depilação com cera: perna inteira",
+    "descricao": "Remoção dos pelos das pernas com cera.",
+    "duracao_minutos": 60,
+    "preco_sugerido_brl": 110,
+    "grupo": "cera"
+  },
+  {
+    "categoria": "Depilação",
+    "nome": "Depilação com cera: virilha simples",
+    "descricao": "Depilação com cera só da linha da virilha, sem a região íntima completa.",
+    "duracao_minutos": 30,
+    "preco_sugerido_brl": 75,
+    "grupo": "cera"
+  },
+  {
     "categoria": "Depilação",
     "nome": "Depilação com cera: buço",
     "descricao": "Remoção dos pelos da região acima do lábio superior com cera.",
     "duracao_minutos": 30,
-    "preco_sugerido_brl": 30
+    "preco_sugerido_brl": 30,
+    "grupo": "cera"
   },
   {
     "categoria": "Depilação",
     "nome": "Depilação com cera: queixo",
     "descricao": "Remoção dos pelos da região do queixo com cera.",
     "duracao_minutos": 30,
-    "preco_sugerido_brl": 30
+    "preco_sugerido_brl": 30,
+    "grupo": "cera"
   },
   {
     "categoria": "Depilação",
     "nome": "Depilação com cera: rosto completo",
     "descricao": "Remoção dos pelos faciais com cera; confirmar se inclui sobrancelhas.",
     "duracao_minutos": 30,
-    "preco_sugerido_brl": 65
+    "preco_sugerido_brl": 65,
+    "grupo": "cera"
   },
   {
     "categoria": "Depilação",
     "nome": "Depilação com cera: braços completos",
     "descricao": "Remoção dos pelos dos braços com cera.",
     "duracao_minutos": 30,
-    "preco_sugerido_brl": 60
+    "preco_sugerido_brl": 60,
+    "grupo": "cera"
   },
   {
     "categoria": "Depilação",
     "nome": "Depilação com cera: antebraços",
     "descricao": "Remoção dos pelos da região dos antebraços com cera.",
     "duracao_minutos": 30,
-    "preco_sugerido_brl": 40
+    "preco_sugerido_brl": 40,
+    "grupo": "cera"
   },
   {
     "categoria": "Depilação",
     "nome": "Depilação com cera: costas",
     "descricao": "Remoção dos pelos das costas com cera.",
     "duracao_minutos": 60,
-    "preco_sugerido_brl": 65
+    "preco_sugerido_brl": 65,
+    "grupo": "cera"
   },
   {
     "categoria": "Depilação",
     "nome": "Depilação com cera: tórax",
     "descricao": "Remoção dos pelos da região do tórax com cera.",
     "duracao_minutos": 30,
-    "preco_sugerido_brl": 55
+    "preco_sugerido_brl": 55,
+    "grupo": "cera"
   },
   {
     "categoria": "Depilação",
     "nome": "Depilação com cera: abdômen",
     "descricao": "Remoção dos pelos do abdômen com cera.",
     "duracao_minutos": 30,
-    "preco_sugerido_brl": 45
+    "preco_sugerido_brl": 45,
+    "grupo": "cera"
   },
   {
     "categoria": "Depilação",
     "nome": "Depilação com cera: nádegas",
     "descricao": "Remoção dos pelos das nádegas com cera; região perianal não incluída.",
     "duracao_minutos": 30,
-    "preco_sugerido_brl": 50
+    "preco_sugerido_brl": 50,
+    "grupo": "cera"
   },
   {
     "categoria": "Depilação",
@@ -663,7 +400,8 @@
     "descricao": "Depilação íntima conforme cobertura definida pela clínica; confirmar se inclui região perianal.",
     "duracao_minutos": 60,
     "preco_sugerido_brl": 85,
-    "sensivel": true
+    "sensivel": true,
+    "grupo": "cera"
   },
   {
     "categoria": "Depilação",
@@ -671,56 +409,72 @@
     "descricao": "Remoção dos pelos da região externa ao redor do ânus com cera.",
     "duracao_minutos": 30,
     "preco_sugerido_brl": 50,
-    "sensivel": true
+    "sensivel": true,
+    "grupo": "cera"
   },
   {
     "categoria": "Depilação",
-    "nome": "Depilação com linha: buço",
-    "descricao": "Remoção dos pelos do buço com técnica de linha.",
+    "nome": "Depilação a laser: axilas",
+    "descricao": "Sessão de depilação a laser na região das axilas.",
     "duracao_minutos": 30,
-    "preco_sugerido_brl": 35
+    "preco_sugerido_brl": 120,
+    "grupo": "laser"
   },
   {
     "categoria": "Depilação",
-    "nome": "Depilação com linha: rosto completo",
-    "descricao": "Remoção dos pelos faciais com técnica de linha; confirmar se inclui sobrancelhas.",
+    "nome": "Depilação a laser: pernas",
+    "descricao": "Sessão de depilação a laser nas pernas.",
     "duracao_minutos": 60,
-    "preco_sugerido_brl": 90
+    "preco_sugerido_brl": 280,
+    "grupo": "laser"
+  },
+  {
+    "categoria": "Depilação",
+    "nome": "Depilação a laser: virilha simples",
+    "descricao": "Sessão de laser só na linha da virilha, sem a região íntima completa.",
+    "duracao_minutos": 30,
+    "preco_sugerido_brl": 160,
+    "grupo": "laser"
   },
   {
     "categoria": "Depilação",
     "nome": "Depilação a laser: buço",
     "descricao": "Sessão de laser na região do buço conforme avaliação.",
     "duracao_minutos": 30,
-    "preco_sugerido_brl": 70
+    "preco_sugerido_brl": 70,
+    "grupo": "laser"
   },
   {
     "categoria": "Depilação",
     "nome": "Depilação a laser: meia perna",
     "descricao": "Sessão de laser em meia perna conforme avaliação.",
     "duracao_minutos": 30,
-    "preco_sugerido_brl": 160
+    "preco_sugerido_brl": 160,
+    "grupo": "laser"
   },
   {
     "categoria": "Depilação",
     "nome": "Depilação a laser: braços",
     "descricao": "Sessão de laser nos braços conforme avaliação.",
     "duracao_minutos": 30,
-    "preco_sugerido_brl": 180
+    "preco_sugerido_brl": 180,
+    "grupo": "laser"
   },
   {
     "categoria": "Depilação",
     "nome": "Depilação a laser: costas",
     "descricao": "Sessão de laser nas costas conforme avaliação.",
     "duracao_minutos": 60,
-    "preco_sugerido_brl": 220
+    "preco_sugerido_brl": 220,
+    "grupo": "laser"
   },
   {
     "categoria": "Depilação",
     "nome": "Depilação a laser: tórax",
     "descricao": "Sessão de laser na região do tórax conforme avaliação.",
     "duracao_minutos": 30,
-    "preco_sugerido_brl": 180
+    "preco_sugerido_brl": 180,
+    "grupo": "laser"
   },
   {
     "categoria": "Depilação",
@@ -728,7 +482,57 @@
     "descricao": "Sessão de laser na região íntima conforme cobertura e público definidos pela clínica.",
     "duracao_minutos": 30,
     "preco_sugerido_brl": 180,
-    "sensivel": true
+    "sensivel": true,
+    "grupo": "laser"
+  },
+  {
+    "categoria": "Cabelo",
+    "nome": "Corte feminino",
+    "descricao": "Corte e finalização básica de cabelos femininos.",
+    "duracao_minutos": 60,
+    "preco_sugerido_brl": 90
+  },
+  {
+    "categoria": "Cabelo",
+    "nome": "Corte masculino",
+    "descricao": "Corte e acabamento de cabelos masculinos.",
+    "duracao_minutos": 30,
+    "preco_sugerido_brl": 55
+  },
+  {
+    "categoria": "Cabelo",
+    "nome": "Escova simples",
+    "descricao": "Escovação e finalização, com variação conforme comprimento.",
+    "duracao_minutos": 60,
+    "preco_sugerido_brl": 75
+  },
+  {
+    "categoria": "Cabelo",
+    "nome": "Hidratação capilar",
+    "descricao": "Aplicação de tratamento hidratante e finalização básica.",
+    "duracao_minutos": 60,
+    "preco_sugerido_brl": 120
+  },
+  {
+    "categoria": "Cabelo",
+    "nome": "Coloração de raiz",
+    "descricao": "Aplicação de coloração na raiz, conforme avaliação e produtos utilizados.",
+    "duracao_minutos": 120,
+    "preco_sugerido_brl": 180
+  },
+  {
+    "categoria": "Cabelo",
+    "nome": "Mechas",
+    "descricao": "Clareamento parcial e tonalização; preço e duração dependem do cabelo.",
+    "duracao_minutos": 240,
+    "preco_sugerido_brl": 450
+  },
+  {
+    "categoria": "Cabelo",
+    "nome": "Progressiva",
+    "descricao": "Tratamento de alinhamento capilar; preço e duração dependem do cabelo.",
+    "duracao_minutos": 180,
+    "preco_sugerido_brl": 350
   },
   {
     "categoria": "Cabelo",
@@ -843,6 +647,69 @@
     "preco_sugerido_brl": 150
   },
   {
+    "categoria": "Cabelo",
+    "nome": "Hidratação capilar com vapor de ozônio",
+    "descricao": "Hidratação capilar com vapor como etapa complementar ao cuidado dos fios.",
+    "duracao_minutos": 60,
+    "preco_sugerido_brl": 150
+  },
+  {
+    "categoria": "Cabelo",
+    "nome": "Spa capilar com vapor de ozônio",
+    "descricao": "Atendimento capilar com higienização, hidratação e vapor, conforme avaliação profissional.",
+    "duracao_minutos": 90,
+    "preco_sugerido_brl": 200
+  },
+  {
+    "categoria": "Unhas",
+    "nome": "Manicure tradicional",
+    "descricao": "Preparação das unhas das mãos e esmaltação tradicional.",
+    "duracao_minutos": 60,
+    "preco_sugerido_brl": 40
+  },
+  {
+    "categoria": "Unhas",
+    "nome": "Pedicure tradicional",
+    "descricao": "Preparação das unhas dos pés e esmaltação tradicional.",
+    "duracao_minutos": 60,
+    "preco_sugerido_brl": 50
+  },
+  {
+    "categoria": "Unhas",
+    "nome": "Pé e mão",
+    "descricao": "Manicure e pedicure tradicionais na mesma visita.",
+    "duracao_minutos": 90,
+    "preco_sugerido_brl": 80
+  },
+  {
+    "categoria": "Unhas",
+    "nome": "Esmaltação em gel",
+    "descricao": "Preparação e aplicação de esmalte em gel.",
+    "duracao_minutos": 60,
+    "preco_sugerido_brl": 85
+  },
+  {
+    "categoria": "Unhas",
+    "nome": "Alongamento em gel",
+    "descricao": "Construção e acabamento de unhas alongadas em gel.",
+    "duracao_minutos": 150,
+    "preco_sugerido_brl": 220
+  },
+  {
+    "categoria": "Unhas",
+    "nome": "Manutenção de alongamento",
+    "descricao": "Manutenção de alongamento em gel já existente.",
+    "duracao_minutos": 120,
+    "preco_sugerido_brl": 140
+  },
+  {
+    "categoria": "Unhas",
+    "nome": "Remoção de alongamento",
+    "descricao": "Remoção técnica de alongamento e cuidados básicos.",
+    "duracao_minutos": 60,
+    "preco_sugerido_brl": 65
+  },
+  {
     "categoria": "Unhas",
     "nome": "Alongamento em fibra de vidro",
     "descricao": "Construção e acabamento de unhas alongadas com fibra de vidro.",
@@ -900,6 +767,41 @@
   },
   {
     "categoria": "Sobrancelhas",
+    "nome": "Design de sobrancelhas",
+    "descricao": "Mapeamento e modelagem dos fios conforme o rosto.",
+    "duracao_minutos": 30,
+    "preco_sugerido_brl": 55
+  },
+  {
+    "categoria": "Sobrancelhas",
+    "nome": "Design com henna",
+    "descricao": "Design seguido de aplicação de henna.",
+    "duracao_minutos": 60,
+    "preco_sugerido_brl": 75
+  },
+  {
+    "categoria": "Sobrancelhas",
+    "nome": "Brow lamination",
+    "descricao": "Alinhamento e fixação temporária dos fios das sobrancelhas.",
+    "duracao_minutos": 60,
+    "preco_sugerido_brl": 140
+  },
+  {
+    "categoria": "Sobrancelhas",
+    "nome": "Micropigmentação de sobrancelhas",
+    "descricao": "Implantação de pigmento conforme técnica e avaliação individual.",
+    "duracao_minutos": 150,
+    "preco_sugerido_brl": 900
+  },
+  {
+    "categoria": "Sobrancelhas",
+    "nome": "Retoque de micropigmentação",
+    "descricao": "Retoque de micropigmentação previamente realizada.",
+    "duracao_minutos": 90,
+    "preco_sugerido_brl": 350
+  },
+  {
+    "categoria": "Sobrancelhas",
     "nome": "Design com tintura",
     "descricao": "Mapeamento e modelagem dos fios com aplicação de tintura apropriada.",
     "duracao_minutos": 60,
@@ -925,6 +827,41 @@
     "descricao": "Micropigmentação de sobrancelhas com efeito sombreado conforme avaliação.",
     "duracao_minutos": 150,
     "preco_sugerido_brl": 850
+  },
+  {
+    "categoria": "Cílios",
+    "nome": "Lash lifting",
+    "descricao": "Curvatura e tratamento estético dos cílios naturais.",
+    "duracao_minutos": 60,
+    "preco_sugerido_brl": 150
+  },
+  {
+    "categoria": "Cílios",
+    "nome": "Extensão de cílios clássica",
+    "descricao": "Aplicação de extensões fio a fio em efeito clássico.",
+    "duracao_minutos": 120,
+    "preco_sugerido_brl": 180
+  },
+  {
+    "categoria": "Cílios",
+    "nome": "Extensão de cílios volume brasileiro",
+    "descricao": "Aplicação de extensões para maior volume dos cílios.",
+    "duracao_minutos": 150,
+    "preco_sugerido_brl": 220
+  },
+  {
+    "categoria": "Cílios",
+    "nome": "Manutenção de extensão de cílios",
+    "descricao": "Reposição de extensões dentro do prazo definido pelo estúdio.",
+    "duracao_minutos": 90,
+    "preco_sugerido_brl": 130
+  },
+  {
+    "categoria": "Cílios",
+    "nome": "Remoção de extensão de cílios",
+    "descricao": "Retirada das extensões com produto e técnica adequados.",
+    "duracao_minutos": 30,
+    "preco_sugerido_brl": 55
   },
   {
     "categoria": "Cílios",
@@ -970,6 +907,41 @@
   },
   {
     "categoria": "Tatuagem",
+    "nome": "Consulta para tatuagem",
+    "descricao": "Conversa sobre ideia, tamanho, local, orçamento e agendamento.",
+    "duracao_minutos": 30,
+    "preco_sugerido_brl": 0
+  },
+  {
+    "categoria": "Tatuagem",
+    "nome": "Tatuagem pequena",
+    "descricao": "Sessão de tatuagem pequena; valor depende de desenho, técnica e local.",
+    "duracao_minutos": 120,
+    "preco_sugerido_brl": 350
+  },
+  {
+    "categoria": "Tatuagem",
+    "nome": "Tatuagem média",
+    "descricao": "Sessão de tatuagem média; orçamento sujeito à arte e complexidade.",
+    "duracao_minutos": 240,
+    "preco_sugerido_brl": 750
+  },
+  {
+    "categoria": "Tatuagem",
+    "nome": "Sessão de tatuagem",
+    "descricao": "Bloco de trabalho para tatuagem personalizada, sujeito a orçamento.",
+    "duracao_minutos": 180,
+    "preco_sugerido_brl": 600
+  },
+  {
+    "categoria": "Tatuagem",
+    "nome": "Retoque de tatuagem",
+    "descricao": "Retoque de trabalho anterior, sujeito a avaliação e política do estúdio.",
+    "duracao_minutos": 90,
+    "preco_sugerido_brl": 180
+  },
+  {
+    "categoria": "Tatuagem",
     "nome": "Tatuagem fine line",
     "descricao": "Tatuagem com traços finos; desenho, tamanho e região sujeitos a orçamento.",
     "duracao_minutos": 120,
@@ -988,6 +960,55 @@
     "descricao": "Sessão para retomar traços ou cores de tatuagem antiga conforme avaliação.",
     "duracao_minutos": 180,
     "preco_sugerido_brl": 450
+  },
+  {
+    "categoria": "Tatuagem",
+    "nome": "Remoção de tatuagem a laser por sessão",
+    "descricao": "Sessão de remoção a laser. Ajuste preço e duração conforme tamanho, pigmento e avaliação.",
+    "duracao_minutos": 60,
+    "preco_sugerido_brl": 350
+  },
+  {
+    "categoria": "Tatuagem",
+    "nome": "Remoção de micropigmentação a laser por sessão",
+    "descricao": "Sessão de remoção de micropigmentação, conforme área, pigmento e avaliação profissional.",
+    "duracao_minutos": 45,
+    "preco_sugerido_brl": 300
+  },
+  {
+    "categoria": "Piercing",
+    "nome": "Avaliação para piercing",
+    "descricao": "Escolha de joia, local e orientação sobre o procedimento.",
+    "duracao_minutos": 30,
+    "preco_sugerido_brl": 0
+  },
+  {
+    "categoria": "Piercing",
+    "nome": "Perfuração de lóbulo",
+    "descricao": "Perfuração do lóbulo; valor da joia pode ser cobrado à parte.",
+    "duracao_minutos": 30,
+    "preco_sugerido_brl": 100
+  },
+  {
+    "categoria": "Piercing",
+    "nome": "Perfuração de cartilagem",
+    "descricao": "Perfuração de cartilagem; valor da joia pode ser cobrado à parte.",
+    "duracao_minutos": 30,
+    "preco_sugerido_brl": 140
+  },
+  {
+    "categoria": "Piercing",
+    "nome": "Perfuração de septo",
+    "descricao": "Perfuração de septo; valor da joia pode ser cobrado à parte.",
+    "duracao_minutos": 30,
+    "preco_sugerido_brl": 160
+  },
+  {
+    "categoria": "Piercing",
+    "nome": "Troca de joia",
+    "descricao": "Troca profissional da joia, mediante avaliação da cicatrização.",
+    "duracao_minutos": 30,
+    "preco_sugerido_brl": 60
   },
   {
     "categoria": "Piercing",
@@ -1044,6 +1065,69 @@
     "descricao": "Retirada profissional de joia e orientações conforme avaliação.",
     "duracao_minutos": 30,
     "preco_sugerido_brl": 50
+  },
+  {
+    "categoria": "Quiropraxia",
+    "nome": "Avaliação quiroprática",
+    "descricao": "Anamnese, avaliação funcional e planejamento de atendimento.",
+    "duracao_minutos": 60,
+    "preco_sugerido_brl": 180
+  },
+  {
+    "categoria": "Quiropraxia",
+    "nome": "Sessão de quiropraxia",
+    "descricao": "Atendimento manual conforme avaliação individual.",
+    "duracao_minutos": 60,
+    "preco_sugerido_brl": 180
+  },
+  {
+    "categoria": "Quiropraxia",
+    "nome": "Retorno quiroprático",
+    "descricao": "Sessão de acompanhamento conforme plano individual.",
+    "duracao_minutos": 30,
+    "preco_sugerido_brl": 130
+  },
+  {
+    "categoria": "Massagem e Massoterapia",
+    "nome": "Massagem relaxante",
+    "descricao": "Massagem corporal com foco em relaxamento.",
+    "duracao_minutos": 60,
+    "preco_sugerido_brl": 140
+  },
+  {
+    "categoria": "Massagem e Massoterapia",
+    "nome": "Massagem terapêutica",
+    "descricao": "Massagem localizada conforme avaliação e objetivo do atendimento.",
+    "duracao_minutos": 60,
+    "preco_sugerido_brl": 170
+  },
+  {
+    "categoria": "Massagem e Massoterapia",
+    "nome": "Drenagem linfática manual",
+    "descricao": "Sessão de drenagem por manobras manuais.",
+    "duracao_minutos": 60,
+    "preco_sugerido_brl": 150
+  },
+  {
+    "categoria": "Massagem e Massoterapia",
+    "nome": "Bambuterapia",
+    "descricao": "Massagem com bambus para relaxamento corporal.",
+    "duracao_minutos": 60,
+    "preco_sugerido_brl": 160
+  },
+  {
+    "categoria": "Massagem e Massoterapia",
+    "nome": "Reflexologia podal",
+    "descricao": "Estimulação manual dos pés com foco em relaxamento.",
+    "duracao_minutos": 60,
+    "preco_sugerido_brl": 120
+  },
+  {
+    "categoria": "Massagem e Massoterapia",
+    "nome": "Massagem com pedras quentes",
+    "descricao": "Massagem corporal com aplicação controlada de pedras aquecidas.",
+    "duracao_minutos": 90,
+    "preco_sugerido_brl": 210
   },
   {
     "categoria": "Massagem e Massoterapia",
@@ -1103,6 +1187,41 @@
   },
   {
     "categoria": "Biomedicina",
+    "nome": "Avaliação estética avançada",
+    "descricao": "Consulta para avaliar objetivos, histórico e possíveis procedimentos.",
+    "duracao_minutos": 60,
+    "preco_sugerido_brl": 150
+  },
+  {
+    "categoria": "Biomedicina",
+    "nome": "Toxina botulínica facial",
+    "descricao": "Aplicação conforme avaliação, produto, áreas e habilitação profissional.",
+    "duracao_minutos": 60,
+    "preco_sugerido_brl": 1000
+  },
+  {
+    "categoria": "Biomedicina",
+    "nome": "Preenchimento labial",
+    "descricao": "Aplicação de preenchedor conforme avaliação, produto e habilitação.",
+    "duracao_minutos": 60,
+    "preco_sugerido_brl": 1400
+  },
+  {
+    "categoria": "Biomedicina",
+    "nome": "Bioestimulador de colágeno",
+    "descricao": "Aplicação conforme protocolo, produto e habilitação profissional.",
+    "duracao_minutos": 90,
+    "preco_sugerido_brl": 1900
+  },
+  {
+    "categoria": "Biomedicina",
+    "nome": "Skinbooster",
+    "descricao": "Procedimento injetável para hidratação conforme avaliação e habilitação.",
+    "duracao_minutos": 60,
+    "preco_sugerido_brl": 1100
+  },
+  {
+    "categoria": "Biomedicina",
     "nome": "Microagulhamento capilar",
     "descricao": "Procedimento capilar com microagulhas conforme avaliação e habilitação profissional.",
     "duracao_minutos": 60,
@@ -1114,5 +1233,61 @@
     "descricao": "Procedimento capilar injetável conforme avaliação, produto e habilitação profissional.",
     "duracao_minutos": 60,
     "preco_sugerido_brl": 450
+  },
+  {
+    "categoria": "Biomedicina",
+    "nome": "Laser de CO2 fracionado: rosto completo",
+    "descricao": "Sessão de laser fracionado facial, com avaliação e planejamento individual.",
+    "duracao_minutos": 90,
+    "preco_sugerido_brl": 1500
+  },
+  {
+    "categoria": "Biomedicina",
+    "nome": "Laser de CO2 fracionado: cicatrizes por área",
+    "descricao": "Sessão localizada para cicatrizes, conforme avaliação profissional. Preço por área e sessão.",
+    "duracao_minutos": 60,
+    "preco_sugerido_brl": 800
+  },
+  {
+    "categoria": "Biomedicina",
+    "nome": "Laser de CO2 fracionado: estrias por área",
+    "descricao": "Sessão localizada para estrias, conforme avaliação profissional. Preço por área e sessão.",
+    "duracao_minutos": 60,
+    "preco_sugerido_brl": 700
+  },
+  {
+    "categoria": "Biomedicina",
+    "nome": "Carboxiterapia: corporal por área",
+    "descricao": "Sessão de carboxiterapia corporal localizada, conforme avaliação profissional.",
+    "duracao_minutos": 45,
+    "preco_sugerido_brl": 180
+  },
+  {
+    "categoria": "Biomedicina",
+    "nome": "Carboxiterapia: estrias por área",
+    "descricao": "Sessão localizada para estrias, conforme avaliação profissional.",
+    "duracao_minutos": 45,
+    "preco_sugerido_brl": 180
+  },
+  {
+    "categoria": "Biomedicina",
+    "nome": "Carboxiterapia: facial",
+    "descricao": "Sessão de carboxiterapia facial com planejamento individual.",
+    "duracao_minutos": 45,
+    "preco_sugerido_brl": 200
+  },
+  {
+    "categoria": "Biomedicina",
+    "nome": "Jato de plasma: facial por área",
+    "descricao": "Sessão localizada de jato de plasma, conforme avaliação e planejamento profissional.",
+    "duracao_minutos": 60,
+    "preco_sugerido_brl": 350
+  },
+  {
+    "categoria": "Biomedicina",
+    "nome": "Jato de plasma: região dos olhos",
+    "descricao": "Atendimento localizado na região periocular, condicionado à avaliação profissional.",
+    "duracao_minutos": 90,
+    "preco_sugerido_brl": 650
   }
 ]
