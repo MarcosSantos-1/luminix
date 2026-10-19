@@ -261,6 +261,30 @@
   font-weight: 600;
 }
 
+.ob2-equipment-service-search {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  margin: 0;
+  padding-bottom: 8px;
+  background: #2a0616;
+}
+
+.ob2-equipment-service-search .label {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  border: 0;
+}
+
+.ob2-special-modal .ob2-equipment-service-search .input-group {
+  min-height: 40px;
+}
+
 .ob2-equipment-card .ob2-equipment-services {
   margin: 0 16px 16px;
 }

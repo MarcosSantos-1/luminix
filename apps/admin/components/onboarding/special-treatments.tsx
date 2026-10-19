@@ -14,6 +14,79 @@ import {
   type EquipmentChoice,
 } from './special-equipment'
 
+function foldServiceName(value: string) {
+  return value
+    .normalize('NFD')
+    .replace(/\p{M}/gu, '')
+    .toLocaleLowerCase('pt-BR')
+}
+
+function EquipmentServiceList({
+  services,
+  selectedIds,
+  legend,
+  disabledIds,
+  disabledLabel,
+  onToggle,
+}: {
+  services: Service[]
+  selectedIds: string[]
+  legend: string
+  disabledIds?: Set<string>
+  disabledLabel?: (service: Service) => string
+  onToggle: (serviceId: string, checked: boolean) => void
+}) {
+  const [query, setQuery] = useState('')
+  const needle = foldServiceName(query.trim())
+  const selected = new Set(selectedIds)
+  const visible = services.filter((service) => {
+    if (!needle) return true
+    return foldServiceName(service.name).includes(needle)
+  })
+  const ordered = [
+    ...visible.filter((service) => selected.has(service.id)),
+    ...visible.filter((service) => !selected.has(service.id)),
+  ]
+  return (
+    <fieldset className="ob2-equipment-services">
+      <legend>{legend}</legend>
+      <GlassField
+        className="ob2-equipment-service-search"
+        label="Buscar serviço"
+        icon={<Search size={16} />}
+        value={query}
+        onChange={setQuery}
+        placeholder="Buscar serviço"
+      />
+      {ordered.length === 0 ? (
+        <p className="ob2-copy">Nenhum serviço com esse nome.</p>
+      ) : (
+        ordered.map((service) => {
+          const blocked = disabledIds?.has(service.id) ?? false
+          return (
+            <Checkbox
+              key={service.id}
+              isSelected={selected.has(service.id)}
+              isDisabled={blocked}
+              onChange={(checked) => onToggle(service.id, checked)}
+            >
+              <Checkbox.Content>
+                <Checkbox.Control>
+                  <Checkbox.Indicator />
+                </Checkbox.Control>
+                <Label>
+                  {service.name}
+                  {blocked && disabledLabel ? ` — ${disabledLabel(service)}` : ''}
+                </Label>
+              </Checkbox.Content>
+            </Checkbox>
+          )
+        })
+      )}
+    </fieldset>
+  )
+}
+
 export function SpecialTreatments({
   payload,
   setPayload,
@@ -284,36 +357,31 @@ export function SpecialTreatments({
               maxLength={160}
               placeholder="Ex.: Laser alugado da clínica"
             />
-            <fieldset className="ob2-equipment-services">
-              <legend>Quais serviços utilizam este aparelho?</legend>
-              {services.map((service) => {
-                const assigned = selected.find((item) => item.serviceIds.includes(service.id))
-                return (
-                  <Checkbox
-                    key={service.id}
-                    isSelected={serviceIds.includes(service.id)}
-                    isDisabled={Boolean(assigned)}
-                    onChange={(checked) =>
-                      setServiceIds(
-                        checked
-                          ? [...serviceIds, service.id]
-                          : serviceIds.filter((id) => id !== service.id),
-                      )
-                    }
-                  >
-                    <Checkbox.Content>
-                      <Checkbox.Control>
-                        <Checkbox.Indicator />
-                      </Checkbox.Control>
-                      <Label>
-                        {service.name}
-                        {assigned ? ` — vinculado a ${assigned.name}` : ''}
-                      </Label>
-                    </Checkbox.Content>
-                  </Checkbox>
+            <EquipmentServiceList
+              services={services}
+              selectedIds={serviceIds}
+              legend="Quais serviços utilizam este aparelho?"
+              disabledIds={
+                new Set(
+                  services
+                    .filter((service) =>
+                      selected.some((item) => item.serviceIds.includes(service.id)),
+                    )
+                    .map((service) => service.id),
                 )
-              })}
-            </fieldset>
+              }
+              disabledLabel={(service) => {
+                const assigned = selected.find((item) => item.serviceIds.includes(service.id))
+                return assigned ? `vinculado a ${assigned.name}` : ''
+              }}
+              onToggle={(serviceId, checked) =>
+                setServiceIds(
+                  checked
+                    ? [...serviceIds, serviceId]
+                    : serviceIds.filter((id) => id !== serviceId),
+                )
+              }
+            />
             <div className="ob2-equipment-new-service">
               <GlassField
                 label="Adicionar um novo serviço (opcional)"
@@ -400,45 +468,38 @@ export function SpecialTreatments({
                               : 'serviços vinculados'}{' '}
                             · Editar
                           </summary>
-                          <fieldset className="ob2-equipment-services">
-                            <legend>Serviços vinculados</legend>
-                            {services.map((service) => {
-                              const elsewhere = selected.some(
-                                (item) => item !== active && item.serviceIds.includes(service.id),
+                          <EquipmentServiceList
+                            services={services}
+                            selectedIds={active.serviceIds}
+                            legend="Serviços vinculados"
+                            disabledIds={
+                              new Set(
+                                services
+                                  .filter((service) =>
+                                    selected.some(
+                                      (item) =>
+                                        item !== active && item.serviceIds.includes(service.id),
+                                    ),
+                                  )
+                                  .map((service) => service.id),
                               )
-                              return (
-                                <Checkbox
-                                  key={service.id}
-                                  isSelected={active.serviceIds.includes(service.id)}
-                                  isDisabled={elsewhere}
-                                  onChange={(checked) =>
-                                    setSelected(
-                                      selected.map((item) =>
-                                        item === active
-                                          ? {
-                                              ...item,
-                                              serviceIds: checked
-                                                ? [...item.serviceIds, service.id]
-                                                : item.serviceIds.filter((id) => id !== service.id),
-                                            }
-                                          : item,
-                                      ),
-                                    )
-                                  }
-                                >
-                                  <Checkbox.Content>
-                                    <Checkbox.Control>
-                                      <Checkbox.Indicator />
-                                    </Checkbox.Control>
-                                    <Label>
-                                      {service.name}
-                                      {elsewhere ? ' — outro aparelho' : ''}
-                                    </Label>
-                                  </Checkbox.Content>
-                                </Checkbox>
+                            }
+                            disabledLabel={() => 'outro aparelho'}
+                            onToggle={(serviceId, checked) =>
+                              setSelected(
+                                selected.map((item) =>
+                                  item === active
+                                    ? {
+                                        ...item,
+                                        serviceIds: checked
+                                          ? [...item.serviceIds, serviceId]
+                                          : item.serviceIds.filter((id) => id !== serviceId),
+                                      }
+                                    : item,
+                                ),
                               )
-                            })}
-                          </fieldset>
+                            }
+                          />
                         </details>
                       ) : (
                         <p className="ob2-equipment-related">

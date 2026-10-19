@@ -129,6 +129,7 @@ function IntimateAudienceCards({
             </div>
             <AudienceChoices
               layout="inline"
+              labels="short"
               value={audienceFor(service)}
               onChange={(audience) => onChange(service, audience)}
             />
@@ -147,25 +148,33 @@ function AudienceChoices({
   value,
   onChange,
   layout = 'stack',
+  labels = 'full',
 }: {
   value?: Audience
   onChange: (value: Audience) => void
   layout?: 'stack' | 'inline' | 'compact'
+  labels?: 'full' | 'short'
 }) {
-  const layoutClass =
+  const layoutClass = [
     layout === 'compact'
       ? 'ob2-audience is-inline is-compact'
       : layout === 'inline'
         ? 'ob2-audience is-inline'
-        : 'ob2-audience'
+        : 'ob2-audience',
+    labels === 'short' ? 'is-short' : '',
+  ]
+    .filter(Boolean)
+    .join(' ')
   return (
     <div className={layoutClass}>
       {audienceChoices.map((option) => {
         const Icon = option.icon
+        const shortLabel = option.id === 'women' ? 'F' : option.id === 'men' ? 'M' : 'Todos'
+        const showIcon = labels === 'full' || option.id !== 'all'
         return (
           <Checkbox
             key={option.id}
-            className={`ob2-audience-option is-${option.tone}`}
+            className={`ob2-audience-option is-${option.tone}${value === option.id ? ' is-selected' : ''}`}
             isSelected={value != null && value === option.id}
             onChange={() => onChange(option.id)}
           >
@@ -173,10 +182,12 @@ function AudienceChoices({
               <Checkbox.Control>
                 <Checkbox.Indicator />
               </Checkbox.Control>
-              <span className="ob2-audience-icon" aria-hidden>
-                <Icon size={18} />
-              </span>
-              <Label>{option.label}</Label>
+              {showIcon ? (
+                <span className="ob2-audience-icon" aria-hidden>
+                  <Icon size={18} />
+                </span>
+              ) : null}
+              <Label>{labels === 'short' ? shortLabel : option.label}</Label>
             </Checkbox.Content>
           </Checkbox>
         )
@@ -1773,6 +1784,7 @@ export function TeamStep({
                       {serviceIsIntimate(service) && selected ? (
                         <AudienceChoices
                           layout="inline"
+                          labels="short"
                           value={audience}
                           onChange={(next) => setIntimateAudience(service.id, next)}
                         />

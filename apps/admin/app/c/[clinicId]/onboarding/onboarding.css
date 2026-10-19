@@ -2403,6 +2403,97 @@ html:has(.ob2)::-webkit-scrollbar-thumb:hover,
   line-height: 1.15;
 }
 
+.ob2-intimate-list,
+.ob2-intimate-card,
+.ob2-service-group {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.ob2-audience.is-short {
+  width: 100%;
+  min-width: 0;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.ob2-audience.is-short .checkbox__control {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  border: 0;
+}
+
+.ob2-audience.is-short .checkbox__content {
+  justify-content: center;
+  flex-wrap: nowrap;
+  gap: 4px;
+  min-width: 0;
+  min-height: 36px;
+  padding: 4px 6px;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 180, 210, 0.28);
+}
+
+.ob2-intimate-card .ob2-audience.is-short .checkbox__content,
+.ob2-dialog .ob2-service-line.is-intimate .ob2-audience.is-short .checkbox__content {
+  justify-content: center;
+  flex-wrap: nowrap;
+  gap: 4px;
+  min-width: 0;
+  min-height: 36px;
+  padding: 4px 6px;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 180, 210, 0.28);
+}
+
+.ob2-audience.is-short .ob2-audience-option.is-selected .checkbox__content,
+.ob2-intimate-card .ob2-audience.is-short .ob2-audience-option.is-selected .checkbox__content,
+.ob2-dialog
+  .ob2-service-line.is-intimate
+  .ob2-audience.is-short
+  .ob2-audience-option.is-selected
+  .checkbox__content {
+  border-color: #ff8db7;
+  background: rgba(255, 45, 121, 0.22);
+}
+
+.ob2-audience.is-short .label {
+  font-size: 13px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.ob2-audience.is-short .ob2-audience-icon {
+  width: 22px;
+  height: 22px;
+  flex: 0 0 auto;
+}
+
+.ob2-pro-dialog .ob2-pro-section > .ob2-audience.is-inline {
+  width: 100%;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.ob2-pro-dialog .ob2-pro-section > .ob2-audience.is-inline .checkbox__content {
+  justify-content: flex-start;
+  flex-wrap: nowrap;
+  min-height: 52px;
+}
+
+.ob2-pro-dialog .ob2-intimate-list {
+  grid-template-columns: 1fr;
+}
+
+.ob2-pro-dialog .ob2-service-line.is-intimate {
+  min-width: 0;
+  max-width: 100%;
+}
+
 .ob2-dialog .ob2-audience.is-inline {
   width: max-content;
   max-width: 100%;

@@ -215,7 +215,7 @@ export function syncIntimateServiceAudiences(
   audience: Audience | undefined,
   current?: Partial<Record<string, Audience>>,
 ): Partial<Record<string, Audience>> | undefined {
-  if (audience !== 'women' && audience !== 'men') return current
+  if (audience !== 'women' && audience !== 'men' && audience !== 'all') return current
   const next: Partial<Record<string, Audience>> = { ...current }
   for (const service of services) {
     if (serviceIsIntimate(service) && service.id) next[service.id] = audience
