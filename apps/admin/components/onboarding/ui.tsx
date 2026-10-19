@@ -168,7 +168,7 @@ export function BlurDialog({
   isOpen: boolean
   onOpenChange: (open: boolean) => void
   title: string
-  description?: string
+  description?: ReactNode
   children: ReactNode
   footer?: ReactNode
   className?: string

@@ -243,6 +243,10 @@
   gap: 8px;
 }
 
+.ob2-phrase {
+  white-space: nowrap;
+}
+
 .ob2 .card.ob2-panel.ob2-guide-card {
   padding: 14px 16px;
   margin-bottom: 22px;
@@ -1132,7 +1136,8 @@
 }
 
 .ob2-clinic-home .ob2-copy {
-  max-width: 68ch;
+  display: block;
+  max-width: none;
   line-height: 1.55;
 }
 
@@ -1862,6 +1867,138 @@ html:has(.ob2)::-webkit-scrollbar-thumb:hover,
 .ob2-dialog .button.ob2-pro-photo-clear {
   min-height: 44px;
   color: rgba(255, 220, 232, 0.88);
+}
+
+.ob2-dialog-container.ob2-pro-dialog {
+  width: min(960px, calc(100vw - 24px)) !important;
+  max-width: 960px;
+}
+
+.ob2-pro-identity {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 14px;
+  align-items: start;
+  padding: 14px;
+  border-radius: 20px;
+  border: 1px solid rgba(255, 180, 210, 0.2);
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.ob2-pro-identity-main,
+.ob2-pro-gender,
+.ob2-pro-section {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+}
+
+.ob2-pro-dialog .ob2-dialog-form {
+  gap: 16px;
+}
+
+.ob2-pro-dialog .ob2-pro-photo-hero {
+  padding: 2px 2px 0;
+  gap: 8px;
+  border: 0;
+  background: transparent;
+}
+
+.ob2-pro-dialog .ob2-pro-photo-preview {
+  width: 104px;
+  height: 104px;
+}
+
+.ob2-pro-dialog .ob2-pro-photo-copy {
+  gap: 2px;
+  max-width: 220px;
+}
+
+.ob2-pro-dialog .ob2-pro-photo-copy strong {
+  font-size: 14px;
+}
+
+.ob2-pro-dialog .ob2-pro-photo-copy span {
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.ob2-pro-dialog .ob2-pro-photo-actions {
+  margin-top: 2px;
+}
+
+.ob2-pro-dialog .button.ob2-pro-photo-btn,
+.ob2-pro-dialog .button.ob2-pro-photo-clear {
+  min-height: 36px;
+  padding-inline: 10px;
+  font-size: 13px;
+}
+
+.ob2-pro-dialog .ob2-dialog-fields--split {
+  max-width: none;
+  margin: 0;
+  column-gap: 12px;
+  row-gap: 12px;
+}
+
+.ob2-pro-dialog .ob2-dialog-section,
+.ob2-pro-dialog .ob2-dialog-hint {
+  margin: 0;
+}
+
+.ob2-pro-dialog .ob2-dialog .ob2-audience.is-inline {
+  width: 100%;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.ob2-pro-dialog .ob2-audience-option {
+  width: 100%;
+}
+
+.ob2-pro-dialog .ob2-gender-grid {
+  width: 100%;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.ob2-pro-dialog .button.ob2-gender-choice {
+  flex-direction: row;
+  justify-content: flex-start;
+  align-items: center;
+  min-height: 58px;
+  padding: 8px 12px;
+  gap: 10px;
+  font-size: 15px;
+  font-weight: 650;
+}
+
+.ob2-pro-dialog .ob2-gender-avatar {
+  width: 40px;
+  height: 40px;
+}
+
+@media (min-width: 720px) {
+  .ob2-pro-identity {
+    grid-template-columns: 196px minmax(0, 1fr);
+    align-items: center;
+    gap: 8px 18px;
+  }
+}
+
+@media (min-width: 2200px) {
+  .ob2-dialog-container.ob2-pro-dialog {
+    width: min(1080px, calc(100vw - 48px)) !important;
+    max-width: 1080px;
+  }
+
+  .ob2-pro-dialog .ob2-pro-photo-preview {
+    width: 124px;
+    height: 124px;
+  }
+
+  .ob2-pro-dialog .button.ob2-gender-choice {
+    min-height: 68px;
+  }
 }
 
 @media (max-width: 560px) {
@@ -3361,7 +3498,7 @@ html:has(.ob2)::-webkit-scrollbar-thumb:hover,
   }
 }
 
-@media (min-width: 1080px) {
+@media (min-width: 2200px) {
   .ob2 {
     gap: 48px;
     padding: 40px 48px 72px;
@@ -3649,7 +3786,7 @@ html:has(.ob2)::-webkit-scrollbar-thumb:hover,
   }
 }
 
-@media (min-width: 1080px) {
+@media (min-width: 2200px) {
   .ob2.ob2-is-welcome {
     justify-content: flex-start;
     padding: 40px 48px 72px;
@@ -3795,4 +3932,237 @@ html:has(.ob2)::-webkit-scrollbar-thumb:hover,
 .ob2-catalog-divider .separator {
   width: 72px;
   background: rgba(255, 180, 210, 0.45);
+}
+
+/* Full HD and similar desktops. The larger scale stays on 2K (2200px and up). */
+@media (min-width: 1500px) and (max-width: 2199px) {
+  .ob2 {
+    gap: 24px;
+    padding: 22px 32px 40px;
+  }
+
+  .ob2-top,
+  .ob2-board {
+    width: min(1280px, 100%);
+  }
+
+  .ob2-top {
+    gap: 14px;
+  }
+
+  .ob2-logo {
+    width: 160px;
+  }
+
+  .ob2-heading h1 {
+    font-size: 32px;
+  }
+
+  .ob2-heading p {
+    margin-top: 8px;
+    font-size: 15px;
+  }
+
+  .ob2-board {
+    grid-template-columns: 200px minmax(0, 1fr);
+    gap: 36px;
+  }
+
+  .ob2-rail {
+    padding: 14px 12px;
+  }
+
+  .ob2-form,
+  .ob2-column,
+  .ob2-stack {
+    gap: 16px;
+  }
+
+  .ob2 .card.ob2-panel {
+    padding: 20px;
+  }
+
+  .ob2 .button.ob2-choice {
+    min-height: 96px;
+    padding: 14px 16px;
+  }
+
+  .ob2-choice-icon:has(.ob2-category-icon),
+  .ob2-category-icon {
+    width: 60px;
+    height: 60px;
+  }
+
+  .ob2 .input-group,
+  .ob2 .select__trigger,
+  .ob2 .button.ob2-cta {
+    min-height: 48px;
+  }
+
+  .ob2-catalog.has-picked {
+    grid-template-columns: minmax(0, 1fr) 240px;
+    gap: 28px;
+  }
+}
+
+@media (min-width: 1080px) and (max-width: 2199px) {
+  .ob2.ob2-is-welcome {
+    padding: 22px 28px 36px;
+  }
+
+  .ob2-welcome-frame {
+    width: min(1080px, 100%);
+    gap: 24px;
+  }
+
+  .ob2-welcome-card {
+    padding: 22px 28px 26px;
+  }
+
+  .ob2-welcome-body {
+    grid-template-columns: minmax(0, 1fr) minmax(220px, 0.7fr);
+    gap: 16px 32px;
+  }
+
+  .ob2-welcome-art {
+    width: min(100%, 360px);
+  }
+
+  .ob2-welcome-copy h1 {
+    font-size: 40px;
+  }
+
+  .ob2-welcome-lead {
+    margin-top: 12px;
+    font-size: 16px;
+  }
+
+  .ob2-welcome-steps {
+    gap: 14px;
+    margin-top: 18px;
+  }
+
+  .ob2-welcome-step-icon {
+    width: 58px;
+    height: 58px;
+  }
+
+  .ob2-welcome-steps strong {
+    font-size: 17px;
+  }
+
+  .ob2-welcome-steps small {
+    margin-top: 2px;
+    font-size: 14px;
+  }
+
+  .ob2-welcome-pace,
+  .ob2-welcome-actions {
+    margin-top: 18px;
+  }
+}
+
+@media (max-height: 820px) and (min-width: 1080px) and (max-width: 2199px) {
+  .ob2 {
+    gap: 14px;
+    padding: 12px 20px 24px;
+  }
+
+  .ob2-top {
+    gap: 8px;
+  }
+
+  .ob2-logo {
+    width: 136px;
+  }
+
+  .ob2-heading h1 {
+    font-size: 26px;
+  }
+
+  .ob2-heading p {
+    margin-top: 4px;
+    font-size: 14px;
+  }
+
+  .ob2 .card.ob2-panel {
+    padding: 14px 16px;
+  }
+
+  .ob2-welcome-art {
+    width: min(100%, 220px);
+  }
+
+  .ob2-welcome-copy h1 {
+    font-size: 30px;
+  }
+
+  .ob2-welcome-steps {
+    gap: 8px;
+    margin-top: 12px;
+  }
+
+  .ob2-welcome-step-icon {
+    width: 44px;
+    height: 44px;
+  }
+
+  .ob2-welcome-pace,
+  .ob2-welcome-actions {
+    margin-top: 12px;
+  }
+}
+
+@media (max-width: 2199px), (max-height: 1000px) {
+  .ob2-dialog-backdrop .modal__container.ob2-dialog-container {
+    padding: 10px;
+  }
+
+  .ob2-dialog {
+    padding: 0;
+    max-height: calc(100dvh - 20px);
+    border-radius: 22px;
+  }
+
+  .ob2-dialog .modal__header {
+    padding: 16px 20px 8px;
+  }
+
+  .ob2-dialog .modal__heading {
+    font-size: 1.2rem;
+  }
+
+  .ob2-dialog-lead {
+    margin-top: 6px;
+    font-size: 14px;
+  }
+
+  .ob2-dialog .modal__body {
+    padding: 12px 20px 8px;
+  }
+
+  .ob2-dialog .modal__footer,
+  .ob2-dialog-footer {
+    padding: 10px 20px 14px;
+  }
+
+  .ob2-dialog .input-group,
+  .ob2-dialog .select__trigger {
+    min-height: 44px;
+    font-size: 15px;
+  }
+
+  .ob2-dialog .input-group__input,
+  .ob2-dialog .select__value {
+    font-size: 15px;
+  }
+
+  .ob2-dialog .button.ob2-cta {
+    min-height: 42px;
+    font-size: 15px;
+  }
+
+  .ob2-dialog-form {
+    gap: 14px;
+  }
 }

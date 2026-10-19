@@ -165,9 +165,15 @@ export function SpecialTreatments({
                     : 'Você atende com aparelhos alugados ou em datas específicas?'}
                 </h2>
                 <p>
-                  {specialCount
-                    ? `${specialCount} ${specialCount === 1 ? 'serviço depende' : 'serviços dependem'} de aparelhos disponíveis em datas específicas.`
-                    : 'Ideal para Laser, Criolipólise ou máquinas compartilhadas. O Luminix bloqueará esses serviços na agenda normal e liberará apenas nos dias em que o aparelho estiver na clínica.'}
+                  {specialCount ? (
+                    `${specialCount} ${specialCount === 1 ? 'serviço depende' : 'serviços dependem'} de aparelhos disponíveis em datas específicas.`
+                  ) : (
+                    <>
+                      Ideal para Laser, Criolipólise ou máquinas compartilhadas. O Luminix
+                      bloqueará esses serviços <span className="ob2-phrase">na agenda normal</span>{' '}
+                      e liberará apenas nos dias em que o aparelho estiver na clínica.
+                    </>
+                  )}
                 </p>
               </div>
             </div>
@@ -232,9 +238,15 @@ export function SpecialTreatments({
           custom ? 'Cadastrar outro aparelho alugado' : 'Cada aparelho, seus dias de atendimento'
         }
         description={
-          custom
-            ? 'Dê um nome ao aparelho e escolha os serviços que dependem dele.'
-            : 'Reconheça seu aparelho e vincule os serviços que dependem dele. As sugestões abaixo vêm dos atendimentos que você escolheu.'
+          custom ? (
+            'Dê um nome ao aparelho e escolha os serviços que dependem dele.'
+          ) : (
+            <>
+              Reconheça seu aparelho e vincule os serviços que dependem dele.{' '}
+              <span className="ob2-phrase">As sugestões</span> abaixo vêm dos atendimentos que você
+              escolheu.
+            </>
+          )
         }
         footer={
           <>

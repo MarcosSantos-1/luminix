@@ -13,6 +13,11 @@
   gap: 14px;
 }
 
+.ob2-special-heading > div {
+  min-width: 0;
+  flex: 1;
+}
+
 .ob2-special-heading h2 {
   margin: 0 0 6px;
   font-size: 1.1rem;
@@ -21,8 +26,9 @@
 
 .ob2-special-heading p {
   margin: 0;
-  max-width: 70ch;
-  line-height: 1.6;
+  max-width: none;
+  line-height: 1.55;
+  text-wrap: pretty;
   opacity: 0.85;
 }
 
@@ -94,6 +100,13 @@
   height: auto;
   max-height: 90dvh;
   animation: ob2-equipment-enter 220ms ease-out;
+}
+
+.ob2-special-modal .ob2-dialog-lead,
+.ob2-special-confirm .ob2-dialog-lead {
+  max-width: none;
+  padding-right: 28px;
+  text-wrap: pretty;
 }
 
 .ob2-special-modal .modal__body,
@@ -359,5 +372,113 @@
   .ob2-special-modal .ob2-dialog,
   .ob2-special-confirm .ob2-dialog {
     animation: none;
+  }
+}
+
+/* 1080p, 720p and short windows. 2K (2200px+ and tall) keeps the larger cards. */
+@media (max-width: 2199px) and (min-width: 641px), (max-height: 1100px) and (min-width: 641px) {
+  .ob2-dialog-container.ob2-special-modal {
+    width: min(1440px, calc(100vw - 16px)) !important;
+  }
+
+  .ob2-special-modal .ob2-dialog {
+    max-height: calc(100dvh - 16px);
+  }
+
+  .ob2-equipment-grid {
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, 220px), 1fr));
+    gap: 10px;
+  }
+
+  .ob2-equipment-art {
+    height: 104px;
+  }
+
+  .ob2-equipment-art img {
+    width: 96px;
+    height: 96px;
+  }
+
+  .ob2-equipment-copy {
+    gap: 4px;
+    padding: 10px 12px 12px;
+  }
+
+  .ob2-equipment-copy strong {
+    font-size: 0.92rem;
+    line-height: 1.25;
+  }
+
+  .ob2-equipment-description {
+    font-size: 0.78rem;
+    line-height: 1.35;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  .ob2-equipment-status {
+    margin-top: 2px;
+  }
+
+  .ob2-equipment-related {
+    padding: 0 12px 10px;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  .ob2-equipment-services {
+    max-height: min(46dvh, 420px);
+    padding: 12px;
+  }
+
+  .ob2-equipment-custom-intro {
+    gap: 12px;
+  }
+
+  .ob2-equipment-custom-intro img {
+    flex-basis: 72px;
+    width: 72px;
+    height: auto;
+  }
+}
+
+@media (max-height: 780px) and (min-width: 641px) {
+  .ob2-equipment-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+  }
+
+  .ob2-special-modal .button.ob2-equipment-toggle,
+  .ob2-special-modal .button.ob2-equipment-add {
+    display: grid;
+    grid-template-columns: 72px minmax(0, 1fr);
+    align-items: center;
+  }
+
+  .ob2-equipment-art {
+    height: 100%;
+    min-height: 92px;
+    border-bottom: 0;
+    border-right: 1px solid rgba(255, 180, 210, 0.12);
+  }
+
+  .ob2-equipment-art img {
+    width: 68px;
+    height: 68px;
+  }
+
+  .ob2-equipment-copy {
+    padding: 10px 36px 10px 12px;
+  }
+
+  .ob2-equipment-check {
+    top: 8px;
+    right: 8px;
+    padding: 4px;
   }
 }

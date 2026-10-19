@@ -367,8 +367,9 @@ export function ClinicStep({
           <div className="ob2-clinic-home">
             <p className="ob2-dialog-section">Atende na casa da cliente?</p>
             <p className="ob2-copy">
-              O padrão é não. Marque sim só se alguém da clínica vai até o endereço da cliente. Aí,
-              em cada dia dos horários, dá para ligar o atendimento em domicílio.
+              O padrão é não. Marque sim só se alguém da clínica vai até o endereço da cliente. Aí,{' '}
+              <span className="ob2-phrase">em cada dia dos horários</span>, dá para ligar o
+              atendimento em domicílio.
             </p>
             <div className="ob2-clinic-home-choices">
               <Checkbox
@@ -1549,6 +1550,7 @@ export function TeamStep({
           setDialogOpen(open)
           if (!open) setIndex(null)
         }}
+        className="ob2-pro-dialog"
         title={index == null ? 'Nova profissional' : draft.name.trim() || 'Profissional'}
         description="Identificação, público atendido e serviços desta pessoa na clínica."
         footer={
@@ -1564,122 +1566,129 @@ export function TeamStep({
           </>
         }
       >
-        <ProfessionalPhotoField
-          gender={draft.gender}
-          preview={draft.photoUrl ?? draft.photoPreview ?? null}
-          onPreviewChange={(preview) =>
-            patchDraft(
-              preview
-                ? { photoPreview: preview }
-                : { photoPreview: undefined, photoUrl: undefined, photoAssetId: undefined },
-            )
-          }
-          onFile={async (file) => {
-            onUploadingChange?.(true)
-            setPhotoUploading(true)
-            try {
-              if (!staff.user) throw new Error('Sua sessão expirou. Entre novamente.')
-              const result = await uploadClinicMedia({
-                clinicId: clinic.id,
-                token: await staff.user.getIdToken(),
-                kind: 'professional_photo',
-                subjectRef: draft.id,
-                file,
-              })
-              patchDraft({
-                photoAssetId: result.asset.id,
-                photoUrl: result.asset.largeUrl,
-                photoPreview: undefined,
-              })
-            } finally {
-              setPhotoUploading(false)
-              onUploadingChange?.(false)
+        <div className="ob2-pro-identity">
+          <ProfessionalPhotoField
+            gender={draft.gender}
+            preview={draft.photoUrl ?? draft.photoPreview ?? null}
+            onPreviewChange={(preview) =>
+              patchDraft(
+                preview
+                  ? { photoPreview: preview }
+                  : { photoPreview: undefined, photoUrl: undefined, photoAssetId: undefined },
+              )
             }
-          }}
-        />
-        <div className="ob2-dialog-fields ob2-dialog-fields--split">
-          <div className="ob2-dialog-field">
-            <GlassField
-              label="Nome"
-              icon={<UserRound size={18} />}
-              value={draft.name}
-              placeholder="Nome completo"
-              onChange={(value) => patchDraft({ name: value })}
-            />
-            {formErrors.name ? (
-              <p className="ob2-field-error" role="alert">
-                {formErrors.name}
-              </p>
-            ) : null}
-          </div>
-          <div className="ob2-dialog-field">
-            <GlassField
-              label="Função"
-              icon={<Briefcase size={18} />}
-              value={draft.role}
-              placeholder="Cargo ou especialidade"
-              onChange={(value) => patchDraft({ role: value })}
-            />
-            {formErrors.role ? (
-              <p className="ob2-field-error" role="alert">
-                {formErrors.role}
-              </p>
-            ) : null}
+            onFile={async (file) => {
+              onUploadingChange?.(true)
+              setPhotoUploading(true)
+              try {
+                if (!staff.user) throw new Error('Sua sessão expirou. Entre novamente.')
+                const result = await uploadClinicMedia({
+                  clinicId: clinic.id,
+                  token: await staff.user.getIdToken(),
+                  kind: 'professional_photo',
+                  subjectRef: draft.id,
+                  file,
+                })
+                patchDraft({
+                  photoAssetId: result.asset.id,
+                  photoUrl: result.asset.largeUrl,
+                  photoPreview: undefined,
+                })
+              } finally {
+                setPhotoUploading(false)
+                onUploadingChange?.(false)
+              }
+            }}
+          />
+          <div className="ob2-pro-identity-main">
+            <div className="ob2-dialog-fields ob2-dialog-fields--split">
+              <div className="ob2-dialog-field">
+                <GlassField
+                  label="Nome"
+                  icon={<UserRound size={18} />}
+                  value={draft.name}
+                  placeholder="Nome completo"
+                  onChange={(value) => patchDraft({ name: value })}
+                />
+                {formErrors.name ? (
+                  <p className="ob2-field-error" role="alert">
+                    {formErrors.name}
+                  </p>
+                ) : null}
+              </div>
+              <div className="ob2-dialog-field">
+                <GlassField
+                  label="Função"
+                  icon={<Briefcase size={18} />}
+                  value={draft.role}
+                  placeholder="Cargo ou especialidade"
+                  onChange={(value) => patchDraft({ role: value })}
+                />
+                {formErrors.role ? (
+                  <p className="ob2-field-error" role="alert">
+                    {formErrors.role}
+                  </p>
+                ) : null}
+              </div>
+            </div>
+            <div className="ob2-pro-gender">
+              <p className="ob2-dialog-section">Sexo</p>
+              <div className="ob2-gender-grid">
+                {(
+                  [
+                    { id: 'female' as const, label: 'Feminino' },
+                    { id: 'male' as const, label: 'Masculino' },
+                  ] as const
+                ).map((option) => (
+                  <Button
+                    key={option.id}
+                    className={['ob2-gender-choice', draft.gender === option.id ? 'is-selected' : '']
+                      .filter(Boolean)
+                      .join(' ')}
+                    variant="ghost"
+                    onPress={() => patchDraft({ gender: option.id })}
+                  >
+                    <Image
+                      className="ob2-gender-avatar"
+                      src={professionalAvatarSrc[option.id]}
+                      alt=""
+                      width={512}
+                      height={512}
+                    />
+                    <span>{option.label}</span>
+                  </Button>
+                ))}
+              </div>
+              {formErrors.gender ? (
+                <p className="ob2-field-error" role="alert">
+                  {formErrors.gender}
+                </p>
+              ) : null}
+            </div>
           </div>
         </div>
-        <p className="ob2-dialog-section">Sexo</p>
-        <div className="ob2-gender-grid">
-          {(
-            [
-              { id: 'female' as const, label: 'Feminino' },
-              { id: 'male' as const, label: 'Masculino' },
-            ] as const
-          ).map((option) => (
-            <Button
-              key={option.id}
-              className={['ob2-gender-choice', draft.gender === option.id ? 'is-selected' : '']
-                .filter(Boolean)
-                .join(' ')}
-              variant="ghost"
-              onPress={() => patchDraft({ gender: option.id })}
-            >
-              <Image
-                className="ob2-gender-avatar"
-                src={professionalAvatarSrc[option.id]}
-                alt=""
-                width={512}
-                height={512}
-              />
-              <span>{option.label}</span>
-            </Button>
-          ))}
+        <div className="ob2-pro-section">
+          <p className="ob2-dialog-section">Público atendido</p>
+          <AudienceChoices
+            layout="inline"
+            value={draft.audience}
+            onChange={(audience) => setAudience(audience)}
+          />
+          {formErrors.audience ? (
+            <p className="ob2-field-error" role="alert">
+              {formErrors.audience}
+            </p>
+          ) : null}
+          <IntimateAudienceCards
+            services={assignedIntimate}
+            audienceFor={(service) => effectiveServiceAudience(draftForServiceAudience(), service)}
+            question="Qual público esta pessoa atende neste serviço?"
+            onChange={(service, audience) => setIntimateAudience(service.id, audience)}
+          />
         </div>
-        {formErrors.gender ? (
-          <p className="ob2-field-error" role="alert">
-            {formErrors.gender}
-          </p>
-        ) : null}
-        <Separator />
-        <p className="ob2-dialog-section">Público atendido</p>
-        <AudienceChoices
-          layout="inline"
-          value={draft.audience}
-          onChange={(audience) => setAudience(audience)}
-        />
-        {formErrors.audience ? (
-          <p className="ob2-field-error" role="alert">
-            {formErrors.audience}
-          </p>
-        ) : null}
-        <IntimateAudienceCards
-          services={assignedIntimate}
-          audienceFor={(service) => effectiveServiceAudience(draftForServiceAudience(), service)}
-          question="Qual público esta pessoa atende neste serviço?"
-          onChange={(service, audience) => setIntimateAudience(service.id, audience)}
-        />
-        <Separator />
-        <p className="ob2-dialog-section">Serviços</p>
-        <p className="ob2-dialog-hint">Marque o que esta pessoa realiza na clínica.</p>
+        <div className="ob2-pro-section">
+          <p className="ob2-dialog-section">Serviços</p>
+          <p className="ob2-dialog-hint">Marque o que esta pessoa realiza na clínica.</p>
         {groupServicesByCategory(payload.services).map((group) => {
           const categoryNames = group.services.map((service) => service.name)
           const categoryIds = group.services.map((service) => service.id)
@@ -1775,6 +1784,7 @@ export function TeamStep({
             </div>
           )
         })}
+        </div>
       </BlurDialog>
     </div>
   )
