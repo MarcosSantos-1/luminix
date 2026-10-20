@@ -32,6 +32,7 @@ type OnboardingPayload = {
   email: string
   phone: string
   clinic: {
+    theme?: string
     foundedYear: string
     whatsapp: string
     instagram: string
@@ -332,7 +333,7 @@ export async function clinicRoutes(
       authorized(request, reply, null, async (connection, tenant) => {
         const clinic = (
           await connection.query(
-            'SELECT id, name, slug, status, share_code FROM luminix.clinics WHERE id = $1',
+            'SELECT c.id, c.name, c.slug, c.status, c.share_code, s.theme FROM luminix.clinics c JOIN luminix.clinic_settings s ON s.clinic_id = c.id WHERE c.id = $1',
             [tenant.clinicId],
           )
         ).rows[0]
@@ -344,6 +345,34 @@ export async function clinicRoutes(
         ).rows
         if (!clinic) throw new Error('Clinic unavailable')
         return { clinic, permissions: grants.map((grant) => String(grant.permission_code)) }
+      }),
+  )
+
+  app.put<{ Params: { clinicId: string }; Body: { theme: string } }>(
+    '/clinics/:clinicId/theme',
+    {
+      schema: {
+        params,
+        body: {
+          type: 'object',
+          additionalProperties: false,
+          required: ['theme'],
+          properties: {
+            theme: {
+              type: 'string',
+              enum: ['rosa', 'grafite', 'violeta', 'dourado', 'esmeralda', 'azul'],
+            },
+          },
+        },
+      },
+    },
+    async (request, reply) =>
+      authorized(request, reply, 'settings:manage', async (connection, tenant) => {
+        await connection.query('SELECT luminix.set_clinic_theme($1::uuid, $2::text)', [
+          tenant.clinicId,
+          request.body.theme,
+        ])
+        return { theme: request.body.theme }
       }),
   )
 
@@ -554,6 +583,10 @@ export async function clinicRoutes(
           'postalCode',
         ],
         properties: {
+          theme: {
+            type: 'string',
+            enum: ['rosa', 'grafite', 'violeta', 'dourado', 'esmeralda', 'azul'],
+          },
           foundedYear: { type: 'string', maxLength: 4, pattern: '^$|^[0-9]{4}$' },
           whatsapp: { type: 'string', maxLength: 16, pattern: '^$|^\\+[1-9][0-9]{7,14}$' },
           instagram: { type: 'string', maxLength: 120 },

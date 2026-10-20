@@ -21,7 +21,7 @@ export function OnboardingShell({
 }) {
   const current = stepInfo[step]
   const progress = Math.round(((availableThrough + 1) / stepInfo.length) * 100)
-  const minimumStep = availableThrough > 0 ? 1 : 0
+  const minimumStep = 0
   return (
     <main className="ob2" data-surface="glass">
       <div className="ob2-top">

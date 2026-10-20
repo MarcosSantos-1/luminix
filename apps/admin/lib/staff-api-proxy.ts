@@ -78,6 +78,7 @@ export async function staffApiWrite(
     | `/clinics/${string}/clients`
     | `/clinics/${string}/appointments`
     | `/clinics/${string}/availability`
+    | `/clinics/${string}/theme`
     | `/clinics/${string}/media`
     | `/clinics/${string}/media/${string}/finalize`,
 ) {

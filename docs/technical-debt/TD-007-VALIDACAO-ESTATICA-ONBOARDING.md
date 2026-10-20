@@ -28,3 +28,8 @@ já contém a 0013 versionada e a 0014 local de outra tarefa. Atualizar a expect
 entrega dessas migrations, sem versionar incidentalmente o trabalho local alheio. Risco futuro:
 uma falha de baseline contínua pode ocultar regressões. Até a correção, reportar separadamente os
 resultados direcionados e não declarar o check agregado aprovado.
+
+Atualização 2026-10-20: a expectativa de migrations foi atualizada até 0015 na entrega de temas.
+Os 87 testes da API passam com `vitest run --maxWorkers=1`; os timeouts em execução paralela
+foram de inicialização do PGlite. Permanecem os problemas estáticos acima, incluindo formatação
+em `special-treatments.tsx`; a página local não versionada de QA também é alcançada pelo check.

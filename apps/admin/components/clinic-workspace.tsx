@@ -12,10 +12,18 @@ import { useParams, usePathname, useRouter, useSearchParams } from 'next/navigat
 import { signOut } from 'firebase/auth'
 import { AppStatus } from '@/components/app-status'
 import { useStaff } from '@/components/staff-provider'
+import { SpaceThemeProvider } from '@/components/space-theme'
 import { getFirebaseAuth } from '@/lib/firebase'
 
 type ClinicContext = {
-  clinic: { id: string; name: string; slug: string; status: string; share_code: string | null }
+  clinic: {
+    id: string
+    name: string
+    slug: string
+    status: string
+    share_code: string | null
+    theme?: string
+  }
   permissions: string[]
 }
 const Context = createContext<ClinicContext | null>(null)
@@ -132,7 +140,13 @@ export function ClinicWorkspace({ children }: { children: ReactNode }) {
     )
   }
   if (onboarding || pathname === `/c/${clinicId}` || pathname.endsWith('/settings'))
-    return <Context.Provider value={visible}>{children}</Context.Provider>
+    return (
+      <Context.Provider value={visible}>
+        <SpaceThemeProvider key={key} initialTheme={visible.clinic.theme}>
+          {children}
+        </SpaceThemeProvider>
+      </Context.Provider>
+    )
   return (
     <Context.Provider value={visible}>
       <main className="mx-auto max-w-3xl space-y-6 p-6">

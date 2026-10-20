@@ -4,6 +4,8 @@ import { Button, toast } from '@heroui/react'
 import { ArrowRight } from 'lucide-react'
 import { useEffect, useState, type ReactNode } from 'react'
 import { useRouter } from 'next/navigation'
+import { useSpaceTheme } from '@/components/space-theme'
+import { spaceTheme } from '@/lib/space-theme'
 import { AppStatus } from '@/components/app-status'
 import { useClinic } from '@/components/clinic-workspace'
 import { OnboardingShell } from '@/components/onboarding/shell'
@@ -266,6 +268,7 @@ function notifyError(message: string) {
 
 export default function OnboardingPage() {
   const { clinic, permissions } = useClinic()
+  const { setTheme } = useSpaceTheme()
   const staff = useStaff()
   const router = useRouter()
   const [draft, setDraft] = useState<Draft | null>(null)
@@ -311,6 +314,7 @@ export default function OnboardingPage() {
             if (!next.clinic.whatsapp) next.clinic.whatsapp = signupPhone
           }
         }
+        next.clinic.theme = spaceTheme(next.clinic.theme ?? clinic.theme)
         setPayload(next)
         setDraft({ ...data.draft, payload: next })
         setLoadError('')
@@ -325,7 +329,11 @@ export default function OnboardingPage() {
       }
     })()
     return () => controller.abort()
-  }, [staff.user, clinic.id, clinic.name, staff.revision, permissions, retry])
+  }, [staff.user, clinic.id, clinic.name, clinic.theme, staff.revision, permissions, retry])
+
+  useEffect(() => {
+    if (payload) setTheme(spaceTheme(payload.clinic.theme))
+  }, [payload, setTheme])
 
   function validateStep(targetStep: number) {
     if (!payload) return 'Cadastro indisponível.'
@@ -395,7 +403,7 @@ export default function OnboardingPage() {
   }
 
   function navigateTo(targetStep: number) {
-    const minimumStep = availableThrough > 0 ? 1 : 0
+    const minimumStep = 0
     if (busy || uploadingMedia || targetStep < minimumStep || targetStep > availableThrough) return
     setStepError('')
     setStep(targetStep)

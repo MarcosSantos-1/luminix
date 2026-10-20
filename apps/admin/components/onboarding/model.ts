@@ -1,3 +1,4 @@
+import type { SpaceTheme } from '@/lib/space-theme'
 import {
   Banknote,
   MapPin,
@@ -87,6 +88,7 @@ export type Payload = {
   email: string
   phone: string
   clinic: {
+    theme?: SpaceTheme
     foundedYear: string
     whatsapp: string
     instagram: string

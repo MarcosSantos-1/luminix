@@ -5,6 +5,8 @@ import Image from 'next/image'
 import { useEffect, useState } from 'react'
 import { Button, Card, Chip, Spinner } from '@heroui/react'
 import { useStaff } from '@/components/staff-provider'
+import { ThemePicker, useSpaceTheme } from '@/components/space-theme'
+import type { SpaceTheme } from '@/lib/space-theme'
 import { formatBrPhone } from '@/lib/phone'
 
 type Settings = { timezone: string; locale: string; currency: string }
@@ -46,13 +48,6 @@ const mockOptions = [
     ],
   },
   {
-    title: 'Marca',
-    rows: [
-      { label: 'Preset', value: 'Rosa' },
-      { label: 'Logo', value: 'Não enviada' },
-    ],
-  },
-  {
     title: 'Permissões da equipe',
     rows: [
       { label: 'Recepção', value: 'Agenda e clientes' },
@@ -72,7 +67,34 @@ export function ClinicSettings({
   canContinueOnboarding: boolean
   canReadOnboarding: boolean
 }) {
+  const { theme, setTheme } = useSpaceTheme()
+  const [savingTheme, setSavingTheme] = useState(false)
+  const [themeMessage, setThemeMessage] = useState('')
   const staff = useStaff()
+  async function changeTheme(next: SpaceTheme) {
+    if (!staff.user || savingTheme) return
+    setSavingTheme(true)
+    setThemeMessage('')
+    try {
+      const response = await fetch(`/api/clinics/${clinic.id}/theme`, {
+        method: 'PUT',
+        headers: {
+          authorization: `Bearer ${await staff.user.getIdToken()}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ theme: next }),
+        signal: AbortSignal.timeout(20_000),
+      })
+      if (!response.ok) throw new Error()
+      setTheme(next)
+      setThemeMessage('Tema salvo.')
+      staff.refresh()
+    } catch {
+      setThemeMessage('Não foi possível salvar o tema. Tente novamente.')
+    } finally {
+      setSavingTheme(false)
+    }
+  }
   const key = `${staff.user?.uid}/${clinic.id}/${staff.revision}`
   const [state, setState] = useState<{
     key: string
@@ -168,6 +190,16 @@ export function ClinicSettings({
   const phone = contact?.phone ? formatBrPhone(contact.phone) || contact.phone : ''
   return (
     <div className="manager-section">
+      <Card className="manager-panel space-theme-section">
+        <Card.Title>Tema do espaço</Card.Title>
+        <p>Personalize as cores e o fundo do painel da sua clínica.</p>
+        <ThemePicker
+          value={theme}
+          disabled={savingTheme}
+          onChange={(next) => void changeTheme(next)}
+        />
+        <p role="status">{savingTheme ? 'Salvando tema…' : themeMessage}</p>
+      </Card>
       {clinic.status === 'draft' && (
         <Card className="manager-panel manager-onboarding-banner">
           <Card.Title>Conclua a configuração da sua clínica</Card.Title>

@@ -1,3 +1,5 @@
+import { ThemePicker } from '@/components/space-theme'
+import { spaceTheme } from '@/lib/space-theme'
 import {
   Button,
   Card,
@@ -300,6 +302,14 @@ export function ClinicStep({
     <>
       <Card className="ob2-panel">
         <Card.Content className="ob2-form ob2-clinic-form">
+          <section className="space-theme-section">
+            <h2>Tema do espaço</h2>
+            <p>Escolha as cores que combinam com você. Depois, você pode mudar em Configurações.</p>
+            <ThemePicker
+              value={spaceTheme(payload.clinic.theme)}
+              onChange={(theme) => setPayload({ ...payload, clinic: { ...payload.clinic, theme } })}
+            />
+          </section>
           <div className="ob2-clinic-layout">
             <div className="ob2-clinic-fields">
               <GlassField
@@ -1653,7 +1663,10 @@ export function TeamStep({
                 ).map((option) => (
                   <Button
                     key={option.id}
-                    className={['ob2-gender-choice', draft.gender === option.id ? 'is-selected' : '']
+                    className={[
+                      'ob2-gender-choice',
+                      draft.gender === option.id ? 'is-selected' : '',
+                    ]
                       .filter(Boolean)
                       .join(' ')}
                     variant="ghost"
@@ -1700,102 +1713,102 @@ export function TeamStep({
         <div className="ob2-pro-section">
           <p className="ob2-dialog-section">Serviços</p>
           <p className="ob2-dialog-hint">Marque o que esta pessoa realiza na clínica.</p>
-        {groupServicesByCategory(payload.services).map((group) => {
-          const categoryNames = group.services.map((service) => service.name)
-          const categoryIds = group.services.map((service) => service.id)
-          const selectedInCategory = categoryIds.filter((id) => draft.serviceIds.includes(id))
-          const allInCategorySelected =
-            categoryNames.length > 0 && selectedInCategory.length === categoryNames.length
+          {groupServicesByCategory(payload.services).map((group) => {
+            const categoryNames = group.services.map((service) => service.name)
+            const categoryIds = group.services.map((service) => service.id)
+            const selectedInCategory = categoryIds.filter((id) => draft.serviceIds.includes(id))
+            const allInCategorySelected =
+              categoryNames.length > 0 && selectedInCategory.length === categoryNames.length
 
-          return (
-            <div className="ob2-service-group ob2-service-group-card" key={group.category}>
-              <div className="ob2-service-group-head">
-                <Checkbox
-                  className="ob2-service-group-toggle"
-                  isSelected={allInCategorySelected}
-                  onChange={(isSelected) => {
-                    const namesInCategory = new Set(categoryNames)
-                    const idsInCategory = new Set(categoryIds)
-                    patchDraft({
-                      serviceNames: isSelected
-                        ? [...new Set([...draft.serviceNames, ...categoryNames])]
-                        : draft.serviceNames.filter((name) => !namesInCategory.has(name)),
-                      serviceIds: isSelected
-                        ? [...new Set([...draft.serviceIds, ...categoryIds])]
-                        : draft.serviceIds.filter((id) => !idsInCategory.has(id)),
-                    })
-                  }}
-                >
-                  <Checkbox.Content>
-                    <Checkbox.Control>
-                      <Checkbox.Indicator />
-                    </Checkbox.Control>
-                    <Label className="ob2-service-group-title">{group.category}</Label>
-                  </Checkbox.Content>
-                </Checkbox>
-                <span className="ob2-service-group-meta">
-                  {allInCategorySelected
-                    ? 'Todos'
-                    : selectedInCategory.length > 0
-                      ? `${selectedInCategory.length}/${categoryNames.length}`
-                      : 'Marcar todos'}
-                </span>
-              </div>
-              <div className="ob2-checks ob2-service-group-items">
-                {group.services.map((service) => {
-                  const selected = draft.serviceIds.includes(service.id)
-                  const audience = effectiveServiceAudience(draftForServiceAudience(), service)
-                  return (
-                    <div
-                      className={
-                        serviceIsIntimate(service)
-                          ? 'ob2-service-line is-intimate'
-                          : 'ob2-service-line'
-                      }
-                      key={service.id}
-                    >
-                      <Checkbox
-                        isSelected={selected}
-                        onChange={(isSelected) =>
-                          patchDraft({
-                            serviceNames: isSelected
-                              ? [...draft.serviceNames, service.name]
-                              : draft.serviceNames.filter((name) => name !== service.name),
-                            serviceIds: isSelected
-                              ? [...draft.serviceIds, service.id]
-                              : draft.serviceIds.filter((id) => id !== service.id),
-                          })
+            return (
+              <div className="ob2-service-group ob2-service-group-card" key={group.category}>
+                <div className="ob2-service-group-head">
+                  <Checkbox
+                    className="ob2-service-group-toggle"
+                    isSelected={allInCategorySelected}
+                    onChange={(isSelected) => {
+                      const namesInCategory = new Set(categoryNames)
+                      const idsInCategory = new Set(categoryIds)
+                      patchDraft({
+                        serviceNames: isSelected
+                          ? [...new Set([...draft.serviceNames, ...categoryNames])]
+                          : draft.serviceNames.filter((name) => !namesInCategory.has(name)),
+                        serviceIds: isSelected
+                          ? [...new Set([...draft.serviceIds, ...categoryIds])]
+                          : draft.serviceIds.filter((id) => !idsInCategory.has(id)),
+                      })
+                    }}
+                  >
+                    <Checkbox.Content>
+                      <Checkbox.Control>
+                        <Checkbox.Indicator />
+                      </Checkbox.Control>
+                      <Label className="ob2-service-group-title">{group.category}</Label>
+                    </Checkbox.Content>
+                  </Checkbox>
+                  <span className="ob2-service-group-meta">
+                    {allInCategorySelected
+                      ? 'Todos'
+                      : selectedInCategory.length > 0
+                        ? `${selectedInCategory.length}/${categoryNames.length}`
+                        : 'Marcar todos'}
+                  </span>
+                </div>
+                <div className="ob2-checks ob2-service-group-items">
+                  {group.services.map((service) => {
+                    const selected = draft.serviceIds.includes(service.id)
+                    const audience = effectiveServiceAudience(draftForServiceAudience(), service)
+                    return (
+                      <div
+                        className={
+                          serviceIsIntimate(service)
+                            ? 'ob2-service-line is-intimate'
+                            : 'ob2-service-line'
                         }
+                        key={service.id}
                       >
-                        <Checkbox.Content>
-                          <Checkbox.Control>
-                            <Checkbox.Indicator />
-                          </Checkbox.Control>
-                          <Label>
-                            {service.name}
-                            {serviceIsIntimate(service) ? (
-                              <span className="ob2-intimate-badge">
-                                {selected ? audienceLabel(audience) : 'Íntimo'}
-                              </span>
-                            ) : null}
-                          </Label>
-                        </Checkbox.Content>
-                      </Checkbox>
-                      {serviceIsIntimate(service) && selected ? (
-                        <AudienceChoices
-                          layout="inline"
-                          labels="short"
-                          value={audience}
-                          onChange={(next) => setIntimateAudience(service.id, next)}
-                        />
-                      ) : null}
-                    </div>
-                  )
-                })}
+                        <Checkbox
+                          isSelected={selected}
+                          onChange={(isSelected) =>
+                            patchDraft({
+                              serviceNames: isSelected
+                                ? [...draft.serviceNames, service.name]
+                                : draft.serviceNames.filter((name) => name !== service.name),
+                              serviceIds: isSelected
+                                ? [...draft.serviceIds, service.id]
+                                : draft.serviceIds.filter((id) => id !== service.id),
+                            })
+                          }
+                        >
+                          <Checkbox.Content>
+                            <Checkbox.Control>
+                              <Checkbox.Indicator />
+                            </Checkbox.Control>
+                            <Label>
+                              {service.name}
+                              {serviceIsIntimate(service) ? (
+                                <span className="ob2-intimate-badge">
+                                  {selected ? audienceLabel(audience) : 'Íntimo'}
+                                </span>
+                              ) : null}
+                            </Label>
+                          </Checkbox.Content>
+                        </Checkbox>
+                        {serviceIsIntimate(service) && selected ? (
+                          <AudienceChoices
+                            layout="inline"
+                            labels="short"
+                            value={audience}
+                            onChange={(next) => setIntimateAudience(service.id, next)}
+                          />
+                        ) : null}
+                      </div>
+                    )
+                  })}
+                </div>
               </div>
-            </div>
-          )
-        })}
+            )
+          })}
         </div>
       </BlurDialog>
     </div>

@@ -4,18 +4,18 @@
 .manager-shell,
 .manager-dialog,
 .manager-account-menu {
-  --foreground: #fff7fb;
-  --muted: #f1cfdf;
-  --accent: #ec287a;
+  --foreground: var(--space-highlight, #fff7fb);
+  --muted: var(--space-highlight, #f1cfdf);
+  --accent: var(--space-accent, #ec287a);
   --accent-foreground: #fff;
-  --surface: #65213f;
-  --surface-foreground: #fff7fb;
+  --surface: var(--space-deep, #65213f);
+  --surface-foreground: var(--space-highlight, #fff7fb);
   --field-background: #ffffff14;
   --field-foreground: #fff;
-  --field-placeholder: #e8c6d5;
-  --focus: #ffb5d3;
-  --manager-text: #fff7fb;
-  --manager-muted: #f1cfdf;
+  --field-placeholder: var(--space-highlight, #e8c6d5);
+  --focus: var(--space-highlight, #ffb5d3);
+  --manager-text: var(--space-highlight, #fff7fb);
+  --manager-muted: var(--space-highlight, #f1cfdf);
   --manager-surface: #ffffff14;
   --manager-border: #ffffff26;
   color: var(--manager-text);
@@ -72,10 +72,10 @@
 .manager-data-error {
   margin: 0;
   padding: 11px 14px;
-  border: 1px solid color-mix(in srgb, #c2415b 35%, transparent);
+  border: 1px solid color-mix(in srgb, var(--space-accent, #c2415b) 35%, transparent);
   border-radius: 13px;
-  color: #9f1239;
-  background: color-mix(in srgb, #fff1f2 82%, transparent);
+  color: var(--space-accent, #9f1239);
+  background: color-mix(in srgb, var(--space-highlight, #fff1f2) 82%, transparent);
 }
 
 .manager-client-list,
@@ -608,8 +608,11 @@
   z-index: -1;
   inset: 0;
   background:
-    linear-gradient(#31051d3d, #31051d66),
-    url('/brand/background-desktop.png') center/cover;
+    linear-gradient(
+      color-mix(in srgb, var(--space-deep, #31051d) 23.92%, transparent),
+      color-mix(in srgb, var(--space-deep, #31051d) 40%, transparent)
+    ),
+    var(--space-background, url('/brand/background-desktop.png')) center/cover;
 }
 .manager-shell h1,
 .manager-shell h2,
@@ -629,7 +632,7 @@
 .manager-shell .button:focus-visible,
 .manager-shell a:focus-visible,
 .manager-dialog .button:focus-visible {
-  outline: 2px solid #ffd4e7;
+  outline: 2px solid var(--space-highlight, #ffd4e7);
   outline-offset: 3px;
 }
 .manager-sidebar {
@@ -645,7 +648,7 @@
   border-radius: 24px;
   background: #ffffff13;
   backdrop-filter: blur(24px);
-  box-shadow: 0 16px 45px #27011330;
+  box-shadow: 0 16px 45px color-mix(in srgb, var(--space-deep, #270113) 18.82%, transparent);
 }
 .manager-brand {
   display: flex;
@@ -673,10 +676,14 @@
   min-height: 44px;
   background: transparent;
   font-size: 14px;
-  color: #f8deea;
+  color: var(--space-highlight, #f8deea);
 }
 .manager-nav .is-active {
-  background: linear-gradient(110deg, #ec247bd9, #f982b380);
+  background: linear-gradient(
+    110deg,
+    color-mix(in srgb, var(--space-accent, #ec247b) 85.1%, transparent),
+    color-mix(in srgb, var(--space-highlight, #f982b3) 50.2%, transparent)
+  );
   color: white;
   box-shadow: inset 0 1px #ffffff25;
 }
@@ -743,7 +750,7 @@
 .manager-greeting p {
   font-size: 11px;
   letter-spacing: 0.09em;
-  color: #f6bfd7;
+  color: var(--space-highlight, #f6bfd7);
   margin-bottom: 6px;
 }
 .manager-greeting h1 {
@@ -807,7 +814,7 @@
   font-size: 12px;
 }
 .manager-profile .avatar {
-  background: #653342;
+  background: var(--space-deep, #653342);
   color: white;
   border: 2px solid #ffffff70;
   box-shadow: none;
@@ -818,7 +825,7 @@
   gap: 8px;
   align-items: center;
   font-size: 10px;
-  color: #efd1df;
+  color: var(--space-highlight, #efd1df);
   padding: 0 4px 17px;
 }
 .manager-demo-label > span:first-child {
@@ -830,7 +837,7 @@
 .manager-demo-label i {
   width: 5px;
   height: 5px;
-  background: #ffacd0;
+  background: var(--space-highlight, #ffacd0);
   border-radius: 50%;
 }
 .manager-actions {
@@ -844,7 +851,11 @@
   padding: 19px 22px;
   justify-content: space-between;
   gap: 12px;
-  background: linear-gradient(110deg, #ffffff13, #f91c7950);
+  background: linear-gradient(
+    110deg,
+    #ffffff13,
+    color-mix(in srgb, var(--space-accent, #f91c79) 31.37%, transparent)
+  );
   border: 1px solid #ffffff30;
   border-radius: 18px;
   box-shadow: inset 0 1px #ffffff18;
@@ -885,7 +896,7 @@
   background: var(--manager-surface);
   backdrop-filter: blur(20px);
   box-shadow:
-    0 12px 35px #2904171a,
+    0 12px 35px color-mix(in srgb, var(--space-deep, #290417) 10.2%, transparent),
     inset 0 1px #ffffff08;
 }
 .manager-panel .card__title {
@@ -926,8 +937,8 @@
   border-bottom: 0;
 }
 .manager-client > time {
-  background: #e727776e;
-  border: 1px solid #ff65a141;
+  background: color-mix(in srgb, var(--space-accent, #e72777) 43.14%, transparent);
+  border: 1px solid color-mix(in srgb, var(--space-highlight, #ff65a1) 25.49%, transparent);
   border-radius: 10px;
   padding: 9px 8px;
   font-size: 12px;
@@ -937,7 +948,7 @@
   width: 36px;
   height: 36px;
   background: #f4c4ae;
-  color: #713a40;
+  color: var(--space-accent, #713a40);
   border: 2px solid #ffffff65;
   box-shadow: none;
   font-size: 11px;
@@ -994,7 +1005,7 @@
   width: 5px;
   height: 5px;
   border-radius: 50%;
-  background: #f797bf;
+  background: var(--space-highlight, #f797bf);
   margin-right: 5px;
 }
 .manager-event {
@@ -1013,7 +1024,7 @@
   flex-shrink: 0;
   width: 37px;
   height: 37px;
-  background: linear-gradient(140deg, #fb4599, #cd1a68);
+  background: linear-gradient(140deg, var(--space-accent, #fb4599), var(--space-accent, #cd1a68));
   border: 1px solid #ffffff20;
   border-radius: 11px;
 }
@@ -1117,7 +1128,11 @@
   gap: 10px;
   padding: 20px 18px;
   border-radius: 15px;
-  background: linear-gradient(110deg, #cc246cba, #ed78a3aa);
+  background: linear-gradient(
+    110deg,
+    color-mix(in srgb, var(--space-accent, #cc246c) 72.94%, transparent),
+    color-mix(in srgb, var(--space-highlight, #ed78a3) 66.67%, transparent)
+  );
   border: 1px solid #ffffff1a;
 }
 .manager-announcement > div {
@@ -1136,17 +1151,17 @@
   font-size: 11px;
   max-width: 205px;
   margin: 7px 0 12px;
-  color: #ffe2ef;
+  color: var(--space-highlight, #ffe2ef);
   line-height: 1.6;
 }
 .manager-announcement .button {
-  background: #ffdded;
-  color: #8c1749;
+  background: var(--space-highlight, #ffdded);
+  color: var(--space-deep, #8c1749);
   font-size: 10px;
   min-height: 34px;
 }
 .manager-announcement > svg {
-  color: #ffd0e6;
+  color: var(--space-highlight, #ffd0e6);
   transform: rotate(-18deg);
   margin-right: 7px;
 }
@@ -1202,14 +1217,14 @@
   border-radius: 10px;
 }
 .manager-progress .progress-bar__fill {
-  background: linear-gradient(90deg, #f63286, #ffa8cd);
+  background: linear-gradient(90deg, var(--space-accent, #f63286), var(--space-highlight, #ffa8cd));
   border-radius: 10px;
 }
 .manager-footer {
   display: flex;
   justify-content: space-between;
   padding: 22px 4px;
-  color: #eac9d8;
+  color: var(--space-highlight, #eac9d8);
   font-size: 10px;
 }
 .manager-bottom-nav {
@@ -1219,7 +1234,7 @@
   position: absolute;
   left: 280px;
   top: -100px;
-  background: #591331;
+  background: var(--space-deep, #591331);
   padding: 14px;
   z-index: 20;
   border-radius: 12px;
@@ -1228,7 +1243,7 @@
   top: 8px;
 }
 .manager-dialog {
-  background: #56203c;
+  background: var(--space-deep, #56203c);
   border: 1px solid #ffffff35;
   border-radius: 22px;
 }
@@ -1236,7 +1251,7 @@
   color: white;
 }
 .manager-dialog .modal__body {
-  color: #f6dce8;
+  color: var(--space-highlight, #f6dce8);
   line-height: 1.7;
 }
 .manager-dialog .search-field__group {
@@ -1274,7 +1289,7 @@
 .manager-search-results small {
   display: block;
   font-size: 11px;
-  color: #ebc7d8;
+  color: var(--space-highlight, #ebc7d8);
 }
 .manager-shell.is-collapsed {
   padding-left: 113px;
@@ -1404,9 +1419,9 @@
     padding-bottom: max(7px, env(safe-area-inset-bottom));
     border: 1px solid #ffffff30;
     border-radius: 20px;
-    background: #5a1639eb;
+    background: color-mix(in srgb, var(--space-deep, #5a1639) 92.16%, transparent);
     backdrop-filter: blur(20px);
-    box-shadow: 0 8px 30px #21071550;
+    box-shadow: 0 8px 30px color-mix(in srgb, var(--space-deep, #210715) 31.37%, transparent);
   }
   .manager-bottom-nav .button {
     flex: 1;
@@ -1418,7 +1433,7 @@
     height: 54px;
   }
   .manager-bottom-nav [aria-current] {
-    background: #e8377b6e;
+    background: color-mix(in srgb, var(--space-accent, #e8377b) 43.14%, transparent);
   }
   .manager-skip {
     left: 20px;
@@ -1426,7 +1441,12 @@
 }
 @media (max-width: 650px) {
   .manager-shell::before {
-    background-image: linear-gradient(#31051d50, #31051d70), url('/brand/background-portrait.png');
+    background-image:
+      linear-gradient(
+        color-mix(in srgb, var(--space-deep, #31051d) 31.37%, transparent),
+        color-mix(in srgb, var(--space-deep, #31051d) 43.92%, transparent)
+      ),
+      var(--space-background, url('/brand/background-portrait.png'));
   }
   .manager-header {
     flex-wrap: wrap;
@@ -1562,14 +1582,14 @@
 @supports not (backdrop-filter: blur(1px)) {
   .manager-panel.card,
   .manager-sidebar {
-    background: #662640;
+    background: var(--space-deep, #662640);
   }
 }
 @media (prefers-reduced-transparency: reduce) {
   .manager-panel.card,
   .manager-sidebar,
   .manager-bottom-nav {
-    background: #662640;
+    background: var(--space-deep, #662640);
     backdrop-filter: none;
   }
 }
@@ -1663,10 +1683,10 @@
   border: 1px solid #ffffff26;
   border-radius: 16px;
   background: #ffffff0b;
-  color: #fff7fb;
+  color: var(--space-highlight, #fff7fb);
 }
 .manager-real-muted {
-  color: #f1cfdf;
+  color: var(--space-highlight, #f1cfdf);
 }
 
 .manager-brand.button {
@@ -1732,7 +1752,7 @@
 }
 .manager-shell .manager-table .table__cell,
 .manager-shell .manager-table .table__column {
-  color: #fff7fb;
+  color: var(--space-highlight, #fff7fb);
   background: #ffffff10;
   border-color: #ffffff22;
 }
@@ -1755,8 +1775,8 @@
   padding: 8px;
   border: 1px solid #ffffff26;
   border-radius: 16px;
-  background: #3d1228;
-  color: #fff7fb;
+  background: var(--space-deep, #3d1228);
+  color: var(--space-highlight, #fff7fb);
 }
 .manager-account-head {
   display: grid;
@@ -1764,7 +1784,7 @@
   padding: 8px 12px 10px;
 }
 .manager-account-head span {
-  color: #f1cfdf;
+  color: var(--space-highlight, #f1cfdf);
   font-size: 12px;
 }
 .manager-account-menu .menu-item {
@@ -1782,7 +1802,7 @@
   font-size: 12px;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: #f6bfd7;
+  color: var(--space-highlight, #f6bfd7);
 }
 @media (max-width: 900px) {
   .manager-settings-grid {

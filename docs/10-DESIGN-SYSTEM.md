@@ -153,3 +153,12 @@ transparência/movimento; o botão de teste na prévia permite optar por transpa
 Validação inicial: conferir desktop/mobile, sidebar, busca por teclado, foco/Escape, modal e ausência
 de overflow. Contraste formal, fadiga visual e performance em dispositivos modestos continuam
 critérios de avaliação do experimento, não garantias já comprovadas.
+
+### Paletas do espaço — 2026-10-20
+
+A escolha de paleta agora é funcional na etapa Clínica do onboarding e nas Configurações do
+admin: Padrão (rosa), Grafite, Violeta, Dourado, Esmeralda e Azul. O seletor apresenta quadrados
+com duas cores em diagonal e seleção indicada por check e contorno. A paleta é salva por clínica,
+aplica-se ao onboarding e painel e pode ser alterada depois. Isso substitui a restrição de seletor
+apenas experimental para **paletas**; Glass/Light continuam sendo modos distintos. Persistência,
+compatibilidade e limites estão na [ADR-015](decisions/ADR-015-TEMAS-DO-ESPACO.md).

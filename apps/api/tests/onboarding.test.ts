@@ -17,6 +17,7 @@ const payload = {
   email: 'ana.a@example.com',
   phone: '+5511999990001',
   clinic: {
+    theme: 'violeta',
     foundedYear: '2020',
     whatsapp: '+5511999990001',
     instagram: '@clinicaa',
@@ -196,6 +197,9 @@ describe('versioned clinic onboarding', () => {
     })
     expect(savedContact.statusCode).toBe(200)
     expect(savedContact.json().draft.payload.phone).toBe('+5511999990001')
+    expect((await call('onboarding-a', 'GET', clinicA, 'context')).json().clinic.theme).toBe(
+      'violeta',
+    )
     expect((await call('onboarding-b', 'GET', clinicA, 'onboarding')).statusCode).toBe(403)
     const outsideClinicHours = {
       ...payload,
@@ -288,9 +292,10 @@ describe('versioned clinic onboarding', () => {
     ])
     expect(
       (
-        await db.query('SELECT id, display_name, gender FROM luminix.professionals WHERE clinic_id = $1', [
-          clinicA,
-        ])
+        await db.query(
+          'SELECT id, display_name, gender FROM luminix.professionals WHERE clinic_id = $1',
+          [clinicA],
+        )
       ).rows,
     ).toEqual([{ id: professionalA, display_name: 'Ana Renomeada', gender: 'female' }])
     const archived = (
@@ -364,4 +369,68 @@ describe('versioned clinic onboarding', () => {
       ).statusCode,
     ).toBe(409)
   })
+})
+
+describe('space theme', () => {
+  it('preserves the theme on completion', async () => {
+    expect((await call('onboarding-a', 'GET', clinicA, 'context')).json().clinic.theme).toBe(
+      'violeta',
+    )
+  })
+  it('persists an allowed theme and exposes it through authorized context', async () => {
+    const result = await call('onboarding-a', 'PUT', clinicA, 'theme', { theme: 'grafite' })
+    expect(result.statusCode).toBe(200)
+    const context = await call('onboarding-a', 'GET', clinicA, 'context')
+    expect(context.json().clinic.theme).toBe('grafite')
+  })
+  it('rejects invalid themes and cross-clinic writes', async () => {
+    expect(
+      (await call('onboarding-a', 'PUT', clinicA, 'theme', { theme: 'other' })).statusCode,
+    ).toBe(400)
+    expect(
+      (await call('onboarding-b', 'PUT', clinicA, 'theme', { theme: 'azul' })).statusCode,
+    ).toBe(403)
+    expect((await call('onboarding-a', 'GET', clinicA, 'context')).json().clinic.theme).toBe(
+      'grafite',
+    )
+    expect((await call('onboarding-b', 'GET', clinicB, 'context')).json().clinic.theme).toBe('rosa')
+  })
+})
+
+it('synchronizes settings with open drafts and rejects stale versions', async () => {
+  const saved = await call('onboarding-b', 'PUT', clinicB, 'onboarding', {
+    version: 0,
+    step: 'contact',
+    payload,
+  })
+  expect(saved.statusCode).toBe(200)
+  expect(
+    (await call('onboarding-b', 'PUT', clinicB, 'theme', { theme: 'esmeralda' })).statusCode,
+  ).toBe(200)
+  const draft = (await call('onboarding-b', 'GET', clinicB, 'onboarding')).json().draft
+  expect(draft.payload.clinic.theme).toBe('esmeralda')
+  expect(draft.version).toBe(2)
+  expect(
+    (
+      await call('onboarding-b', 'PUT', clinicB, 'onboarding', {
+        version: 1,
+        step: 'contact',
+        payload,
+      })
+    ).statusCode,
+  ).toBe(409)
+  const oldClient = structuredClone(payload)
+  Reflect.deleteProperty(oldClient.clinic, 'theme')
+  expect(
+    (
+      await call('onboarding-b', 'PUT', clinicB, 'onboarding', {
+        version: 2,
+        step: 'contact',
+        payload: oldClient,
+      })
+    ).statusCode,
+  ).toBe(200)
+  expect((await call('onboarding-b', 'GET', clinicB, 'context')).json().clinic.theme).toBe(
+    'esmeralda',
+  )
 })

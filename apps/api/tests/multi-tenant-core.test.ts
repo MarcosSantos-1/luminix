@@ -122,6 +122,9 @@ describe('versioned core migration', () => {
       { name: '0010_professional_service_audience.sql' },
       { name: '0011_clinic_public_code.sql' },
       { name: '0012_onboarding_v3_media.sql' },
+      { name: '0013_schedule_details.sql' },
+      { name: '0014_onboarding_snapshot.sql' },
+      { name: '0015_clinic_theme.sql' },
     ])
   })
 

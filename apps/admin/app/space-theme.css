@@ -1,0 +1,91 @@
+/* Space palettes are independent of the Glass/Light surface mode. */
+html[data-space-theme='grafite'] {
+  --space-accent: #596474;
+  --space-highlight: #d2dae5;
+  --space-deep: #161b22;
+  --space-background: url('/brand/background-grafite.webp');
+}
+html[data-space-theme='violeta'] {
+  --space-accent: #7748c1;
+  --space-highlight: #d5bcff;
+  --space-deep: #291645;
+  --space-background: url('/brand/background-violeta.webp');
+}
+html[data-space-theme='dourado'] {
+  --space-accent: #88651f;
+  --space-highlight: #f0d48d;
+  --space-deep: #30230e;
+  --space-background: url('/brand/background-dourado.webp');
+}
+html[data-space-theme='esmeralda'] {
+  --space-accent: #18745e;
+  --space-highlight: #9ee2ce;
+  --space-deep: #0b3028;
+  --space-background: url('/brand/background-esmeralda.webp');
+}
+html[data-space-theme='azul'] {
+  --space-accent: #2967aa;
+  --space-highlight: #afd5ff;
+  --space-deep: #102a46;
+  --space-background: url('/brand/background-azul.webp');
+}
+.space-theme-section {
+  display: grid;
+  gap: 12px;
+}
+.space-theme-section h2 {
+  font-size: 16px;
+  font-weight: 600;
+}
+.space-theme-section p {
+  font-size: 14px;
+  line-height: 1.5;
+}
+.space-theme-picker {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+.space-theme-picker .space-theme-option {
+  display: flex;
+  flex-direction: column;
+  height: auto;
+  gap: 8px;
+  padding: 8px;
+  min-width: 76px;
+  color: inherit;
+  border-radius: 14px;
+}
+.space-theme-swatch {
+  display: grid;
+  place-items: center;
+  width: 52px;
+  height: 52px;
+  border: 1px solid #ffffff66;
+  border-radius: 12px;
+  box-shadow: 0 4px 14px #0003;
+}
+.space-theme-swatch svg {
+  color: white;
+  background: #000a;
+  border-radius: 50%;
+  padding: 2px;
+}
+.space-theme-option[aria-pressed='true'] {
+  outline: 2px solid currentColor;
+  outline-offset: -2px;
+  background: #ffffff16;
+}
+.space-theme-option:focus-visible {
+  outline: 3px solid var(--space-highlight, #ffb5d3);
+  outline-offset: 3px;
+}
+
+/* Keep white primary-action labels legible across the new palettes. */
+html[data-space-theme]:not([data-space-theme='rosa']) .ob2 .button.ob2-cta {
+  background-image: linear-gradient(
+    110deg,
+    var(--space-accent),
+    color-mix(in srgb, var(--space-accent) 80%, #000)
+  );
+}

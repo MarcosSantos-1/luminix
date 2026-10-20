@@ -32,16 +32,18 @@ export async function PUT(
   { params }: { params: Promise<{ clinicId: string; resource: string }> },
 ) {
   const { clinicId, resource } = await params
-  if (!isClinicRef(clinicId) || !['onboarding', 'availability'].includes(resource))
+  if (!isClinicRef(clinicId) || !['onboarding', 'availability', 'theme'].includes(resource))
     return Response.json(
       { error: 'Not found' },
       { status: 404, headers: { 'Cache-Control': 'no-store' } },
     )
   return staffApiWrite(
     request,
-    resource === 'availability'
-      ? `/clinics/${clinicId}/availability`
-      : `/clinics/${clinicId}/onboarding`,
+    resource === 'theme'
+      ? `/clinics/${clinicId}/theme`
+      : resource === 'availability'
+        ? `/clinics/${clinicId}/availability`
+        : `/clinics/${clinicId}/onboarding`,
   )
 }
 
