@@ -1381,11 +1381,14 @@
 }
 
 .ob2 .button.ob2-gender-choice {
-  flex-direction: column;
+  flex-direction: row;
   align-items: center;
-  gap: 10px;
-  min-height: 120px;
-  padding: 14px 10px;
+  justify-content: flex-start;
+  gap: 8px;
+  min-height: 48px;
+  padding: 7px 12px;
+  font-size: 14px;
+  font-weight: 650;
   border: 1px solid rgba(255, 255, 255, 0.28);
   border-radius: 18px;
   --button-bg: rgba(255, 255, 255, 0.08);
@@ -1397,8 +1400,8 @@
 }
 
 .ob2-gender-avatar {
-  width: 56px;
-  height: 56px;
+  width: 32px;
+  height: 32px;
   object-fit: contain;
 }
 
@@ -1737,14 +1740,14 @@ html:has(.ob2)::-webkit-scrollbar-thumb:hover,
 }
 
 .ob2-dialog .ob2-gender-grid {
-  width: fit-content;
+  width: 100%;
   max-width: 100%;
-  grid-template-columns: repeat(2, minmax(148px, 192px));
-  gap: 10px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
 }
 
 .ob2-dialog .button.ob2-gender-choice {
-  min-height: 136px;
+  min-height: 48px;
   border: 1px solid color-mix(in srgb, var(--space-highlight, rgb(255, 180, 210)) 28%, transparent);
   background: var(--space-deep, #4a1530);
   color: #fff;
@@ -1761,8 +1764,8 @@ html:has(.ob2)::-webkit-scrollbar-thumb:hover,
 }
 
 .ob2-dialog .ob2-gender-avatar {
-  width: 64px;
-  height: 64px;
+  width: 32px;
+  height: 32px;
 }
 
 .ob2-dialog .button.ob2-cta {
@@ -4250,7 +4253,39 @@ html:has(.ob2)::-webkit-scrollbar-thumb:hover,
 }
 
 .ob2-pro-dialog .ob2-gender-grid {
-  max-width: 340px;
+  max-width: 480px;
+  gap: 8px;
+}
+
+.ob2-pro-dialog .ob2-pro-gender {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 8px 14px;
+}
+
+.ob2-pro-dialog .ob2-pro-gender > .ob2-dialog-section {
+  margin: 0;
+}
+
+.ob2-pro-dialog .ob2-pro-gender .ob2-field-error {
+  grid-column: 1 / -1;
+}
+
+.ob2-pro-dialog .ob2-pro-section > .ob2-audience.is-inline {
+  width: 100%;
+  gap: 6px;
+}
+
+.ob2-pro-dialog .ob2-pro-section > .ob2-audience.is-inline .ob2-audience-option {
+  flex: 0 1 auto;
+  min-width: 0;
+  min-height: 38px;
+  padding: 5px 9px;
+}
+
+.ob2-pro-dialog .ob2-pro-section > .ob2-audience.is-inline .label {
+  font-size: 13px;
 }
 
 @media (max-height: 820px) and (min-width: 1080px) and (max-width: 2199px) {
