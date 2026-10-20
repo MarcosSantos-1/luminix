@@ -90,12 +90,14 @@ function emptyPayload(name: string, email: string, ownerName: string): Payload {
 
 function normalizeService(service: Service): Service {
   const name = canonicalServiceName(service.name)
+  const sensitive = serviceIsIntimate({ name, sensitive: service.sensitive })
   return {
     ...service,
     id: service.id || crypto.randomUUID(),
     name,
     audience: isAudience(service.audience) ? service.audience : 'all',
-    sensitive: serviceIsIntimate({ name, sensitive: service.sensitive }),
+    audienceChosen: service.audienceChosen === true || !sensitive,
+    sensitive,
   }
 }
 
@@ -362,6 +364,12 @@ export default function OnboardingPage() {
       )
     )
       return 'Revise nome, duração e valor dos serviços.'
+    if (
+      targetStep === 4 &&
+      payload.teamMode === 'solo' &&
+      payload.services.some((service) => serviceIsIntimate(service) && service.audienceChosen !== true)
+    )
+      return 'Escolha o público de cada atendimento íntimo para continuar.'
     if (targetStep === 4 && payload.teamMode === 'team') {
       if (payload.professionals.length === 0)
         return 'Adicione ao menos uma profissional ou marque “somente eu”.'

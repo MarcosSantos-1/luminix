@@ -35,6 +35,8 @@ export type Service = {
   priceType: 'fixed' | 'from' | 'quote'
   bookingMode: 'instant' | 'request' | 'manual_release'
   audience: Audience
+  /** Intimate services stay unanswered until the clinic picks Todos, Feminino or Masculino. */
+  audienceChosen?: boolean
   sensitive: boolean
   resourceName: string
   cancellationHours: number | null
@@ -198,6 +200,7 @@ export function serviceFromCatalog(item: CatalogItem, audience: Audience): Servi
     priceType: item.tipo_preco ?? (item.preco_sugerido_brl ? 'fixed' : 'quote'),
     bookingMode: 'instant',
     audience,
+    audienceChosen: !catalogItemIsSensitive(item),
     sensitive: catalogItemIsSensitive(item),
     resourceName: '',
     cancellationHours: null,

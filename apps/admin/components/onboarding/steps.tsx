@@ -108,36 +108,45 @@ function IntimateAudienceCards({
   audienceFor,
   onChange,
   question,
+  labels = 'short',
 }: {
   services: Service[]
-  audienceFor: (service: Service) => Audience
+  audienceFor: (service: Service) => Audience | undefined
   onChange: (service: Service, audience: Audience) => void
   question: string
+  labels?: 'full' | 'short'
 }) {
   if (services.length === 0) return null
   return (
     <div className="ob2-intimate-list">
-      {services.map((service) => (
-        <Card className="ob2-panel ob2-intimate-card" key={service.id}>
-          <Card.Content className="ob2-intimate-body">
-            <div className="ob2-intimate-head">
-              <span className="ob2-intimate-icon" aria-hidden>
-                <Shield size={18} />
-              </span>
-              <div>
-                <strong>{service.name}</strong>
-                <p>{question}</p>
+      {services.map((service) => {
+        const value = audienceFor(service)
+        return (
+          <Card
+            className={`ob2-panel ob2-intimate-card${value ? '' : ' is-pending'}`}
+            key={service.id}
+          >
+            <Card.Content className="ob2-intimate-body">
+              <div className="ob2-intimate-head">
+                <span className="ob2-intimate-icon" aria-hidden>
+                  <Shield size={18} />
+                </span>
+                <div>
+                  <strong>{service.name}</strong>
+                  <p>{question}</p>
+                </div>
               </div>
-            </div>
-            <AudienceChoices
-              layout="inline"
-              labels="short"
-              value={audienceFor(service)}
-              onChange={(audience) => onChange(service, audience)}
-            />
-          </Card.Content>
-        </Card>
-      ))}
+              <AudienceChoices
+                layout="inline"
+                labels={labels}
+                marked
+                value={value}
+                onChange={(audience) => onChange(service, audience)}
+              />
+            </Card.Content>
+          </Card>
+        )
+      })}
     </div>
   )
 }
@@ -151,11 +160,13 @@ function AudienceChoices({
   onChange,
   layout = 'stack',
   labels = 'full',
+  marked = false,
 }: {
   value?: Audience
   onChange: (value: Audience) => void
   layout?: 'stack' | 'inline' | 'compact'
   labels?: 'full' | 'short'
+  marked?: boolean
 }) {
   const layoutClass = [
     layout === 'compact'
@@ -164,6 +175,7 @@ function AudienceChoices({
         ? 'ob2-audience is-inline'
         : 'ob2-audience',
     labels === 'short' ? 'is-short' : '',
+    marked ? 'is-marked' : '',
   ]
     .filter(Boolean)
     .join(' ')
@@ -1266,8 +1278,12 @@ export function ServicesStep({
             <Separator />
             <p className="ob2-copy">Público atendido</p>
             <AudienceChoices
-              value={service.audience}
-              onChange={(audience) => update({ audience })}
+              value={
+                serviceIsIntimate(service) && service.audienceChosen !== true
+                  ? undefined
+                  : service.audience
+              }
+              onChange={(audience) => update({ audience, audienceChosen: true })}
             />
             <Button
               className="ob2-remove-service"
@@ -1507,13 +1523,15 @@ export function TeamStep({
           </Card>
           <IntimateAudienceCards
             services={intimateServices}
-            audienceFor={(service) => service.audience}
+            audienceFor={(service) =>
+              service.audienceChosen ? service.audience : undefined
+            }
             question="Qual é o público padrão deste serviço?"
             onChange={(service, audience) =>
               setPayload({
                 ...payload,
                 services: payload.services.map((item) =>
-                  item.id === service.id ? { ...item, audience } : item,
+                  item.id === service.id ? { ...item, audience, audienceChosen: true } : item,
                 ),
               })
             }
@@ -1705,6 +1723,7 @@ export function TeamStep({
           ) : null}
           <IntimateAudienceCards
             services={assignedIntimate}
+            labels="full"
             audienceFor={(service) => effectiveServiceAudience(draftForServiceAudience(), service)}
             question="Qual público esta pessoa atende neste serviço?"
             onChange={(service, audience) => setIntimateAudience(service.id, audience)}

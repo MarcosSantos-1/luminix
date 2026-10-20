@@ -674,6 +674,7 @@ export async function clinicRoutes(
             priceType: { type: 'string', enum: ['fixed', 'from', 'quote'] },
             bookingMode: { type: 'string', enum: ['instant', 'request', 'manual_release'] },
             audience: { type: 'string', enum: ['all', 'women', 'men'] },
+            audienceChosen: { type: 'boolean' },
             sensitive: { type: 'boolean' },
             resourceName: { type: 'string', maxLength: 160 },
             cancellationHours: {

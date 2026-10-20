@@ -1901,8 +1901,8 @@ html:has(.ob2)::-webkit-scrollbar-thumb:hover,
 }
 
 .ob2-dialog-container.ob2-pro-dialog {
-  width: min(960px, calc(100vw - 24px)) !important;
-  max-width: 960px;
+  width: min(1120px, calc(100vw - 24px)) !important;
+  max-width: 1120px;
 }
 
 .ob2-pro-identity {
@@ -1920,12 +1920,12 @@ html:has(.ob2)::-webkit-scrollbar-thumb:hover,
 .ob2-pro-gender,
 .ob2-pro-section {
   display: grid;
-  gap: 10px;
+  gap: 18px;
   min-width: 0;
 }
 
 .ob2-pro-dialog .ob2-dialog-form {
-  gap: 16px;
+  gap: 24px;
 }
 
 .ob2-pro-dialog .ob2-pro-photo-hero {
@@ -1987,8 +1987,10 @@ html:has(.ob2)::-webkit-scrollbar-thumb:hover,
 }
 
 .ob2-pro-dialog .ob2-gender-grid {
-  width: 100%;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  width: max-content;
+  max-width: 100%;
+  justify-self: start;
+  grid-template-columns: repeat(2, max-content);
   gap: 10px;
 }
 
@@ -2018,8 +2020,8 @@ html:has(.ob2)::-webkit-scrollbar-thumb:hover,
 
 @media (min-width: 2200px) {
   .ob2-dialog-container.ob2-pro-dialog {
-    width: min(1080px, calc(100vw - 48px)) !important;
-    max-width: 1080px;
+    width: min(1180px, calc(100vw - 48px)) !important;
+    max-width: 1180px;
   }
 
   .ob2-pro-dialog .ob2-pro-photo-preview {
@@ -2511,6 +2513,97 @@ html:has(.ob2)::-webkit-scrollbar-thumb:hover,
   flex: 0 0 auto;
 }
 
+.ob2-audience.is-marked .checkbox__control {
+  position: relative;
+  z-index: 1;
+  width: 16px;
+  height: 16px;
+  min-width: 16px;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  clip: auto;
+  border: 1.5px solid rgba(255, 255, 255, 0.88);
+  border-radius: 4px;
+  background: rgba(0, 0, 0, 0.2);
+  display: inline-grid;
+  place-items: center;
+  flex: 0 0 16px;
+  color: #fff;
+}
+
+.ob2-audience.is-marked .ob2-audience-option .checkbox__control::before {
+  content: none;
+  display: none;
+  opacity: 0;
+}
+
+.ob2-audience.is-marked .checkbox__content,
+.ob2-audience.is-marked .label {
+  color: #fff;
+}
+
+.ob2-audience.is-marked .checkbox__indicator {
+  display: none;
+}
+
+.ob2-audience.is-marked .ob2-audience-option.is-selected .checkbox__control {
+  background: #fff;
+  border-color: #fff;
+}
+
+.ob2-audience.is-marked .ob2-audience-option.is-selected .checkbox__control::after {
+  content: '';
+  width: 7px;
+  height: 4px;
+  border-left: 2px solid #c2185b;
+  border-bottom: 2px solid #c2185b;
+  transform: rotate(-45deg) translateY(-1px);
+}
+
+.ob2-audience.is-short.is-marked .checkbox__content {
+  border-width: 1.5px;
+  border-color: rgba(255, 255, 255, 0.46);
+  gap: 6px;
+}
+
+.ob2-audience.is-short.is-marked .ob2-audience-option.is-selected .checkbox__content {
+  border-color: #ff8db7;
+  box-shadow: 0 0 0 1px #ff8db7;
+  background: color-mix(in srgb, var(--space-accent, #ff2d79) 30%, transparent);
+}
+
+.ob2-pro-dialog .ob2-intimate-card .ob2-audience.is-inline.is-marked {
+  width: 100%;
+  grid-template-columns: 1fr;
+  gap: 8px;
+}
+
+.ob2-pro-dialog .ob2-intimate-card .ob2-audience.is-marked .checkbox__content {
+  min-height: 44px;
+  padding: 8px 12px;
+  border: 1.5px solid color-mix(in srgb, var(--space-highlight, #ffb4d2) 68%, transparent);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.04);
+  justify-content: flex-start;
+  gap: 8px;
+}
+
+.ob2-pro-dialog .ob2-intimate-card .ob2-audience.is-marked .ob2-audience-option.is-selected .checkbox__content {
+  border-color: #ff8db7;
+  box-shadow: 0 0 0 1px #ff8db7;
+  background: color-mix(in srgb, var(--space-accent, #ff2d79) 24%, transparent);
+}
+
+.ob2-pro-dialog .ob2-intimate-card .ob2-audience.is-marked .label {
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.ob2-intimate-card.is-pending {
+  border-color: color-mix(in srgb, var(--space-highlight, #ff8db7) 70%, transparent);
+}
+
 .ob2-pro-dialog .ob2-pro-section > .ob2-audience.is-inline {
   width: 100%;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -2523,7 +2616,8 @@ html:has(.ob2)::-webkit-scrollbar-thumb:hover,
 }
 
 .ob2-pro-dialog .ob2-intimate-list {
-  grid-template-columns: 1fr;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 18px;
 }
 
 .ob2-pro-dialog .ob2-service-line.is-intimate {
@@ -2552,7 +2646,8 @@ html:has(.ob2)::-webkit-scrollbar-thumb:hover,
 }
 
 @media (max-width: 860px) {
-  .ob2-intimate-list {
+  .ob2-intimate-list,
+  .ob2-pro-dialog .ob2-intimate-list {
     grid-template-columns: 1fr;
   }
 }
@@ -4253,15 +4348,25 @@ html:has(.ob2)::-webkit-scrollbar-thumb:hover,
 }
 
 .ob2-pro-dialog .ob2-gender-grid {
-  max-width: 480px;
-  gap: 8px;
+  width: max-content;
+  max-width: 100%;
+  justify-self: start;
+  grid-template-columns: repeat(2, max-content);
+  gap: 10px;
+}
+
+.ob2-pro-dialog .button.ob2-gender-choice {
+  width: auto;
+  min-width: 156px;
 }
 
 .ob2-pro-dialog .ob2-pro-gender {
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr);
+  grid-template-columns: auto max-content;
+  justify-content: start;
   align-items: center;
-  gap: 8px 14px;
+  gap: 12px 14px;
+  margin-top: 4px;
 }
 
 .ob2-pro-dialog .ob2-pro-gender > .ob2-dialog-section {
