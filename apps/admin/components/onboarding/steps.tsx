@@ -1657,8 +1657,8 @@ export function TeamStep({
               <div className="ob2-gender-grid">
                 {(
                   [
-                    { id: 'female' as const, label: 'Feminino' },
-                    { id: 'male' as const, label: 'Masculino' },
+                    { id: 'female' as const, label: 'F' },
+                    { id: 'male' as const, label: 'M' },
                   ] as const
                 ).map((option) => (
                   <Button

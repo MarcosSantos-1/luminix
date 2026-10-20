@@ -4199,6 +4199,60 @@ html:has(.ob2)::-webkit-scrollbar-thumb:hover,
   }
 }
 
+@media (min-width: 1080px) and (max-width: 2199px) {
+  .ob2-welcome-body {
+    display: grid;
+    grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
+    align-items: center;
+  }
+
+  .ob2-welcome-copy {
+    min-width: 0;
+  }
+  .ob2-welcome-figure {
+    order: 0;
+    min-width: 0;
+    margin: 0;
+  }
+  .ob2-welcome-art {
+    width: 100%;
+    max-height: min(68vh, 560px);
+    object-fit: contain;
+  }
+}
+
+.ob2-pro-dialog .ob2-pro-section > .ob2-audience.is-inline {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  width: fit-content;
+  max-width: 100%;
+}
+
+.ob2-pro-dialog .ob2-pro-section > .ob2-audience.is-inline .ob2-audience-option {
+  width: auto;
+  min-width: 112px;
+  min-height: 42px;
+  padding: 7px 12px;
+  border-radius: 12px;
+}
+
+.ob2-pro-dialog .ob2-pro-section > .ob2-audience.is-inline .checkbox__content {
+  flex-direction: row;
+  justify-content: flex-start;
+  gap: 8px;
+  padding: 0;
+}
+
+.ob2-pro-dialog .ob2-pro-section > .ob2-audience.is-inline .ob2-audience-icon {
+  width: 22px;
+  height: 22px;
+}
+
+.ob2-pro-dialog .ob2-gender-grid {
+  max-width: 340px;
+}
+
 @media (max-height: 820px) and (min-width: 1080px) and (max-width: 2199px) {
   .ob2 {
     gap: 14px;
@@ -4228,6 +4282,7 @@ html:has(.ob2)::-webkit-scrollbar-thumb:hover,
 
   .ob2-welcome-art {
     width: min(100%, 220px);
+    max-height: 42vh;
   }
 
   .ob2-welcome-copy h1 {
