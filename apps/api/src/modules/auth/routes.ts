@@ -1,6 +1,7 @@
 import type { FastifyInstance } from 'fastify'
 import { createStaffAuthenticator, type AuthDependencies } from '../../shared/auth/staff-session.js'
 import { clinicRoutes } from '../clinics/routes.js'
+import { paymentRoutes } from '../payments/routes.js'
 import { operationRoutes } from '../operations/routes.js'
 import { formatClinicGeocodeAddress, pickGeocodedPoint } from './geocode.js'
 export type { AuthDependencies } from '../../shared/auth/staff-session.js'
@@ -18,6 +19,7 @@ export async function authRoutes(app: FastifyInstance, dependencies: AuthDepende
   const authenticate = createStaffAuthenticator(dependencies)
   await clinicRoutes(app, authenticate, dependencies.tenantPool)
   await operationRoutes(app, authenticate, dependencies.tenantPool)
+  await paymentRoutes(app, authenticate, dependencies.tenantPool, dependencies.connectProvider)
   app.get<{ Querystring: { after?: string } }>(
     '/auth/clinics',
     {

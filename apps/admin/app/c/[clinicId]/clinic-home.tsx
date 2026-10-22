@@ -8,6 +8,7 @@ import { useState } from 'react'
 import { useClinic } from '@/components/clinic-workspace'
 import { useStaff } from '@/components/staff-provider'
 import { ManagerHome } from '@/components/manager/manager-home'
+import { ConnectPanel } from '@/components/payments/connect-panel'
 import { ClinicSettings } from '@/components/manager/sections/clinic-settings'
 import { getFirebaseAuth } from '@/lib/firebase'
 import '@/app/dashboard/manager.css'
@@ -47,6 +48,7 @@ export function ClinicHome({ initialSection }: { initialSection: string }) {
       canManageSettings={permissions.includes('settings:manage')}
       shareCode={clinic.share_code ?? null}
       initialSection={initialSection}
+      payments={<ConnectPanel dashboard />}
       settings={
         permissions.includes('settings:manage') ? (
           <ClinicSettings

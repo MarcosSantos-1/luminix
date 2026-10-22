@@ -287,7 +287,7 @@ export const stepInfo = [
     key: 'payments',
     label: 'Pagamentos',
     title: 'Como você prefere receber?',
-    text: 'Escolha se cobrança fica fora do app ou se quer pagamentos no app. Nada é cobrado agora; o Stripe Connect vem depois.',
+    text: 'Escolha como receber e configure a conta Stripe da sua clínica. Nenhuma cobrança é feita nesta etapa.',
     icon: CreditCard,
   },
   {

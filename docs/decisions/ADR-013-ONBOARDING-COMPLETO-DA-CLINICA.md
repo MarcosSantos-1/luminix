@@ -32,7 +32,8 @@ Equipe “somente eu” cria a proprietária como profissional e vincula os serv
 Contas, convites e permissões de recepção continuam no fluxo seguro pós-onboarding. Horários
 individuais também ficam para a configuração posterior; o horário do local é a base inicial.
 
-Preferência por Stripe Connect e forma de recebimento de pacotes são persistidas, mas não criam conta
+Estado original (cadastro Stripe evoluído na [ADR-016](ADR-016-STRIPE-CONNECT-INCORPORADO.md)):
+preferência por Stripe Connect e forma de recebimento de pacotes são persistidas, mas não criam conta
 conectada nem cobrança. SMS, upload da logo e importação de tabela por IA não são simulados: a UI os
 identifica como próximos passos dependentes das integrações correspondentes.
 

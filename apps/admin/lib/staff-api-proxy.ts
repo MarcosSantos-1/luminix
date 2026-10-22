@@ -2,6 +2,7 @@
 export async function staffApiGet(
   request: Request,
   path:
+    | `/clinics/${string}/payments/connect`
     | '/auth/clinics'
     | '/address/geocode'
     | `/address/postal-code/${string}`
@@ -53,7 +54,7 @@ export async function staffApiGet(
       headers: { authorization },
       cache: 'no-store',
       redirect: 'error',
-      signal: AbortSignal.timeout(15_000),
+      signal: AbortSignal.timeout(path.endsWith('/payments/connect') ? 30_000 : 15_000),
     })
     if (!response.ok) {
       return Response.json(
@@ -74,6 +75,7 @@ export async function staffApiWrite(
   request: Request,
   path:
     | `/clinics/${string}/onboarding`
+    | `/clinics/${string}/payments/connect/session`
     | `/clinics/${string}/onboarding/complete`
     | `/clinics/${string}/clients`
     | `/clinics/${string}/appointments`
@@ -104,7 +106,7 @@ export async function staffApiWrite(
       body,
       cache: 'no-store',
       redirect: 'error',
-      signal: AbortSignal.timeout(15_000),
+      signal: AbortSignal.timeout(path.endsWith('/payments/connect/session') ? 45_000 : 15_000),
     })
     if (!response.ok) {
       const responseBody = await response.json().catch(() => ({ error: 'Request failed' }))

@@ -33,3 +33,9 @@ Atualização 2026-10-20: a expectativa de migrations foi atualizada até 0015 n
 Os 87 testes da API passam com `vitest run --maxWorkers=1`; os timeouts em execução paralela
 foram de inicialização do PGlite. Permanecem os problemas estáticos acima, incluindo formatação
 em `special-treatments.tsx`; a página local não versionada de QA também é alcançada pelo check.
+
+Atualização 2026-10-22: migration 0016 incluída na expectativa e contagem de tabelas RLS ajustada
+para 27. A suíte Connect adiciona nove testes. TypeScript e builds de todo o workspace passaram;
+a execução serial evita os mesmos timeouts de inicialização. Lint dos novos componentes/rotas e da
+API passou. `pnpm check` continua bloqueado pela formatação anterior; o lint global mantém as
+ocorrências de endereço/refs acima. Não declarar validação agregada verde.

@@ -1,3 +1,4 @@
+import { ConnectPanel } from '@/components/payments/connect-panel'
 import { ThemePicker } from '@/components/space-theme'
 import { spaceTheme } from '@/lib/space-theme'
 import {
@@ -45,7 +46,6 @@ import {
   Venus,
 } from 'lucide-react'
 import Image from 'next/image'
-import Link from 'next/link'
 import { Fragment, useEffect, useRef, useState, type DragEvent, type ReactNode } from 'react'
 import { syncProfessionalSchedules } from './schedule-sync'
 import { SpecialTreatments } from './special-treatments'
@@ -1523,9 +1523,7 @@ export function TeamStep({
           </Card>
           <IntimateAudienceCards
             services={intimateServices}
-            audienceFor={(service) =>
-              service.audienceChosen ? service.audience : undefined
-            }
+            audienceFor={(service) => (service.audienceChosen ? service.audience : undefined)}
             question="Qual é o público padrão deste serviço?"
             onChange={(service, audience) =>
               setPayload({
@@ -2106,17 +2104,7 @@ export function PaymentsStep({
         />
       </div>
       {payload.preferences.acceptInApp ? (
-        <Card className="ob2-panel ob2-stripe-card">
-          <Card.Content className="ob2-form">
-            <p className="ob2-copy">
-              Ainda não conectamos sua conta. Depois de abrir a clínica, finalize o Stripe Connect
-              no painel — é lá que entram taxas, verificação e repasse.
-            </p>
-            <Link className="ob2-quiet ob2-stripe-link" href={`/c/${clinicId}`}>
-              Ver esboço de pagamentos no painel
-            </Link>
-          </Card.Content>
-        </Card>
+        <ConnectPanel key={clinicId} />
       ) : (
         <p className="ob2-copy">
           Pacotes de sessões ficam limitados ao recebimento na clínica enquanto esta opção estiver

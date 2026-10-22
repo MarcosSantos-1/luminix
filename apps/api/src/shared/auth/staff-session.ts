@@ -3,7 +3,10 @@ import type { FastifyReply, FastifyRequest } from 'fastify'
 import type { SqlConnection } from '../database/migrations.js'
 import type { TenantPool } from '../tenant/clinic-transaction.js'
 
+import type { ConnectProvider } from '../../modules/payments/stripe-connect.js'
+
 export type AuthDependencies = {
+  connectProvider?: ConnectProvider
   verifyToken(token: string): Promise<{ uid: string }>
   database: SqlConnection
   tenantPool?: TenantPool

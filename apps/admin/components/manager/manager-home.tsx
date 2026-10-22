@@ -39,6 +39,7 @@ export function ManagerHome({
   canManageSettings = true,
   profile,
   settings,
+  payments,
   shareCode,
   banner,
   initialSection = 'inicio',
@@ -51,6 +52,7 @@ export function ManagerHome({
   userName?: string
   canManageSettings?: boolean
   profile?: ReactNode
+  payments?: ReactNode
   settings?: ReactNode
   shareCode?: string | null
   banner?: ReactNode
@@ -86,7 +88,7 @@ export function ManagerHome({
   const [copyError, setCopyError] = useState(false)
   const realClinic = shareCode !== undefined
   const isHome = section.id === 'inicio'
-  const showDemoLabel = section.id !== 'agenda'
+  const showDemoLabel = section.id !== 'agenda' && !(payments && section.id === 'financeiro')
 
   function closeNotice() {
     setNotice(null)
@@ -155,6 +157,7 @@ export function ManagerHome({
         ? 'Agenda e indicadores demonstrativos'
         : 'Exemplos ilustrativos desta seção'
   const sketch =
+    (payments && section.id === 'financeiro') ||
     section.id === 'inicio' ||
     section.id === 'configuracoes' ||
     (realClinic && (section.id === 'agenda' || section.id === 'clientes'))
@@ -302,6 +305,7 @@ export function ManagerHome({
         )}
         {realClinic && section.id === 'agenda' && <AgendaPanel createSignal={createSignal} />}
         {realClinic && section.id === 'clientes' && <ClientsPanel createSignal={createSignal} />}
+        {section.id === 'financeiro' && payments}
         {sketch && (
           <SectionSketchView
             sketch={sketch}
