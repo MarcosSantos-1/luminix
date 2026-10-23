@@ -1,6 +1,7 @@
 'use client'
 
 import { Button, Card } from '@heroui/react'
+import { Banknote, CreditCard, FlaskConical, RefreshCw, ShieldCheck } from 'lucide-react'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { loadConnectAndInitialize, type StripeConnectInstance } from '@stripe/connect-js/pure'
 import {
@@ -190,95 +191,178 @@ function ConnectContent({ clinicId, dashboard }: { clinicId: string; dashboard: 
 
   return (
     <Card className="w-full min-w-0 p-5">
-      <Card.Header>
-        <Card.Title>{status ? labels[status.state] : 'Recebimentos da clínica'}</Card.Title>
-      </Card.Header>
-      <Card.Content className="flex min-w-0 flex-col gap-4">
-        <p>
-          Seus clientes pagam à clínica e a Stripe faz os repasses para a conta bancária cadastrada.
-          Sem comissão do Luminix nesta fase; as tarifas da Stripe se aplicam.
-        </p>
-        <p className="text-sm">
-          Ambiente de teste: este cadastro não recebe dinheiro real. O checkout de tratamentos,
-          pacotes e assinaturas dos clientes será conectado em uma próxima entrega.
-        </p>
-        {loading && <p role="status">Consultando a Stripe…</p>}
-        {status && status.state !== 'not_started' && !loading && (
-          <div aria-live="polite" className="flex flex-col gap-1 text-sm">
-            <p>
-              Pagamentos: {status.chargesEnabled ? 'habilitados em teste' : 'aguardando liberação'}
-            </p>
-            <p>
-              Repasses: {status.payoutsEnabled ? 'habilitados em teste' : 'aguardando liberação'}
-            </p>
-            {status.requirementsDue > 0 && (
-              <p>Há informações pendentes. Continue o cadastro para revisar.</p>
+      {!embedded && (
+        <>
+          <Card.Header>
+            <Card.Title>{status ? labels[status.state] : 'Recebimentos da clínica'}</Card.Title>
+          </Card.Header>
+          <Card.Content className="flex min-w-0 flex-col gap-4">
+            <div className="grid gap-3 sm:grid-cols-3">
+              {[
+                {
+                  icon: CreditCard,
+                  title: '1. Cadastre a clínica',
+                  text: 'A Stripe Connect vincula a conta de recebimentos da clínica ao Luminix.',
+                },
+                {
+                  icon: ShieldCheck,
+                  title: '2. Confirme seus dados',
+                  text: 'Documentos, dados bancários e autenticação são tratados diretamente pela Stripe.',
+                },
+                {
+                  icon: Banknote,
+                  title: '3. Acompanhe os repasses',
+                  text: 'Quando os pagamentos estiverem disponíveis, a Stripe enviará o saldo à conta cadastrada, conforme seus prazos e tarifas.',
+                },
+              ].map(({ icon: Icon, title, text }) => (
+                <div key={title} className="rounded-xl border border-current/10 p-4">
+                  <Icon aria-hidden="true" className="mb-3 size-5" />
+                  <h3 className="mb-1 text-sm font-semibold">{title}</h3>
+                  <p className="text-sm leading-relaxed">{text}</p>
+                </div>
+              ))}
+            </div>
+            <div className="flex items-start gap-3 rounded-xl border border-blue-200 bg-blue-50 p-4 text-blue-950">
+              <FlaskConical aria-hidden="true" className="mt-0.5 size-5 shrink-0" />
+              <div className="space-y-2 text-sm leading-relaxed">
+                <p className="font-semibold">Ambiente de teste · nenhum dinheiro real</p>
+                <p>
+                  Você pode configurar uma conta Connect de teste. O checkout de tratamentos,
+                  pacotes e assinaturas dos clientes ainda não está disponível no Luminix.
+                </p>
+                <p>
+                  Sem comissão do Luminix nesta fase. Em pagamentos reais, as tarifas e os prazos da
+                  Stripe se aplicam.
+                </p>
+              </div>
+            </div>
+            {loading && <p role="status">Consultando a Stripe…</p>}
+            {status && status.state !== 'not_started' && !loading && (
+              <div aria-live="polite" className="flex flex-col gap-1 text-sm">
+                <p>
+                  Pagamentos:{' '}
+                  {status.chargesEnabled ? 'habilitados em teste' : 'aguardando liberação'}
+                </p>
+                <p>
+                  Repasses:{' '}
+                  {status.payoutsEnabled ? 'habilitados em teste' : 'aguardando liberação'}
+                </p>
+                {status.requirementsDue > 0 && (
+                  <p>Há informações pendentes. Continue o cadastro para revisar.</p>
+                )}
+              </div>
             )}
-          </div>
-        )}
-        {error && <p role="alert">{error}</p>}
-        <div className="flex flex-wrap gap-2">
-          <Button isDisabled={opening || loading} onPress={() => void open('onboarding')}>
-            {opening
-              ? 'Abrindo…'
-              : status?.state === 'active'
-                ? 'Revisar cadastro Stripe'
-                : status?.state === 'not_started'
-                  ? 'Configurar recebimentos'
-                  : 'Continuar cadastro Stripe'}
-          </Button>
-          <Button
-            variant="secondary"
-            isDisabled={opening || loading}
-            onPress={() => void refresh()}
-          >
-            Atualizar situação
-          </Button>
-        </div>
-        <p className="text-sm">
-          O formulário abre aqui. A Stripe pode solicitar autenticação em uma janela própria. Você
-          pode continuar o onboarding e retomar este cadastro no Financeiro.
-        </p>
-        {dashboard && status && status.state !== 'not_started' && (
-          <div className="flex flex-wrap gap-2">
-            <Button
-              variant="secondary"
-              isDisabled={opening}
-              onPress={() => void open('management')}
-            >
-              Dados e conta bancária
-            </Button>
-            <Button variant="secondary" isDisabled={opening} onPress={() => void open('payments')}>
-              Pagamentos, reembolsos e disputas
-            </Button>
-            <Button variant="secondary" isDisabled={opening} onPress={() => void open('payouts')}>
-              Repasses
-            </Button>
-          </div>
-        )}
-        {embedded && (
-          <section
-            aria-label="Configuração Stripe"
-            className="min-w-0 rounded-xl bg-white p-4 text-slate-900"
-          >
-            <div className="mb-4 flex justify-end">
-              <Button variant="secondary" onPress={close}>
-                Fechar e atualizar situação
+            {error && <p role="alert">{error}</p>}
+            <div className="flex flex-wrap gap-2">
+              <Button isDisabled={opening || loading} onPress={() => void open('onboarding')}>
+                {opening
+                  ? 'Abrindo…'
+                  : status?.state === 'active'
+                    ? 'Revisar cadastro Stripe'
+                    : status?.state === 'not_started'
+                      ? 'Configurar recebimentos'
+                      : 'Continuar cadastro Stripe'}
+              </Button>
+              <Button
+                variant="primary"
+                className="!bg-blue-600 !text-white hover:!bg-blue-700"
+                isDisabled={opening || loading}
+                onPress={() => void refresh()}
+              >
+                <RefreshCw aria-hidden="true" className="size-4" />
+                Atualizar situação
               </Button>
             </div>
-            <ConnectComponentsProvider connectInstance={embedded.instance}>
-              {embedded.purpose === 'onboarding' && (
-                <ConnectAccountOnboarding onExit={close} onLoadError={loadError} />
-              )}
-              {embedded.purpose === 'management' && (
-                <ConnectAccountManagement onLoadError={loadError} />
-              )}
-              {embedded.purpose === 'payments' && <ConnectPayments onLoadError={loadError} />}
-              {embedded.purpose === 'payouts' && <ConnectPayouts onLoadError={loadError} />}
-            </ConnectComponentsProvider>
-          </section>
-        )}
-      </Card.Content>
+            <details className="rounded-xl border border-current/10 p-4 text-sm">
+              <summary className="cursor-pointer font-semibold">
+                Como acessar e testar o cadastro?
+              </summary>
+              <div className="mt-3 space-y-2 leading-relaxed">
+                <p>
+                  O login do Luminix e o acesso à Stripe são separados. O e-mail usado no Luminix
+                  não cria automaticamente uma senha Stripe.
+                </p>
+                <p>
+                  Permita a janela de autenticação da Stripe. Se você já tem uma conta Stripe, use o
+                  acesso correspondente; se estiver criando uma conta, siga o cadastro apresentado
+                  pela Stripe.
+                </p>
+                <p>
+                  Para uma conta Connect de teste, a documentação Stripe orienta usar{' '}
+                  <strong>000-000</strong> quando solicitar código SMS. Esse código não substitui a
+                  autenticação de dois fatores de uma conta Stripe real.
+                </p>
+                <p>
+                  Se a tela estiver pedindo configurar um autenticador ou recuperar uma conta
+                  existente, conclua ou recupere o acesso na própria Stripe. Apenas clicar em
+                  avançar não conclui essa configuração.
+                </p>
+                <a
+                  className="font-semibold underline"
+                  href="https://docs.stripe.com/connect/testing"
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  Consultar o guia de testes da Stripe
+                </a>
+                <p>Você pode continuar o onboarding e retomar este cadastro no Financeiro.</p>
+              </div>
+            </details>
+            {dashboard && status && status.state !== 'not_started' && (
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  variant="secondary"
+                  isDisabled={opening}
+                  onPress={() => void open('management')}
+                >
+                  Dados e conta bancária
+                </Button>
+                <Button
+                  variant="secondary"
+                  isDisabled={opening}
+                  onPress={() => void open('payments')}
+                >
+                  Pagamentos, reembolsos e disputas
+                </Button>
+                <Button
+                  variant="secondary"
+                  isDisabled={opening}
+                  onPress={() => void open('payouts')}
+                >
+                  Repasses
+                </Button>
+              </div>
+            )}
+          </Card.Content>
+        </>
+      )}
+      {embedded && (
+        <section
+          aria-label="Configuração Stripe"
+          className="w-full min-w-0 rounded-xl bg-white p-4 text-slate-900"
+        >
+          <div className="mb-4 flex justify-end">
+            <Button variant="secondary" onPress={close}>
+              Fechar e atualizar situação
+            </Button>
+          </div>
+          {error && (
+            <p role="alert" className="mb-4 text-sm text-red-700">
+              {error}
+            </p>
+          )}
+          <ConnectComponentsProvider connectInstance={embedded.instance}>
+            {embedded.purpose === 'onboarding' && (
+              <ConnectAccountOnboarding onExit={close} onLoadError={loadError} />
+            )}
+            {embedded.purpose === 'management' && (
+              <ConnectAccountManagement onLoadError={loadError} />
+            )}
+            {embedded.purpose === 'payments' && <ConnectPayments onLoadError={loadError} />}
+            {embedded.purpose === 'payouts' && <ConnectPayouts onLoadError={loadError} />}
+          </ConnectComponentsProvider>
+        </section>
+      )}
     </Card>
   )
 }

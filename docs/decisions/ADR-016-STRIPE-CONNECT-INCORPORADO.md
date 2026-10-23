@@ -110,3 +110,17 @@ criadas na validação foram encerradas. Encerramento v2 exige `applied_configur
 Não houve cobrança nem repasse. Testes automatizados validaram autorização, retry, expiração de
 reserva, auditoria e revogação durante emissão de sessão. TypeScript/builds passaram; limitações
 de validação agregada preexistentes estão na TD-007.
+
+### Orientação de acesso e apresentação — 2026-10-23
+
+O painel explica Connect em três etapas, distingue cadastro de teste do checkout ainda pendente
+e oferece orientações expansíveis de acesso. O login Luminix não cria uma senha Stripe.
+O código SMS documentado para contas Connect de teste é `000-000`; não é um bypass
+da autenticação de dois fatores de contas Stripe reais. Não desabilitamos autenticação nem
+alteramos responsabilidades da plataforma para contornar esse fluxo.
+
+Ao abrir um componente Stripe, ele substitui o conteúdo do card de situação e usa toda sua
+largura; fechar retorna ao resumo e consulta novamente o status. O botão de atualização tem
+fundo azul opaco e texto claro. Permissões, isolamento por clínica e schema permanecem iguais.
+O bloqueio de autenticação relatado ainda precisa ser reproduzido na janela Stripe do usuário;
+validação de build e testes não comprova conclusão manual de login, 2FA ou KYC.
