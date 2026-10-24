@@ -9,19 +9,495 @@
   }
 }
 
-.connect-panel > section,
-.connect-panel [aria-live='polite'] > div {
+.connect-panel .connect-title {
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 1.3;
+  letter-spacing: -0.02em;
+}
+
+.connect-panel .connect-body {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-width: 0;
+}
+
+.connect-steps,
+.connect-status-grid {
+  display: grid;
+  gap: 12px;
+}
+
+.connect-step,
+.connect-prep,
+.connect-status,
+.connect-note,
+.connect-gate {
+  border-radius: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.32);
+  background: rgba(255, 255, 255, 0.1);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.28);
+  color: inherit;
+}
+
+.connect-step,
+.connect-prep,
+.connect-status,
+.connect-note,
+.connect-gate {
   animation: connect-panel-enter 180ms ease-out both;
 }
 
-.connect-panel a {
-  border-radius: 6px;
-  transition: background-color 150ms ease;
+.connect-step {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  min-width: 0;
+  padding: 16px;
+}
+
+.connect-step-copy,
+.connect-prep-copy {
+  min-width: 0;
+}
+
+.connect-step h3,
+.connect-prep-head h3,
+.connect-prep h4,
+.connect-status-head h3,
+.connect-note-title {
+  margin: 0;
+  font-weight: 700;
+  line-height: 1.35;
+}
+
+.connect-step h3,
+.connect-status-head h3,
+.connect-prep h4,
+.connect-note-title {
+  font-size: 16px;
+}
+
+.connect-prep-head h3 {
+  flex: 1;
+  font-size: 18px;
+}
+
+.connect-step h3 {
+  margin-bottom: 6px;
+}
+
+.connect-step p,
+.connect-prep p,
+.connect-status > p,
+.connect-note p,
+.connect-gate > p,
+.connect-prep-foot,
+.connect-substeps {
+  margin: 0;
+  font-size: 16px;
+  line-height: 1.55;
+}
+
+.connect-prep p + p,
+.connect-callout p + p,
+.connect-gate > .connect-note-title + p {
+  margin-top: 8px;
+}
+
+.connect-note,
+.connect-gate {
+  font-size: 16px;
+  line-height: 1.55;
+}
+
+.connect-note p.connect-note-title,
+.connect-gate > p.connect-note-title {
+  margin: 0 0 6px;
+}
+
+.connect-status > p.connect-status-pill {
+  margin: 12px 0 8px;
+}
+
+.connect-step-icon {
+  width: 44px;
+  height: 44px;
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.16);
+  border: 1px solid rgba(255, 255, 255, 0.28);
+}
+
+.connect-prep {
+  display: grid;
+  gap: 6px;
+  padding: 18px 18px 16px;
+}
+
+.connect-prep-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.connect-prep-list {
+  list-style: none;
+  margin: 8px 0 0;
+  padding: 0;
+}
+
+.connect-prep-list > li {
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr);
+  gap: 14px;
+  align-items: start;
+  padding: 16px 0;
+}
+
+.connect-prep-list > li + li {
+  border-top: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.connect-prep h4 {
+  margin-bottom: 6px;
+}
+
+.connect-prep-num {
+  width: 44px;
+  height: 44px;
+  display: grid;
+  place-items: center;
+  border-radius: 14px;
+  font-size: 18px;
+  font-weight: 800;
+  line-height: 1;
+  color: #fff;
+  background: var(--space-accent, #e72875);
+  box-shadow: 0 8px 18px color-mix(in srgb, var(--space-accent, #e72875) 42%, transparent);
+}
+
+.connect-callout {
+  margin-top: 10px;
+  padding: 14px 16px;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.28);
+}
+
+.connect-substeps {
+  margin: 10px 0;
+  padding-left: 1.35rem;
+  display: grid;
+  gap: 8px;
+}
+
+.connect-substeps li::marker {
+  font-weight: 800;
+}
+
+.connect-prep-foot {
+  margin-top: 4px;
+  padding-top: 14px;
+  border-top: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.connect-panel .button.connect-help {
+  width: 40px;
+  height: 40px;
+  min-width: 40px;
+  min-height: 40px;
+  padding: 0;
+  border-radius: 12px;
+  color: inherit;
+  --button-fg: currentColor;
+  --button-bg: transparent;
+  --button-bg-hover: rgba(255, 255, 255, 0.14);
+}
+
+.connect-status {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  padding: 16px;
+}
+
+.connect-status-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.connect-status-head .connect-step-icon {
+  width: 40px;
+  height: 40px;
+}
+
+.connect-status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  width: fit-content;
+  margin: 12px 0 8px;
+  padding: 6px 12px 6px 8px;
+  border-radius: 999px;
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 1.2;
+  background: rgba(255, 255, 255, 0.16);
+}
+
+.connect-status.is-ok,
+.connect-gate.is-ready {
+  background: color-mix(in srgb, #065f46 78%, #04140f);
+  border-color: color-mix(in srgb, #a7f3d0 72%, transparent);
+  color: #f0fdf4;
+}
+
+.connect-status.is-wait,
+.connect-note.is-warn,
+.connect-gate.is-blocked {
+  background: color-mix(in srgb, #92400e 82%, #1c0d04);
+  border-color: color-mix(in srgb, #fde68a 76%, transparent);
+  color: #fffbeb;
+}
+
+.connect-note.is-info {
+  background: color-mix(in srgb, #1e3a8a 78%, #070d22);
+  border-color: color-mix(in srgb, #bfdbfe 70%, transparent);
+  color: #eff6ff;
+}
+
+.connect-note,
+.connect-gate {
+  padding: 16px 18px;
+}
+
+.connect-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.connect-note.is-info {
+  align-items: center;
+}
+
+.connect-note-icon {
+  width: 22px;
+  height: 22px;
+  flex: 0 0 auto;
+  margin-top: 1px;
+}
+
+.connect-note-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.connect-gate {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0;
+}
+
+.connect-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.connect-panel .connect-doc-link {
+  margin-top: 10px;
+  font-weight: 700;
 }
 
 .connect-panel a:focus-visible {
   outline: 2px solid currentColor;
   outline-offset: 4px;
+}
+
+.ob2 .card.connect-panel--flow {
+  container-name: connect-flow;
+  container-type: inline-size;
+  gap: 16px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  backdrop-filter: none;
+}
+
+.ob2 .connect-panel--flow .connect-body {
+  gap: 16px;
+}
+
+.ob2 .connect-panel--flow .connect-steps {
+  grid-template-columns: 1fr;
+}
+
+.ob2 .connect-panel--flow .connect-step {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 12px;
+  min-height: 100%;
+}
+
+@container connect-flow (min-width: 760px) {
+  .ob2 .connect-panel--flow .connect-steps {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+.ob2 .connect-panel--flow .connect-title {
+  font-size: 20px;
+}
+
+.ob2 .connect-panel--flow .connect-step,
+.ob2 .connect-panel--flow .connect-prep,
+.ob2 .connect-panel--flow .connect-status,
+.ob2 .connect-panel--flow .connect-note,
+.ob2 .connect-panel--flow .connect-gate {
+  backdrop-filter: blur(10px) saturate(120%);
+}
+
+.ob2 .connect-panel--flow .connect-prep {
+  padding: 20px 22px 16px;
+  border: 1px solid rgba(255, 255, 255, 0.32);
+  border-radius: 28px;
+  background: rgba(255, 255, 255, 0.1);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.28);
+  backdrop-filter: blur(10px) saturate(120%);
+}
+
+.ob2 .connect-panel--flow .connect-prep-head h3 {
+  font-size: 20px;
+}
+
+.ob2 .connect-panel--flow .link.ob2-areas-link {
+  color: var(--space-highlight, #ff8dba);
+  font-size: 16px;
+  font-weight: 700;
+  gap: 2px;
+}
+
+.ob2 .connect-panel--flow .connect-actions .button {
+  min-height: 52px;
+  flex: 1 1 220px;
+}
+
+.ob2 .connect-panel--flow .button.connect-primary {
+  height: 52px;
+  border: 0;
+  border-radius: 14px;
+  padding: 0 18px;
+  gap: 8px;
+  font-size: 16px;
+  font-weight: 650;
+  color: #fff;
+  background-color: var(--space-accent, #e72875);
+  background-image: none;
+  box-shadow: none;
+  --button-fg: #fff;
+  --button-bg: var(--space-accent, #e72875);
+  --button-bg-hover: color-mix(in srgb, var(--space-accent, #e72875) 86%, #000);
+  --button-bg-pressed: color-mix(in srgb, var(--space-accent, #e72875) 78%, #000);
+}
+
+.ob2 .connect-panel--flow .button.connect-secondary {
+  min-height: 48px;
+  height: auto;
+  padding: 0 18px;
+  border-radius: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.42);
+  color: #fff;
+  --button-fg: #fff;
+  --button-bg: rgba(255, 255, 255, 0.12);
+  --button-bg-hover: rgba(255, 255, 255, 0.22);
+  --button-bg-pressed: rgba(255, 255, 255, 0.16);
+}
+
+.ob2 .connect-panel--flow .connect-gate .button.connect-secondary {
+  margin-top: 14px;
+}
+
+.ob2[data-surface='solid'] .connect-panel--flow .connect-step,
+.ob2[data-surface='solid'] .connect-panel--flow .connect-prep,
+.ob2[data-surface='solid'] .connect-panel--flow .connect-callout {
+  background: #fff;
+  color: var(--space-deep, #34101f);
+  border-color: color-mix(in srgb, var(--space-accent, #e72875) 28%, #fff);
+  box-shadow: 0 10px 24px rgba(80, 16, 40, 0.06);
+  backdrop-filter: none;
+}
+
+.ob2[data-surface='solid'] .connect-panel--flow .connect-step-icon {
+  background: color-mix(in srgb, var(--space-accent, #e72875) 10%, #fff);
+  border-color: color-mix(in srgb, var(--space-accent, #e72875) 22%, #fff);
+  color: var(--space-accent, #a1004d);
+}
+
+.ob2[data-surface='solid'] .connect-panel--flow .connect-prep-list > li + li,
+.ob2[data-surface='solid'] .connect-panel--flow .connect-prep-foot {
+  border-color: color-mix(in srgb, var(--space-accent, #e72875) 18%, #fff);
+}
+
+.ob2[data-surface='solid'] .connect-panel--flow .connect-status.is-ok,
+.ob2[data-surface='solid'] .connect-panel--flow .connect-gate.is-ready {
+  background: #ecfdf5;
+  color: #064e3b;
+  border-color: #a7f3d0;
+}
+
+.ob2[data-surface='solid'] .connect-panel--flow .connect-status.is-wait,
+.ob2[data-surface='solid'] .connect-panel--flow .connect-note.is-warn,
+.ob2[data-surface='solid'] .connect-panel--flow .connect-gate.is-blocked {
+  background: #fffbeb;
+  color: #78350f;
+  border-color: #fde68a;
+}
+
+.ob2[data-surface='solid'] .connect-panel--flow .connect-note.is-info {
+  background: #eff6ff;
+  color: #1e3a8a;
+  border-color: #bfdbfe;
+}
+
+.ob2[data-surface='solid'] .connect-panel--flow .connect-status-pill {
+  background: color-mix(in srgb, currentColor 10%, transparent);
+}
+
+.ob2[data-surface='solid'] .connect-panel--flow .button.connect-secondary {
+  color: var(--space-deep, #34101f);
+  border-color: color-mix(in srgb, var(--space-accent, #e72875) 35%, #fff);
+  --button-fg: var(--space-deep, #34101f);
+  --button-bg: #fff;
+  --button-bg-hover: #fff5f8;
+}
+
+.ob2[data-surface='solid'] .connect-panel--flow .link.ob2-areas-link {
+  color: var(--space-accent, #c2185b);
+}
+
+@media (min-width: 840px) {
+  .connect-steps,
+  .connect-status-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .connect-status-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .connect-span {
+    grid-column: 1 / -1;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -30,5 +506,22 @@
   .connect-panel *::after {
     animation: none !important;
     transition: none !important;
+  }
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  .connect-step,
+  .connect-prep,
+  .connect-callout,
+  .connect-status,
+  .connect-note,
+  .connect-gate {
+    backdrop-filter: none;
+  }
+
+  .connect-step,
+  .connect-prep,
+  .connect-callout {
+    background: rgba(255, 255, 255, 0.22);
   }
 }

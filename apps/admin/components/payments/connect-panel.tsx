@@ -7,10 +7,9 @@ import {
   CircleHelp,
   Clock3,
   CreditCard,
-  ExternalLink,
-  FlaskConical,
   RefreshCw,
   ShieldCheck,
+  SquarePen,
   TriangleAlert,
 } from 'lucide-react'
 import { useCallback, useEffect, useRef, useState } from 'react'
@@ -250,64 +249,178 @@ function ConnectContent({
   }
   const loaderStart = () => setComponentLoading(false)
 
+  const flow = !dashboard
   return (
-    <Card className="connect-panel w-full min-w-0 p-5" aria-busy={loading || opening}>
+    <Card
+      className={flow ? 'connect-panel connect-panel--flow w-full min-w-0' : 'connect-panel w-full min-w-0'}
+      aria-busy={loading || opening}
+    >
       {!embedded && (
         <>
           <Card.Header>
-            <Card.Title>{status ? labels[status.state] : 'Recebimentos da clínica'}</Card.Title>
+            <Card.Title className="connect-title">
+              {status ? labels[status.state] : 'Recebimentos da clínica'}
+            </Card.Title>
           </Card.Header>
-          <Card.Content className="flex min-w-0 flex-col gap-4">
-            <div className="grid gap-3 sm:grid-cols-3">
+          <Card.Content className="connect-body">
+            <div className="connect-steps">
               {[
                 {
                   icon: CreditCard,
-                  title: '1. Cadastre a clínica',
+                  title: 'Cadastre a clínica',
                   text: 'A Stripe Connect vincula a conta de recebimentos da clínica ao Luminix.',
                 },
                 {
                   icon: ShieldCheck,
-                  title: '2. Confirme seus dados',
+                  title: 'Confirme seus dados',
                   text: 'Documentos, dados bancários e autenticação são tratados diretamente pela Stripe.',
                 },
                 {
                   icon: Banknote,
-                  title: '3. Acompanhe os repasses',
+                  title: 'Acompanhe os repasses',
                   text: 'Quando os pagamentos estiverem disponíveis, a Stripe enviará o saldo à conta cadastrada, conforme seus prazos e tarifas.',
                 },
               ].map(({ icon: Icon, title, text }) => (
-                <div key={title} className="rounded-xl border border-current/10 p-4">
-                  <Icon aria-hidden="true" className="mb-3 size-5" />
-                  <h3 className="mb-1 text-sm font-semibold">{title}</h3>
-                  <p className="text-sm leading-relaxed">{text}</p>
-                </div>
+                <article key={title} className="connect-step">
+                  <span className="connect-step-icon" aria-hidden="true">
+                    <Icon size={20} />
+                  </span>
+                  <div className="connect-step-copy">
+                    <h3>{title}</h3>
+                    <p>{text}</p>
+                  </div>
+                </article>
               ))}
             </div>
-            <div className="flex items-start gap-3 rounded-xl border border-blue-200 bg-blue-50 p-4 text-blue-950">
-              <FlaskConical aria-hidden="true" className="mt-0.5 size-5 shrink-0" />
-              <div className="space-y-2 text-sm leading-relaxed">
-                <p className="font-semibold">Ambiente de teste · nenhum dinheiro real</p>
-                <p>
-                  Você pode configurar uma conta Connect de teste. O checkout de tratamentos,
-                  pacotes e assinaturas dos clientes ainda não está disponível no Luminix.
-                </p>
-                <p>
-                  Sem comissão do Luminix nesta fase. Em pagamentos reais, as tarifas e os prazos da
-                  Stripe se aplicam.
-                </p>
+            <section aria-label="Ajuda para acessar a Stripe" className="connect-prep">
+              <div className="connect-prep-head">
+                <span className="connect-step-icon" aria-hidden="true">
+                  <ShieldCheck size={20} />
+                </span>
+                <h3>Antes de começar: acesso seguro à Stripe</h3>
+                <Tooltip>
+                  <Button
+                    className="connect-help"
+                    variant="ghost"
+                    isIconOnly
+                    aria-label="Por que a Stripe pede uma confirmação?"
+                  >
+                    <CircleHelp size={18} />
+                  </Button>
+                  <Tooltip.Content className="max-w-xs">
+                    Essa confirmação protege o acesso aos seus dados bancários. Ela é feita
+                    diretamente pela Stripe.
+                  </Tooltip.Content>
+                </Tooltip>
               </div>
-            </div>
+              <ol className="connect-prep-list">
+                <li>
+                  <span className="connect-prep-num" aria-hidden="true">
+                    1
+                  </span>
+                  <div className="connect-prep-copy">
+                    <h4>Entre ou crie seu acesso Stripe</h4>
+                    <p>
+                      Seu acesso ao Luminix e seu acesso à Stripe são separados. Mesmo usando o
+                      mesmo e-mail, a senha pode ser diferente. A janela da Stripe vai orientar
+                      você a entrar ou criar seu acesso.
+                    </p>
+                    <p>
+                      Se nenhuma janela abrir, permita os pop-ups da Stripe no seu navegador e
+                      tente novamente.
+                    </p>
+                  </div>
+                </li>
+                <li>
+                  <span className="connect-prep-num" aria-hidden="true">
+                    2
+                  </span>
+                  <div className="connect-prep-copy">
+                    <h4>Confirme que é você</h4>
+                    <p>
+                      A Stripe pode pedir uma segunda confirmação para proteger sua conta. Use o
+                      método que ela mostrar na tela; nem sempre será um aplicativo.
+                    </p>
+                    <div className="connect-callout">
+                      <p>
+                        <strong>Se pedir um aplicativo autenticador:</strong> ele gera um código
+                        temporário no seu celular. Você pode usar o Google Authenticator ou o
+                        Microsoft Authenticator.
+                      </p>
+                      <ol className="connect-substeps">
+                        <li>
+                          Se ainda não tiver um desses aplicativos, instale pela loja oficial do
+                          seu celular.
+                        </li>
+                        <li>
+                          Na configuração da Stripe, abra o aplicativo e adicione uma conta lendo
+                          o QR code exibido.
+                        </li>
+                        <li>
+                          Digite na Stripe os seis números que aparecerem no aplicativo, antes de
+                          o código mudar.
+                        </li>
+                        <li>
+                          Guarde o código de recuperação que a Stripe fornecer em um lugar seguro.
+                        </li>
+                      </ol>
+                      <p>
+                        Se você já configurou isso antes, abra a conta Stripe no seu aplicativo
+                        para obter o código. Se perdeu o acesso, siga a recuperação oferecida pela
+                        Stripe.
+                      </p>
+                      <Link
+                        className="ob2-areas-link connect-doc-link"
+                        href="https://support.stripe.com/questions/enable-two-step-authentication-via-mobile-app"
+                        target="_blank"
+                        rel="noreferrer"
+                      >
+                        Ver instruções da Stripe para o autenticador
+                        <Link.Icon />
+                      </Link>
+                    </div>
+                  </div>
+                </li>
+                <li>
+                  <span className="connect-prep-num" aria-hidden="true">
+                    3
+                  </span>
+                  <div className="connect-prep-copy">
+                    <h4>Complete os dados solicitados</h4>
+                    <p>
+                      A Stripe informa no próprio formulário os dados da clínica, da pessoa
+                      responsável e da conta bancária que forem necessários. Senhas, documentos e
+                      dados bancários são preenchidos diretamente na Stripe.
+                    </p>
+                    <p>
+                      Este ambiente é de teste. Use os dados de teste indicados pela Stripe nos
+                      campos de documentos e banco; números aleatórios podem ser recusados.
+                    </p>
+                    <Link
+                      className="ob2-areas-link connect-doc-link"
+                      href="https://docs.stripe.com/connect/testing"
+                      target="_blank"
+                      rel="noreferrer"
+                    >
+                      Abrir guia de dados de teste da Stripe
+                      <Link.Icon />
+                    </Link>
+                  </div>
+                </li>
+              </ol>
+              <p className="connect-prep-foot">
+                Não conseguiu finalizar? Escolha “Receber fora do app” para continuar o cadastro da
+                clínica. Você poderá configurar a Stripe depois, no Financeiro.
+              </p>
+            </section>
             {loading && (
-              <div
-                role="status"
-                className="flex items-center gap-3 rounded-xl bg-blue-50 p-4 text-blue-950"
-              >
+              <div role="status" className="connect-note is-info">
                 <Spinner size="sm" />
                 Consultando a situação da sua conta…
               </div>
             )}
             {status && status.state !== 'not_started' && !loading && (
-              <div aria-live="polite" className="grid gap-3 sm:grid-cols-2">
+              <div aria-live="polite" className="connect-status-grid">
                 {[
                   {
                     title: 'Pagamentos dos clientes',
@@ -322,39 +435,37 @@ function ConnectContent({
                     text: 'A Stripe precisa liberar os repasses para enviar o saldo à conta bancária cadastrada.',
                   },
                 ].map(({ title, enabled, icon: Icon, text }) => (
-                  <div
+                  <article
                     key={title}
-                    className={
-                      enabled
-                        ? 'rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-emerald-950'
-                        : 'rounded-xl border border-amber-200 bg-amber-50 p-4 text-amber-950'
-                    }
+                    className={enabled ? 'connect-status is-ok' : 'connect-status is-wait'}
                   >
-                    <div className="mb-2 flex items-center gap-2">
-                      <Icon aria-hidden="true" className="size-5" />
-                      <h3 className="font-semibold">{title}</h3>
+                    <div className="connect-status-head">
+                      <span className="connect-step-icon" aria-hidden="true">
+                        <Icon size={18} />
+                      </span>
+                      <h3>{title}</h3>
                     </div>
-                    <p className="mb-2 flex items-center gap-2 text-sm font-semibold">
+                    <p className="connect-status-pill">
                       {enabled ? (
-                        <CheckCircle2 aria-hidden="true" className="size-4" />
+                        <CheckCircle2 aria-hidden="true" size={16} />
                       ) : (
-                        <Clock3 aria-hidden="true" className="size-4" />
+                        <Clock3 aria-hidden="true" size={16} />
                       )}
                       {enabled ? 'Liberado em teste' : 'Ainda não liberado'}
                     </p>
-                    <p className="text-sm leading-relaxed">
+                    <p>
                       {enabled
                         ? 'Esta parte da conta está habilitada no ambiente de teste, sem movimentar dinheiro real.'
                         : text}
                     </p>
-                  </div>
+                  </article>
                 ))}
                 {status.requirementsDue > 0 && (
-                  <div className="flex gap-3 rounded-xl border border-amber-200 bg-amber-50 p-4 text-amber-950 sm:col-span-2">
-                    <TriangleAlert aria-hidden="true" className="size-5 shrink-0" />
+                  <div className="connect-note is-warn connect-span">
+                    <TriangleAlert aria-hidden="true" className="connect-note-icon" />
                     <div>
-                      <p className="font-semibold">Há informações para completar ou corrigir</p>
-                      <p className="mt-1 text-sm leading-relaxed">
+                      <p className="connect-note-title">Há informações para completar ou corrigir</p>
+                      <p>
                         Clique em “Continuar cadastro Stripe”. O formulário mostrará quais dados ou
                         documentos faltam. Depois de enviar, feche o formulário para conferir a
                         atualização.
@@ -363,18 +474,31 @@ function ConnectContent({
                   </div>
                 )}
                 {!ready && status.requirementsDue === 0 && (
-                  <p className="rounded-xl bg-blue-50 p-4 text-sm leading-relaxed text-blue-950 sm:col-span-2">
+                  <p className="connect-note is-info connect-span">
                     A conta ainda não está pronta. Abra o cadastro para verificar se é necessário
-                    enviar algum dado ou aguardar uma análise da Stripe. Se você já enviou tudo, use
-                    “Atualizar situação” para consultar novamente.
+                    enviar algum dado ou aguardar uma análise da Stripe. Se você já enviou tudo,
+                    use “Atualizar situação” para consultar novamente.
                   </p>
                 )}
               </div>
             )}
-            {error && <p role="alert">{error}</p>}
-            <div className="flex flex-wrap gap-2">
-              <Button isDisabled={opening || loading} onPress={() => void open('onboarding')}>
-                {opening && <Spinner size="sm" />}
+            {error && (
+              <p role="alert" className="connect-note is-warn">
+                {error}
+              </p>
+            )}
+            <div className="connect-actions">
+              <Button
+                variant={flow ? 'primary' : undefined}
+                className={flow ? 'connect-primary' : undefined}
+                isDisabled={opening || loading}
+                onPress={() => void open('onboarding')}
+              >
+                {opening ? (
+                  <Spinner size="sm" />
+                ) : (
+                  flow && <SquarePen aria-hidden="true" size={18} />
+                )}
                 {opening
                   ? 'Abrindo…'
                   : status?.state === 'active'
@@ -384,8 +508,8 @@ function ConnectContent({
                       : 'Continuar cadastro Stripe'}
               </Button>
               <Button
-                variant="primary"
-                className="!bg-blue-600 !text-white hover:!bg-blue-700"
+                variant={flow ? 'secondary' : 'primary'}
+                className={flow ? 'connect-secondary' : '!bg-blue-600 !text-white hover:!bg-blue-700'}
                 isDisabled={opening || loading}
                 onPress={() => void refresh()}
               >
@@ -400,132 +524,31 @@ function ConnectContent({
               <div
                 aria-live="polite"
                 className={
-                  ready && !loading && !error
-                    ? 'rounded-xl bg-emerald-50 p-4 text-emerald-950'
-                    : 'rounded-xl bg-amber-50 p-4 text-amber-950'
+                  ready && !loading && !error ? 'connect-gate is-ready' : 'connect-gate is-blocked'
                 }
               >
-                <p className="flex items-center gap-2 font-semibold">
+                <p className="connect-note-title">
                   {ready && !loading && !error ? (
-                    <CheckCircle2 aria-hidden="true" className="size-5" />
+                    <CheckCircle2 aria-hidden="true" size={20} />
                   ) : (
-                    <TriangleAlert aria-hidden="true" className="size-5" />
+                    <TriangleAlert aria-hidden="true" size={20} />
                   )}
                   {ready && !loading && !error
                     ? 'Tudo pronto para continuar'
                     : 'Conclua a configuração para continuar'}
                 </p>
-                <p className="mt-2 text-sm leading-relaxed">
+                <p>
                   {ready && !loading && !error
                     ? 'A Stripe confirmou a liberação de pagamentos e repasses em teste. Você pode ir para a próxima etapa.'
                     : 'Com “Pagamentos no app”, só é possível continuar quando a Stripe liberar pagamentos e repasses e não houver informações pendentes. Se não conseguir concluir agora, escolha “Receber fora do app”.'}
                 </p>
                 {onChooseOutside && !ready && (
-                  <Button className="mt-3" variant="secondary" onPress={onChooseOutside}>
+                  <Button className="connect-secondary" variant="secondary" onPress={onChooseOutside}>
                     Receber fora do app
                   </Button>
                 )}
               </div>
             )}
-            <section
-              aria-label="Ajuda para acessar a Stripe"
-              className="space-y-5 rounded-xl border border-current/10 p-5"
-            >
-              <div className="flex items-center gap-2">
-                <ShieldCheck aria-hidden="true" className="size-5" />
-                <h3 className="font-semibold">Antes de começar: acesso seguro à Stripe</h3>
-                <Tooltip>
-                  <Button
-                    variant="ghost"
-                    isIconOnly
-                    aria-label="Por que a Stripe pede uma confirmação?"
-                  >
-                    <CircleHelp className="size-4" />
-                  </Button>
-                  <Tooltip.Content className="max-w-xs">
-                    Essa confirmação protege o acesso aos seus dados bancários. Ela é feita
-                    diretamente pela Stripe.
-                  </Tooltip.Content>
-                </Tooltip>
-              </div>
-              <div className="space-y-2 text-sm leading-relaxed">
-                <h4 className="font-semibold">1. Entre ou crie seu acesso Stripe</h4>
-                <p>
-                  Seu acesso ao Luminix e seu acesso à Stripe são separados. Mesmo usando o mesmo
-                  e-mail, a senha pode ser diferente. A janela da Stripe vai orientar você a entrar
-                  ou criar seu acesso.
-                </p>
-                <p>
-                  Se nenhuma janela abrir, permita os pop-ups da Stripe no seu navegador e tente
-                  novamente.
-                </p>
-              </div>
-              <div className="space-y-3 rounded-xl bg-blue-50 p-4 text-sm leading-relaxed text-blue-950">
-                <h4 className="font-semibold">2. Confirme que é você</h4>
-                <p>
-                  A Stripe pode pedir uma segunda confirmação para proteger sua conta. Use o método
-                  que ela mostrar na tela; nem sempre será um aplicativo.
-                </p>
-                <p>
-                  <strong>Se pedir um aplicativo autenticador:</strong> ele gera um código
-                  temporário no seu celular. Você pode usar o Google Authenticator ou o Microsoft
-                  Authenticator.
-                </p>
-                <ol className="list-decimal space-y-2 pl-5">
-                  <li>
-                    Se ainda não tiver um desses aplicativos, instale pela loja oficial do seu
-                    celular.
-                  </li>
-                  <li>
-                    Na configuração da Stripe, abra o aplicativo e adicione uma conta lendo o QR
-                    code exibido.
-                  </li>
-                  <li>
-                    Digite na Stripe os seis números que aparecerem no aplicativo, antes de o código
-                    mudar.
-                  </li>
-                  <li>Guarde o código de recuperação que a Stripe fornecer em um lugar seguro.</li>
-                </ol>
-                <p>
-                  Se você já configurou isso antes, abra a conta Stripe no seu aplicativo para obter
-                  o código. Se perdeu o acesso, siga a recuperação oferecida pela Stripe.
-                </p>
-                <Link
-                  className="inline-flex min-h-11 items-center gap-2 font-semibold underline"
-                  href="https://support.stripe.com/questions/enable-two-step-authentication-via-mobile-app"
-                  target="_blank"
-                  rel="noreferrer"
-                >
-                  Ver instruções da Stripe para o autenticador{' '}
-                  <ExternalLink aria-hidden="true" className="size-4" />
-                </Link>
-              </div>
-              <div className="space-y-2 text-sm leading-relaxed">
-                <h4 className="font-semibold">3. Complete os dados solicitados</h4>
-                <p>
-                  A Stripe informa no próprio formulário os dados da clínica, da pessoa responsável
-                  e da conta bancária que forem necessários. Senhas, documentos e dados bancários
-                  são preenchidos diretamente na Stripe.
-                </p>
-                <p>
-                  Este ambiente é de teste. Use os dados de teste indicados pela Stripe nos campos
-                  de documentos e banco; números aleatórios podem ser recusados.
-                </p>
-                <Link
-                  className="inline-flex min-h-11 items-center gap-2 font-semibold underline"
-                  href="https://docs.stripe.com/connect/testing"
-                  target="_blank"
-                  rel="noreferrer"
-                >
-                  Abrir guia de dados de teste da Stripe{' '}
-                  <ExternalLink aria-hidden="true" className="size-4" />
-                </Link>
-              </div>
-              <p className="text-sm leading-relaxed">
-                Não conseguiu finalizar? Escolha “Receber fora do app” para continuar o cadastro da
-                clínica. Você poderá configurar a Stripe depois, no Financeiro.
-              </p>
-            </section>
             {dashboard && status && status.state !== 'not_started' && (
               <div className="flex flex-wrap gap-2">
                 <Button

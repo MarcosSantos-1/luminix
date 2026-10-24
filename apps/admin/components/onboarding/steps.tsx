@@ -2094,6 +2094,7 @@ export function PaymentsStep({
     <div className="ob2-stack">
       <div className="ob2-grid ob2-grid-payments">
         <ChoiceCard
+          className="ob2-pay-choice"
           title="Receber fora do app"
           detail="Pix, maquininha ou link da própria clínica"
           icon={<CreditCard size={22} />}
@@ -2101,6 +2102,7 @@ export function PaymentsStep({
           onPress={selectOutside}
         />
         <ChoiceCard
+          className="ob2-pay-choice"
           title="Pagamentos no app"
           detail="Cliente paga pelo app quando você ativar o recebimento"
           icon={<Banknote size={22} />}

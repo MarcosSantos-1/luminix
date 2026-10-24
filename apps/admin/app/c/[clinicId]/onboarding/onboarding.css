@@ -1166,6 +1166,44 @@
   gap: 14px;
 }
 
+.ob2 .button.ob2-choice.ob2-pay-choice {
+  min-height: 124px;
+  padding: 18px 20px;
+  gap: 14px;
+}
+
+.ob2 .button.ob2-choice.ob2-pay-choice .ob2-choice-icon {
+  width: 46px;
+  height: 46px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.18);
+  border: 1px solid rgba(255, 255, 255, 0.28);
+}
+
+.ob2 .button.ob2-choice.ob2-pay-choice .ob2-choice-copy {
+  gap: 6px;
+}
+
+.ob2 .button.ob2-choice.ob2-pay-choice .ob2-choice-copy strong {
+  font-size: 17px;
+}
+
+.ob2 .button.ob2-choice.ob2-pay-choice .ob2-choice-copy small {
+  font-size: 15px;
+  line-height: 1.45;
+  color: rgba(255, 255, 255, 0.92);
+}
+
+.ob2[data-surface='solid'] .button.ob2-choice.ob2-pay-choice .ob2-choice-copy small {
+  color: var(--space-deep, #5e4250);
+}
+
+.ob2[data-surface='solid'] .button.ob2-choice.ob2-pay-choice .ob2-choice-icon {
+  background: color-mix(in srgb, var(--space-accent, #e72875) 10%, #fff);
+  border-color: color-mix(in srgb, var(--space-accent, #e72875) 24%, #fff);
+  color: var(--space-accent, #a1004d);
+}
+
 .ob2 .button.ob2-choice.is-disabled {
   opacity: 0.48;
   cursor: not-allowed;
