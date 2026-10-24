@@ -1,7 +1,18 @@
 'use client'
 
-import { Button, Card } from '@heroui/react'
-import { Banknote, CreditCard, FlaskConical, RefreshCw, ShieldCheck } from 'lucide-react'
+import { Button, Card, Link, Spinner, Tooltip, toast } from '@heroui/react'
+import {
+  Banknote,
+  CheckCircle2,
+  CircleHelp,
+  Clock3,
+  CreditCard,
+  ExternalLink,
+  FlaskConical,
+  RefreshCw,
+  ShieldCheck,
+  TriangleAlert,
+} from 'lucide-react'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { loadConnectAndInitialize, type StripeConnectInstance } from '@stripe/connect-js/pure'
 import {
@@ -15,6 +26,7 @@ import { onAuthStateChanged } from 'firebase/auth'
 import { useStaff } from '@/components/staff-provider'
 import { useClinic } from '@/components/clinic-workspace'
 import { getFirebaseAuth } from '@/lib/firebase'
+import './connect-panel.css'
 
 type Purpose = 'onboarding' | 'management' | 'payments' | 'payouts'
 type Status = {
@@ -31,7 +43,13 @@ const labels = {
   restricted: 'Seu cadastro precisa de atenção',
 }
 
-export function ConnectPanel({ dashboard = false }: { dashboard?: boolean }) {
+type PanelProps = {
+  dashboard?: boolean
+  onReadyChange?: (ready: boolean) => void
+  onChooseOutside?: () => void
+}
+
+export function ConnectPanel({ dashboard = false, onReadyChange, onChooseOutside }: PanelProps) {
   const { clinic, permissions } = useClinic()
   const staff = useStaff()
   if (!permissions.includes('settings:manage'))
@@ -46,11 +64,18 @@ export function ConnectPanel({ dashboard = false }: { dashboard?: boolean }) {
       key={`${staff.user.uid}/${clinic.id}/${staff.revision}`}
       clinicId={clinic.id}
       dashboard={dashboard}
+      onReadyChange={onReadyChange}
+      onChooseOutside={onChooseOutside}
     />
   )
 }
 
-function ConnectContent({ clinicId, dashboard }: { clinicId: string; dashboard: boolean }) {
+function ConnectContent({
+  clinicId,
+  dashboard,
+  onReadyChange,
+  onChooseOutside,
+}: PanelProps & { clinicId: string }) {
   const { user } = useStaff()
   const [status, setStatus] = useState<Status | null>(null)
   const [error, setError] = useState('')
@@ -60,6 +85,15 @@ function ConnectContent({ clinicId, dashboard }: { clinicId: string; dashboard: 
     instance: StripeConnectInstance
     purpose: Purpose
   } | null>(null)
+  const [componentLoading, setComponentLoading] = useState(false)
+  const ready =
+    status?.state === 'active' &&
+    status.chargesEnabled &&
+    status.payoutsEnabled &&
+    status.requirementsDue === 0
+  useEffect(() => {
+    onReadyChange?.(ready && !loading && !opening && !embedded && !error)
+  }, [ready, loading, opening, embedded, error, onReadyChange])
   const lifetime = useRef<AbortController | null>(null)
   const refreshSequence = useRef(0)
   const instances = useRef<StripeConnectInstance[]>([])
@@ -98,12 +132,27 @@ function ConnectContent({ clinicId, dashboard }: { clinicId: string; dashboard: 
     setError('')
     try {
       const body = await request()
-      if (!lifetime.current?.signal.aborted && sequence === refreshSequence.current)
+      if (!lifetime.current?.signal.aborted && sequence === refreshSequence.current) {
         setStatus(body.status)
+        if (
+          body.status.state === 'active' &&
+          body.status.chargesEnabled &&
+          body.status.payoutsEnabled &&
+          body.status.requirementsDue === 0
+        )
+          toast.success('Cadastro Stripe pronto. Você já pode continuar.', { timeout: 5000 })
+        else
+          toast.info('Situação atualizada. Confira abaixo o que falta para continuar.', {
+            timeout: 5000,
+          })
+      }
     } catch (cause) {
       if (!lifetime.current?.signal.aborted && sequence === refreshSequence.current) {
         setStatus(null)
-        setError(cause instanceof Error ? cause.message : 'Não foi possível atualizar a conta.')
+        const message =
+          cause instanceof Error ? cause.message : 'Não foi possível atualizar a conta.'
+        setError(message)
+        toast.danger(message)
       }
     } finally {
       if (!lifetime.current?.signal.aborted && sequence === refreshSequence.current)
@@ -140,6 +189,7 @@ function ConnectContent({ clinicId, dashboard }: { clinicId: string; dashboard: 
   async function open(purpose: Purpose) {
     if (opening) return
     setOpening(true)
+    setComponentLoading(true)
     setError('')
     setEmbedded(null)
     try {
@@ -173,9 +223,16 @@ function ConnectContent({ clinicId, dashboard }: { clinicId: string; dashboard: 
       })
       instances.current.push(instance)
       setEmbedded({ instance, purpose })
+      toast.info('Cadastro aberto. A Stripe pode abrir uma janela para confirmar seu acesso.', {
+        timeout: 6000,
+      })
     } catch (cause) {
-      if (!lifetime.current?.signal.aborted)
-        setError(cause instanceof Error ? cause.message : 'Não foi possível abrir o cadastro.')
+      if (!lifetime.current?.signal.aborted) {
+        const message =
+          cause instanceof Error ? cause.message : 'Não foi possível abrir o cadastro.'
+        setError(message)
+        toast.danger(message)
+      }
     } finally {
       if (!lifetime.current?.signal.aborted) setOpening(false)
     }
@@ -184,13 +241,17 @@ function ConnectContent({ clinicId, dashboard }: { clinicId: string; dashboard: 
     setEmbedded(null)
     void refresh()
   }
-  const loadError = () =>
-    setError(
-      'A Stripe não carregou. Verifique sua conexão e permita a janela de autenticação; depois tente novamente.',
-    )
+  const loadError = () => {
+    setComponentLoading(false)
+    const message =
+      'Não foi possível carregar a Stripe. Verifique sua conexão e permita a janela de autenticação. Você pode tentar novamente ou escolher receber fora do app.'
+    setError(message)
+    toast.danger(message, { timeout: 7000 })
+  }
+  const loaderStart = () => setComponentLoading(false)
 
   return (
-    <Card className="w-full min-w-0 p-5">
+    <Card className="connect-panel w-full min-w-0 p-5" aria-busy={loading || opening}>
       {!embedded && (
         <>
           <Card.Header>
@@ -236,25 +297,84 @@ function ConnectContent({ clinicId, dashboard }: { clinicId: string; dashboard: 
                 </p>
               </div>
             </div>
-            {loading && <p role="status">Consultando a Stripe…</p>}
+            {loading && (
+              <div
+                role="status"
+                className="flex items-center gap-3 rounded-xl bg-blue-50 p-4 text-blue-950"
+              >
+                <Spinner size="sm" />
+                Consultando a situação da sua conta…
+              </div>
+            )}
             {status && status.state !== 'not_started' && !loading && (
-              <div aria-live="polite" className="flex flex-col gap-1 text-sm">
-                <p>
-                  Pagamentos:{' '}
-                  {status.chargesEnabled ? 'habilitados em teste' : 'aguardando liberação'}
-                </p>
-                <p>
-                  Repasses:{' '}
-                  {status.payoutsEnabled ? 'habilitados em teste' : 'aguardando liberação'}
-                </p>
+              <div aria-live="polite" className="grid gap-3 sm:grid-cols-2">
+                {[
+                  {
+                    title: 'Pagamentos dos clientes',
+                    enabled: status.chargesEnabled,
+                    icon: CreditCard,
+                    text: 'A Stripe precisa liberar a conta para aceitar os pagamentos dos seus clientes.',
+                  },
+                  {
+                    title: 'Depósitos na sua conta',
+                    enabled: status.payoutsEnabled,
+                    icon: Banknote,
+                    text: 'A Stripe precisa liberar os repasses para enviar o saldo à conta bancária cadastrada.',
+                  },
+                ].map(({ title, enabled, icon: Icon, text }) => (
+                  <div
+                    key={title}
+                    className={
+                      enabled
+                        ? 'rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-emerald-950'
+                        : 'rounded-xl border border-amber-200 bg-amber-50 p-4 text-amber-950'
+                    }
+                  >
+                    <div className="mb-2 flex items-center gap-2">
+                      <Icon aria-hidden="true" className="size-5" />
+                      <h3 className="font-semibold">{title}</h3>
+                    </div>
+                    <p className="mb-2 flex items-center gap-2 text-sm font-semibold">
+                      {enabled ? (
+                        <CheckCircle2 aria-hidden="true" className="size-4" />
+                      ) : (
+                        <Clock3 aria-hidden="true" className="size-4" />
+                      )}
+                      {enabled ? 'Liberado em teste' : 'Ainda não liberado'}
+                    </p>
+                    <p className="text-sm leading-relaxed">
+                      {enabled
+                        ? 'Esta parte da conta está habilitada no ambiente de teste, sem movimentar dinheiro real.'
+                        : text}
+                    </p>
+                  </div>
+                ))}
                 {status.requirementsDue > 0 && (
-                  <p>Há informações pendentes. Continue o cadastro para revisar.</p>
+                  <div className="flex gap-3 rounded-xl border border-amber-200 bg-amber-50 p-4 text-amber-950 sm:col-span-2">
+                    <TriangleAlert aria-hidden="true" className="size-5 shrink-0" />
+                    <div>
+                      <p className="font-semibold">Há informações para completar ou corrigir</p>
+                      <p className="mt-1 text-sm leading-relaxed">
+                        Clique em “Continuar cadastro Stripe”. O formulário mostrará quais dados ou
+                        documentos faltam. Depois de enviar, feche o formulário para conferir a
+                        atualização.
+                      </p>
+                    </div>
+                  </div>
+                )}
+                {!ready && status.requirementsDue === 0 && (
+                  <p className="rounded-xl bg-blue-50 p-4 text-sm leading-relaxed text-blue-950 sm:col-span-2">
+                    A conta ainda não está pronta. Abra o cadastro para verificar se é necessário
+                    enviar algum dado ou aguardar uma análise da Stripe. Se você já enviou tudo, use
+                    “Atualizar situação” para consultar novamente.
+                  </p>
                 )}
               </div>
             )}
             {error && <p role="alert">{error}</p>}
             <div className="flex flex-wrap gap-2">
               <Button isDisabled={opening || loading} onPress={() => void open('onboarding')}>
+                {opening && <Spinner size="sm" />}
                 {opening
                   ? 'Abrindo…'
                   : status?.state === 'active'
@@ -269,45 +389,143 @@ function ConnectContent({ clinicId, dashboard }: { clinicId: string; dashboard: 
                 isDisabled={opening || loading}
                 onPress={() => void refresh()}
               >
-                <RefreshCw aria-hidden="true" className="size-4" />
+                <RefreshCw
+                  aria-hidden="true"
+                  className={`size-4 ${loading ? 'motion-safe:animate-spin' : ''}`}
+                />
                 Atualizar situação
               </Button>
             </div>
-            <details className="rounded-xl border border-current/10 p-4 text-sm">
-              <summary className="cursor-pointer font-semibold">
-                Como acessar e testar o cadastro?
-              </summary>
-              <div className="mt-3 space-y-2 leading-relaxed">
+            {!dashboard && (
+              <div
+                aria-live="polite"
+                className={
+                  ready && !loading && !error
+                    ? 'rounded-xl bg-emerald-50 p-4 text-emerald-950'
+                    : 'rounded-xl bg-amber-50 p-4 text-amber-950'
+                }
+              >
+                <p className="flex items-center gap-2 font-semibold">
+                  {ready && !loading && !error ? (
+                    <CheckCircle2 aria-hidden="true" className="size-5" />
+                  ) : (
+                    <TriangleAlert aria-hidden="true" className="size-5" />
+                  )}
+                  {ready && !loading && !error
+                    ? 'Tudo pronto para continuar'
+                    : 'Conclua a configuração para continuar'}
+                </p>
+                <p className="mt-2 text-sm leading-relaxed">
+                  {ready && !loading && !error
+                    ? 'A Stripe confirmou a liberação de pagamentos e repasses em teste. Você pode ir para a próxima etapa.'
+                    : 'Com “Pagamentos no app”, só é possível continuar quando a Stripe liberar pagamentos e repasses e não houver informações pendentes. Se não conseguir concluir agora, escolha “Receber fora do app”.'}
+                </p>
+                {onChooseOutside && !ready && (
+                  <Button className="mt-3" variant="secondary" onPress={onChooseOutside}>
+                    Receber fora do app
+                  </Button>
+                )}
+              </div>
+            )}
+            <section
+              aria-label="Ajuda para acessar a Stripe"
+              className="space-y-5 rounded-xl border border-current/10 p-5"
+            >
+              <div className="flex items-center gap-2">
+                <ShieldCheck aria-hidden="true" className="size-5" />
+                <h3 className="font-semibold">Antes de começar: acesso seguro à Stripe</h3>
+                <Tooltip>
+                  <Button
+                    variant="ghost"
+                    isIconOnly
+                    aria-label="Por que a Stripe pede uma confirmação?"
+                  >
+                    <CircleHelp className="size-4" />
+                  </Button>
+                  <Tooltip.Content className="max-w-xs">
+                    Essa confirmação protege o acesso aos seus dados bancários. Ela é feita
+                    diretamente pela Stripe.
+                  </Tooltip.Content>
+                </Tooltip>
+              </div>
+              <div className="space-y-2 text-sm leading-relaxed">
+                <h4 className="font-semibold">1. Entre ou crie seu acesso Stripe</h4>
                 <p>
-                  O login do Luminix e o acesso à Stripe são separados. O e-mail usado no Luminix
-                  não cria automaticamente uma senha Stripe.
+                  Seu acesso ao Luminix e seu acesso à Stripe são separados. Mesmo usando o mesmo
+                  e-mail, a senha pode ser diferente. A janela da Stripe vai orientar você a entrar
+                  ou criar seu acesso.
                 </p>
                 <p>
-                  Permita a janela de autenticação da Stripe. Se você já tem uma conta Stripe, use o
-                  acesso correspondente; se estiver criando uma conta, siga o cadastro apresentado
-                  pela Stripe.
+                  Se nenhuma janela abrir, permita os pop-ups da Stripe no seu navegador e tente
+                  novamente.
+                </p>
+              </div>
+              <div className="space-y-3 rounded-xl bg-blue-50 p-4 text-sm leading-relaxed text-blue-950">
+                <h4 className="font-semibold">2. Confirme que é você</h4>
+                <p>
+                  A Stripe pode pedir uma segunda confirmação para proteger sua conta. Use o método
+                  que ela mostrar na tela; nem sempre será um aplicativo.
                 </p>
                 <p>
-                  Para uma conta Connect de teste, a documentação Stripe orienta usar{' '}
-                  <strong>000-000</strong> quando solicitar código SMS. Esse código não substitui a
-                  autenticação de dois fatores de uma conta Stripe real.
+                  <strong>Se pedir um aplicativo autenticador:</strong> ele gera um código
+                  temporário no seu celular. Você pode usar o Google Authenticator ou o Microsoft
+                  Authenticator.
+                </p>
+                <ol className="list-decimal space-y-2 pl-5">
+                  <li>
+                    Se ainda não tiver um desses aplicativos, instale pela loja oficial do seu
+                    celular.
+                  </li>
+                  <li>
+                    Na configuração da Stripe, abra o aplicativo e adicione uma conta lendo o QR
+                    code exibido.
+                  </li>
+                  <li>
+                    Digite na Stripe os seis números que aparecerem no aplicativo, antes de o código
+                    mudar.
+                  </li>
+                  <li>Guarde o código de recuperação que a Stripe fornecer em um lugar seguro.</li>
+                </ol>
+                <p>
+                  Se você já configurou isso antes, abra a conta Stripe no seu aplicativo para obter
+                  o código. Se perdeu o acesso, siga a recuperação oferecida pela Stripe.
+                </p>
+                <Link
+                  className="inline-flex min-h-11 items-center gap-2 font-semibold underline"
+                  href="https://support.stripe.com/questions/enable-two-step-authentication-via-mobile-app"
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  Ver instruções da Stripe para o autenticador{' '}
+                  <ExternalLink aria-hidden="true" className="size-4" />
+                </Link>
+              </div>
+              <div className="space-y-2 text-sm leading-relaxed">
+                <h4 className="font-semibold">3. Complete os dados solicitados</h4>
+                <p>
+                  A Stripe informa no próprio formulário os dados da clínica, da pessoa responsável
+                  e da conta bancária que forem necessários. Senhas, documentos e dados bancários
+                  são preenchidos diretamente na Stripe.
                 </p>
                 <p>
-                  Se a tela estiver pedindo configurar um autenticador ou recuperar uma conta
-                  existente, conclua ou recupere o acesso na própria Stripe. Apenas clicar em
-                  avançar não conclui essa configuração.
+                  Este ambiente é de teste. Use os dados de teste indicados pela Stripe nos campos
+                  de documentos e banco; números aleatórios podem ser recusados.
                 </p>
-                <a
-                  className="font-semibold underline"
+                <Link
+                  className="inline-flex min-h-11 items-center gap-2 font-semibold underline"
                   href="https://docs.stripe.com/connect/testing"
                   target="_blank"
                   rel="noreferrer"
                 >
-                  Consultar o guia de testes da Stripe
-                </a>
-                <p>Você pode continuar o onboarding e retomar este cadastro no Financeiro.</p>
+                  Abrir guia de dados de teste da Stripe{' '}
+                  <ExternalLink aria-hidden="true" className="size-4" />
+                </Link>
               </div>
-            </details>
+              <p className="text-sm leading-relaxed">
+                Não conseguiu finalizar? Escolha “Receber fora do app” para continuar o cadastro da
+                clínica. Você poderá configurar a Stripe depois, no Financeiro.
+              </p>
+            </section>
             {dashboard && status && status.state !== 'not_started' && (
               <div className="flex flex-wrap gap-2">
                 <Button
@@ -346,20 +564,47 @@ function ConnectContent({ clinicId, dashboard }: { clinicId: string; dashboard: 
               Fechar e atualizar situação
             </Button>
           </div>
+          <p className="mb-4 text-sm leading-relaxed">
+            Se a Stripe abrir outra janela, confirme seu acesso nela. Caso peça um código de
+            aplicativo autenticador, use o código gerado no seu celular. Ao terminar, feche este
+            formulário para conferir a situação da conta.
+          </p>
+          {onChooseOutside && (
+            <Button className="mb-4" variant="secondary" onPress={onChooseOutside}>
+              Não consigo concluir agora: receber fora do app
+            </Button>
+          )}
           {error && (
             <p role="alert" className="mb-4 text-sm text-red-700">
               {error}
             </p>
           )}
+          {componentLoading && (
+            <div
+              role="status"
+              className="mb-4 flex items-center gap-3 rounded-xl bg-blue-50 p-4 text-blue-950"
+            >
+              <Spinner size="sm" />
+              Carregando o formulário seguro da Stripe…
+            </div>
+          )}
           <ConnectComponentsProvider connectInstance={embedded.instance}>
             {embedded.purpose === 'onboarding' && (
-              <ConnectAccountOnboarding onExit={close} onLoadError={loadError} />
+              <ConnectAccountOnboarding
+                onExit={close}
+                onLoadError={loadError}
+                onLoaderStart={loaderStart}
+              />
             )}
             {embedded.purpose === 'management' && (
-              <ConnectAccountManagement onLoadError={loadError} />
+              <ConnectAccountManagement onLoadError={loadError} onLoaderStart={loaderStart} />
             )}
-            {embedded.purpose === 'payments' && <ConnectPayments onLoadError={loadError} />}
-            {embedded.purpose === 'payouts' && <ConnectPayouts onLoadError={loadError} />}
+            {embedded.purpose === 'payments' && (
+              <ConnectPayments onLoadError={loadError} onLoaderStart={loaderStart} />
+            )}
+            {embedded.purpose === 'payouts' && (
+              <ConnectPayouts onLoadError={loadError} onLoaderStart={loaderStart} />
+            )}
           </ConnectComponentsProvider>
         </section>
       )}

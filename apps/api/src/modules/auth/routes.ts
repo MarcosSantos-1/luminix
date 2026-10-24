@@ -17,7 +17,7 @@ export async function authRoutes(app: FastifyInstance, dependencies: AuthDepende
     return payload
   })
   const authenticate = createStaffAuthenticator(dependencies)
-  await clinicRoutes(app, authenticate, dependencies.tenantPool)
+  await clinicRoutes(app, authenticate, dependencies.tenantPool, dependencies.connectProvider)
   await operationRoutes(app, authenticate, dependencies.tenantPool)
   await paymentRoutes(app, authenticate, dependencies.tenantPool, dependencies.connectProvider)
   app.get<{ Querystring: { after?: string } }>(

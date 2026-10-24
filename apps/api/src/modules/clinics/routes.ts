@@ -1,4 +1,5 @@
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify'
+import { createConnectProvider, type ConnectProvider } from '../payments/stripe-connect.js'
 import type { SqlConnection } from '../../shared/database/migrations.js'
 import { withClinicTransaction, type TenantPool } from '../../shared/tenant/clinic-transaction.js'
 import type { TenantContext } from '../../shared/tenant/tenant-context.js'
@@ -273,7 +274,9 @@ export async function clinicRoutes(
   app: FastifyInstance,
   authenticate: (request: FastifyRequest, reply: FastifyReply) => Promise<string | null>,
   pool: TenantPool | undefined,
+  suppliedConnectProvider?: ConnectProvider,
 ) {
+  let connectProvider = suppliedConnectProvider
   const params = {
     type: 'object',
     additionalProperties: false,
@@ -291,11 +294,13 @@ export async function clinicRoutes(
     reply: FastifyReply,
     permission: string | null,
     work: (connection: SqlConnection, tenant: TenantContext) => Promise<unknown>,
+    beforeWrite?: (identityId: string) => Promise<void>,
   ) {
     const identityId = await authenticate(request, reply)
     if (!identityId) return
     if (!pool) return reply.code(503).send({ error: 'Clinic unavailable' })
     try {
+      await beforeWrite?.(identityId)
       return await withClinicTransaction(
         pool,
         identityId,
@@ -314,6 +319,8 @@ export async function clinicRoutes(
       const statusCode = (error as { statusCode?: number })?.statusCode
       if (statusCode && [400, 409, 413].includes(statusCode))
         return reply.code(statusCode).send({ error: (error as Error).message })
+      if (statusCode === 503 && (error as Error).message === 'Stripe verification unavailable')
+        return reply.code(503).send({ error: 'Stripe verification unavailable' })
       if ((error as { statusCode?: number })?.statusCode === 403) {
         request.log.info({ event: 'clinic_access_denied' })
         return reply.code(403).send({ error: 'Clinic access denied' })
@@ -324,6 +331,61 @@ export async function clinicRoutes(
         return reply.code(400).send({ error: 'Invalid onboarding data' })
       request.log.warn({ event: 'clinic_read_unavailable' })
       return reply.code(503).send({ error: 'Clinic unavailable' })
+    }
+  }
+  // Authenticate and read tenant-bound state before Stripe; the final write reauthorizes
+  // and checks the draft version. No transaction is held open over network calls.
+  async function requireStripeReady(
+    identityId: string,
+    clinicRef: string,
+    acceptInApp?: boolean,
+    expectedVersion?: number,
+  ) {
+    if (!pool)
+      throw Object.assign(new Error('Stripe verification unavailable'), { statusCode: 503 })
+    const transaction = <T>(work: Parameters<typeof withClinicTransaction<T>>[4]) =>
+      withClinicTransaction(pool, identityId, clinicRef, 'onboarding:manage', work)
+    const needsStripe = await transaction(async (connection, tenant) => {
+      if (acceptInApp !== undefined) return acceptInApp
+      const row = (
+        await connection.query(
+          'SELECT c.status, d.payload, d.version FROM luminix.clinics c LEFT JOIN luminix.onboarding_drafts d ON d.clinic_id = c.id WHERE c.id = $1',
+          [tenant.clinicId],
+        )
+      ).rows[0]
+      // Completed requests remain replayable even if Stripe later changes state.
+      if (row?.status === 'active') return false
+      if (Number(row?.version) !== expectedVersion)
+        throw Object.assign(new Error('Onboarding changed; reload before retrying'), {
+          statusCode: 409,
+        })
+      return (row?.payload as OnboardingPayload | undefined)?.preferences?.acceptInApp === true
+    })
+    if (!needsStripe) return
+    try {
+      connectProvider ??= createConnectProvider()
+      const context = await connectProvider.context()
+      const accountId = await transaction(async (connection, tenant) => {
+        const row = (
+          await connection.query(
+            'SELECT account_id FROM luminix.stripe_connect_accounts WHERE clinic_id = $1 AND platform_account_id = $2 AND livemode = $3',
+            [tenant.clinicId, context.platformAccountId, context.livemode],
+          )
+        ).rows[0]
+        return row?.account_id ? String(row.account_id) : null
+      })
+      const status = accountId ? await connectProvider.status(accountId) : null
+      if (
+        !status ||
+        status.state !== 'active' ||
+        !status.chargesEnabled ||
+        !status.payoutsEnabled ||
+        status.requirementsDue !== 0
+      )
+        throw Object.assign(new Error('Stripe onboarding incomplete'), { statusCode: 409 })
+    } catch (error) {
+      if ([403, 409].includes((error as { statusCode?: number }).statusCode ?? 0)) throw error
+      throw Object.assign(new Error('Stripe verification unavailable'), { statusCode: 503 })
     }
   }
   app.get<{ Params: { clinicId: string } }>(
@@ -939,24 +1001,38 @@ export async function clinicRoutes(
     async (request, reply) => {
       if (!validPayload(request.body.payload))
         return reply.code(400).send({ error: 'Invalid onboarding data' })
-      return authorized(request, reply, 'onboarding:manage', async (connection, tenant) => {
-        const row = await saveOnboardingDraft(
-          connection,
-          tenant.clinicId,
-          request.body.version,
-          request.body.step,
-          request.body.payload,
-        )
-        return {
-          draft: {
-            version: Number(row.draft_version),
-            formatVersion: 3,
-            step: row.draft_step,
-            status: 'draft',
-            payload: row.draft_payload,
-          },
-        }
-      })
+      return authorized(
+        request,
+        reply,
+        'onboarding:manage',
+        async (connection, tenant) => {
+          const row = await saveOnboardingDraft(
+            connection,
+            tenant.clinicId,
+            request.body.version,
+            request.body.step,
+            request.body.payload,
+          )
+          return {
+            draft: {
+              version: Number(row.draft_version),
+              formatVersion: 3,
+              step: row.draft_step,
+              status: 'draft',
+              payload: row.draft_payload,
+            },
+          }
+        },
+        ['rules', 'review'].includes(request.body.step) ||
+          (request.body.step === 'preferences' && request.body.payload.uiFocus !== 'payments')
+          ? (identityId) =>
+              requireStripeReady(
+                identityId,
+                request.params.clinicId,
+                request.body.payload.preferences.acceptInApp,
+              )
+          : undefined,
+      )
     },
   )
   app.post<{ Params: { clinicId: string }; Body: { version: number } }>(
@@ -973,24 +1049,31 @@ export async function clinicRoutes(
       },
     },
     async (request, reply) =>
-      authorized(request, reply, 'onboarding:manage', async (connection, tenant) => {
-        const row = (
-          await connection.query(
-            'SELECT * FROM luminix.complete_onboarding($1::uuid, $2::integer)',
-            [tenant.clinicId, request.body.version],
-          )
-        ).rows[0]
-        return {
-          clinic: {
-            id: tenant.clinicId,
-            name: row.clinic_name,
-            status: row.clinic_status,
-            shareCode: row.clinic_share_code,
-          },
-          version: Number(row.draft_version),
-          replayed: row.replayed,
-        }
-      }),
+      authorized(
+        request,
+        reply,
+        'onboarding:manage',
+        async (connection, tenant) => {
+          const row = (
+            await connection.query(
+              'SELECT * FROM luminix.complete_onboarding($1::uuid, $2::integer)',
+              [tenant.clinicId, request.body.version],
+            )
+          ).rows[0]
+          return {
+            clinic: {
+              id: tenant.clinicId,
+              name: row.clinic_name,
+              status: row.clinic_status,
+              shareCode: row.clinic_share_code,
+            },
+            version: Number(row.draft_version),
+            replayed: row.replayed,
+          }
+        },
+        (identityId) =>
+          requireStripeReady(identityId, request.params.clinicId, undefined, request.body.version),
+      ),
   )
   app.get<{ Params: { clinicId: string } }>(
     '/clinics/:clinicId/overview',

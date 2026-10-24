@@ -1,6 +1,6 @@
 'use client'
 
-import { Button, toast } from '@heroui/react'
+import { Button, Spinner, Tooltip, toast } from '@heroui/react'
 import { ArrowRight } from 'lucide-react'
 import { useEffect, useState, type ReactNode } from 'react'
 import { useRouter } from 'next/navigation'
@@ -48,6 +48,9 @@ import {
   type Service,
 } from '@/components/onboarding/model'
 import './onboarding.css'
+
+const stripeRequiredMessage =
+  'Conclua o cadastro Stripe e aguarde a liberação de pagamentos e repasses, ou escolha “Receber fora do app” para continuar.'
 
 function emptyPayload(name: string, email: string, ownerName: string): Payload {
   return {
@@ -278,6 +281,7 @@ export default function OnboardingPage() {
   const [step, setStep] = useState(0)
   const [availableThrough, setAvailableThrough] = useState(0)
   const [stepError, setStepError] = useState('')
+  const [stripeReady, setStripeReady] = useState(false)
   const [busy, setBusy] = useState(false)
   const [uploadingMedia, setUploadingMedia] = useState(false)
   const [loadError, setLoadError] = useState('')
@@ -367,7 +371,9 @@ export default function OnboardingPage() {
     if (
       targetStep === 4 &&
       payload.teamMode === 'solo' &&
-      payload.services.some((service) => serviceIsIntimate(service) && service.audienceChosen !== true)
+      payload.services.some(
+        (service) => serviceIsIntimate(service) && service.audienceChosen !== true,
+      )
     )
       return 'Escolha o público de cada atendimento íntimo para continuar.'
     if (targetStep === 4 && payload.teamMode === 'team') {
@@ -391,6 +397,8 @@ export default function OnboardingPage() {
         return 'Use a sigla do estado com duas letras (ex.: SP).'
     }
     if (stepInfo[targetStep]?.key === 'hours') return validateClinicAndProfessionalHours(payload)
+    if (stepInfo[targetStep]?.key === 'payments' && payload.preferences.acceptInApp && !stripeReady)
+      return stripeRequiredMessage
     if (stepInfo[targetStep]?.key === 'rules' && !payload.preferences.acceptInApp) {
       if (payload.preferences.packagePaymentMode !== 'clinic_only')
         return 'Com recebimento fora do app, pacotes ficam somente na clínica.'
@@ -413,6 +421,13 @@ export default function OnboardingPage() {
   function navigateTo(targetStep: number) {
     const minimumStep = 0
     if (busy || uploadingMedia || targetStep < minimumStep || targetStep > availableThrough) return
+    const problem = targetStep > step ? firstProblem(targetStep - 1) : null
+    if (problem) {
+      setStep(problem.step)
+      setStepError(problem.message)
+      notifyError(problem.message)
+      return
+    }
     setStepError('')
     setStep(targetStep)
   }
@@ -455,15 +470,24 @@ export default function OnboardingPage() {
       if (!response.ok) {
         const body = (await response.json().catch(() => null)) as { error?: string } | null
         const detail =
-          body?.error === 'Invalid onboarding data'
-            ? 'Algum campo do cadastro não passou na validação. Revise contato, endereço e equipe.'
-            : body?.error === 'Invalid draft'
-              ? 'O servidor ainda não reconhece esta etapa. Rode as migrations da API (pnpm db:migrate).'
-              : ''
-        const message =
-          response.status === 409
+          body?.error === 'Stripe onboarding incomplete'
+            ? stripeRequiredMessage
+            : body?.error === 'Stripe verification unavailable'
+              ? 'Não foi possível confirmar a conta Stripe. Volte a Pagamentos para tentar novamente ou escolher receber fora do app.'
+              : body?.error === 'Invalid onboarding data'
+                ? 'Algum campo do cadastro não passou na validação. Revise contato, endereço e equipe.'
+                : body?.error === 'Invalid draft'
+                  ? 'O servidor ainda não reconhece esta etapa. Rode as migrations da API (pnpm db:migrate).'
+                  : ''
+        const message = body?.error?.startsWith('Stripe ')
+          ? detail
+          : response.status === 409
             ? 'Este cadastro mudou em outra aba. Recarregue para continuar.'
             : detail || 'Não foi possível salvar esta etapa.'
+        if (body?.error?.startsWith('Stripe ')) {
+          setStripeReady(false)
+          setStep(7)
+        }
         setStepError(message)
         notifyError(message)
         return
@@ -505,10 +529,15 @@ export default function OnboardingPage() {
         signal: AbortSignal.timeout(20_000),
       })
       if (!response.ok) {
+        const body = await response.json().catch(() => null)
         const message =
-          response.status === 409
-            ? 'O cadastro mudou. Recarregue e confira o resumo.'
-            : 'Ainda há um dado inconsistente. Use “Editar” no resumo ou escolha a etapa na lateral.'
+          body?.error === 'Stripe onboarding incomplete'
+            ? stripeRequiredMessage
+            : body?.error === 'Stripe verification unavailable'
+              ? 'Não foi possível confirmar a Stripe. Volte a Pagamentos para tentar novamente ou escolher receber fora do app.'
+              : response.status === 409
+                ? 'O cadastro mudou. Recarregue e confira o resumo.'
+                : 'Ainda há um dado inconsistente. Use “Editar” no resumo ou escolha a etapa na lateral.'
         setStepError(message)
         notifyError(message)
         return
@@ -566,24 +595,34 @@ export default function OnboardingPage() {
 
   const last = step === stepInfo.length - 1
   const locked = busy || uploadingMedia
+  const stripeBlocked = step === 7 && ready.preferences.acceptInApp && !stripeReady
   const footer: ReactNode = (
-    <Button
-      className="ob2-cta"
-      fullWidth
-      isDisabled={locked}
-      onPress={() => (last ? void complete() : void save(step + 1))}
-    >
-      {uploadingMedia
-        ? 'Enviando imagem…'
-        : busy
-          ? last
-            ? 'Criando sua clínica…'
-            : 'Salvando…'
-          : last
-            ? 'Abrir minha clínica'
-            : 'Continuar'}
-      <ArrowRight size={18} />
-    </Button>
+    <Tooltip isDisabled={!stripeBlocked}>
+      <Tooltip.Trigger
+        className="w-full"
+        tabIndex={stripeBlocked ? 0 : undefined}
+        aria-label={stripeBlocked ? stripeRequiredMessage : undefined}
+      >
+        <Button
+          className="ob2-cta"
+          fullWidth
+          isDisabled={locked || stripeBlocked}
+          onPress={() => (last ? void complete() : void save(step + 1))}
+        >
+          {uploadingMedia
+            ? 'Enviando imagem…'
+            : busy
+              ? last
+                ? 'Criando sua clínica…'
+                : 'Salvando…'
+              : last
+                ? 'Abrir minha clínica'
+                : 'Continuar'}
+          {busy ? <Spinner size="sm" /> : <ArrowRight size={18} />}
+        </Button>
+      </Tooltip.Trigger>
+      <Tooltip.Content className="max-w-xs">{stripeRequiredMessage}</Tooltip.Content>
+    </Tooltip>
   )
   const updatePayload = (value: Payload) => {
     setStepError('')
@@ -605,7 +644,13 @@ export default function OnboardingPage() {
       {step === 4 && <TeamStep {...stepProps} onUploadingChange={setUploadingMedia} />}
       {step === 5 && <ScheduleStep {...stepProps} />}
       {step === 6 && <HoursStep {...stepProps} />}
-      {step === 7 && <PaymentsStep clinicId={clinic.share_code || clinic.id} {...stepProps} />}
+      {step === 7 && (
+        <PaymentsStep
+          clinicId={clinic.share_code || clinic.id}
+          onReadyChange={setStripeReady}
+          {...stepProps}
+        />
+      )}
       {step === 8 && <RulesStep {...stepProps} />}
       {step === 9 && (
         <ReviewStep payload={ready} error={stepError} footer={footer} onEdit={navigateTo} />

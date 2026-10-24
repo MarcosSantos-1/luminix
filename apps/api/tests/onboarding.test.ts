@@ -1,5 +1,6 @@
 import { PGlite } from '@electric-sql/pglite'
-import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
+import type { ConnectProvider, ConnectStatus } from '../src/modules/payments/stripe-connect.js'
 import { buildApp } from '../src/app.js'
 import { applyMigrations, type SqlConnection } from '../src/shared/database/migrations.js'
 
@@ -11,6 +12,25 @@ let clinicB: string
 const serviceA = '11111111-1111-4111-8111-111111111111'
 const serviceB = '22222222-2222-4222-8222-222222222222'
 const professionalA = '33333333-3333-4333-8333-333333333333'
+const readyStatus: ConnectStatus = {
+  state: 'active',
+  chargesEnabled: true,
+  payoutsEnabled: true,
+  requirementsDue: 0,
+  testMode: true,
+}
+const connectStatus = vi.fn(async (): Promise<ConnectStatus> => ({ ...readyStatus }))
+const connectContext = vi.fn(async () => ({
+  platformAccountId: 'acct_platformOnboarding',
+  livemode: false,
+  publishableKey: 'pk_test_fixture',
+}))
+const connectProvider: ConnectProvider = {
+  context: connectContext,
+  status: connectStatus,
+  create: async () => 'acct_onboardingB',
+  session: async () => 'test_secret',
+}
 const payload = {
   name: 'Clínica A final',
   ownerName: 'Ana Souza',
@@ -142,11 +162,14 @@ beforeAll(async () => {
     {},
     {
       database: connection,
+      connectProvider,
       tenantPool: { connect: async () => ({ ...connection, release: () => {} }) },
       verifyToken: async (token) => ({ uid: token }),
     },
   )
 })
+afterEach(() => vi.restoreAllMocks())
+
 afterAll(async () => {
   await app?.close()
   await db?.close()
@@ -433,4 +456,81 @@ it('synchronizes settings with open drafts and rejects stale versions', async ()
   expect((await call('onboarding-b', 'GET', clinicB, 'context')).json().clinic.theme).toBe(
     'esmeralda',
   )
+})
+
+it('requires current Stripe readiness for advancement and completion, with an outside-app alternative', async () => {
+  vi.spyOn(Date, 'now').mockReturnValue(Date.now() + 61_000)
+  const uniquePayload = JSON.parse(
+    JSON.stringify(payload)
+      .replaceAll(serviceA, '44444444-4444-4444-8444-444444444444')
+      .replaceAll(serviceB, '55555555-5555-4555-8555-555555555555')
+      .replaceAll(professionalA, '66666666-6666-4666-8666-666666666666'),
+  ) as typeof payload
+  const inside = {
+    ...uniquePayload,
+    uiFocus: 'payments',
+    preferences: { ...payload.preferences, acceptInApp: true },
+  }
+  let version = (await call('onboarding-b', 'GET', clinicB, 'onboarding')).json().draft.version
+  const save = (step: string, value = inside) =>
+    call('onboarding-b', 'PUT', clinicB, 'onboarding', { version, step, payload: value })
+  expect((await save('payments')).statusCode).toBe(200)
+  version++
+  expect((await save('rules')).json().error).toBe('Stripe onboarding incomplete')
+  expect(
+    (await call('onboarding-b', 'POST', clinicB, 'onboarding/complete', { version })).json().error,
+  ).toBe('Stripe onboarding incomplete')
+  const before = connectContext.mock.calls.length
+  expect(
+    (
+      await call('onboarding-a', 'PUT', clinicB, 'onboarding', {
+        version,
+        step: 'review',
+        payload: inside,
+      })
+    ).statusCode,
+  ).toBe(403)
+  expect(connectContext.mock.calls.length).toBe(before)
+  expect(
+    (
+      await call('onboarding-b', 'POST', clinicB, 'payments/connect/session', {
+        purpose: 'onboarding',
+      })
+    ).statusCode,
+  ).toBe(200)
+  for (const status of [
+    { ...readyStatus, state: 'pending' as const },
+    { ...readyStatus, chargesEnabled: false },
+    { ...readyStatus, payoutsEnabled: false },
+    { ...readyStatus, requirementsDue: 1 },
+  ]) {
+    connectStatus.mockResolvedValueOnce(status)
+    expect((await save('rules')).json().error).toBe('Stripe onboarding incomplete')
+  }
+  connectStatus.mockRejectedValueOnce(new Error('private Stripe secret'))
+  const unavailable = await save('review')
+  expect(unavailable.statusCode).toBe(503)
+  expect(unavailable.json().error).toBe('Stripe verification unavailable')
+  expect((await save('rules')).statusCode).toBe(200)
+  version++
+  connectStatus.mockResolvedValueOnce({ ...readyStatus, payoutsEnabled: false })
+  expect(
+    (await call('onboarding-b', 'POST', clinicB, 'onboarding/complete', { version })).statusCode,
+  ).toBe(409)
+  const calls = connectContext.mock.calls.length
+  const outside = { ...inside, preferences: { ...payload.preferences, acceptInApp: false } }
+  expect((await save('review', outside)).statusCode).toBe(200)
+  expect(connectContext.mock.calls.length).toBe(calls)
+  version++
+  expect((await save('review')).statusCode).toBe(200)
+  version++
+  expect(
+    (await call('onboarding-b', 'POST', clinicB, 'onboarding/complete', { version })).statusCode,
+  ).toBe(200)
+  const completedCalls = connectContext.mock.calls.length
+  expect(
+    (await call('onboarding-b', 'POST', clinicB, 'onboarding/complete', { version })).json()
+      .replayed,
+  ).toBe(true)
+  expect(connectContext.mock.calls.length).toBe(completedCalls)
 })

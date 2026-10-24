@@ -1,0 +1,34 @@
+@keyframes connect-panel-enter {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.connect-panel > section,
+.connect-panel [aria-live='polite'] > div {
+  animation: connect-panel-enter 180ms ease-out both;
+}
+
+.connect-panel a {
+  border-radius: 6px;
+  transition: background-color 150ms ease;
+}
+
+.connect-panel a:focus-visible {
+  outline: 2px solid currentColor;
+  outline-offset: 4px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .connect-panel *,
+  .connect-panel *::before,
+  .connect-panel *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+}

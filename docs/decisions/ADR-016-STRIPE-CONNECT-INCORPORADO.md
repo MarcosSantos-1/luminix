@@ -8,8 +8,9 @@ Data: 2026-10-22
 
 O step Pagamentos permite receber fora do app ou configurar uma conta Stripe dentro do admin.
 A mesma integração está disponível no Financeiro para retomar o cadastro, atualizar dados bancários
-e acessar componentes de pagamentos/reembolsos/disputas e repasses. A criação da clínica não depende
-da conclusão da verificação Stripe. Escolher recebimento externo não cria nem exclui uma conta;
+e acessar componentes de pagamentos/reembolsos/disputas e repasses. A clínica pode ser criada sem
+Stripe ao escolher recebimento externo. Com “Pagamentos no app”, o avanço exige conta habilitada,
+conforme a evolução de 2026-10-23 abaixo. Escolher recebimento externo não cria nem exclui uma conta;
 continua normalizando pacotes para `clinic_only` no rascunho.
 
 Esta decisão substitui a pendência de modelo Connect da ADR-002 e a descrição do cadastro Stripe
@@ -115,12 +116,38 @@ de validação agregada preexistentes estão na TD-007.
 
 O painel explica Connect em três etapas, distingue cadastro de teste do checkout ainda pendente
 e oferece orientações expansíveis de acesso. O login Luminix não cria uma senha Stripe.
-O código SMS documentado para contas Connect de teste é `000-000`; não é um bypass
-da autenticação de dois fatores de contas Stripe reais. Não desabilitamos autenticação nem
+A ajuda distingue confirmação por SMS de aplicativo autenticador sem publicar códigos universais,
+com instruções simples para adicionar o QR code, usar o código temporário e guardar a recuperação.
+O usuário confirmou a resolução do acesso com autenticador; não desabilitamos autenticação nem
 alteramos responsabilidades da plataforma para contornar esse fluxo.
 
 Ao abrir um componente Stripe, ele substitui o conteúdo do card de situação e usa toda sua
 largura; fechar retorna ao resumo e consulta novamente o status. O botão de atualização tem
 fundo azul opaco e texto claro. Permissões, isolamento por clínica e schema permanecem iguais.
-O bloqueio de autenticação relatado ainda precisa ser reproduzido na janela Stripe do usuário;
-validação de build e testes não comprova conclusão manual de login, 2FA ou KYC.
+O usuário confirmou a conclusão da autenticação. Validação automatizada de build e testes
+não substitui a conferência manual do formulário, 2FA e KYC de cada conta.
+
+### Bloqueio condicional e feedback — 2026-10-23
+
+“Pagamentos no app” exige status Stripe ativo, pagamentos e repasses habilitados e zero
+requisitos atualmente devidos/vencidos antes de avançar da etapa Pagamentos. A interface bloqueia
+a ação durante consulta, abertura e edição do formulário, apresenta o motivo junto dos controles
+e oferece “Receber fora do app” inclusive no formulário aberto. Esse caminho permite seguir sem
+Stripe e mantém pacotes limitados ao recebimento na clínica. Retomar Stripe no Financeiro continua
+possível. Conta pronta em teste não significa checkout cliente implementado ou dinheiro real.
+
+A API reconsulta Stripe no avanço para regras/revisão (inclusive formato legado) e na conclusão,
+usando o vínculo da clínica autorizada, plataforma e modo configurados no servidor. Não confia
+em readiness, account ID ou status do frontend. Falha externa impede o avanço em modo no app,
+sem impedir o caminho externo. Chamadas externas acontecem entre transações curtas; a escrita
+revalida acesso e versão do rascunho. Conclusões já aplicadas continuam idempotentes sem depender
+do status posterior Stripe. Não há alteração de schema ou nova migration.
+
+Feedback inclui cards com ícones, texto e cores para pagamentos/repasses, aviso de pendências,
+links destacados, instruções de autenticação separadas, tooltips acessíveis, carregamento e toasts
+de consulta, abertura, erros e troca de modo. Animações respeitam redução de movimento.
+
+Teste de regressão em `tests/onboarding.test.ts`: vínculo ausente, conta pendente, pagamentos ou
+repasses não liberados, requisitos devidos, indisponibilidade Stripe, isolamento entre clínicas,
+reconsulta na conclusão, alternativa externa e replay após conclusão. Consulta antes de cada
+escrita acrescenta latência de rede somente ao caminho no app; não há polling automático.

@@ -2063,14 +2063,18 @@ export function PaymentsStep({
   setPayload,
   error,
   footer,
+  onReadyChange,
 }: {
   clinicId: string
   payload: Payload
   setPayload: (value: Payload) => void
   error: string
+  onReadyChange: (ready: boolean) => void
   footer: ReactNode
 }) {
-  const selectOutside = () =>
+  const selectOutside = () => {
+    onReadyChange(false)
+    toast.info('Recebimento fora do app selecionado. Você pode continuar sem configurar a Stripe.')
     setPayload({
       ...payload,
       preferences: {
@@ -2079,6 +2083,7 @@ export function PaymentsStep({
         packagePaymentMode: 'clinic_only',
       },
     })
+  }
   const selectInApp = () =>
     setPayload({
       ...payload,
@@ -2104,7 +2109,11 @@ export function PaymentsStep({
         />
       </div>
       {payload.preferences.acceptInApp ? (
-        <ConnectPanel key={clinicId} />
+        <ConnectPanel
+          key={clinicId}
+          onReadyChange={onReadyChange}
+          onChooseOutside={selectOutside}
+        />
       ) : (
         <p className="ob2-copy">
           Pacotes de sessões ficam limitados ao recebimento na clínica enquanto esta opção estiver
