@@ -119,6 +119,10 @@ const payload = {
   ],
   uiFocus: 'address',
   preferences: {
+    bookingNoticeHours: 4,
+    bookingWindowDays: 90,
+    reschedulingHours: null,
+    clientInstructions: 'Chegue 10 minutos antes. 💜',
     cancellationHours: 12,
     specialCancellationHours: 24,
     acceptInApp: false,
@@ -189,6 +193,27 @@ const call = (
   })
 
 describe('versioned clinic onboarding', () => {
+  it('rejects invalid booking rules without saving them', async () => {
+    vi.spyOn(Date, 'now').mockReturnValue(Date.now() - 61_000)
+    for (const patch of [
+      { bookingNoticeHours: -1 },
+      { bookingNoticeHours: 169 },
+      { bookingWindowDays: 0 },
+      { bookingWindowDays: 366 },
+      { reschedulingHours: 337 },
+      { reschedulingHours: 1.5 },
+      { clientInstructions: 'a'.repeat(501) },
+    ]) {
+      const result = await call('onboarding-a', 'PUT', clinicA, 'onboarding', {
+        version: 0,
+        step: 'rules',
+        payload: { ...payload, preferences: { ...payload.preferences, ...patch } },
+      })
+      expect(result.statusCode).toBe(400)
+    }
+    expect((await call('onboarding-a', 'GET', clinicA, 'onboarding')).json().draft.version).toBe(0)
+  })
+
   it('isolates drafts, rejects stale writes, and completes once with real records', async () => {
     const initial = await call('onboarding-a', 'GET', clinicA, 'onboarding')
     expect(initial.statusCode).toBe(200)
@@ -280,11 +305,29 @@ describe('versioned clinic onboarding', () => {
     })
     expect(replay.json().replayed).toBe(true)
     expect(replay.json().clinic.shareCode).toBe(completed.json().clinic.shareCode)
+    const settings = (await call('onboarding-a', 'GET', clinicA, 'settings')).json()
+    expect(settings.bookingRules).toEqual({
+      bookingNoticeHours: 4,
+      bookingWindowDays: 90,
+      cancellationHours: 12,
+      specialCancellationHours: 24,
+      reschedulingHours: null,
+      clientInstructions: 'Chegue 10 minutos antes. 💜',
+    })
+    expect((await call('onboarding-b', 'GET', clinicA, 'settings')).statusCode).toBe(403)
+    expect((await call('onboarding-b', 'GET', clinicB, 'settings')).json().bookingRules).toBeNull()
     const overview = (await call('onboarding-a', 'GET', clinicA, 'overview')).json()
     expect(overview.occupations).toHaveLength(1)
     expect(overview.services).toHaveLength(2)
     expect(overview.professionals).toHaveLength(1)
     await db.query("SELECT set_config('luminix.clinic_id', $1, false)", [clinicA])
+    expect(
+      (
+        await db.query('SELECT clinic_id FROM luminix.booking_policies WHERE clinic_id = $1', [
+          clinicB,
+        ])
+      ).rows,
+    ).toHaveLength(0)
     const profile = (
       await db.query(
         'SELECT tax_id_kind, default_audience, home_service, team_mode FROM luminix.clinic_profiles WHERE clinic_id = $1',
@@ -421,6 +464,7 @@ describe('space theme', () => {
 })
 
 it('synchronizes settings with open drafts and rejects stale versions', async () => {
+  vi.spyOn(Date, 'now').mockReturnValue(Date.now() + 61_000)
   const saved = await call('onboarding-b', 'PUT', clinicB, 'onboarding', {
     version: 0,
     step: 'contact',
@@ -459,7 +503,7 @@ it('synchronizes settings with open drafts and rejects stale versions', async ()
 })
 
 it('requires current Stripe readiness for advancement and completion, with an outside-app alternative', async () => {
-  vi.spyOn(Date, 'now').mockReturnValue(Date.now() + 61_000)
+  vi.spyOn(Date, 'now').mockReturnValue(Date.now() + 122_000)
   const uniquePayload = JSON.parse(
     JSON.stringify(payload)
       .replaceAll(serviceA, '44444444-4444-4444-8444-444444444444')

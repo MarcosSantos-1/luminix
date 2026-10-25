@@ -126,6 +126,7 @@ describe('versioned core migration', () => {
       { name: '0014_onboarding_snapshot.sql' },
       { name: '0015_clinic_theme.sql' },
       { name: '0016_stripe_connect.sql' },
+      { name: '0017_onboarding_booking_rules.sql' },
     ])
   })
 

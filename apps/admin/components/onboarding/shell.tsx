@@ -117,7 +117,9 @@ export function OnboardingShell({
           </Drawer>
         </header>
         <div className="ob2-heading">
-          <h1>{current.title}</h1>
+          <h1 id="onboarding-title" tabIndex={-1}>
+            {current.title}
+          </h1>
           {current.text ? <p>{current.text}</p> : null}
         </div>
       </div>

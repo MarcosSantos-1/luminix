@@ -1,6 +1,6 @@
 import type { SpaceTheme } from '@/lib/space-theme'
 import {
-  Banknote,
+  ListChecks,
   MapPin,
   Building2,
   CalendarDays,
@@ -120,6 +120,10 @@ export type Payload = {
   businessHours: DaySchedule[]
   professionalSchedules: ProfessionalSchedule[]
   preferences: {
+    bookingNoticeHours?: number
+    bookingWindowDays?: number
+    reschedulingHours?: number | null
+    clientInstructions?: string
     specialTreatmentsDismissed?: boolean
     cancellationHours: number
     specialCancellationHours: number
@@ -293,15 +297,15 @@ export const stepInfo = [
   {
     key: 'rules',
     label: 'Regras',
-    title: 'Cancelamento e pacotes',
-    text: 'Defina prazos de cancelamento e como pacotes de sessões podem ser pagos.',
-    icon: Banknote,
+    title: 'Do seu jeito',
+    text: 'Vamos combinar como sua clínica recebe os agendamentos. Confira as sugestões e ajuste o que precisar.',
+    icon: ListChecks,
   },
   {
     key: 'review',
     label: 'Finalizar',
-    title: 'Sua clínica está pronta',
-    text: 'Ao abrir, criamos a agenda, os serviços e o código para compartilhar. Tudo isso continua editável no painel.',
+    title: 'Vamos conferir juntas?',
+    text: 'Seu espaço está quase pronto. Confira o resumo e toque em Editar se quiser ajustar alguma coisa.',
     icon: Check,
   },
 ] as const

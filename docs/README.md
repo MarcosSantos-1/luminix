@@ -31,6 +31,8 @@ e [ADR-004 — Ambiente local e integrações](decisions/ADR-004-AMBIENTE-LOCAL-
 [ADR-007 — Deploy web do cliente](decisions/ADR-007-DEPLOY-WEB-DO-CLIENTE-NA-VERCEL.md) e
 [ADR-014 — Onboarding v3 e mídia](decisions/ADR-014-ONBOARDING-V3-E-MIDIA.md).
 
+Regras e revisão final do onboarding: [ADR-017](decisions/ADR-017-REGRAS-E-REVISAO-DO-ONBOARDING.md).
+
 Pagamentos e cadastro Stripe incorporado: [ADR-016](decisions/ADR-016-STRIPE-CONNECT-INCORPORADO.md).
 Cobrança real e assinatura do Luminix ainda pendentes, conforme a decisão.
 

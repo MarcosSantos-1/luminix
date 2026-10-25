@@ -13,8 +13,6 @@ import {
   CatalogStep,
   ClinicStep,
   PaymentsStep,
-  RulesStep,
-  ReviewStep,
   HoursStep,
   ScheduleStep,
   ServicesStep,
@@ -26,6 +24,8 @@ import {
   syncProfessionalSchedules,
   validateClinicAndProfessionalHours,
 } from '@/components/onboarding/schedule-sync'
+import { hasDraftChanges } from '@/components/onboarding/review-persistence'
+import { RulesStep, ReviewStep } from '@/components/onboarding/rules-review'
 import { WelcomeStep } from '@/components/onboarding/welcome'
 import { useStaff } from '@/components/staff-provider'
 import { isCompletePhone } from '@/lib/phone'
@@ -83,6 +83,10 @@ function emptyPayload(name: string, email: string, ownerName: string): Payload {
     businessHours: defaultWeekSchedule(),
     professionalSchedules: [],
     preferences: {
+      bookingNoticeHours: 2,
+      bookingWindowDays: 60,
+      reschedulingHours: null,
+      clientInstructions: '',
       cancellationHours: 12,
       specialCancellationHours: 24,
       acceptInApp: false,
@@ -278,8 +282,15 @@ export default function OnboardingPage() {
   const router = useRouter()
   const [draft, setDraft] = useState<Draft | null>(null)
   const [payload, setPayload] = useState<Payload | null>(null)
+  const [editingFromReview, setEditingFromReview] = useState(false)
   const [step, setStep] = useState(0)
   const [availableThrough, setAvailableThrough] = useState(0)
+  useEffect(() => {
+    const heading = document.getElementById('onboarding-title')
+    heading?.focus({ preventScroll: true })
+    heading?.scrollIntoView({ block: 'start', behavior: 'instant' })
+  }, [step])
+
   const [stepError, setStepError] = useState('')
   const [stripeReady, setStripeReady] = useState(false)
   const [busy, setBusy] = useState(false)
@@ -496,6 +507,7 @@ export default function OnboardingPage() {
       setPayload(payloadToSave)
       setDraft(data.draft)
       setStep(nextStep)
+      if (nextKey === 'review') setEditingFromReview(false)
       setAvailableThrough((current) => Math.max(current, nextStep))
       setStepError('')
       if (isCompletePhone(payloadToSave.phone)) clearSignupPhone(user.uid)
@@ -508,7 +520,7 @@ export default function OnboardingPage() {
 
   async function complete() {
     const user = staff.user
-    if (!user || !draft || busy || uploadingMedia) return
+    if (!user || !payload || !draft || busy || uploadingMedia) return
     const problem = firstProblem(stepInfo.length - 2)
     if (problem) {
       setStep(problem.step)
@@ -518,13 +530,41 @@ export default function OnboardingPage() {
     }
     setBusy(true)
     try {
+      // The review may have been reached through the sidebar after an edit.
+      // Persist the exact reviewed payload before completing with its returned version.
+      const reviewed = payloadForApi(syncProfessionalSchedules(teamPayload(payload, 4)))
+      let completionVersion = draft.version
+      if (hasDraftChanges(reviewed, draft.payload)) {
+        const saved = await fetch(`/api/clinics/${clinic.id}/onboarding`, {
+          method: 'PUT',
+          headers: {
+            authorization: `Bearer ${await user.getIdToken()}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ version: draft.version, step: 'review', payload: reviewed }),
+          cache: 'no-store',
+          signal: AbortSignal.timeout(20_000),
+        })
+        if (!saved.ok) {
+          const message =
+            saved.status === 409
+              ? 'Este cadastro mudou em outra aba. Recarregue antes de concluir.'
+              : 'Não foi possível salvar seus últimos ajustes. Confira as etapas e tente novamente.'
+          setStepError(message)
+          notifyError(message)
+          return
+        }
+        const data: { draft: Draft } = await saved.json()
+        completionVersion = data.draft.version
+        setDraft(data.draft)
+      }
       const response = await fetch(`/api/clinics/${clinic.id}/onboarding/complete`, {
         method: 'POST',
         headers: {
           authorization: `Bearer ${await user.getIdToken()}`,
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ version: draft.version }),
+        body: JSON.stringify({ version: completionVersion }),
         cache: 'no-store',
         signal: AbortSignal.timeout(20_000),
       })
@@ -607,7 +647,9 @@ export default function OnboardingPage() {
           className="ob2-cta"
           fullWidth
           isDisabled={locked || stripeBlocked}
-          onPress={() => (last ? void complete() : void save(step + 1))}
+          onPress={() =>
+            last ? void complete() : void save(editingFromReview ? stepInfo.length - 1 : step + 1)
+          }
         >
           {uploadingMedia
             ? 'Enviando imagem…'
@@ -617,7 +659,9 @@ export default function OnboardingPage() {
                 : 'Salvando…'
               : last
                 ? 'Abrir minha clínica'
-                : 'Continuar'}
+                : editingFromReview
+                  ? 'Salvar e voltar ao resumo'
+                  : 'Continuar'}
           {busy ? <Spinner size="sm" /> : <ArrowRight size={18} />}
         </Button>
       </Tooltip.Trigger>
@@ -625,6 +669,7 @@ export default function OnboardingPage() {
     </Tooltip>
   )
   const updatePayload = (value: Payload) => {
+    if (busy) return
     setStepError('')
     setPayload(value)
   }
@@ -653,7 +698,16 @@ export default function OnboardingPage() {
       )}
       {step === 8 && <RulesStep {...stepProps} />}
       {step === 9 && (
-        <ReviewStep payload={ready} error={stepError} footer={footer} onEdit={navigateTo} />
+        <ReviewStep
+          payload={ready}
+          error={stepError}
+          footer={footer}
+          isDisabled={locked}
+          onEdit={(target) => {
+            setEditingFromReview(true)
+            navigateTo(target)
+          }}
+        />
       )}
     </OnboardingShell>
   )

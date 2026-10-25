@@ -138,6 +138,7 @@ describe('HTTP staff authorization using runtime role', () => {
     expect((await get('dual', `/clinics/${a}/settings`)).json()).toEqual({
       settings: { timezone: 'America/Sao_Paulo', locale: 'pt-BR', currency: 'BRL' },
       profile: null,
+      bookingRules: null,
     })
     expect(
       (await get('dual', `/clinics/${b}/settings`, { 'x-permission': 'settings:manage' }))

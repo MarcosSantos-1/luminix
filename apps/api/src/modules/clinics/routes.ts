@@ -124,6 +124,10 @@ type OnboardingPayload = {
   }[]
   preferences: {
     specialTreatmentsDismissed?: boolean
+    bookingNoticeHours?: number
+    bookingWindowDays?: number
+    reschedulingHours?: number | null
+    clientInstructions?: string
     cancellationHours: number
     specialCancellationHours: number
     acceptInApp: boolean
@@ -574,9 +578,13 @@ export async function clinicRoutes(
           await connection.query(
             `SELECT s.timezone, s.locale, s.currency,
                     p.owner_name, p.contact_email, p.contact_phone,
+                    rules.booking_notice_minutes, rules.booking_window_days,
+                    rules.cancellation_notice_minutes, rules.special_cancellation_notice_minutes,
+                    rules.rescheduling_notice_minutes, rules.client_instructions,
                     logo.small_object_key AS logo_key
                FROM luminix.clinic_settings s
                LEFT JOIN luminix.clinic_profiles p ON p.clinic_id = s.clinic_id
+               LEFT JOIN luminix.booking_policies rules ON rules.clinic_id = s.clinic_id
                LEFT JOIN luminix.media_assets logo
                  ON logo.clinic_id = p.clinic_id AND logo.id = p.logo_asset_id
               WHERE s.clinic_id = $1`,
@@ -590,6 +598,24 @@ export async function clinicRoutes(
             locale: settings.locale,
             currency: settings.currency,
           },
+          bookingRules:
+            settings.cancellation_notice_minutes == null
+              ? null
+              : {
+                  bookingNoticeHours:
+                    settings.booking_notice_minutes == null
+                      ? null
+                      : Number(settings.booking_notice_minutes) / 60,
+                  bookingWindowDays: settings.booking_window_days,
+                  cancellationHours: Number(settings.cancellation_notice_minutes) / 60,
+                  specialCancellationHours:
+                    Number(settings.special_cancellation_notice_minutes) / 60,
+                  reschedulingHours:
+                    settings.rescheduling_notice_minutes == null
+                      ? null
+                      : Number(settings.rescheduling_notice_minutes) / 60,
+                  clientInstructions: settings.client_instructions,
+                },
           profile: settings.owner_name
             ? {
                 ownerName: settings.owner_name,
@@ -893,6 +919,12 @@ export async function clinicRoutes(
           'packagePaymentMode',
         ],
         properties: {
+          bookingNoticeHours: { type: 'integer', minimum: 0, maximum: 168 },
+          bookingWindowDays: { type: 'integer', minimum: 7, maximum: 365 },
+          reschedulingHours: {
+            anyOf: [{ type: 'integer', minimum: 0, maximum: 336 }, { type: 'null' }],
+          },
+          clientInstructions: { type: 'string', maxLength: 500 },
           specialTreatmentsDismissed: { type: 'boolean' },
           cancellationHours: { type: 'integer', minimum: 0, maximum: 168 },
           specialCancellationHours: { type: 'integer', minimum: 0, maximum: 336 },

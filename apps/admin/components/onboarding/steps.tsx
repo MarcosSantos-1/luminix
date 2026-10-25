@@ -2118,190 +2118,36 @@ export function PaymentsStep({
         />
       ) : (
         <p className="ob2-copy">
-          Pacotes de sessões ficam limitados ao recebimento na clínica enquanto esta opção estiver
-          ativa. Você ajusta isso na próxima etapa.
+          Você combina o pagamento diretamente com a cliente, por Pix, maquininha ou link próprio.
         </p>
       )}
-      <StepEnd error={error} footer={footer} />
-    </div>
-  )
-}
-
-export function RulesStep({
-  payload,
-  setPayload,
-  error,
-  footer,
-}: {
-  payload: Payload
-  setPayload: (value: Payload) => void
-  error: string
-  footer: ReactNode
-}) {
-  const change = (patch: Partial<Payload['preferences']>) =>
-    setPayload({ ...payload, preferences: { ...payload.preferences, ...patch } })
-  const inApp = payload.preferences.acceptInApp
-  const packageMode = payload.preferences.packagePaymentMode
-  const packageChoices = [
-    {
-      id: 'clinic_only' as const,
-      title: 'Receber somente na clínica',
-      detail: 'Pacotes pagos presencialmente ou por link próprio',
-      icon: <Building2 size={22} />,
-      disabled: false,
-    },
-    {
-      id: 'in_app' as const,
-      title: 'Receber somente no app',
-      detail: 'Exige pagamentos no app e Stripe Connect ativo',
-      icon: <CreditCard size={22} />,
-      disabled: !inApp,
-    },
-    {
-      id: 'both' as const,
-      title: 'Aceitar das duas formas',
-      detail: 'Cliente escolhe na hora de fechar o pacote',
-      icon: <Banknote size={22} />,
-      disabled: !inApp,
-    },
-  ]
-
-  return (
-    <div className="ob2-stack">
-      <Card className="ob2-panel">
-        <Card.Content className="ob2-form">
-          <GlassSelect
-            label="Cancelamento padrão"
-            value={String(payload.preferences.cancellationHours)}
-            options={[4, 8, 12, 24, 48].map((hours) => ({
-              id: String(hours),
-              label: `${hours} horas antes`,
-            }))}
-            onChange={(value) => change({ cancellationHours: Number(value) })}
-          />
-          <GlassSelect
-            label="Procedimentos especiais"
-            value={String(payload.preferences.specialCancellationHours)}
-            options={[12, 24, 48, 72].map((hours) => ({
-              id: String(hours),
-              label: `${hours} horas antes`,
-            }))}
-            onChange={(value) => change({ specialCancellationHours: Number(value) })}
-          />
-        </Card.Content>
-      </Card>
-      <div className="ob2-stack ob2-package-choices">
-        <h2 className="ob2-section-title">Pacotes de sessões</h2>
-        <div className="ob2-grid ob2-grid-packages">
-          {packageChoices.map((option) => (
-            <ChoiceCard
-              key={option.id}
-              title={option.title}
-              detail={option.detail}
-              icon={option.icon}
-              selected={packageMode === option.id}
-              isDisabled={option.disabled}
-              onPress={() => change({ packagePaymentMode: option.id })}
+      {payload.preferences.acceptInApp ? (
+        <Card className="ob2-panel">
+          <Card.Content className="ob2-form">
+            <GlassSelect
+              label="Como os pacotes de sessões serão pagos?"
+              value={payload.preferences.packagePaymentMode}
+              options={[
+                { id: 'clinic_only', label: 'Diretamente com a clínica' },
+                { id: 'in_app', label: 'Pelo app' },
+                { id: 'both', label: 'A cliente pode escolher' },
+              ]}
+              onChange={(value) =>
+                setPayload({
+                  ...payload,
+                  preferences: {
+                    ...payload.preferences,
+                    packagePaymentMode: value as Payload['preferences']['packagePaymentMode'],
+                  },
+                })
+              }
             />
-          ))}
-        </div>
-        {!inApp ? (
-          <p className="ob2-copy">
-            Para liberar recebimento de pacotes no app, volte à etapa Pagamentos e escolha
-            pagamentos no app.
-          </p>
-        ) : null}
-      </div>
-      <StepEnd error={error} footer={footer} />
-    </div>
-  )
-}
-
-export function ReviewStep({
-  payload,
-  error,
-  footer,
-  onEdit,
-}: {
-  payload: Payload
-  error: string
-  footer: ReactNode
-  onEdit: (step: number) => void
-}) {
-  const facts = [
-    { label: 'Clínica', value: payload.name || 'Nome ainda não informado', step: 1 },
-    {
-      label: 'Contato',
-      value: `${payload.ownerName || 'Sem nome'} · ${formatBrPhone(payload.phone) || 'sem celular'}`,
-      step: 1,
-    },
-    {
-      label: 'Serviços',
-      value: `${payload.services.length} ${payload.services.length === 1 ? 'serviço' : 'serviços'} em ${payload.occupations.length} ${payload.occupations.length === 1 ? 'categoria' : 'categorias'}`,
-      step: 3,
-    },
-    {
-      label: 'Equipe',
-      value:
-        payload.teamMode === 'solo'
-          ? 'Somente você'
-          : `${payload.professionals.length} ${payload.professionals.length === 1 ? 'profissional' : 'profissionais'}`,
-      step: 4,
-    },
-    {
-      label: 'Agenda',
-      value: `${payload.businessHours.filter((day) => day.enabled).length} dias por semana`,
-      step: 6,
-    },
-    {
-      label: 'Cancelamento',
-      value: `${payload.preferences.cancellationHours}h no padrão e ${payload.preferences.specialCancellationHours}h nos especiais`,
-      step: 8,
-    },
-    {
-      label: 'Pagamento',
-      value: payload.preferences.acceptInApp
-        ? 'Interesse em receber no app'
-        : 'Recebimento fora do app',
-      step: 7,
-    },
-    {
-      label: 'Pacotes',
-      value:
-        payload.preferences.packagePaymentMode === 'clinic_only'
-          ? 'Somente na clínica'
-          : payload.preferences.packagePaymentMode === 'in_app'
-            ? 'Somente no app'
-            : 'Clínica ou app',
-      step: 8,
-    },
-    {
-      label: 'Endereço',
-      value: payload.clinic.city
-        ? `${[payload.clinic.addressLine, payload.clinic.addressNumber].filter(Boolean).join(', ') || 'A definir'}, ${payload.clinic.city}/${payload.clinic.state || '—'}`
-        : 'Pode completar depois',
-      step: 5,
-    },
-  ]
-  return (
-    <div className="ob2-stack">
-      <p className="ob2-copy">
-        Confira o que vai valer no primeiro dia. Se algo estiver errado, volte pela seta — o
-        rascunho continua salvo.
-      </p>
-      {facts.map((fact) => (
-        <Card className="ob2-panel" key={fact.label}>
-          <Card.Content className="ob2-fact">
-            <div className="ob2-fact-heading">
-              <span>{fact.label}</span>
-              <Button className="ob2-quiet" variant="ghost" onPress={() => onEdit(fact.step)}>
-                Editar
-              </Button>
-            </div>
-            <strong>{fact.value}</strong>
+            <p className="ob2-copy">
+              Esta escolha define a forma de recebimento. Nenhum pacote é vendido ou cobrado agora.
+            </p>
           </Card.Content>
         </Card>
-      ))}
+      ) : null}
       <StepEnd error={error} footer={footer} />
     </div>
   )
