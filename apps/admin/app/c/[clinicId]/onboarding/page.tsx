@@ -83,11 +83,11 @@ function emptyPayload(name: string, email: string, ownerName: string): Payload {
     businessHours: defaultWeekSchedule(),
     professionalSchedules: [],
     preferences: {
-      bookingNoticeHours: 2,
-      bookingWindowDays: 60,
+      bookingNoticeHours: 1,
+      bookingWindowDays: 30,
       reschedulingHours: null,
       clientInstructions: '',
-      cancellationHours: 12,
+      cancellationHours: 4,
       specialCancellationHours: 24,
       acceptInApp: false,
       packagePaymentMode: 'clinic_only',
@@ -140,6 +140,28 @@ function normalizeProfessional(person: Professional, services: Service[]): Profe
   }
 }
 
+function withRuleDefaults(
+  saved: Partial<Payload['preferences']> | undefined,
+  fallback: Payload['preferences'],
+): Payload['preferences'] {
+  const oldSuggestion =
+    (saved?.bookingNoticeHours ?? 2) === 2 &&
+    (saved?.bookingWindowDays ?? 60) === 60 &&
+    (saved?.cancellationHours ?? 12) === 12 &&
+    (saved?.specialCancellationHours ?? 24) === 24 &&
+    (saved?.reschedulingHours ?? null) === null
+  if (!oldSuggestion) return { ...fallback, ...(saved ?? {}) }
+  return {
+    ...fallback,
+    ...(saved ?? {}),
+    bookingNoticeHours: 1,
+    bookingWindowDays: 30,
+    cancellationHours: 4,
+    specialCancellationHours: 24,
+    reschedulingHours: null,
+  }
+}
+
 function normalizePayload(value: Partial<Payload>, fallback: Payload): Payload {
   const services = (value.services ?? []).map((service) => normalizeService(service))
   const clinicAudience = value.clinic?.defaultAudience
@@ -161,7 +183,7 @@ function normalizePayload(value: Partial<Payload>, fallback: Payload): Payload {
             }
           : undefined,
     },
-    preferences: { ...fallback.preferences, ...(value.preferences ?? {}) },
+    preferences: withRuleDefaults(value.preferences, fallback.preferences),
     businessHours:
       value.businessHours?.length === 7
         ? value.businessHours.map((day) => ({ ...day, breaks: day.breaks ?? [] }))
@@ -293,6 +315,8 @@ export default function OnboardingPage() {
 
   const [stepError, setStepError] = useState('')
   const [stripeReady, setStripeReady] = useState(false)
+  const [stripeChecked, setStripeChecked] = useState(false)
+  const [stripeSettled, setStripeSettled] = useState(false)
   const [busy, setBusy] = useState(false)
   const [uploadingMedia, setUploadingMedia] = useState(false)
   const [loadError, setLoadError] = useState('')
@@ -408,7 +432,13 @@ export default function OnboardingPage() {
         return 'Use a sigla do estado com duas letras (ex.: SP).'
     }
     if (stepInfo[targetStep]?.key === 'hours') return validateClinicAndProfessionalHours(payload)
-    if (stepInfo[targetStep]?.key === 'payments' && payload.preferences.acceptInApp && !stripeReady)
+    if (
+      stepInfo[targetStep]?.key === 'payments' &&
+      payload.preferences.acceptInApp &&
+      stripeChecked &&
+      !stripeReady &&
+      !stripeSettled
+    )
       return stripeRequiredMessage
     if (stepInfo[targetStep]?.key === 'rules' && !payload.preferences.acceptInApp) {
       if (payload.preferences.packagePaymentMode !== 'clinic_only')
@@ -635,7 +665,9 @@ export default function OnboardingPage() {
 
   const last = step === stepInfo.length - 1
   const locked = busy || uploadingMedia
-  const stripeBlocked = step === 7 && ready.preferences.acceptInApp && !stripeReady
+  const stripePending = step === 7 && ready.preferences.acceptInApp && !stripeChecked
+  const stripeBlocked =
+    step === 7 && ready.preferences.acceptInApp && stripeChecked && !stripeReady && !stripeSettled
   const footer: ReactNode = (
     <Tooltip isDisabled={!stripeBlocked}>
       <Tooltip.Trigger
@@ -646,7 +678,7 @@ export default function OnboardingPage() {
         <Button
           className="ob2-cta"
           fullWidth
-          isDisabled={locked || stripeBlocked}
+          isDisabled={locked || stripeBlocked || stripePending}
           onPress={() =>
             last ? void complete() : void save(editingFromReview ? stepInfo.length - 1 : step + 1)
           }
@@ -693,6 +725,12 @@ export default function OnboardingPage() {
         <PaymentsStep
           clinicId={clinic.share_code || clinic.id}
           onReadyChange={setStripeReady}
+          onSettledChange={(settled) => {
+            setStripeChecked(true)
+            setStripeSettled(settled)
+            if (settled)
+              setStepError((current) => (current === stripeRequiredMessage ? '' : current))
+          }}
           {...stepProps}
         />
       )}

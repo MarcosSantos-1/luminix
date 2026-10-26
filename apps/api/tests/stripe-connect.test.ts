@@ -4,6 +4,7 @@ import { buildApp } from '../src/app.js'
 import { applyMigrations, type SqlConnection } from '../src/shared/database/migrations.js'
 import {
   accountStatus,
+  connectReady,
   createConnectProvider,
   type ConnectProvider,
 } from '../src/modules/payments/stripe-connect.js'
@@ -209,12 +210,50 @@ describe('Stripe Connect status and configuration', () => {
     } as unknown as Stripe.V2.Core.Account
     expect(accountStatus(account)).toMatchObject({ state: 'restricted', requirementsDue: 1 })
     account.configuration!.merchant!.capabilities!.stripe_balance!.payouts!.status = 'active'
-    expect(accountStatus(account)).toMatchObject({ state: 'active' })
+    expect(accountStatus(account)).toMatchObject({ state: 'active', requirementsDue: 1 })
+    expect(connectReady(accountStatus(account))).toBe(false)
     expect(accountStatus({ ...account, closed: true })).toMatchObject({
       state: 'restricted',
       chargesEnabled: false,
       payoutsEnabled: false,
     })
+  })
+  it('lets a test account continue when Stripe is reviewing and asks for nothing', () => {
+    const review = {
+      status: 'pending',
+      status_details: [{ code: 'requirements_pending_verification', resolution: 'no_resolution' }],
+    }
+    const account = {
+      livemode: false,
+      configuration: {
+        merchant: {
+          capabilities: {
+            card_payments: review,
+            stripe_balance: { payouts: review },
+          },
+        },
+      },
+      requirements: {
+        entries: [
+          {
+            description: 'identity.individual.political_exposure',
+            minimum_deadline: { status: 'past_due' },
+            awaiting_action_from: 'stripe',
+          },
+        ],
+      },
+    } as unknown as Stripe.V2.Core.Account
+    const status = accountStatus(account)
+    expect(status).toMatchObject({
+      state: 'reviewing',
+      chargesEnabled: false,
+      payoutsEnabled: false,
+      requirementsDue: 0,
+      testMode: true,
+    })
+    expect(connectReady(status)).toBe(true)
+    expect(connectReady({ ...status, testMode: false })).toBe(false)
+    expect(connectReady({ ...status, requirementsDue: 1 })).toBe(false)
   })
   it('refuses live or missing keys even in production during preparation', () => {
     expect(() =>

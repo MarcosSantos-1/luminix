@@ -1217,6 +1217,32 @@
   justify-self: start;
 }
 
+.ob2-pay-rule {
+  height: 1px;
+  margin: 2px 0;
+  background: color-mix(in srgb, #ffc2dc 78%, transparent);
+}
+
+.ob2[data-surface='solid'] .ob2-pay-rule {
+  background: color-mix(in srgb, var(--space-accent, #e72875) 32%, transparent);
+}
+
+.ob2-pay-note {
+  display: grid;
+  gap: 10px;
+  justify-items: start;
+}
+
+.ob2-pay-note .ob2-copy {
+  margin: 0;
+}
+
+.ob2 .button.ob2-pay-escape {
+  width: auto;
+  min-height: 44px;
+  padding-inline: 16px;
+}
+
 .ob2-hours-card .ob2-day:last-child {
   border-bottom: 0;
   padding-bottom: 4px;

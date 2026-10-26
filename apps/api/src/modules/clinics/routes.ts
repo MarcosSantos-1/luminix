@@ -1,5 +1,9 @@
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify'
-import { createConnectProvider, type ConnectProvider } from '../payments/stripe-connect.js'
+import {
+  connectReady,
+  createConnectProvider,
+  type ConnectProvider,
+} from '../payments/stripe-connect.js'
 import type { SqlConnection } from '../../shared/database/migrations.js'
 import { withClinicTransaction, type TenantPool } from '../../shared/tenant/clinic-transaction.js'
 import type { TenantContext } from '../../shared/tenant/tenant-context.js'
@@ -266,7 +270,7 @@ function emptyPayload(clinicName: string): OnboardingPayload {
     })),
     professionalSchedules: [],
     preferences: {
-      cancellationHours: 12,
+      cancellationHours: 4,
       specialCancellationHours: 24,
       acceptInApp: false,
       packagePaymentMode: 'clinic_only',
@@ -379,13 +383,7 @@ export async function clinicRoutes(
         return row?.account_id ? String(row.account_id) : null
       })
       const status = accountId ? await connectProvider.status(accountId) : null
-      if (
-        !status ||
-        status.state !== 'active' ||
-        !status.chargesEnabled ||
-        !status.payoutsEnabled ||
-        status.requirementsDue !== 0
-      )
+      if (!status || !connectReady(status))
         throw Object.assign(new Error('Stripe onboarding incomplete'), { statusCode: 409 })
     } catch (error) {
       if ([403, 409].includes((error as { statusCode?: number }).statusCode ?? 0)) throw error

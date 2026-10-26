@@ -547,6 +547,13 @@ it('requires current Stripe readiness for advancement and completion, with an ou
     { ...readyStatus, chargesEnabled: false },
     { ...readyStatus, payoutsEnabled: false },
     { ...readyStatus, requirementsDue: 1 },
+    {
+      state: 'reviewing' as const,
+      chargesEnabled: false,
+      payoutsEnabled: false,
+      requirementsDue: 0,
+      testMode: false,
+    },
   ]) {
     connectStatus.mockResolvedValueOnce(status)
     expect((await save('rules')).json().error).toBe('Stripe onboarding incomplete')
@@ -555,6 +562,15 @@ it('requires current Stripe readiness for advancement and completion, with an ou
   const unavailable = await save('review')
   expect(unavailable.statusCode).toBe(503)
   expect(unavailable.json().error).toBe('Stripe verification unavailable')
+  connectStatus.mockResolvedValueOnce({
+    state: 'reviewing',
+    chargesEnabled: false,
+    payoutsEnabled: false,
+    requirementsDue: 0,
+    testMode: true,
+  })
+  expect((await save('rules')).statusCode).toBe(200)
+  version++
   expect((await save('rules')).statusCode).toBe(200)
   version++
   connectStatus.mockResolvedValueOnce({ ...readyStatus, payoutsEnabled: false })

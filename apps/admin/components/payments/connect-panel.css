@@ -33,6 +33,7 @@
 .connect-prep,
 .connect-status,
 .connect-note,
+.connect-timing,
 .connect-gate {
   border-radius: 20px;
   border: 1px solid rgba(255, 255, 255, 0.32);
@@ -45,6 +46,7 @@
 .connect-prep,
 .connect-status,
 .connect-note,
+.connect-timing,
 .connect-gate {
   animation: connect-panel-enter 180ms ease-out both;
 }
@@ -81,7 +83,7 @@
 
 .connect-prep-head h3 {
   flex: 1;
-  font-size: 18px;
+  min-width: 0;
 }
 
 .connect-step h3 {
@@ -144,6 +146,115 @@
   gap: 12px;
 }
 
+.connect-prep-heading {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+}
+
+.connect-prep-toggle {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.connect-prep-toggle-copy {
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+}
+
+.connect-prep-title {
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 1.35;
+}
+
+.connect-prep-hint {
+  font-size: 14px;
+  font-weight: 560;
+  line-height: 1.4;
+  opacity: 0.86;
+}
+
+.connect-prep-chevron {
+  margin-left: auto;
+  flex: 0 0 auto;
+  transition: transform 180ms ease;
+}
+
+.connect-prep-chevron.is-open {
+  transform: rotate(180deg);
+}
+
+.connect-prep.is-collapsed {
+  padding-bottom: 14px;
+}
+
+.connect-title-block {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+
+.connect-lead,
+.connect-plain {
+  margin: 0;
+  max-width: 62ch;
+  font-size: 15px;
+  font-weight: 560;
+  line-height: 1.45;
+}
+
+.connect-loading {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 88px;
+  font-size: 16px;
+  line-height: 1.45;
+}
+
+.connect-prep-body {
+  display: grid;
+  gap: 12px;
+}
+
+.connect-prep-body > p,
+.connect-faq-list {
+  margin: 0;
+}
+
+.connect-faq-list {
+  list-style: none;
+  padding: 0;
+  display: grid;
+  gap: 12px;
+}
+
+.connect-faq-list li {
+  display: grid;
+  gap: 2px;
+}
+
+.connect-faq-list strong {
+  font-size: 15px;
+  line-height: 1.35;
+}
+
+.connect-faq-list span {
+  font-size: 15px;
+  line-height: 1.45;
+}
+
 .connect-prep-list {
   list-style: none;
   margin: 8px 0 0;
@@ -180,6 +291,19 @@
   box-shadow: 0 8px 18px color-mix(in srgb, var(--space-accent, #e72875) 42%, transparent);
 }
 
+.connect-prep p.connect-must {
+  margin-top: 8px;
+  padding: 12px 14px;
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--space-accent, #e72875) 22%, transparent);
+  border: 1px solid color-mix(in srgb, var(--space-accent, #e72875) 55%, #fff);
+}
+
+.connect-must strong {
+  display: block;
+  margin-bottom: 4px;
+}
+
 .connect-callout {
   margin-top: 10px;
   padding: 14px 16px;
@@ -189,14 +313,86 @@
 }
 
 .connect-substeps {
-  margin: 10px 0;
-  padding-left: 1.35rem;
+  list-style: none;
+  margin: 0;
+  padding: 0;
   display: grid;
-  gap: 8px;
+  gap: 10px;
 }
 
-.connect-substeps li::marker {
+.connect-substeps li {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+}
+
+.connect-substeps li::before {
+  content: '→';
   font-weight: 800;
+  line-height: 1.55;
+  color: var(--space-highlight, #ff8dba);
+}
+
+.connect-panel .connect-timing {
+  display: grid;
+  gap: 12px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.connect-timing-head h3 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 1.3;
+}
+
+.connect-timing-head p {
+  margin: 4px 0 0;
+  max-width: 62ch;
+  font-size: 15px;
+  line-height: 1.45;
+}
+
+.connect-timing-grid {
+  display: grid;
+  gap: 12px;
+}
+
+.connect-when {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  min-width: 0;
+  padding: 16px;
+  border-radius: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.32);
+  background: rgba(255, 255, 255, 0.1);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.28);
+}
+
+.connect-when-time {
+  margin: 6px 0 0;
+  font-size: 22px;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  line-height: 1.1;
+}
+
+.connect-when h4 {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 1.3;
+}
+
+.connect-when p:not(.connect-when-time) {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.4;
 }
 
 .connect-prep-foot {
@@ -349,9 +545,27 @@
   min-height: 100%;
 }
 
+@container connect-flow (min-width: 560px) {
+  .ob2 .connect-panel--flow .connect-timing-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
 @container connect-flow (min-width: 760px) {
   .ob2 .connect-panel--flow .connect-steps {
     grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .ob2 .connect-panel--flow .connect-timing-grid {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+  }
+
+  .ob2 .connect-panel--flow .connect-when:nth-child(-n + 3) {
+    grid-column: span 2;
+  }
+
+  .ob2 .connect-panel--flow .connect-when:nth-child(n + 4) {
+    grid-column: span 3;
   }
 }
 
@@ -360,11 +574,19 @@
 }
 
 .ob2 .connect-panel--flow .connect-step,
+.ob2 .connect-panel--flow .connect-when,
 .ob2 .connect-panel--flow .connect-prep,
 .ob2 .connect-panel--flow .connect-status,
 .ob2 .connect-panel--flow .connect-note,
 .ob2 .connect-panel--flow .connect-gate {
   backdrop-filter: blur(10px) saturate(120%);
+}
+
+.ob2 .connect-panel--flow .connect-timing {
+  backdrop-filter: none;
+  background: transparent;
+  border: 0;
+  box-shadow: none;
 }
 
 .ob2 .connect-panel--flow .connect-prep {
@@ -376,7 +598,7 @@
   backdrop-filter: blur(10px) saturate(120%);
 }
 
-.ob2 .connect-panel--flow .connect-prep-head h3 {
+.ob2 .connect-panel--flow .connect-prep-title {
   font-size: 20px;
 }
 
@@ -428,6 +650,15 @@
 }
 
 .ob2[data-surface='solid'] .connect-panel--flow .connect-step,
+.ob2[data-surface='solid'] .connect-panel--flow .connect-substeps li::before {
+  color: var(--space-accent, #a1004d);
+}
+
+.ob2[data-surface='solid'] .connect-panel--flow .connect-must {
+  background: color-mix(in srgb, var(--space-accent, #e72875) 10%, #fff);
+  border-color: color-mix(in srgb, var(--space-accent, #e72875) 35%, #fff);
+}
+
 .ob2[data-surface='solid'] .connect-panel--flow .connect-prep,
 .ob2[data-surface='solid'] .connect-panel--flow .connect-callout {
   background: #fff;
@@ -463,6 +694,21 @@
   border-color: #fde68a;
 }
 
+.ob2[data-surface='solid'] .connect-panel--flow .connect-timing {
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+  color: inherit;
+}
+
+.ob2[data-surface='solid'] .connect-panel--flow .connect-when {
+  background: #fff;
+  color: var(--space-deep, #34101f);
+  border-color: color-mix(in srgb, var(--space-accent, #e72875) 28%, #fff);
+  box-shadow: 0 10px 24px rgba(80, 16, 40, 0.06);
+  backdrop-filter: none;
+}
+
 .ob2[data-surface='solid'] .connect-panel--flow .connect-note.is-info {
   background: #eff6ff;
   color: #1e3a8a;
@@ -487,8 +733,14 @@
 
 @media (min-width: 840px) {
   .connect-steps,
-  .connect-status-grid {
+  .connect-status-grid,
+  .connect-timing-grid {
     grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .connect-panel:not(.connect-panel--flow) .connect-when:nth-child(4),
+  .connect-panel:not(.connect-panel--flow) .connect-when:nth-child(5) {
+    grid-column: span 1;
   }
 
   .connect-status-grid {
@@ -498,6 +750,69 @@
   .connect-span {
     grid-column: 1 / -1;
   }
+}
+
+.ob2 .connect-panel--flow .connect-status.is-ok,
+.ob2 .connect-panel--flow .connect-status.is-wait,
+.ob2 .connect-panel--flow .connect-note.is-info,
+.ob2 .connect-panel--flow .connect-note.is-warn,
+.ob2[data-surface='solid'] .connect-panel--flow .connect-status.is-ok,
+.ob2[data-surface='solid'] .connect-panel--flow .connect-status.is-wait,
+.ob2[data-surface='solid'] .connect-panel--flow .connect-note.is-info,
+.ob2[data-surface='solid'] .connect-panel--flow .connect-note.is-warn {
+  background: rgba(255, 255, 255, 0.1);
+  color: inherit;
+  border-color: rgba(255, 255, 255, 0.32);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.28);
+}
+
+.ob2[data-surface='solid'] .connect-panel--flow .connect-status.is-ok,
+.ob2[data-surface='solid'] .connect-panel--flow .connect-status.is-wait,
+.ob2[data-surface='solid'] .connect-panel--flow .connect-note.is-info,
+.ob2[data-surface='solid'] .connect-panel--flow .connect-note.is-warn {
+  background: #fff;
+  color: var(--space-deep, #34101f);
+  border-color: color-mix(in srgb, var(--space-accent, #e72875) 28%, #fff);
+  box-shadow: 0 10px 24px rgba(80, 16, 40, 0.06);
+}
+
+.ob2 .connect-panel--flow .connect-rule {
+  height: 1px;
+  margin: 2px 0 4px;
+  background: color-mix(in srgb, #ffc2dc 78%, transparent);
+}
+
+.ob2[data-surface='solid'] .connect-panel--flow .connect-rule {
+  background: color-mix(in srgb, var(--space-accent, #e72875) 32%, transparent);
+}
+
+.ob2 .connect-panel--flow .connect-status-pill.is-ready,
+.ob2[data-surface='solid'] .connect-panel--flow .connect-status-pill.is-ready {
+  background: #d1fae5;
+  color: #065f46;
+}
+
+.ob2 .connect-panel--flow .connect-status-pill.is-pending,
+.ob2[data-surface='solid'] .connect-panel--flow .connect-status-pill.is-pending {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.ob2 .connect-panel--flow .connect-status-pill.is-alert,
+.ob2[data-surface='solid'] .connect-panel--flow .connect-status-pill.is-alert {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.ob2 .connect-panel--flow .button.connect-refresh,
+.ob2[data-surface='solid'] .connect-panel--flow .button.connect-refresh {
+  border: 0;
+  color: #fff;
+  background-color: #2563eb;
+  --button-fg: #fff;
+  --button-bg: #2563eb;
+  --button-bg-hover: #1d4ed8;
+  --button-bg-pressed: #1e40af;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -515,6 +830,7 @@
   .connect-callout,
   .connect-status,
   .connect-note,
+  .connect-timing,
   .connect-gate {
     backdrop-filter: none;
   }

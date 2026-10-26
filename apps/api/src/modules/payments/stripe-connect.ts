@@ -3,7 +3,7 @@ import { createStripeClient } from '../../shared/integrations/stripe/client.js'
 
 export type ConnectPurpose = 'onboarding' | 'management' | 'payments' | 'payouts'
 export type ConnectStatus = {
-  state: 'not_started' | 'pending' | 'active' | 'restricted'
+  state: 'not_started' | 'pending' | 'active' | 'restricted' | 'reviewing'
   chargesEnabled: boolean
   payoutsEnabled: boolean
   requirementsDue: number
@@ -16,24 +16,58 @@ export interface ConnectProvider {
   session(accountId: string, purpose: ConnectPurpose): Promise<string>
 }
 
+function openStripeReview(details: Array<{ code: string; resolution: string }>): boolean {
+  return (
+    details.length > 0 &&
+    details.every(
+      (detail) =>
+        detail.code === 'requirements_pending_verification' && detail.resolution === 'no_resolution',
+    )
+  )
+}
+
 export function accountStatus(account: Stripe.V2.Core.Account): ConnectStatus {
   const capabilities = account.configuration?.merchant?.capabilities
-  const charges = capabilities?.card_payments?.status
-  const payouts = capabilities?.stripe_balance?.payouts?.status
-  const due = (account.requirements?.entries ?? []).filter((entry) =>
-    ['currently_due', 'past_due'].includes(entry.minimum_deadline.status),
-  )
+  const cardPayments = capabilities?.card_payments
+  const payoutsCapability = capabilities?.stripe_balance?.payouts
+  const charges = cardPayments?.status
+  const payouts = payoutsCapability?.status
+  const due = (account.requirements?.entries ?? []).filter((entry) => {
+    const deadline = entry.minimum_deadline?.status
+    // A Stripe-owned review is not a form field the clinic can submit.
+    return (
+      (deadline === 'currently_due' || deadline === 'past_due') &&
+      entry.awaiting_action_from !== 'stripe'
+    )
+  })
   const active = !account.closed && charges === 'active' && payouts === 'active'
   const restricted =
     account.closed ||
     [charges, payouts].some((status) => status === 'restricted' || status === 'unsupported')
+  const reviewDetails = [
+    ...(charges === 'active' ? [] : (cardPayments?.status_details ?? [])),
+    ...(payouts === 'active' ? [] : (payoutsCapability?.status_details ?? [])),
+  ]
+  const reviewing =
+    !active &&
+    !restricted &&
+    due.length === 0 &&
+    [charges, payouts].every((status) => status === 'active' || status === 'pending') &&
+    openStripeReview(reviewDetails)
   return {
-    state: active ? 'active' : restricted ? 'restricted' : 'pending',
+    state: active ? 'active' : restricted ? 'restricted' : reviewing ? 'reviewing' : 'pending',
     chargesEnabled: !account.closed && charges === 'active',
     payoutsEnabled: !account.closed && payouts === 'active',
     requirementsDue: due.length,
     testMode: !account.livemode,
   }
+}
+
+export function connectReady(status: ConnectStatus): boolean {
+  if (status.requirementsDue !== 0) return false
+  if (status.state === 'active' && status.chargesEnabled && status.payoutsEnabled) return true
+  // Live onboarding is unavailable. A test review with nothing left to submit does not finish.
+  return status.testMode && status.state === 'reviewing'
 }
 
 export function createConnectProvider(environment = process.env): ConnectProvider {

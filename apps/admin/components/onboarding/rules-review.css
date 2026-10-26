@@ -17,8 +17,52 @@
   line-height: 1.4;
 }
 .ob2-rules .ob2-field .label {
+  display: flex;
+  width: 100%;
   font-size: 16px;
   line-height: 1.5;
+}
+.ob2-rule-label {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+  width: 100%;
+}
+.ob2-rule-help {
+  width: 32px;
+  height: 32px;
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  margin-top: -4px;
+  padding: 0;
+  border: 0;
+  border-radius: 999px;
+  background: rgb(255 255 255 / 16%);
+  color: inherit;
+  cursor: pointer;
+}
+.ob2-rule-help:focus-visible {
+  outline: 2px solid currentColor;
+  outline-offset: 3px;
+}
+.ob2[data-surface='solid'] .ob2-rule-help {
+  background: color-mix(in srgb, var(--space-accent, #e72875) 12%, #fff);
+  color: var(--space-accent, #a1004d);
+}
+.ob2-dialog-container.ob2-rule-dialog {
+  width: min(560px, calc(100vw - 32px)) !important;
+  max-width: 560px;
+}
+.ob2-rule-dialog-copy {
+  display: grid;
+  gap: 12px;
+}
+.ob2-rule-dialog-copy p {
+  margin: 0;
+  font-size: 16px;
+  line-height: 1.55;
 }
 .ob2-rule-example {
   display: flex;

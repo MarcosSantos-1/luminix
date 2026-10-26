@@ -1,6 +1,7 @@
-import { Accordion, Button, Card, Description, Label, TextArea, TextField } from '@heroui/react'
+import { Accordion, Button, Card } from '@heroui/react'
 import {
   CalendarDays,
+  CircleHelp,
   Clock3,
   CreditCard,
   HeartHandshake,
@@ -11,9 +12,9 @@ import {
   Users,
 } from 'lucide-react'
 import Image from 'next/image'
-import type { ReactNode } from 'react'
+import { useState, type ReactNode } from 'react'
 import { dayNames, stepInfo, type Payload } from './model'
-import { GlassSelect, StepEnd } from './ui'
+import { BlurDialog, GlassSelect, StepEnd } from './ui'
 import { formatBrPhone } from '@/lib/phone'
 import './rules-review.css'
 
@@ -26,6 +27,42 @@ function hourOptions(values: number[], current: number) {
   return [...new Set([...values, current])]
     .sort((a, b) => a - b)
     .map((value) => ({ id: String(value), label: hours(value) }))
+}
+
+function sameDayHour(hoursBefore: number) {
+  if (hoursBefore <= 0) return 'até as 14h'
+  if (hoursBefore < 14) return `até as ${14 - hoursBefore}h do mesmo dia`
+  if (hoursBefore === 24) return 'até as 14h do dia anterior'
+  if (hoursBefore === 48) return 'até as 14h de dois dias antes'
+  if (hoursBefore < 48) return `com ${hoursBefore} horas de antecedência`
+  return `com ${Math.round(hoursBefore / 24)} dias de antecedência`
+}
+
+function RuleMark({ label, onOpen }: { label: string; onOpen: () => void }) {
+  return (
+    <button
+      type="button"
+      className="ob2-rule-help"
+      aria-label={`Entender: ${label}`}
+      onPointerDown={(event) => event.preventDefault()}
+      onClick={(event) => {
+        event.preventDefault()
+        event.stopPropagation()
+        onOpen()
+      }}
+    >
+      <CircleHelp size={18} aria-hidden />
+    </button>
+  )
+}
+
+function fieldLabel(text: string, onOpen: () => void) {
+  return (
+    <span className="ob2-rule-label">
+      <span>{text}</span>
+      <RuleMark label={text} onOpen={onOpen} />
+    </span>
+  )
 }
 
 function Help({ items }: { items: { title: string; text: string }[] }) {
@@ -62,11 +99,71 @@ export function RulesStep({
   const preferences = payload.preferences
   const change = (patch: Partial<Payload['preferences']>) =>
     setPayload({ ...payload, preferences: { ...preferences, ...patch } })
-  const notice = preferences.bookingNoticeHours ?? 2
-  const windowDays = preferences.bookingWindowDays ?? 60
+  const notice = preferences.bookingNoticeHours ?? 1
+  const windowDays = preferences.bookingWindowDays ?? 30
   const special = payload.services.filter((service) => service.bookingMode === 'manual_release')
   const overrides = payload.services.filter((service) => service.cancellationHours !== null)
   const rescheduling = preferences.reschedulingHours
+  const [help, setHelp] = useState<
+    'notice' | 'window' | 'cancel' | 'special' | 'reschedule' | null
+  >(null)
+  const helpCopy = {
+    notice: {
+      title: 'Com quanto tempo de antecedência a cliente pode marcar?',
+      paragraphs: [
+        'É o tempo mínimo entre o momento da reserva e o horário do atendimento. Antes disso, o horário nem aparece para ela.',
+        notice
+          ? `Do jeito que está agora, um atendimento às 14h só pode ser marcado ${sameDayHour(notice)}.`
+          : 'Do jeito que está agora, ela pode marcar até a hora do atendimento, se ainda houver vaga.',
+        'Um prazo curto, como 1 hora, enche mais a agenda do mesmo dia e deixa pouco tempo para você se preparar. Um prazo longo, como 24 ou 48 horas, organiza melhor o dia, mas impede a reserva de última hora.',
+        'Isso não cobra nada e não bloqueia a sua agenda. Só decide a partir de quando a cliente consegue escolher aquele horário.',
+      ],
+    },
+    window: {
+      title: 'Até quantos dias à frente ela pode escolher um horário?',
+      paragraphs: [
+        'É o quanto da agenda fica aberto para reserva. Os dias depois desse limite ainda não aparecem para a cliente.',
+        `Do jeito que está agora, ela consegue marcar só nos próximos ${windowDays} dias. No dia seguinte, a janela anda um dia para frente.`,
+        '7 ou 15 dias deixam você no controle de perto: dá para ajustar a semana sem já ter prometido o mês inteiro. 30 dias é o meio-termo. 60 dias atendem quem planeja com antecedência, mas você se compromete mais cedo.',
+        'A agenda não fica travada para sempre. Quando um dia entra nessa janela, ele passa a aparecer.',
+      ],
+    },
+    cancel: {
+      title: 'Até quando a cliente pode cancelar?',
+      paragraphs: [
+        'É o limite para ela desistir pelo app. Depois desse horário, o cancelamento sozinho não é mais aceito.',
+        `Do jeito que está agora, um atendimento às 14h pode ser cancelado ${sameDayHour(preferences.cancellationHours)}.`,
+        'Até o horário do atendimento deixa a vaga vazia em cima da hora. 4 horas dão um intervalo para tentar encaixar outra pessoa. 24 ou 48 horas protegem mais a sua agenda e pedem que a cliente avise bem antes.',
+        'Não gera multa, cobrança nem desconto de sessão. Se algum serviço tiver um prazo próprio, esse prazo vale no lugar deste.',
+        overrides.length
+          ? `${overrides.length} serviço(s) já têm prazo próprio e não seguem esta regra: ${overrides.map((service) => service.name).join(' · ')}.`
+          : 'Nenhum serviço está com prazo próprio. Esta regra vale para os atendimentos comuns.',
+      ],
+    },
+    special: {
+      title: 'E nos atendimentos com aparelhos especiais?',
+      paragraphs: [
+        'Alguns atendimentos usam aparelho ou sala que você prepara antes. Por isso o cancelamento pode ser mais longo do que o dos outros serviços.',
+        `Do jeito que está agora, esses atendimentos às 14h só podem ser cancelados ${sameDayHour(preferences.specialCancellationHours)}.`,
+        'Vale só para os serviços especiais. Os demais continuam no prazo geral de cancelamento.',
+        special.length
+          ? `Serviços nesta regra: ${special.map((service) => service.name).join(' · ')}.`
+          : 'Nenhum serviço especial está marcado agora.',
+        'Também não gera multa. Só evita desmarcar em cima da hora um atendimento que exige preparo.',
+      ],
+    },
+    reschedule: {
+      title: 'Para remarcar, qual prazo você prefere?',
+      paragraphs: [
+        'Remarcar é trocar o horário, não desistir. O prazo diz até quando a cliente ainda pode fazer essa troca sozinha.',
+        rescheduling == null
+          ? '“O mesmo prazo do cancelamento” acompanha cada atendimento. Se um serviço cancela com 4 horas, remarcar pede 4 horas. Se um especial cancela com 24 horas, remarcar esse serviço também pede 24 horas.'
+          : `Do jeito que está agora, remarcar pede ${hours(rescheduling).toLocaleLowerCase('pt-BR')}, igual para todos os serviços, inclusive os especiais.`,
+        'Se você separar os prazos, os efeitos são diferentes. Exemplo: cancelar até 4 horas antes e remarcar só até 24 horas antes. Ela ainda pode desistir perto do horário, mas para trocar o dia precisa avisar com um dia de antecedência.',
+        'Não cobra diferença nem multa. Só define até quando a troca é permitida.',
+      ],
+    },
+  }[help ?? 'notice']
   return (
     <div className="ob2-stack ob2-rules">
       <div className="ob2-rules-layout">
@@ -81,15 +178,19 @@ export function RulesStep({
                 Um tempo para se preparar e uma agenda aberta na medida certa.
               </p>
               <GlassSelect
-                label="Com quanto tempo de antecedência a cliente pode marcar?"
+                label={fieldLabel('Com quanto tempo de antecedência a cliente pode marcar?', () =>
+                  setHelp('notice'),
+                )}
                 value={String(notice)}
                 options={hourOptions([0, 1, 2, 4, 8, 12, 24, 48], notice)}
                 onChange={(value) => change({ bookingNoticeHours: Number(value) })}
               />
               <GlassSelect
-                label="Até quantos dias à frente ela pode escolher um horário?"
+                label={fieldLabel('Até quantos dias à frente ela pode escolher um horário?', () =>
+                  setHelp('window'),
+                )}
                 value={String(windowDays)}
-                options={[...new Set([7, 15, 30, 60, 90, 180, 365, windowDays])]
+                options={[...new Set([7, 15, 30, 60, windowDays])]
                   .sort((a, b) => a - b)
                   .map((value) => ({ id: String(value), label: `${value} dias` }))}
                 onChange={(value) => change({ bookingWindowDays: Number(value) })}
@@ -109,7 +210,7 @@ export function RulesStep({
                 <h2>Quando os planos mudam</h2>
               </div>
               <GlassSelect
-                label="Até quando a cliente pode cancelar?"
+                label={fieldLabel('Até quando a cliente pode cancelar?', () => setHelp('cancel'))}
                 value={String(preferences.cancellationHours)}
                 options={hourOptions([0, 4, 8, 12, 24, 48], preferences.cancellationHours)}
                 onChange={(value) => change({ cancellationHours: Number(value) })}
@@ -117,7 +218,9 @@ export function RulesStep({
               {special.length > 0 ? (
                 <>
                   <GlassSelect
-                    label="E nos atendimentos com aparelhos especiais?"
+                    label={fieldLabel('E nos atendimentos com aparelhos especiais?', () =>
+                      setHelp('special'),
+                    )}
                     value={String(preferences.specialCancellationHours)}
                     options={hourOptions([12, 24, 48, 72], preferences.specialCancellationHours)}
                     onChange={(value) => change({ specialCancellationHours: Number(value) })}
@@ -133,7 +236,9 @@ export function RulesStep({
                 </>
               ) : null}
               <GlassSelect
-                label="Para remarcar, qual prazo você prefere?"
+                label={fieldLabel('Para remarcar, qual prazo você prefere?', () =>
+                  setHelp('reschedule'),
+                )}
                 value={rescheduling == null ? 'same' : String(rescheduling)}
                 options={[
                   { id: 'same', label: 'O mesmo prazo do cancelamento' },
@@ -161,32 +266,6 @@ export function RulesStep({
                   },
                 ]}
               />
-            </Card.Content>
-          </Card>
-          <Card className="ob2-panel">
-            <Card.Content className="ob2-form">
-              <div className="ob2-rules-heading">
-                <HeartHandshake aria-hidden size={22} />
-                <h2>Um recado do seu espaço</h2>
-              </div>
-              <TextField
-                className="ob2-field"
-                value={preferences.clientInstructions ?? ''}
-                onChange={(value) => change({ clientInstructions: value })}
-              >
-                <Label>
-                  O que a cliente precisa saber? <span className="ob2-rule-optional">Opcional</span>
-                </Label>
-                <TextArea
-                  rows={3}
-                  maxLength={500}
-                  placeholder="Ex.: se puder, chegue 10 minutos antes. Assim podemos receber você com calma."
-                />
-                <Description>
-                  Escreva apenas orientações gerais, sem dados pessoais de clientes.{' '}
-                  {(preferences.clientInstructions ?? '').length}/500
-                </Description>
-              </TextField>
             </Card.Content>
           </Card>
         </div>
@@ -218,17 +297,34 @@ export function RulesStep({
               <dd>{rescheduling == null ? 'Mesmo prazo do cancelamento' : hours(rescheduling)}</dd>
             </div>
           </dl>
-          {preferences.clientInstructions?.trim() ? (
-            <p className="ob2-rule-message">“{preferences.clientInstructions.trim()}”</p>
-          ) : null}
           <p className="ob2-rule-status">
             <ShieldCheck size={20} aria-hidden />
-            As escolhas ficam salvas no cadastro. A aplicação automática dessas regras e a exibição
-            do recado dependem da liberação do agendamento para clientes.
+            As escolhas ficam salvas no cadastro. A aplicação automática dessas regras depende da
+            liberação do agendamento para clientes.
           </p>
         </aside>
       </div>
       <StepEnd error={error} footer={footer} />
+      <BlurDialog
+        className="ob2-rule-dialog"
+        isOpen={help != null}
+        size="md"
+        title={helpCopy.title}
+        onOpenChange={(open) => {
+          if (!open) setHelp(null)
+        }}
+        footer={
+          <Button className="ob2-cta" onPress={() => setHelp(null)}>
+            Entendi
+          </Button>
+        }
+      >
+        <div className="ob2-rule-dialog-copy">
+          {helpCopy.paragraphs.map((paragraph) => (
+            <p key={paragraph}>{paragraph}</p>
+          ))}
+        </div>
+      </BlurDialog>
     </div>
   )
 }
@@ -300,7 +396,7 @@ export function ReviewStep({
       icon: ShieldCheck,
       key: 'rules' as const,
       value: `Cancelamento: ${hours(payload.preferences.cancellationHours).toLocaleLowerCase('pt-BR')}`,
-      detail: `Agenda: ${payload.preferences.bookingWindowDays ?? 60} dias à frente · ${payload.preferences.bookingNoticeHours ?? 2}h de antecedência`,
+      detail: `Agenda: ${payload.preferences.bookingWindowDays ?? 30} dias à frente · ${payload.preferences.bookingNoticeHours ?? 1}h de antecedência`,
     },
   ]
   return (
@@ -355,9 +451,6 @@ export function ReviewStep({
                         payload.preferences.reschedulingHours == null
                           ? 'Remarcação: mesmo prazo do cancelamento.'
                           : `Remarcação: ${hours(payload.preferences.reschedulingHours).toLocaleLowerCase('pt-BR')}.`,
-                        payload.preferences.clientInstructions?.trim()
-                          ? `Recado: ${payload.preferences.clientInstructions.trim()}`
-                          : 'Sem recado adicional.',
                       ]
                         .filter(Boolean)
                         .join(' '),

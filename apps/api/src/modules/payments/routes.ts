@@ -2,6 +2,7 @@ import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify'
 import type { createStaffAuthenticator } from '../../shared/auth/staff-session.js'
 import { withClinicTransaction, type TenantPool } from '../../shared/tenant/clinic-transaction.js'
 import {
+  connectReady,
   createConnectProvider,
   type ConnectProvider,
   type ConnectPurpose,
@@ -76,7 +77,7 @@ export async function paymentRoutes(
               testMode: !context.livemode,
             }
         await transaction(async () => undefined)
-        return { status }
+        return { status, ready: connectReady(status) }
       }
       const purpose = request.body!.purpose
       if (!binding) return reply.code(409).send({ error: 'Configure os recebimentos primeiro.' })

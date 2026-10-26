@@ -1,4 +1,4 @@
-import { ConnectPanel } from '@/components/payments/connect-panel'
+import { ConnectPanel, type ConnectPhase } from '@/components/payments/connect-panel'
 import { ThemePicker } from '@/components/space-theme'
 import { spaceTheme } from '@/lib/space-theme'
 import {
@@ -2064,14 +2064,17 @@ export function PaymentsStep({
   error,
   footer,
   onReadyChange,
+  onSettledChange,
 }: {
   clinicId: string
   payload: Payload
   setPayload: (value: Payload) => void
   error: string
   onReadyChange: (ready: boolean) => void
+  onSettledChange: (settled: boolean) => void
   footer: ReactNode
 }) {
+  const [phase, setPhase] = useState<ConnectPhase>('loading')
   const selectOutside = () => {
     onReadyChange(false)
     toast.info('Recebimento fora do app selecionado. Você pode continuar sem configurar a Stripe.')
@@ -2084,11 +2087,30 @@ export function PaymentsStep({
       },
     })
   }
-  const selectInApp = () =>
+  const selectInApp = () => {
+    setPhase('loading')
     setPayload({
       ...payload,
       preferences: { ...payload.preferences, acceptInApp: true },
     })
+  }
+  const payNote =
+    payload.preferences.acceptInApp && phase !== 'loading' ? (
+      <div className="ob2-pay-note">
+        <p className="ob2-copy">
+          {phase === 'ready'
+            ? 'A Stripe liberou pagamentos e repasses neste teste. Pode continuar.'
+            : phase === 'reviewing'
+              ? 'Não falta nenhum dado seu. Neste teste, você já pode continuar.'
+              : 'Para continuar com pagamentos no app, a Stripe precisa liberar a conta. Se preferir, escolha receber fora do app.'}
+        </p>
+        {phase === 'blocked' ? (
+          <Button className="ob2-quiet ob2-pay-escape" variant="ghost" onPress={selectOutside}>
+            Receber fora do app
+          </Button>
+        ) : null}
+      </div>
+    ) : null
 
   return (
     <div className="ob2-stack">
@@ -2111,44 +2133,57 @@ export function PaymentsStep({
         />
       </div>
       {payload.preferences.acceptInApp ? (
-        <ConnectPanel
-          key={clinicId}
-          onReadyChange={onReadyChange}
-          onChooseOutside={selectOutside}
-        />
+        <>
+          <div className="ob2-pay-rule" aria-hidden="true" />
+          <Card className="ob2-panel">
+            <Card.Content className="ob2-form">
+              <GlassSelect
+                label="Como os pacotes de sessões serão pagos?"
+                value={payload.preferences.packagePaymentMode}
+                options={[
+                  { id: 'clinic_only', label: 'Diretamente com a clínica' },
+                  { id: 'in_app', label: 'Pelo app' },
+                  { id: 'both', label: 'A cliente pode escolher' },
+                ]}
+                onChange={(value) =>
+                  setPayload({
+                    ...payload,
+                    preferences: {
+                      ...payload.preferences,
+                      packagePaymentMode: value as Payload['preferences']['packagePaymentMode'],
+                    },
+                  })
+                }
+              />
+              <p className="ob2-copy">
+                Esta escolha define a forma de recebimento. Nenhum pacote é vendido ou cobrado agora.
+              </p>
+            </Card.Content>
+          </Card>
+          <div className="ob2-pay-rule" aria-hidden="true" />
+          <ConnectPanel
+            key={clinicId}
+            onReadyChange={onReadyChange}
+            onSettledChange={onSettledChange}
+            onPhaseChange={setPhase}
+            onChooseOutside={selectOutside}
+          />
+        </>
       ) : (
         <p className="ob2-copy">
           Você combina o pagamento diretamente com a cliente, por Pix, maquininha ou link próprio.
         </p>
       )}
-      {payload.preferences.acceptInApp ? (
-        <Card className="ob2-panel">
-          <Card.Content className="ob2-form">
-            <GlassSelect
-              label="Como os pacotes de sessões serão pagos?"
-              value={payload.preferences.packagePaymentMode}
-              options={[
-                { id: 'clinic_only', label: 'Diretamente com a clínica' },
-                { id: 'in_app', label: 'Pelo app' },
-                { id: 'both', label: 'A cliente pode escolher' },
-              ]}
-              onChange={(value) =>
-                setPayload({
-                  ...payload,
-                  preferences: {
-                    ...payload.preferences,
-                    packagePaymentMode: value as Payload['preferences']['packagePaymentMode'],
-                  },
-                })
-              }
-            />
-            <p className="ob2-copy">
-              Esta escolha define a forma de recebimento. Nenhum pacote é vendido ou cobrado agora.
-            </p>
-          </Card.Content>
-        </Card>
-      ) : null}
-      <StepEnd error={error} footer={footer} />
+      <div className="ob2-pay-rule" aria-hidden="true" />
+      <StepEnd
+        error={error}
+        footer={
+          <>
+            {payNote}
+            {footer}
+          </>
+        }
+      />
     </div>
   )
 }

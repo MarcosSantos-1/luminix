@@ -151,3 +151,18 @@ Teste de regressão em `tests/onboarding.test.ts`: vínculo ausente, conta pende
 repasses não liberados, requisitos devidos, indisponibilidade Stripe, isolamento entre clínicas,
 reconsulta na conclusão, alternativa externa e replay após conclusão. Consulta antes de cada
 escrita acrescenta latência de rede somente ao caminho no app; não há polling automático.
+
+### Análise interna sem pedido de dados — 2026-10-24
+
+Uma conta de teste pode ficar com pagamentos e repasses pendentes mesmo depois do formulário
+não pedir mais nada. A Stripe classifica a declaração de exposição política como revisão dela
+(`awaiting_action_from=stripe`, `requirements_pending_verification`, `no_resolution`). No modo
+teste essa revisão não conclui, e a plataforma não tem permissão para preencher o campo depois
+do onboarding incorporado. O prazo v2 aparece como `past_due`, embora a API v1 liste o campo só
+em `pending_verification` e não em `currently_due`.
+
+Requisito que aguarda a Stripe não conta como dado que a clínica precisa enviar. Se essa for a
+única pendência e as capacidades estiverem apenas em análise, o estado é `reviewing`. Como só
+existem chaves de teste, esse estado libera o avanço do cadastro. Os indicadores de pagamento e
+repasse continuam desligados, e o mesmo estado com `testMode=false` não libera. Conta restrita,
+requisito do usuário ou capacidade inativa por outro motivo continua bloqueando.

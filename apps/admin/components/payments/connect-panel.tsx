@@ -2,17 +2,22 @@
 
 import { Button, Card, Link, Spinner, Tooltip, toast } from '@heroui/react'
 import {
+  BadgePercent,
   Banknote,
   CheckCircle2,
+  ChevronDown,
   CircleHelp,
+  ClipboardCheck,
   Clock3,
   CreditCard,
+  Landmark,
+  QrCode,
   RefreshCw,
   ShieldCheck,
   SquarePen,
   TriangleAlert,
 } from 'lucide-react'
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { type ReactNode, useCallback, useEffect, useRef, useState } from 'react'
 import { loadConnectAndInitialize, type StripeConnectInstance } from '@stripe/connect-js/pure'
 import {
   ConnectAccountManagement,
@@ -28,8 +33,9 @@ import { getFirebaseAuth } from '@/lib/firebase'
 import './connect-panel.css'
 
 type Purpose = 'onboarding' | 'management' | 'payments' | 'payouts'
+export type ConnectPhase = 'loading' | 'ready' | 'reviewing' | 'blocked'
 type Status = {
-  state: 'not_started' | 'pending' | 'active' | 'restricted'
+  state: 'not_started' | 'pending' | 'active' | 'restricted' | 'reviewing'
   chargesEnabled: boolean
   payoutsEnabled: boolean
   requirementsDue: number
@@ -37,18 +43,200 @@ type Status = {
 }
 const labels = {
   not_started: 'Configure seus recebimentos',
-  pending: 'Cadastro em andamento ou em análise',
+  pending: 'Cadastro em andamento',
+  reviewing: 'Dados enviados. A Stripe ainda está conferindo.',
   active: 'Conta habilitada pela Stripe',
   restricted: 'Seu cadastro precisa de atenção',
+}
+const summaries = {
+  not_started: 'Ainda falta criar o recebimento da clínica na Stripe.',
+  pending: 'O cadastro começou. Se faltar algum dado, a Stripe mostra no formulário.',
+  reviewing: 'Não falta nenhum dado seu. Neste teste, você já pode continuar.',
+  active: 'A Stripe liberou pagamentos e repasses neste teste.',
+  restricted: 'A Stripe pediu uma correção. Abra o cadastro para ver o que falta.',
 }
 
 type PanelProps = {
   dashboard?: boolean
   onReadyChange?: (ready: boolean) => void
+  onSettledChange?: (settled: boolean) => void
+  onPhaseChange?: (phase: ConnectPhase) => void
   onChooseOutside?: () => void
 }
 
-export function ConnectPanel({ dashboard = false, onReadyChange, onChooseOutside }: PanelProps) {
+function FlowDisclosure({
+  id,
+  title,
+  hint,
+  icon: Icon,
+  open,
+  onToggle,
+  helpLabel,
+  helpText,
+  children,
+}: {
+  id: string
+  title: string
+  hint: string
+  icon: typeof ShieldCheck
+  open: boolean
+  onToggle: () => void
+  helpLabel?: string
+  helpText?: string
+  children: ReactNode
+}) {
+  return (
+    <section
+      aria-label={title}
+      className={open ? 'connect-prep' : 'connect-prep is-collapsed'}
+    >
+      <div className="connect-prep-head">
+        <h3 className="connect-prep-heading">
+          <button
+            type="button"
+            className="connect-prep-toggle"
+            aria-expanded={open}
+            aria-controls={id}
+            onClick={onToggle}
+          >
+            <span className="connect-step-icon" aria-hidden="true">
+              <Icon size={20} />
+            </span>
+            <span className="connect-prep-toggle-copy">
+              <span className="connect-prep-title">{title}</span>
+              {!open && <span className="connect-prep-hint">{hint}</span>}
+            </span>
+            <ChevronDown
+              aria-hidden="true"
+              size={20}
+              className={open ? 'connect-prep-chevron is-open' : 'connect-prep-chevron'}
+            />
+          </button>
+        </h3>
+        {helpLabel && helpText ? (
+          <Tooltip>
+            <Button className="connect-help" variant="ghost" isIconOnly aria-label={helpLabel}>
+              <CircleHelp size={18} />
+            </Button>
+            <Tooltip.Content className="max-w-xs">{helpText}</Tooltip.Content>
+          </Tooltip>
+        ) : null}
+      </div>
+      {open ? (
+        <div id={id} className="connect-prep-body">
+          {children}
+        </div>
+      ) : null}
+    </section>
+  )
+}
+
+function StripeAccessGuide() {
+  return (
+    <>
+      <ol className="connect-prep-list">
+        <li>
+          <span className="connect-prep-num" aria-hidden="true">
+            1
+          </span>
+          <div className="connect-prep-copy">
+            <h4>Entre ou crie seu acesso Stripe</h4>
+            <p>
+              Seu acesso ao Luminix e seu acesso à Stripe são separados. Mesmo usando o mesmo
+              e-mail, a senha pode ser diferente. A janela da Stripe vai orientar você a entrar ou
+              criar seu acesso.
+            </p>
+            <p>
+              Se nenhuma janela abrir, permita os pop-ups da Stripe no seu navegador e tente
+              novamente.
+            </p>
+          </div>
+        </li>
+        <li>
+          <span className="connect-prep-num" aria-hidden="true">
+            2
+          </span>
+          <div className="connect-prep-copy">
+            <h4>Confirme que é você</h4>
+            <p className="connect-must">
+              <strong>Tem que instalar esse aplicativo no celular.</strong> A Stripe pede um código
+              dele para confirmar que é você. Sem esse aplicativo, o cadastro não termina. Use o
+              Google Authenticator ou o Microsoft Authenticator, baixado na loja oficial do celular.
+            </p>
+            <div className="connect-callout">
+              <ul className="connect-substeps">
+                <li>
+                  Se ainda não tiver um desses aplicativos, instale pela loja oficial do seu
+                  celular.
+                </li>
+                <li>
+                  Na configuração da Stripe, abra o aplicativo e adicione uma conta lendo o QR code
+                  exibido.
+                </li>
+                <li>
+                  Digite na Stripe os seis números que aparecerem no aplicativo, antes de o código
+                  mudar.
+                </li>
+                <li>Guarde o código de recuperação que a Stripe fornecer em um lugar seguro.</li>
+              </ul>
+              <p>
+                Se você já configurou isso antes, abra a conta Stripe no seu aplicativo para obter
+                o código. Se perdeu o acesso, siga a recuperação oferecida pela Stripe.
+              </p>
+              <Link
+                className="ob2-areas-link connect-doc-link"
+                href="https://support.stripe.com/questions/enable-two-step-authentication-via-mobile-app"
+                target="_blank"
+                rel="noreferrer"
+              >
+                Ver instruções da Stripe para o autenticador
+                <Link.Icon />
+              </Link>
+            </div>
+          </div>
+        </li>
+        <li>
+          <span className="connect-prep-num" aria-hidden="true">
+            3
+          </span>
+          <div className="connect-prep-copy">
+            <h4>Complete os dados solicitados</h4>
+            <p>
+              A Stripe informa no próprio formulário os dados da clínica, da pessoa responsável e
+              da conta bancária que forem necessários. Senhas, documentos e dados bancários são
+              preenchidos diretamente na Stripe.
+            </p>
+            <p>
+              Este ambiente é de teste. Use os dados de teste indicados pela Stripe nos campos de
+              documentos e banco; números aleatórios podem ser recusados.
+            </p>
+            <Link
+              className="ob2-areas-link connect-doc-link"
+              href="https://docs.stripe.com/connect/testing"
+              target="_blank"
+              rel="noreferrer"
+            >
+              Abrir guia de dados de teste da Stripe
+              <Link.Icon />
+            </Link>
+          </div>
+        </li>
+      </ol>
+      <p className="connect-prep-foot">
+        Não conseguiu finalizar? Escolha “Receber fora do app” para continuar o cadastro da
+        clínica. Você poderá configurar a Stripe depois, no Financeiro.
+      </p>
+    </>
+  )
+}
+
+export function ConnectPanel({
+  dashboard = false,
+  onReadyChange,
+  onSettledChange,
+  onPhaseChange,
+  onChooseOutside,
+}: PanelProps) {
   const { clinic, permissions } = useClinic()
   const staff = useStaff()
   if (!permissions.includes('settings:manage'))
@@ -64,6 +252,8 @@ export function ConnectPanel({ dashboard = false, onReadyChange, onChooseOutside
       clinicId={clinic.id}
       dashboard={dashboard}
       onReadyChange={onReadyChange}
+      onSettledChange={onSettledChange}
+      onPhaseChange={onPhaseChange}
       onChooseOutside={onChooseOutside}
     />
   )
@@ -73,10 +263,13 @@ function ConnectContent({
   clinicId,
   dashboard,
   onReadyChange,
+  onSettledChange,
+  onPhaseChange,
   onChooseOutside,
 }: PanelProps & { clinicId: string }) {
   const { user } = useStaff()
   const [status, setStatus] = useState<Status | null>(null)
+  const [canContinue, setCanContinue] = useState(false)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(true)
   const [opening, setOpening] = useState(false)
@@ -85,14 +278,39 @@ function ConnectContent({
     purpose: Purpose
   } | null>(null)
   const [componentLoading, setComponentLoading] = useState(false)
-  const ready =
-    status?.state === 'active' &&
-    status.chargesEnabled &&
-    status.payoutsEnabled &&
-    status.requirementsDue === 0
+  const ready = canContinue
+  const prepSettled =
+    !!status && status.state !== 'not_started' && status.requirementsDue === 0
+  const [stripeOpen, setStripeOpen] = useState(true)
+  const [prepOpen, setPrepOpen] = useState(Boolean(dashboard))
+  const [timingOpen, setTimingOpen] = useState(false)
+  const [feesOpen, setFeesOpen] = useState(false)
+  const prepCollapsed = useRef(false)
+  useEffect(() => {
+    if (!prepSettled || prepCollapsed.current) return
+    prepCollapsed.current = true
+    setStripeOpen(false)
+    setPrepOpen(false)
+  }, [prepSettled])
+  const phase: ConnectPhase =
+    loading && !status
+      ? 'loading'
+      : !status
+        ? 'blocked'
+        : canContinue && status.state === 'active'
+          ? 'ready'
+          : canContinue || prepSettled
+            ? 'reviewing'
+            : 'blocked'
+  useEffect(() => {
+    onPhaseChange?.(phase)
+  }, [phase, onPhaseChange])
   useEffect(() => {
     onReadyChange?.(ready && !loading && !opening && !embedded && !error)
   }, [ready, loading, opening, embedded, error, onReadyChange])
+  useEffect(() => {
+    if (!loading) onSettledChange?.(prepSettled)
+  }, [loading, prepSettled, onSettledChange])
   const lifetime = useRef<AbortController | null>(null)
   const refreshSequence = useRef(0)
   const instances = useRef<StripeConnectInstance[]>([])
@@ -133,13 +351,14 @@ function ConnectContent({
       const body = await request()
       if (!lifetime.current?.signal.aborted && sequence === refreshSequence.current) {
         setStatus(body.status)
-        if (
-          body.status.state === 'active' &&
-          body.status.chargesEnabled &&
-          body.status.payoutsEnabled &&
-          body.status.requirementsDue === 0
-        )
+        setCanContinue(body.ready === true)
+        if (body.ready && body.status.state === 'active')
           toast.success('Cadastro Stripe pronto. Você já pode continuar.', { timeout: 5000 })
+        else if (body.ready && body.status.state === 'reviewing')
+          toast.success(
+            'A Stripe não pediu mais nenhum dado. Você já pode avançar neste teste.',
+            { timeout: 6000 },
+          )
         else
           toast.info('Situação atualizada. Confira abaixo o que falta para continuar.', {
             timeout: 5000,
@@ -148,6 +367,7 @@ function ConnectContent({
     } catch (cause) {
       if (!lifetime.current?.signal.aborted && sequence === refreshSequence.current) {
         setStatus(null)
+        setCanContinue(false)
         const message =
           cause instanceof Error ? cause.message : 'Não foi possível atualizar a conta.'
         setError(message)
@@ -164,7 +384,10 @@ function ConnectContent({
     lifetime.current = controller
     void request()
       .then((body) => {
-        if (!controller.signal.aborted) setStatus(body.status)
+        if (!controller.signal.aborted) {
+          setStatus(body.status)
+          setCanContinue(body.ready === true)
+        }
       })
       .catch((cause) => {
         if (!controller.signal.aborted)
@@ -255,14 +478,49 @@ function ConnectContent({
       className={flow ? 'connect-panel connect-panel--flow w-full min-w-0' : 'connect-panel w-full min-w-0'}
       aria-busy={loading || opening}
     >
-      {!embedded && (
+      {!embedded && flow && !status && (
+        <Card.Content className="connect-body">
+          {error ? (
+            <>
+              <p role="alert" className="connect-plain">
+                {error}
+              </p>
+              <div className="connect-actions">
+                <Button
+                  variant="secondary"
+                  className="connect-secondary connect-refresh"
+                  isDisabled={opening || loading}
+                  onPress={() => void refresh()}
+                >
+                  <RefreshCw
+                    aria-hidden="true"
+                    className={`size-4 ${loading ? 'motion-safe:animate-spin' : ''}`}
+                  />
+                  Atualizar situação
+                </Button>
+              </div>
+            </>
+          ) : (
+            <div role="status" className="connect-loading">
+              <Spinner size="sm" />
+              Consultando a situação da sua conta…
+            </div>
+          )}
+        </Card.Content>
+      )}
+      {!embedded && (!flow || status) && (
         <>
           <Card.Header>
-            <Card.Title className="connect-title">
-              {status ? labels[status.state] : 'Recebimentos da clínica'}
-            </Card.Title>
+            <div className="connect-title-block">
+              <Card.Title className="connect-title">
+                {status ? labels[status.state] : 'Recebimentos da clínica'}
+              </Card.Title>
+              {flow && status ? <p className="connect-lead">{summaries[status.state]}</p> : null}
+            </div>
           </Card.Header>
           <Card.Content className="connect-body">
+            {flow ? <div className="connect-rule" aria-hidden="true" /> : null}
+            {!flow && !loading && !prepSettled && (
             <div className="connect-steps">
               {[
                 {
@@ -278,7 +536,7 @@ function ConnectContent({
                 {
                   icon: Banknote,
                   title: 'Acompanhe os repasses',
-                  text: 'Quando os pagamentos estiverem disponíveis, a Stripe enviará o saldo à conta cadastrada, conforme seus prazos e tarifas.',
+                  text: 'O dinheiro não cai na hora. Cartão costuma levar cerca de 30 dias. Pix e boleto, cerca de 2 dias úteis.',
                 },
               ].map(({ icon: Icon, title, text }) => (
                 <article key={title} className="connect-step">
@@ -292,12 +550,213 @@ function ConnectContent({
                 </article>
               ))}
             </div>
-            <section aria-label="Ajuda para acessar a Stripe" className="connect-prep">
+            )}
+            {flow && (
+              <>
+                <FlowDisclosure
+                  id="connect-what-stripe"
+                  title="O que é a Stripe"
+                  hint="Quem recebe o pagamento e deposita na conta da clínica."
+                  icon={CreditCard}
+                  open={stripeOpen}
+                  onToggle={() => setStripeOpen((open) => !open)}
+                >
+                  <p>
+                    A Stripe é a empresa que recebe o pagamento da cliente e deposita na conta da
+                    clínica. O Luminix não guarda esse dinheiro. O acesso da Stripe é separado do
+                    acesso do Luminix: mesmo usando o mesmo e-mail, a senha pode ser outra.
+                  </p>
+                </FlowDisclosure>
+                <FlowDisclosure
+                  id="connect-stripe-access"
+                  title="Antes de começar: acesso seguro à Stripe"
+                  hint="Toque para ver como instalar o aplicativo e entrar na Stripe."
+                  icon={ShieldCheck}
+                  open={prepOpen}
+                  onToggle={() => setPrepOpen((open) => !open)}
+                  helpLabel="Por que a Stripe pede uma confirmação?"
+                  helpText="Essa confirmação protege o acesso aos seus dados bancários. Ela é feita diretamente pela Stripe."
+                >
+                  <StripeAccessGuide />
+                </FlowDisclosure>
+                <FlowDisclosure
+                  id="connect-when-money"
+                  title="Quando o dinheiro chega na conta"
+                  hint="Cartão nacional leva cerca de 30 dias. Pix e boleto, cerca de 2 dias úteis."
+                  icon={Landmark}
+                  open={timingOpen}
+                  onToggle={() => setTimingOpen((open) => !open)}
+                  helpLabel="Por que o dinheiro não cai na hora?"
+                  helpText="O Luminix não fica com esse dinheiro. A Stripe é quem deposita na conta da clínica, no prazo de cada forma de pagamento."
+                >
+                  <ul className="connect-faq-list">
+                    <li>
+                      <strong>Conferir a conta · 1 a 2 dias</strong>
+                      <span>Prazo para a Stripe analisar os dados. Se faltar documento, ela avisa.</span>
+                    </li>
+                    <li>
+                      <strong>Cartão nacional · cerca de 30 dias</strong>
+                      <span>
+                        No Brasil, a Stripe só libera esse valor depois desse prazo, por causa de
+                        contestação e parcelamento. Não é o Luminix que segura o dinheiro.
+                      </span>
+                    </li>
+                    <li>
+                      <strong>Cartão internacional · cerca de 5 dias</strong>
+                      <span>O prazo é menor do que o do cartão emitido no Brasil.</span>
+                    </li>
+                    <li>
+                      <strong>Pix e boleto · cerca de 2 dias úteis</strong>
+                      <span>Chegam antes do cartão, quando essa forma estiver disponível na conta.</span>
+                    </li>
+                    <li>
+                      <strong>Depósito · em dia útil</strong>
+                      <span>
+                        Quando o valor libera, a Stripe envia sozinha para a conta bancária
+                        cadastrada. Não há depósito no fim de semana.
+                      </span>
+                    </li>
+                    <li>
+                      <strong>Antecipar · só se a Stripe oferecer</strong>
+                      <span>A taxa dessa pressa é da Stripe. O Luminix não antecipa.</span>
+                    </li>
+                  </ul>
+                </FlowDisclosure>
+                <FlowDisclosure
+                  id="connect-fees"
+                  title="Taxas e como a cliente paga"
+                  hint="A taxa é da Stripe. O Luminix não cobra por cima nesta fase."
+                  icon={BadgePercent}
+                  open={feesOpen}
+                  onToggle={() => setFeesOpen((open) => !open)}
+                >
+                  <p>
+                    Quando o recebimento no app estiver ativo, a cliente paga por ali. A Stripe
+                    recebe o valor, desconta a taxa dela e deposita o restante na conta da clínica,
+                    no prazo de cada forma de pagamento. Nesta fase, o Luminix não cobra uma taxa
+                    por cima. Se houver reembolso ou contestação, o valor sai do saldo da clínica
+                    na Stripe.
+                  </p>
+                  <p>
+                    Nada disso é cobrado de verdade neste cadastro. Estamos só preparando a conta,
+                    em modo de teste.
+                  </p>
+                  <ul className="connect-faq-list">
+                    <li>
+                      <strong>Cartão nacional</strong>
+                      <span>3,99% + R$ 0,39 por pagamento aprovado.</span>
+                    </li>
+                    <li>
+                      <strong>Pix</strong>
+                      <span>1,19%. A Stripe ainda libera o Pix por convite.</span>
+                    </li>
+                    <li>
+                      <strong>Boleto</strong>
+                      <span>R$ 3,45 por boleto pago.</span>
+                    </li>
+                  </ul>
+                  <p>
+                    Cartão internacional e conversão de moeda têm uma taxa extra da Stripe. Os
+                    valores são os preços públicos de hoje e podem mudar.
+                  </p>
+                  <Link
+                    className="ob2-areas-link connect-doc-link"
+                    href="https://stripe.com/br/pricing"
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    Ver preços da Stripe
+                    <Link.Icon />
+                  </Link>
+                </FlowDisclosure>
+              </>
+            )}
+            {!flow && (
+            <>
+            <section className="connect-timing" aria-label="Quando o dinheiro chega na conta">
+              <div className="connect-timing-head">
+                <h3>Quando o dinheiro chega na conta</h3>
+                <p>O Luminix não guarda esse dinheiro. Quem envia para o banco é a Stripe.</p>
+              </div>
+              <div className="connect-timing-grid">
+                {[
+                  {
+                    icon: ClipboardCheck,
+                    time: '1 a 2 dias',
+                    title: 'Conferir a conta',
+                    text: 'Prazo para a Stripe analisar os dados. Se faltar documento, ela avisa.',
+                  },
+                  {
+                    icon: CreditCard,
+                    time: '30 dias',
+                    title: 'Cartão',
+                    text: 'Tempo comum até uma venda no crédito cair na conta.',
+                  },
+                  {
+                    icon: QrCode,
+                    time: '2 dias úteis',
+                    title: 'Pix e boleto',
+                    text: 'Chega antes do cartão.',
+                  },
+                  {
+                    icon: Landmark,
+                    time: 'Todo dia',
+                    title: 'Depósito',
+                    text: 'A Stripe envia sozinha quando o valor libera.',
+                  },
+                  {
+                    icon: BadgePercent,
+                    time: 'Com taxa',
+                    title: 'Antecipar',
+                    text: 'Só se a Stripe oferecer. O Luminix não antecipa.',
+                  },
+                ].map(({ icon: Icon, time, title, text }) => (
+                  <article key={title} className="connect-when">
+                    <span className="connect-step-icon" aria-hidden="true">
+                      <Icon size={20} />
+                    </span>
+                    <p className="connect-when-time">{time}</p>
+                    <h4>{title}</h4>
+                    <p>{text}</p>
+                  </article>
+                ))}
+              </div>
+            </section>
+            <section
+              aria-label="Ajuda para acessar a Stripe"
+              className={prepOpen ? 'connect-prep' : 'connect-prep is-collapsed'}
+            >
               <div className="connect-prep-head">
-                <span className="connect-step-icon" aria-hidden="true">
-                  <ShieldCheck size={20} />
-                </span>
-                <h3>Antes de começar: acesso seguro à Stripe</h3>
+                <h3 className="connect-prep-heading">
+                  <button
+                    type="button"
+                    className="connect-prep-toggle"
+                    aria-expanded={prepOpen}
+                    aria-controls="connect-stripe-access"
+                    onClick={() => setPrepOpen((open) => !open)}
+                  >
+                    <span className="connect-step-icon" aria-hidden="true">
+                      <ShieldCheck size={20} />
+                    </span>
+                    <span className="connect-prep-toggle-copy">
+                      <span className="connect-prep-title">
+                        Antes de começar: acesso seguro à Stripe
+                      </span>
+                      {!prepOpen && (
+                        <span className="connect-prep-hint">
+                          Toque para ver como instalar o aplicativo e entrar na Stripe.
+                        </span>
+                      )}
+                    </span>
+                    <ChevronDown
+                      aria-hidden="true"
+                      size={20}
+                      className={
+                        prepOpen ? 'connect-prep-chevron is-open' : 'connect-prep-chevron'
+                      }
+                    />
+                  </button>
+                </h3>
                 <Tooltip>
                   <Button
                     className="connect-help"
@@ -313,6 +772,8 @@ function ConnectContent({
                   </Tooltip.Content>
                 </Tooltip>
               </div>
+              {prepOpen && (
+              <div id="connect-stripe-access">
               <ol className="connect-prep-list">
                 <li>
                   <span className="connect-prep-num" aria-hidden="true">
@@ -337,17 +798,14 @@ function ConnectContent({
                   </span>
                   <div className="connect-prep-copy">
                     <h4>Confirme que é você</h4>
-                    <p>
-                      A Stripe pode pedir uma segunda confirmação para proteger sua conta. Use o
-                      método que ela mostrar na tela; nem sempre será um aplicativo.
+                    <p className="connect-must">
+                      <strong>Tem que instalar esse aplicativo no celular.</strong>
+                      A Stripe pede um código dele para confirmar que é você. Sem esse aplicativo,
+                      o cadastro não termina. Use o Google Authenticator ou o Microsoft
+                      Authenticator, baixado na loja oficial do celular.
                     </p>
                     <div className="connect-callout">
-                      <p>
-                        <strong>Se pedir um aplicativo autenticador:</strong> ele gera um código
-                        temporário no seu celular. Você pode usar o Google Authenticator ou o
-                        Microsoft Authenticator.
-                      </p>
-                      <ol className="connect-substeps">
+                      <ul className="connect-substeps">
                         <li>
                           Se ainda não tiver um desses aplicativos, instale pela loja oficial do
                           seu celular.
@@ -363,7 +821,7 @@ function ConnectContent({
                         <li>
                           Guarde o código de recuperação que a Stripe fornecer em um lugar seguro.
                         </li>
-                      </ol>
+                      </ul>
                       <p>
                         Se você já configurou isso antes, abra a conta Stripe no seu aplicativo
                         para obter o código. Se perdeu o acesso, siga a recuperação oferecida pela
@@ -412,27 +870,31 @@ function ConnectContent({
                 Não conseguiu finalizar? Escolha “Receber fora do app” para continuar o cadastro da
                 clínica. Você poderá configurar a Stripe depois, no Financeiro.
               </p>
+              </div>
+              )}
             </section>
-            {loading && (
+            </>
+            )}
+            {loading && !flow && (
               <div role="status" className="connect-note is-info">
                 <Spinner size="sm" />
                 Consultando a situação da sua conta…
               </div>
             )}
-            {status && status.state !== 'not_started' && !loading && (
+            {status && status.state !== 'not_started' && (!loading || flow) && (
               <div aria-live="polite" className="connect-status-grid">
                 {[
                   {
                     title: 'Pagamentos dos clientes',
                     enabled: status.chargesEnabled,
                     icon: CreditCard,
-                    text: 'A Stripe precisa liberar a conta para aceitar os pagamentos dos seus clientes.',
+                    text: 'Ainda falta a Stripe autorizar a conta. Isso é a conferência dos dados, e costuma levar 1 ou 2 dias. Não é o prazo do dinheiro da venda.',
                   },
                   {
                     title: 'Depósitos na sua conta',
                     enabled: status.payoutsEnabled,
                     icon: Banknote,
-                    text: 'A Stripe precisa liberar os repasses para enviar o saldo à conta bancária cadastrada.',
+                    text: 'Ainda falta a Stripe autorizar os depósitos. Com a conta liberada, cada venda segue o prazo do cartão, do Pix ou do boleto.',
                   },
                 ].map(({ title, enabled, icon: Icon, text }) => (
                   <article
@@ -445,7 +907,15 @@ function ConnectContent({
                       </span>
                       <h3>{title}</h3>
                     </div>
-                    <p className="connect-status-pill">
+                    <p
+                      className={
+                        enabled
+                          ? 'connect-status-pill is-ready'
+                          : status.state === 'restricted'
+                            ? 'connect-status-pill is-alert'
+                            : 'connect-status-pill is-pending'
+                      }
+                    >
                       {enabled ? (
                         <CheckCircle2 aria-hidden="true" size={16} />
                       ) : (
@@ -455,7 +925,7 @@ function ConnectContent({
                     </p>
                     <p>
                       {enabled
-                        ? 'Esta parte da conta está habilitada no ambiente de teste, sem movimentar dinheiro real.'
+                        ? 'Liberado neste teste, sem dinheiro real. No pagamento de verdade, cada venda ainda espera o prazo do cartão, do Pix ou do boleto.'
                         : text}
                     </p>
                   </article>
@@ -473,7 +943,15 @@ function ConnectContent({
                     </div>
                   </div>
                 )}
-                {!ready && status.requirementsDue === 0 && (
+                {status.state === 'reviewing' && (
+                  <p className="connect-note is-info connect-span">
+                    A Stripe não está pedindo mais nenhum dado. Ela deixou uma análise interna em
+                    aberto e, neste ambiente de teste, essa análise não conclui sozinha. Você já
+                    pode avançar no cadastro da clínica. A cobrança dos clientes continua desligada
+                    até a Stripe liberar pagamentos e repasses.
+                  </p>
+                )}
+                {!ready && status.state !== 'reviewing' && status.requirementsDue === 0 && (
                   <p className="connect-note is-info connect-span">
                     A conta ainda não está pronta. Abra o cadastro para verificar se é necessário
                     enviar algum dado ou aguardar uma análise da Stripe. Se você já enviou tudo,
@@ -509,7 +987,11 @@ function ConnectContent({
               </Button>
               <Button
                 variant={flow ? 'secondary' : 'primary'}
-                className={flow ? 'connect-secondary' : '!bg-blue-600 !text-white hover:!bg-blue-700'}
+                className={
+                  flow
+                    ? 'connect-secondary connect-refresh'
+                    : '!bg-blue-600 !text-white hover:!bg-blue-700'
+                }
                 isDisabled={opening || loading}
                 onPress={() => void refresh()}
               >
@@ -520,35 +1002,6 @@ function ConnectContent({
                 Atualizar situação
               </Button>
             </div>
-            {!dashboard && (
-              <div
-                aria-live="polite"
-                className={
-                  ready && !loading && !error ? 'connect-gate is-ready' : 'connect-gate is-blocked'
-                }
-              >
-                <p className="connect-note-title">
-                  {ready && !loading && !error ? (
-                    <CheckCircle2 aria-hidden="true" size={20} />
-                  ) : (
-                    <TriangleAlert aria-hidden="true" size={20} />
-                  )}
-                  {ready && !loading && !error
-                    ? 'Tudo pronto para continuar'
-                    : 'Conclua a configuração para continuar'}
-                </p>
-                <p>
-                  {ready && !loading && !error
-                    ? 'A Stripe confirmou a liberação de pagamentos e repasses em teste. Você pode ir para a próxima etapa.'
-                    : 'Com “Pagamentos no app”, só é possível continuar quando a Stripe liberar pagamentos e repasses e não houver informações pendentes. Se não conseguir concluir agora, escolha “Receber fora do app”.'}
-                </p>
-                {onChooseOutside && !ready && (
-                  <Button className="connect-secondary" variant="secondary" onPress={onChooseOutside}>
-                    Receber fora do app
-                  </Button>
-                )}
-              </div>
-            )}
             {dashboard && status && status.state !== 'not_started' && (
               <div className="flex flex-wrap gap-2">
                 <Button
