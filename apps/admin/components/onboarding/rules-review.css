@@ -193,16 +193,13 @@
 .ob2-review-welcome .card__content {
   display: flex;
   flex-direction: row;
-  flex-wrap: wrap;
-  gap: 22px;
   align-items: center;
-  justify-content: space-between;
 }
 .ob2-review-welcome-main {
   display: flex;
   align-items: center;
-  gap: 20px;
-  flex: 1 1 380px;
+  gap: 28px;
+  width: 100%;
   min-width: 0;
 }
 .ob2-review-mark {
@@ -252,44 +249,13 @@
   gap: 6px;
   min-width: 0;
 }
-.ob2-review-welcome-badges {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 8px;
-}
-.ob2-review-welcome .ob2-rule-eyebrow {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  padding: 4px 10px;
-  border-radius: 999px;
-  font-size: 11px;
-  font-weight: 750;
-  letter-spacing: 0.08em;
-  background: color-mix(in srgb, var(--space-accent, #ff2d79) 46%, rgba(255, 255, 255, 0.14));
-  border: 1px solid rgba(255, 255, 255, 0.34);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.35);
-}
-.ob2-review-ready-pill {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  padding: 4px 10px;
-  border-radius: 999px;
-  font-size: 12px;
-  font-weight: 650;
-  color: #eafff2;
-  background: rgba(16, 185, 129, 0.24);
-  border: 1px solid rgba(113, 229, 140, 0.52);
-}
 .ob2-review-welcome h2 {
   font-size: clamp(24px, 2.4vw, 30px);
   font-weight: 750;
   letter-spacing: -0.025em;
   line-height: 1.15;
   overflow-wrap: anywhere;
-  margin: 2px 0 0;
+  margin: 0;
 }
 .ob2-review-welcome p {
   margin: 0;
@@ -314,36 +280,6 @@
   font-weight: 600;
   background: rgba(255, 255, 255, 0.12);
   border: 1px solid rgba(255, 255, 255, 0.22);
-}
-.ob2-review-kpis {
-  margin: 0;
-  display: grid;
-  grid-template-columns: repeat(2, minmax(108px, 1fr));
-  gap: 8px;
-  flex: 0 1 256px;
-}
-.ob2-review-kpis div {
-  display: grid;
-  gap: 2px;
-  padding: 10px 12px;
-  border-radius: 16px;
-  background: rgba(255, 255, 255, 0.1);
-  border: 1px solid rgba(255, 255, 255, 0.24);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.25);
-}
-.ob2-review-kpis dt {
-  font-size: 11px;
-  font-weight: 650;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  color: rgba(255, 255, 255, 0.76);
-}
-.ob2-review-kpis dd {
-  margin: 0;
-  font-size: 20px;
-  font-weight: 750;
-  line-height: 1.15;
-  letter-spacing: -0.02em;
 }
 .ob2-review-grid {
   display: grid;
@@ -762,7 +698,6 @@
   box-shadow: 0 10px 24px color-mix(in srgb, var(--space-accent, #ff2d79) 10%, transparent);
 }
 .ob2[data-surface='solid'] .ob2-review-welcome p,
-.ob2[data-surface='solid'] .ob2-review-kpis dt,
 .ob2[data-surface='solid'] .ob2-review-person-copy small,
 .ob2[data-surface='solid'] .ob2-review-address-copy small,
 .ob2[data-surface='solid'] .ob2-review-facts span {
@@ -785,8 +720,7 @@
 .ob2[data-surface='solid'] .ob2-review-facts li,
 .ob2[data-surface='solid'] .ob2-review-cats li,
 .ob2[data-surface='solid'] .ob2-review-chips li,
-.ob2[data-surface='solid'] .ob2-review-person,
-.ob2[data-surface='solid'] .ob2-review-kpis div {
+.ob2[data-surface='solid'] .ob2-review-person {
   background: color-mix(in srgb, var(--space-highlight, #ffe3ef) 62%, white);
   border-color: var(--space-highlight, #f0cfdb);
   color: var(--space-deep, #34101f);
@@ -806,7 +740,7 @@
   }
   .ob2-review-welcome-main {
     align-items: flex-start;
-    gap: 14px;
+    gap: 18px;
   }
   .ob2-review-mark {
     width: 76px;
@@ -817,17 +751,7 @@
   .ob2-review-mark span {
     font-size: 22px;
   }
-  .ob2-review-kpis {
-    width: 100%;
-    flex-basis: 100%;
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-  }
   .ob2-rule-preview {
     padding: 18px;
-  }
-}
-@media (max-width: 480px) {
-  .ob2-review-kpis {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }

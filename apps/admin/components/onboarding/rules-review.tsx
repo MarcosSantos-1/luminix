@@ -1,7 +1,6 @@
 import { Accordion, Button, Card } from '@heroui/react'
 import {
   CalendarDays,
-  CheckCircle2,
   CircleHelp,
   Clock3,
   CreditCard,
@@ -799,12 +798,6 @@ export function ReviewStep({
               )}
             </div>
             <div className="ob2-review-welcome-copy">
-              <div className="ob2-review-welcome-badges">
-                <span className="ob2-review-ready-pill">
-                  <CheckCircle2 size={13} aria-hidden />
-                  Tudo pronto para abrir
-                </span>
-              </div>
               <h2>{payload.name || 'Seu espaço'}</h2>
               <p>Você chegou até aqui! Falta só conferir o resumo e abrir sua clínica.</p>
               <div className="ob2-review-welcome-tags">
@@ -819,24 +812,6 @@ export function ReviewStep({
               </div>
             </div>
           </div>
-          <dl className="ob2-review-kpis" aria-label="Números do seu espaço">
-            <div>
-              <dt>Especialidades</dt>
-              <dd>{catalog.length}</dd>
-            </div>
-            <div>
-              <dt>Serviços</dt>
-              <dd>{payload.services.length}</dd>
-            </div>
-            <div>
-              <dt>Agenda</dt>
-              <dd>{days.length}d/sem</dd>
-            </div>
-            <div>
-              <dt>Atendimento</dt>
-              <dd>{payload.teamMode === 'solo' ? 'Solo' : `${payload.professionals.length} prof.`}</dd>
-            </div>
-          </dl>
         </Card.Content>
       </Card>
       <div className="ob2-review-grid">
