@@ -532,8 +532,8 @@ function ImageDropzone({
   className?: string
 }) {
   const inputRef = useRef<HTMLInputElement>(null)
+  const dragDepth = useRef(0)
   const [dragging, setDragging] = useState(false)
-
   const [busy, setBusy] = useState(false)
 
   async function acceptFile(file: File | undefined) {
@@ -553,6 +553,7 @@ function ImageDropzone({
 
   function onDrop(event: DragEvent<HTMLDivElement>) {
     event.preventDefault()
+    dragDepth.current = 0
     setDragging(false)
     void acceptFile(event.dataTransfer.files?.[0])
   }
@@ -562,12 +563,15 @@ function ImageDropzone({
       className={`${className}${dragging ? ' is-dragging' : ''}${preview ? ' has-preview' : ''}${busy ? ' is-uploading' : ''}`}
       onDragEnter={(event) => {
         event.preventDefault()
-        if (!busy) setDragging(true)
+        if (busy) return
+        dragDepth.current += 1
+        setDragging(true)
       }}
       onDragOver={(event) => event.preventDefault()}
       onDragLeave={(event) => {
         event.preventDefault()
-        setDragging(false)
+        dragDepth.current = Math.max(0, dragDepth.current - 1)
+        if (dragDepth.current === 0) setDragging(false)
       }}
       onDrop={onDrop}
       role="button"
@@ -594,14 +598,8 @@ function ImageDropzone({
         disabled={busy}
         onChange={(event) => void acceptFile(event.target.files?.[0])}
       />
-      {busy ? (
-        <span className="ob2-upload-veil" role="status">
-          <Loader2 className="ob2-upload-spinner" size={28} />
-          Enviando imagem…
-        </span>
-      ) : null}
-      {preview ? (
-        <>
+      <span className="ob2-logo-frame">
+        {preview ? (
           <Image
             src={preview}
             alt=""
@@ -609,29 +607,40 @@ function ImageDropzone({
             width={512}
             height={512}
             unoptimized
+            style={{ width: '100%', height: '100%', objectFit: 'cover' }}
           />
-          <div className="ob2-logo-drop-meta">
-            <strong>{fileName || label}</strong>
-            <span>{busy ? 'Otimizando e enviando…' : fileHint}</span>
-          </div>
-        </>
-      ) : (
-        <>
+        ) : (
           <span className="ob2-logo-drop-icon" aria-hidden>
-            <ImagePlus size={28} />
+            <ImagePlus size={26} />
           </span>
-          <strong>{label}</strong>
-          <span>
-            Arraste uma imagem ou <em>escolha o arquivo</em>
+        )}
+        {dragging ? (
+          <span className="ob2-logo-drop-hint" aria-hidden>
+            <Upload size={16} />
+            Solte para enviar
           </span>
-          <small>{emptyHint}</small>
-        </>
-      )}
-      {!preview ? (
-        <span className="ob2-logo-drop-hint" aria-hidden>
-          <Upload size={14} /> Solte aqui
+        ) : null}
+        {busy ? (
+          <span className="ob2-upload-veil" role="status" aria-label="Enviando imagem">
+            <Loader2 className="ob2-upload-spinner" size={22} />
+          </span>
+        ) : null}
+      </span>
+      <div className="ob2-logo-drop-meta">
+        <strong>{preview ? fileName || label : label}</strong>
+        <span>
+          {busy ? (
+            'Enviando…'
+          ) : preview ? (
+            fileHint
+          ) : (
+            <>
+              Arraste ou <em>escolha o arquivo</em>
+            </>
+          )}
         </span>
-      ) : null}
+        {!preview ? <small>{emptyHint}</small> : null}
+      </div>
     </div>
   )
 }

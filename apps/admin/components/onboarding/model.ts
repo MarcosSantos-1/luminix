@@ -304,7 +304,7 @@ export const stepInfo = [
   {
     key: 'review',
     label: 'Finalizar',
-    title: 'Vamos conferir juntas?',
+    title: 'Vamos conferir?',
     text: 'Seu espaço está quase pronto. Confira o resumo e toque em Editar se quiser ajustar alguma coisa.',
     icon: Check,
   },

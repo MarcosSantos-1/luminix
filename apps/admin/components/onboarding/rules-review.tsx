@@ -1,19 +1,32 @@
 import { Accordion, Button, Card } from '@heroui/react'
 import {
   CalendarDays,
+  CheckCircle2,
   CircleHelp,
   Clock3,
   CreditCard,
+  HandHeart,
   HeartHandshake,
+  MapPin,
   Pencil,
-  Scissors,
   ShieldCheck,
-  Sparkles,
+  UserRound,
   Users,
 } from 'lucide-react'
 import Image from 'next/image'
 import { useState, type ReactNode } from 'react'
-import { dayNames, stepInfo, type Payload } from './model'
+import {
+  categories,
+  categoryArtSrc,
+  dayNames,
+  formatMoney,
+  professionalAvatarSrc,
+  stepInfo,
+  type Audience,
+  type DaySchedule,
+  type Payload,
+  type Service,
+} from './model'
 import { BlurDialog, GlassSelect, StepEnd } from './ui'
 import { formatBrPhone } from '@/lib/phone'
 import './rules-review.css'
@@ -62,6 +75,81 @@ function fieldLabel(text: string, onOpen: () => void) {
       <span>{text}</span>
       <RuleMark label={text} onOpen={onOpen} />
     </span>
+  )
+}
+
+function markLetters(name: string) {
+  const parts = name.trim().split(/\s+/).filter(Boolean)
+  if (parts.length === 0) return 'LX'
+  if (parts.length === 1) return parts[0].slice(0, 2).toLocaleUpperCase('pt-BR')
+  return `${parts[0][0] ?? ''}${parts[1][0] ?? ''}`.toLocaleUpperCase('pt-BR')
+}
+
+function listedCategories(payload: Payload) {
+  const totals = new Map<string, number>()
+  for (const name of payload.occupations) totals.set(name, 0)
+  for (const service of payload.services) {
+    const name = service.category.trim() || 'Outros'
+    totals.set(name, (totals.get(name) ?? 0) + 1)
+  }
+  const known = categories.filter((name) => totals.has(name))
+  const rest = [...totals.keys()].filter(
+    (name) => !(categories as readonly string[]).includes(name),
+  )
+  return [...known, ...rest].map((name) => ({ name, total: totals.get(name) ?? 0 }))
+}
+
+function clinicAddress(clinic: Payload['clinic']) {
+  const street = [clinic.addressLine, clinic.addressNumber].filter(Boolean).join(', ')
+  const city = clinic.city && clinic.state ? `${clinic.city}/${clinic.state}` : clinic.city
+  return [street, clinic.addressDistrict, city].filter(Boolean).join(' · ')
+}
+
+function serviceSpan(services: Service[]) {
+  const minutes = services.map((service) => service.durationMinutes).filter((value) => value > 0)
+  if (minutes.length === 0) return ''
+  const min = Math.min(...minutes)
+  const max = Math.max(...minutes)
+  return min === max ? `${min} min` : `${min}–${max} min`
+}
+
+function servicePriceSpan(services: Service[]) {
+  const prices = services
+    .filter((service) => service.priceType !== 'quote' && service.priceCents > 0)
+    .map((service) => service.priceCents)
+  if (prices.length === 0) return ''
+  const min = Math.min(...prices)
+  const max = Math.max(...prices)
+  return min === max ? formatMoney(min) : `${formatMoney(min)} – ${formatMoney(max)}`
+}
+
+function audienceSummary(audience?: Audience) {
+  if (audience === 'women') return 'Público feminino'
+  if (audience === 'men') return 'Público masculino'
+  return 'Todos os públicos'
+}
+
+function sameRange(days: DaySchedule[]) {
+  if (days.length === 0) return ''
+  const first = `${days[0].start}–${days[0].end}`
+  return days.every((day) => `${day.start}–${day.end}` === first) ? first : ''
+}
+
+const shortDays = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb']
+const weekOrder = [1, 2, 3, 4, 5, 6, 0]
+
+function FactList({ items }: { items: { label: string; value: string }[] }) {
+  const rows = items.filter((item) => item.value.trim())
+  if (rows.length === 0) return null
+  return (
+    <ul className="ob2-review-facts">
+      {rows.map((item) => (
+        <li key={item.label}>
+          <span>{item.label}</span>
+          <strong>{item.value}</strong>
+        </li>
+      ))}
+    </ul>
   )
 }
 
@@ -343,89 +431,426 @@ export function ReviewStep({
   isDisabled?: boolean
 }) {
   const days = payload.businessHours.filter((day) => day.enabled)
+  const dayByWeekday = new Map(payload.businessHours.map((day) => [day.weekday, day]))
+  const orderedDays = weekOrder
+    .map((weekday) => dayByWeekday.get(weekday))
+    .filter((day): day is DaySchedule => Boolean(day))
   const edit = (key: (typeof stepInfo)[number]['key']) =>
     onEdit(stepInfo.findIndex((step) => step.key === key))
-  const groups = [
+  const place =
+    payload.clinic.city && payload.clinic.state
+      ? `${payload.clinic.city}/${payload.clinic.state}`
+      : payload.clinic.city || 'Endereço a completar'
+  const address = clinicAddress(payload.clinic)
+  const catalog = listedCategories(payload)
+  const maxCategoryTotal = Math.max(1, ...catalog.map((row) => row.total))
+  const span = serviceSpan(payload.services)
+  const priceSpan = servicePriceSpan(payload.services)
+  const quotes = payload.services.filter((service) => service.priceType === 'quote').length
+  const priced = payload.services.length - quotes
+  const sharedHours = sameRange(days)
+  const paused = days.filter((day) => day.breaks.length > 0).length
+  const holiday = payload.clinic.holidayHours
+  const packageMode =
+    payload.preferences.packagePaymentMode === 'clinic_only'
+      ? 'Receber na clínica'
+      : payload.preferences.packagePaymentMode === 'in_app'
+        ? 'Receber pelo app'
+        : 'A cliente escolhe'
+  const notice = payload.preferences.bookingNoticeHours ?? 1
+  const rescheduling = payload.preferences.reschedulingHours
+  const special = payload.services.filter((service) => service.bookingMode === 'manual_release')
+  const soloOwner = payload.professionals[0]
+  const people =
+    payload.teamMode === 'solo'
+      ? [
+          {
+            id: 'owner',
+            name: payload.ownerName || 'Você',
+            role: 'Responsável · Atendimento individual',
+            badge: `${payload.services.length || 'Todos os'} ${payload.services.length === 1 ? 'serviço' : 'serviços'}`,
+            avatar: soloOwner?.photoUrl || soloOwner?.photoPreview || null,
+          },
+        ]
+      : payload.professionals.map((person) => ({
+          id: person.id,
+          name: person.name,
+          role: person.role || 'Profissional',
+          badge: person.serviceNames.length
+            ? `${person.serviceNames.length} ${person.serviceNames.length === 1 ? 'serviço' : 'serviços'}`
+            : 'Profissional',
+          avatar:
+            person.photoUrl ||
+            person.photoPreview ||
+            professionalAvatarSrc[person.gender ?? 'female'],
+        }))
+  const groups: {
+    title: string
+    kicker: string
+    icon: typeof HeartHandshake
+    key: (typeof stepInfo)[number]['key']
+    lead: string
+    band?: string
+    extra?: { key: (typeof stepInfo)[number]['key']; label: string }
+    body: ReactNode
+  }[] = [
     {
       title: 'Seu espaço',
+      kicker: 'IDENTIDADE E CONTATO',
       icon: HeartHandshake,
-      key: 'clinic' as const,
-      value: payload.name,
-      detail: `${payload.ownerName} · ${formatBrPhone(payload.phone)} · ${payload.clinic.city ? `${payload.clinic.city}/${payload.clinic.state}` : 'Endereço a completar'}`,
-      extra: { key: 'schedule' as const, label: 'Endereço' },
+      key: 'clinic',
+      lead: payload.name || 'Nome da clínica a completar',
+      band: [
+        place,
+        audienceSummary(payload.clinic.defaultAudience),
+        payload.clinic.foundedYear ? `Desde ${payload.clinic.foundedYear}` : '',
+      ]
+        .filter(Boolean)
+        .join(' · '),
+      extra: { key: 'schedule', label: 'Endereço' },
+      body: (
+        <>
+          <FactList
+            items={[
+              { label: 'Responsável', value: payload.ownerName },
+              { label: 'Celular', value: formatBrPhone(payload.phone) },
+              { label: 'E-mail', value: payload.email },
+              {
+                label: payload.clinic.taxIdKind === 'cpf' ? 'CPF' : 'CNPJ',
+                value: payload.clinic.taxId,
+              },
+              { label: 'Instagram', value: payload.clinic.instagram },
+              {
+                label: 'Domicílio',
+                value: payload.clinic.homeService ? 'Atende em casa' : 'Atendimento no espaço',
+              },
+            ]}
+          />
+          {address ? (
+            <div className="ob2-review-note ob2-review-address">
+              <span className="ob2-review-address-pin" aria-hidden>
+                <MapPin size={16} />
+              </span>
+              <div className="ob2-review-address-copy">
+                <strong>{address}</strong>
+                {payload.clinic.postalCode ? <small>CEP {payload.clinic.postalCode}</small> : null}
+              </div>
+            </div>
+          ) : null}
+        </>
+      ),
     },
     {
       title: 'Serviços',
-      icon: Scissors,
-      key: 'catalog' as const,
-      value: `${payload.services.length} ${payload.services.length === 1 ? 'serviço escolhido' : 'serviços escolhidos'}`,
-      detail: payload.occupations.join(' · '),
-      extra: { key: 'services' as const, label: 'Valores e duração' },
+      kicker: 'CATÁLOGO E VALORES',
+      icon: HandHeart,
+      key: 'catalog',
+      lead: `${payload.services.length} ${payload.services.length === 1 ? 'serviço escolhido' : 'serviços escolhidos'}`,
+      band: [
+        span,
+        priceSpan,
+        priced ? `${priced} com valor` : '',
+        quotes ? `${quotes} sob consulta` : '',
+      ]
+        .filter(Boolean)
+        .join(' · '),
+      extra: { key: 'services', label: 'Valores e duração' },
+      body: (
+        <>
+          {catalog.length > 0 ? (
+            <ul className="ob2-review-cats">
+              {catalog.map((row) => {
+                const art = categoryArtSrc(row.name)
+                const share = Math.max(12, Math.round((row.total / maxCategoryTotal) * 100))
+                return (
+                  <li key={row.name}>
+                    {art ? (
+                      <span className="ob2-review-cat-art" aria-hidden>
+                        <Image src={art} alt="" width={34} height={34} />
+                      </span>
+                    ) : null}
+                    <div className="ob2-review-cat-main">
+                      <span>{row.name}</span>
+                      <i className="ob2-review-cat-bar" aria-hidden>
+                        <b style={{ width: `${share}%` }} />
+                      </i>
+                    </div>
+                    <b className="ob2-review-total">
+                      {row.total}
+                      <small>{row.total === 1 ? 'serviço' : 'serviços'}</small>
+                    </b>
+                  </li>
+                )
+              })}
+            </ul>
+          ) : (
+            <p className="ob2-review-note">Nenhuma categoria escolhida ainda.</p>
+          )}
+        </>
+      ),
     },
     {
       title: 'Equipe',
+      kicker: 'QUEM REALIZA',
       icon: Users,
-      key: 'structure' as const,
-      value:
+      key: 'structure',
+      lead:
         payload.teamMode === 'solo'
           ? 'Somente você'
-          : `${payload.professionals.length} profissionais`,
-      detail:
+          : `${payload.professionals.length} ${payload.professionals.length === 1 ? 'profissional' : 'profissionais'}`,
+      band:
         payload.teamMode === 'solo'
-          ? payload.ownerName
-          : payload.professionals.map((person) => person.name).join(' · '),
+          ? 'Agenda concentrada no seu perfil'
+          : 'Agendas distribuídas por especialidade',
+      body: (
+        <>
+          {people.length > 0 ? (
+            <ul className="ob2-review-roster">
+              {people.map((person) => (
+                <li key={person.id} className="ob2-review-person">
+                  <span
+                    className={`ob2-review-person-avatar${person.avatar ? '' : ' is-icon'}`}
+                    aria-hidden
+                  >
+                    {person.avatar ? (
+                      <Image
+                        src={person.avatar}
+                        alt=""
+                        width={46}
+                        height={46}
+                        unoptimized
+                        style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                      />
+                    ) : (
+                      <UserRound size={22} />
+                    )}
+                  </span>
+                  <div className="ob2-review-person-copy">
+                    <strong>{person.name || 'Sem nome'}</strong>
+                    <small>{person.role}</small>
+                  </div>
+                  <span className="ob2-review-person-badge">{person.badge}</span>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="ob2-review-note">Nenhuma pessoa na equipe ainda.</p>
+          )}
+          <FactList
+            items={[
+              {
+                label: 'Formato',
+                value:
+                  payload.teamMode === 'solo' ? 'Atendimento individual' : 'Equipe multiprofissional',
+              },
+              {
+                label: 'Público padrão',
+                value: audienceSummary(payload.clinic.defaultAudience),
+              },
+            ]}
+          />
+        </>
+      ),
     },
     {
       title: 'Horários',
+      kicker: 'JORNADA SEMANAL',
       icon: CalendarDays,
-      key: 'hours' as const,
-      value: `${days.length} ${days.length === 1 ? 'dia' : 'dias'} de atendimento por semana`,
-      detail: days.map((day) => dayNames[day.weekday]).join(' · '),
+      key: 'hours',
+      lead: `${days.length} ${days.length === 1 ? 'dia' : 'dias'} de atendimento por semana`,
+      band: sharedHours ? `Expediente padrão: ${sharedHours}` : 'Horários personalizados por dia',
+      body: (
+        <>
+          {orderedDays.length > 0 ? (
+            <ul className="ob2-review-chips">
+              {orderedDays.map((day) => (
+                <li
+                  key={day.weekday}
+                  className={day.enabled ? 'is-open' : 'is-closed'}
+                >
+                  <b>{shortDays[day.weekday] ?? dayNames[day.weekday]}</b>
+                  <small>{day.enabled ? `${day.start}–${day.end}` : 'Folga'}</small>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="ob2-review-note">Nenhum dia aberto ainda.</p>
+          )}
+          <FactList
+            items={[
+              {
+                label: 'Intervalo',
+                value: paused
+                  ? `${paused} ${paused === 1 ? 'dia com pausa' : 'dias com pausa'}`
+                  : 'Sem pausa fixa',
+              },
+              {
+                label: 'Feriados',
+                value: holiday?.enabled ? `${holiday.start}–${holiday.end}` : 'Agenda fechada',
+              },
+            ]}
+          />
+        </>
+      ),
     },
     {
       title: 'Pagamentos',
+      kicker: 'RECEBIMENTO E PACOTES',
       icon: CreditCard,
-      key: 'payments' as const,
-      value: payload.preferences.acceptInApp
-        ? 'Recebimento pelo app selecionado'
+      key: 'payments',
+      lead: payload.preferences.acceptInApp
+        ? 'Recebimento pelo app'
         : 'Diretamente com a clínica',
-      detail: `Pacotes: ${payload.preferences.packagePaymentMode === 'clinic_only' ? 'receber na clínica' : payload.preferences.packagePaymentMode === 'in_app' ? 'receber pelo app' : 'a cliente escolhe'}`,
+      band: payload.preferences.acceptInApp
+        ? 'Checkout integrado via Stripe Connect'
+        : 'Acerto direto no atendimento',
+      body: (
+        <FactList
+          items={[
+            {
+              label: 'Atendimentos',
+              value: payload.preferences.acceptInApp ? 'Pelo app' : 'Na clínica',
+            },
+            { label: 'Pacotes', value: packageMode },
+            {
+              label: 'Mensalidade agora',
+              value: 'Nenhuma cobrança nesta etapa',
+            },
+          ]}
+        />
+      ),
     },
     {
       title: 'Regras',
+      kicker: 'POLÍTICA DA AGENDA',
       icon: ShieldCheck,
-      key: 'rules' as const,
-      value: `Cancelamento: ${hours(payload.preferences.cancellationHours).toLocaleLowerCase('pt-BR')}`,
-      detail: `Agenda: ${payload.preferences.bookingWindowDays ?? 30} dias à frente · ${payload.preferences.bookingNoticeHours ?? 1}h de antecedência`,
+      key: 'rules',
+      lead: `Cancelar ${hours(payload.preferences.cancellationHours).toLocaleLowerCase('pt-BR')}`,
+      band: `Janela aberta de ${payload.preferences.bookingWindowDays ?? 30} dias · ${notice === 0 ? 'Marcação livre' : `Mínimo ${notice}h antes`}`,
+      body: (
+        <>
+          <FactList
+            items={[
+              {
+                label: 'Para agendar',
+                value: notice === 0 ? 'Sem antecedência mínima' : `Pelo menos ${notice}h antes`,
+              },
+              {
+                label: 'Agenda aberta',
+                value: `${payload.preferences.bookingWindowDays ?? 30} dias à frente`,
+              },
+              {
+                label: 'Especiais',
+                value: special.length
+                  ? hours(payload.preferences.specialCancellationHours)
+                  : '',
+              },
+              {
+                label: 'Para remarcar',
+                value:
+                  rescheduling == null ? 'Mesmo prazo do cancelamento' : hours(rescheduling),
+              },
+            ]}
+          />
+          <Help
+            items={[
+              {
+                title: 'Ver todos os combinados',
+                text: [
+                  special.length
+                    ? `Serviços especiais: cancelar ${hours(payload.preferences.specialCancellationHours).toLocaleLowerCase('pt-BR')}.`
+                    : '',
+                  rescheduling == null
+                    ? 'Remarcação: mesmo prazo do cancelamento.'
+                    : `Remarcação: ${hours(rescheduling).toLocaleLowerCase('pt-BR')}.`,
+                ]
+                  .filter(Boolean)
+                  .join(' '),
+              },
+            ]}
+          />
+        </>
+      ),
     },
   ]
+  const logoName = payload.name || 'sua clínica'
   return (
     <div className="ob2-stack ob2-review">
       <Card className="ob2-panel ob2-review-welcome">
         <Card.Content>
-          <Image
-            src="/brand/onboarding/ministudio-illustration.png"
-            width={100}
-            height={100}
-            alt=""
-          />
-          <div>
-            <span className="ob2-rule-eyebrow">FEITO COM CUIDADO</span>
-            <h2>{payload.name || 'Seu espaço'}</h2>
-            <p>Você chegou até aqui! Falta só conferir e concluir o cadastro.</p>
+          <div className="ob2-review-welcome-main">
+            <div
+              className="ob2-review-mark"
+              role="img"
+              aria-label={
+                payload.clinic.logoUrl ? `Logo de ${logoName}` : `Marca de ${logoName}`
+              }
+            >
+              {payload.clinic.logoUrl ? (
+                <Image
+                  src={payload.clinic.logoUrl}
+                  alt=""
+                  width={104}
+                  height={104}
+                  style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                />
+              ) : (
+                <span>{markLetters(payload.name)}</span>
+              )}
+            </div>
+            <div className="ob2-review-welcome-copy">
+              <div className="ob2-review-welcome-badges">
+                <span className="ob2-review-ready-pill">
+                  <CheckCircle2 size={13} aria-hidden />
+                  Tudo pronto para abrir
+                </span>
+              </div>
+              <h2>{payload.name || 'Seu espaço'}</h2>
+              <p>Você chegou até aqui! Falta só conferir o resumo e abrir sua clínica.</p>
+              <div className="ob2-review-welcome-tags">
+                <span>
+                  <MapPin size={13} aria-hidden />
+                  {place}
+                </span>
+                <span>{audienceSummary(payload.clinic.defaultAudience)}</span>
+                {payload.clinic.foundedYear ? (
+                  <span>Desde {payload.clinic.foundedYear}</span>
+                ) : null}
+              </div>
+            </div>
           </div>
-          <Sparkles size={24} aria-hidden />
+          <dl className="ob2-review-kpis" aria-label="Números do seu espaço">
+            <div>
+              <dt>Especialidades</dt>
+              <dd>{catalog.length}</dd>
+            </div>
+            <div>
+              <dt>Serviços</dt>
+              <dd>{payload.services.length}</dd>
+            </div>
+            <div>
+              <dt>Agenda</dt>
+              <dd>{days.length}d/sem</dd>
+            </div>
+            <div>
+              <dt>Atendimento</dt>
+              <dd>{payload.teamMode === 'solo' ? 'Solo' : `${payload.professionals.length} prof.`}</dd>
+            </div>
+          </dl>
         </Card.Content>
       </Card>
       <div className="ob2-review-grid">
-        {groups.map(({ title, icon: Icon, key, value, detail, extra }) => (
+        {groups.map(({ title, kicker, icon: Icon, key, lead, band, extra, body }) => (
           <Card className="ob2-panel ob2-review-card" key={key}>
             <Card.Content>
               <div className="ob2-review-card-heading">
                 <span className="ob2-review-symbol">
                   <Icon size={20} aria-hidden />
                 </span>
-                <h2>{title}</h2>
+                <div className="ob2-review-card-titles">
+                  <span className="ob2-review-kicker">{kicker}</span>
+                  <h2>{title}</h2>
+                </div>
                 <Button
                   className="ob2-review-edit"
                   variant="ghost"
@@ -433,31 +858,15 @@ export function ReviewStep({
                   aria-label={`Editar ${title.toLocaleLowerCase('pt-BR')}`}
                   onPress={() => edit(key)}
                 >
-                  <Pencil size={15} aria-hidden />
+                  <Pencil size={14} aria-hidden />
                   Editar
                 </Button>
               </div>
-              <strong>{value}</strong>
-              <p>{detail || 'Não informado'}</p>
-              {key === 'rules' ? (
-                <Help
-                  items={[
-                    {
-                      title: 'Ver todos os combinados',
-                      text: [
-                        payload.services.some((service) => service.bookingMode === 'manual_release')
-                          ? `Serviços especiais: cancelar ${hours(payload.preferences.specialCancellationHours).toLocaleLowerCase('pt-BR')}.`
-                          : '',
-                        payload.preferences.reschedulingHours == null
-                          ? 'Remarcação: mesmo prazo do cancelamento.'
-                          : `Remarcação: ${hours(payload.preferences.reschedulingHours).toLocaleLowerCase('pt-BR')}.`,
-                      ]
-                        .filter(Boolean)
-                        .join(' '),
-                    },
-                  ]}
-                />
-              ) : null}
+              <div className="ob2-review-lead-box">
+                <p className="ob2-review-lead">{lead}</p>
+                {band ? <p className="ob2-review-band">{band}</p> : null}
+              </div>
+              <div className="ob2-review-card-body">{body}</div>
               {extra ? (
                 <Button
                   className="ob2-review-detail"
@@ -465,6 +874,7 @@ export function ReviewStep({
                   isDisabled={isDisabled}
                   onPress={() => edit(extra.key)}
                 >
+                  <Pencil size={13} aria-hidden />
                   Editar {extra.label.toLocaleLowerCase('pt-BR')}
                 </Button>
               ) : null}
@@ -472,15 +882,17 @@ export function ReviewStep({
           </Card>
         ))}
       </div>
-      <Help
-        items={[
-          {
-            title: 'O que acontece ao concluir?',
-            text: 'O cadastro, os serviços, a equipe e as preferências ficam salvos para sua clínica. Você será levada ao painel. Esta ação não cobra clientes nem ativa automaticamente o agendamento público.',
-          },
-        ]}
-      />
-      <StepEnd error={error} footer={footer} />
+      <div className="ob2-review-finale">
+        <Help
+          items={[
+            {
+              title: 'O que acontece ao concluir?',
+              text: 'O cadastro, os serviços, a equipe e as preferências ficam salvos para sua clínica. Você será levada ao painel. Esta ação não cobra clientes nem ativa automaticamente o agendamento público.',
+            },
+          ]}
+        />
+        <StepEnd error={error} footer={footer} />
+      </div>
     </div>
   )
 }
