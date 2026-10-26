@@ -146,3 +146,26 @@ Preview e Production com serviços em modo de teste. Antes de uso real, separar 
 adicionar ao projeto frontend as credenciais administrativas da API.
 
 ---
+
+## Publicação e reinício dos testes — 2026-10-26
+
+A pedido explícito do usuário, os cadastros do ambiente inicial foram zerados para repetir
+onboarding e testes mobile. Destinos conferidos: Firebase `luminix-316aa`, Neon
+`ep-bitter-fog-acchavo1.sa-east-1.aws.neon.tech/neondb`, R2 bucket `luminix` e Stripe
+`acct_1UBfvrCz54koiZqR` somente em teste. Foram removidos 20 usuários Firebase, os dados de
+18 clínicas e 18 identidades em 29 tabelas locais, e 30 objetos R2 sob os prefixos dessas
+clínicas. As duas contas Connect vinculadas foram encerradas em test mode.
+
+O reset preservou as 17 migrations, as nove permissões globais e todo o schema. A limpeza
+Neon foi transacional, com locks e conferência das contagens anteriores. O trigger imutável
+da auditoria foi desabilitado apenas dentro dessa transação e reabilitado antes do commit;
+os 1.012 registros anteriores foram preservados em snapshot privado local, junto dos dados
+anteriores, em `.secrets/reset-2026-10-26/`, fora do Git e dos deploys. Essa cópia não restaura
+automaticamente contas Firebase, mídia removida ou contas Stripe encerradas. Não reutilizar
+esse procedimento com dados reais. Novos testes exigem novo cadastro/login.
+
+A revisão de publicação corrigiu o tipo `ConnectStatus` da resposta de pagamentos que impedia
+compilar a API. A página auxiliar `qa-machines-local` foi versionada com acesso limitado a
+`NODE_ENV=development`; em produção responde 404. Os builds e TypeScript do workspace passaram;
+99 testes da API, dez do admin e dois do web passaram. O check agregado continua bloqueado
+pelas pendências de formatação/lint da TD-007; não representa validação agregada verde.

@@ -6,6 +6,7 @@ import {
   createConnectProvider,
   type ConnectProvider,
   type ConnectPurpose,
+  type ConnectStatus,
 } from './stripe-connect.js'
 
 type Request = FastifyRequest<{ Params: { clinicId: string }; Body?: { purpose: ConnectPurpose } }>
@@ -67,7 +68,7 @@ export async function paymentRoutes(
         return result.rows[0] as Binding | undefined
       })
       if (!write) {
-        const status = binding?.account_id
+        const status: ConnectStatus = binding?.account_id
           ? await provider.status(binding.account_id)
           : {
               state: binding ? 'pending' : 'not_started',

@@ -39,3 +39,10 @@ para 27. A suíte Connect adiciona nove testes. TypeScript e builds de todo o wo
 a execução serial evita os mesmos timeouts de inicialização. Lint dos novos componentes/rotas e da
 API passou. `pnpm check` continua bloqueado pela formatação anterior; o lint global mantém as
 ocorrências de endereço/refs acima. Não declarar validação agregada verde.
+
+Atualização 2026-10-26: na publicação geral, `pnpm check` parou na formatação preexistente;
+o lint do admin apresentou nove erros e um aviso nos componentes de endereço/onboarding.
+Builds e TypeScript de todo o workspace passaram após corrigir a tipagem de `ConnectStatus`
+na rota de pagamentos. Testes: 99 API (um worker), dez admin e dois web aprovados. A página
+QA agora é versionada e restrita a desenvolvimento, com lint próprio aprovado. As pendências
+estáticas anteriores seguem abertas; não foi realizada refatoração ampla nesta publicação.
