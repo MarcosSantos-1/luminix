@@ -61,6 +61,7 @@ export function ThemePicker({
             {value === theme.id && <Check size={20} aria-hidden="true" />}
           </span>
           <span>{theme.label}</span>
+          <span className="space-theme-mark" aria-hidden="true" />
         </Button>
       ))}
     </div>

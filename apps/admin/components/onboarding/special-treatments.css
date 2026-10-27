@@ -127,6 +127,20 @@
   background: rgba(255, 255, 255, 0.045);
   color: #fff;
   overflow: hidden;
+  transition:
+    opacity 180ms ease,
+    border-color 180ms ease,
+    transform 180ms ease,
+    background 180ms ease;
+}
+
+.ob2-equipment-card:not(.is-selected) {
+  opacity: 0.58;
+}
+
+.ob2-equipment-card:hover {
+  opacity: 1;
+  transform: translateY(-2px);
 }
 
 .ob2-equipment-card.is-selected {
@@ -212,11 +226,20 @@
   position: absolute;
   top: 16px;
   right: 16px;
-  box-sizing: content-box;
-  padding: 7px;
+  box-sizing: border-box;
+  width: 28px;
+  height: 28px;
+  display: grid;
+  place-items: center;
   border-radius: 50%;
-  background: #3d2031;
-  color: #ffe1a6;
+  border: 2px solid rgba(255, 255, 255, 0.78);
+  background: transparent;
+  color: #fff;
+}
+
+.ob2-equipment-card.is-selected .ob2-equipment-check {
+  background: var(--space-accent, #ff2d79);
+  border-color: #fff;
 }
 
 .ob2-special-modal .button.ob2-equipment-add {

@@ -66,11 +66,7 @@ export function WelcomeStep({ busy, onStart }: { busy: boolean; onStart: () => v
         <section className="ob2-welcome-card">
           <div className="ob2-welcome-body">
             <div className="ob2-welcome-copy">
-              <h1>
-                Vamos preparar
-                <br />
-                seu espaço?
-              </h1>
+              <h1>Vamos preparar seu espaço?</h1>
               <p className="ob2-welcome-lead">
                 Vamos organizar as informações do seu negócio para deixar sua agenda pronta para
                 receber clientes.

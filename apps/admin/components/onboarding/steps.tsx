@@ -83,8 +83,11 @@ import {
   GlassField,
   GlassSelect,
   QuietButton,
+  RequiredMark,
+  SectionIssue,
   StepEnd,
   useOverlayState,
+  type FieldErrors,
 } from './ui'
 
 const priceOptions = [
@@ -109,42 +112,54 @@ function IntimateAudienceCards({
   onChange,
   question,
   labels = 'short',
+  required = false,
+  errorFor,
 }: {
   services: Service[]
   audienceFor: (service: Service) => Audience | undefined
   onChange: (service: Service, audience: Audience) => void
   question: string
   labels?: 'full' | 'short'
+  required?: boolean
+  errorFor?: (service: Service) => string | undefined
 }) {
   if (services.length === 0) return null
   return (
     <div className="ob2-intimate-list">
       {services.map((service) => {
         const value = audienceFor(service)
+        const error = errorFor?.(service)
         return (
-          <Card
-            className={`ob2-panel ob2-intimate-card${value ? '' : ' is-pending'}`}
-            key={service.id}
-          >
-            <Card.Content className="ob2-intimate-body">
-              <div className="ob2-intimate-head">
-                <span className="ob2-intimate-icon" aria-hidden>
-                  <Shield size={18} />
-                </span>
-                <div>
-                  <strong>{service.name}</strong>
-                  <p>{question}</p>
+          <div data-field={`audience-${service.id}`} key={service.id}>
+            <Card className={`ob2-panel ob2-intimate-card${value ? '' : ' is-pending'}`}>
+              <Card.Content className="ob2-intimate-body">
+                <div className="ob2-intimate-head">
+                  <span className="ob2-intimate-icon" aria-hidden>
+                    <Shield size={18} />
+                  </span>
+                  <div>
+                    <strong>{service.name}</strong>
+                    <p>
+                      {question}
+                      {required ? <RequiredMark /> : null}
+                    </p>
+                    {error ? (
+                      <p className="ob2-field-error" role="alert">
+                        {error}
+                      </p>
+                    ) : null}
+                  </div>
                 </div>
-              </div>
-              <AudienceChoices
-                layout="inline"
-                labels={labels}
-                marked
-                value={value}
-                onChange={(audience) => onChange(service, audience)}
-              />
-            </Card.Content>
-          </Card>
+                <AudienceChoices
+                  layout="inline"
+                  labels={labels}
+                  marked
+                  value={value}
+                  onChange={(audience) => onChange(service, audience)}
+                />
+              </Card.Content>
+            </Card>
+          </div>
         )
       })}
     </div>
@@ -280,12 +295,14 @@ export function ClinicStep({
   payload,
   setPayload,
   error,
+  fieldErrors = {},
   footer,
   onUploadingChange,
 }: {
   payload: Payload
   setPayload: (value: Payload) => void
   error: string
+  fieldErrors?: FieldErrors
   footer: ReactNode
   onUploadingChange?: (busy: boolean) => void
 }) {
@@ -329,6 +346,9 @@ export function ClinicStep({
                 icon={<Building2 size={18} />}
                 value={payload.name}
                 placeholder="Nome do espaço"
+                required
+                field="name"
+                error={fieldErrors.name}
                 onChange={(value) => setPayload({ ...payload, name: value })}
               />
               <GlassField
@@ -344,6 +364,7 @@ export function ClinicStep({
                 <Button
                   className={kind === 'cnpj' ? 'is-selected' : ''}
                   variant="ghost"
+                  aria-pressed={kind === 'cnpj'}
                   onPress={() =>
                     setPayload({
                       ...payload,
@@ -356,10 +377,12 @@ export function ClinicStep({
                   }
                 >
                   CNPJ
+                  <span className="ob2-choice-mark is-single" aria-hidden />
                 </Button>
                 <Button
                   className={kind === 'cpf' ? 'is-selected' : ''}
                   variant="ghost"
+                  aria-pressed={kind === 'cpf'}
                   onPress={() =>
                     setPayload({
                       ...payload,
@@ -372,6 +395,7 @@ export function ClinicStep({
                   }
                 >
                   CPF
+                  <span className="ob2-choice-mark is-single" aria-hidden />
                 </Button>
               </div>
               <GlassField
@@ -380,6 +404,9 @@ export function ClinicStep({
                 inputMode="numeric"
                 value={payload.clinic.taxId}
                 placeholder={kind === 'cnpj' ? '00.000.000/0000-00' : '000.000.000-00'}
+                required
+                field="taxId"
+                error={fieldErrors.taxId}
                 onChange={(value) => change('taxId', maskTaxId(kind, value))}
               />
             </div>
@@ -448,6 +475,9 @@ export function ClinicStep({
                 value={payload.ownerName}
                 placeholder="Pessoa responsável"
                 autoComplete="name"
+                required
+                field="ownerName"
+                error={fieldErrors.ownerName}
                 onChange={(value) => setPayload({ ...payload, ownerName: value })}
               />
               <GlassField
@@ -458,6 +488,9 @@ export function ClinicStep({
                 value={payload.email}
                 placeholder="contato@clinica.com"
                 autoComplete="email"
+                required
+                field="email"
+                error={fieldErrors.email}
                 onChange={(value) => setPayload({ ...payload, email: value })}
               />
               <GlassField
@@ -468,6 +501,9 @@ export function ClinicStep({
                 value={formatBrPhone(payload.phone) || payload.phone}
                 placeholder="(11) 99999-9999"
                 autoComplete="tel"
+                required
+                field="phone"
+                error={fieldErrors.phone}
                 onChange={changePhone}
               />
             </div>
@@ -835,11 +871,13 @@ export function CatalogStep({
   payload,
   setPayload,
   error,
+  fieldErrors = {},
   footer,
 }: {
   payload: Payload
   setPayload: (value: Payload) => void
   error: string
+  fieldErrors?: FieldErrors
   footer: ReactNode
 }) {
   const [area, setArea] = useState<string | null>(null)
@@ -918,6 +956,12 @@ export function CatalogStep({
   }
   return (
     <div className="ob2-stack">
+      <SectionIssue
+        title="Serviços da agenda"
+        required
+        field="services"
+        error={fieldErrors.services}
+      />
       <div className={picked.length ? 'ob2-catalog has-picked' : 'ob2-catalog'}>
         <div className="ob2-catalog-main">
           {area ? (
@@ -1101,11 +1145,13 @@ export function ServicesStep({
   payload,
   setPayload,
   error,
+  fieldErrors = {},
   footer,
 }: {
   payload: Payload
   setPayload: (value: Payload) => void
   error: string
+  fieldErrors?: FieldErrors
   footer: ReactNode
 }) {
   const editor = useOverlayState()
@@ -1192,31 +1238,37 @@ export function ServicesStep({
                 <h2 className="ob2-detail-category">{group.category}</h2>
                 <div className="ob2-detail-grid">
                   {group.entries.map(({ item, position }) => (
-                    <Card
-                      className={`ob2-panel${item.bookingMode === 'manual_release' ? ' ob2-special-service' : ''}`}
-                      key={item.id}
-                    >
-                      <Card.Content className="ob2-summary">
-                        {item.bookingMode === 'manual_release' ? (
-                          <span className="ob2-special-badge">
-                            <Star size={16} fill="currentColor" aria-hidden /> Especial
-                          </span>
-                        ) : null}
-                        <strong>{item.name}</strong>
-                        {item.bookingMode === 'manual_release' && item.resourceName ? (
-                          <span className="ob2-special-resource">{item.resourceName}</span>
-                        ) : null}
-                        <p>{item.durationMinutes} min</p>
-                        <b>{priceLabel(item)}</b>
-                        <Button
-                          className="ob2-quiet"
-                          variant="ghost"
-                          onPress={() => open(position)}
-                        >
-                          Ajustar este serviço
-                        </Button>
-                      </Card.Content>
-                    </Card>
+                    <div data-field={`service-${item.id}`} key={item.id}>
+                      <Card
+                        className={`ob2-panel${item.bookingMode === 'manual_release' ? ' ob2-special-service' : ''}`}
+                      >
+                        <Card.Content className="ob2-summary">
+                          {fieldErrors[`service-${item.id}`] ? (
+                            <p className="ob2-field-error" role="alert">
+                              {fieldErrors[`service-${item.id}`]}
+                            </p>
+                          ) : null}
+                          {item.bookingMode === 'manual_release' ? (
+                            <span className="ob2-special-badge">
+                              <Star size={16} fill="currentColor" aria-hidden /> Especial
+                            </span>
+                          ) : null}
+                          <strong>{item.name}</strong>
+                          {item.bookingMode === 'manual_release' && item.resourceName ? (
+                            <span className="ob2-special-resource">{item.resourceName}</span>
+                          ) : null}
+                          <p>{item.durationMinutes} min</p>
+                          <b>{priceLabel(item)}</b>
+                          <Button
+                            className="ob2-quiet"
+                            variant="ghost"
+                            onPress={() => open(position)}
+                          >
+                            Ajustar este serviço
+                          </Button>
+                        </Card.Content>
+                      </Card>
+                    </div>
                   ))}
                 </div>
               </section>
@@ -1243,6 +1295,13 @@ export function ServicesStep({
               label="Nome do serviço"
               icon={<Scissors size={18} />}
               value={service.name}
+              required
+              field={`service-${service.id}`}
+              error={
+                fieldErrors[`service-${service.id}`]?.includes('nome')
+                  ? fieldErrors[`service-${service.id}`]
+                  : undefined
+              }
               onChange={(value) => update({ name: value })}
             />
             <Separator />
@@ -1335,12 +1394,14 @@ export function TeamStep({
   payload,
   setPayload,
   error,
+  fieldErrors = {},
   footer,
   onUploadingChange,
 }: {
   payload: Payload
   setPayload: (value: Payload) => void
   error: string
+  fieldErrors?: FieldErrors
   footer: ReactNode
   onUploadingChange?: (busy: boolean) => void
 }) {
@@ -1504,6 +1565,7 @@ export function TeamStep({
           detail="Você realiza todos os serviços"
           icon={<UserRound size={18} />}
           selected={payload.teamMode === 'solo'}
+          selection="single"
           onPress={() => setMode('solo')}
         />
         <ChoiceCard
@@ -1511,9 +1573,15 @@ export function TeamStep({
           detail="Cada pessoa com seus atendimentos"
           icon={<UserRound size={18} />}
           selected={payload.teamMode === 'team'}
+          selection="single"
           onPress={() => setMode('team')}
         />
       </div>
+      {fieldErrors.team ? (
+        <p className="ob2-field-error" role="alert" data-field="team">
+          {fieldErrors.team}
+        </p>
+      ) : null}
       {payload.teamMode === 'solo' ? (
         <>
           <Card className="ob2-panel">
@@ -1530,8 +1598,17 @@ export function TeamStep({
               </p>
             </Card.Content>
           </Card>
+          {fieldErrors.intimate ? (
+            <SectionIssue
+              title="Público dos atendimentos íntimos"
+              required
+              error={fieldErrors.intimate}
+            />
+          ) : null}
           <IntimateAudienceCards
             services={intimateServices}
+            required
+            errorFor={(service) => fieldErrors[`audience-${service.id}`]}
             audienceFor={(service) => (service.audienceChosen ? service.audience : undefined)}
             question="Qual é o público padrão deste serviço?"
             onChange={(service, audience) =>
@@ -1654,13 +1731,10 @@ export function TeamStep({
                   icon={<UserRound size={18} />}
                   value={draft.name}
                   placeholder="Nome completo"
+                  required
+                  error={formErrors.name}
                   onChange={(value) => patchDraft({ name: value })}
                 />
-                {formErrors.name ? (
-                  <p className="ob2-field-error" role="alert">
-                    {formErrors.name}
-                  </p>
-                ) : null}
               </div>
               <div className="ob2-dialog-field">
                 <GlassField
@@ -1668,17 +1742,17 @@ export function TeamStep({
                   icon={<Briefcase size={18} />}
                   value={draft.role}
                   placeholder="Cargo ou especialidade"
+                  required
+                  error={formErrors.role}
                   onChange={(value) => patchDraft({ role: value })}
                 />
-                {formErrors.role ? (
-                  <p className="ob2-field-error" role="alert">
-                    {formErrors.role}
-                  </p>
-                ) : null}
               </div>
             </div>
-            <div className="ob2-pro-gender">
-              <p className="ob2-dialog-section">Sexo</p>
+            <div className="ob2-pro-gender" data-field="gender">
+              <p className="ob2-dialog-section">
+                Sexo
+                <RequiredMark />
+              </p>
               <div className="ob2-gender-grid">
                 {(
                   [
@@ -1695,6 +1769,7 @@ export function TeamStep({
                       .filter(Boolean)
                       .join(' ')}
                     variant="ghost"
+                    aria-pressed={draft.gender === option.id}
                     onPress={() => patchDraft({ gender: option.id })}
                   >
                     <Image
@@ -1705,6 +1780,7 @@ export function TeamStep({
                       height={512}
                     />
                     <span>{option.label}</span>
+                    <span className="ob2-choice-mark is-single" aria-hidden />
                   </Button>
                 ))}
               </div>
@@ -1717,7 +1793,10 @@ export function TeamStep({
           </div>
         </div>
         <div className="ob2-pro-section">
-          <p className="ob2-dialog-section">Público atendido</p>
+          <p className="ob2-dialog-section">
+            Público atendido
+            {singleGenderClinic ? null : <RequiredMark />}
+          </p>
           <AudienceChoices
             layout="inline"
             value={draft.audience}
@@ -1860,11 +1939,13 @@ export function ScheduleStep({
   payload,
   setPayload,
   error,
+  fieldErrors = {},
   footer,
 }: {
   payload: Payload
   setPayload: (value: Payload) => void
   error: string
+  fieldErrors?: FieldErrors
   footer: ReactNode
 }) {
   const staff = useStaff()
@@ -1878,6 +1959,16 @@ export function ScheduleStep({
   const changeClinic = (key: keyof Payload['clinic'], value: string) =>
     setPayload({ ...payload, clinic: { ...payload.clinic, [key]: value } })
   const [open, setOpen] = useState(payload.clinic.addressLine.trim() === '')
+  const revealed =
+    open ||
+    Boolean(
+      fieldErrors.postalCode ||
+      fieldErrors.addressLine ||
+      fieldErrors.addressNumber ||
+      fieldErrors.addressDistrict ||
+      fieldErrors.city ||
+      fieldErrors.state,
+    )
   const summary = addressSummary(payload.clinic)
   async function lookupPostalCode(raw?: string) {
     const current = payloadRef.current
@@ -1948,7 +2039,7 @@ export function ScheduleStep({
     <div className="ob2-stack">
       <Card className="ob2-panel">
         <Card.Content className="ob2-form">
-          {open ? (
+          {revealed ? (
             <div className={closing ? 'ob2-address-fields is-closing' : 'ob2-address-fields'}>
               <GlassField
                 className="ob2-cep-field ob2-address-emphasis"
@@ -1957,6 +2048,9 @@ export function ScheduleStep({
                 inputMode="numeric"
                 value={payload.clinic.postalCode}
                 placeholder="00000-000"
+                required
+                field="postalCode"
+                error={fieldErrors.postalCode || cepError}
                 onChange={(value) => changeClinic('postalCode', formatCep(value))}
                 suffix={
                   <Button
@@ -1975,11 +2069,6 @@ export function ScheduleStep({
                   </Button>
                 }
               />
-              {cepError ? (
-                <p className="ob2-field-error" role="alert">
-                  {cepError}
-                </p>
-              ) : null}
               <div className="ob2-address-line">
                 <GlassField
                   className="ob2-address-emphasis"
@@ -1987,6 +2076,9 @@ export function ScheduleStep({
                   icon={<MapPin size={18} />}
                   value={payload.clinic.addressLine}
                   placeholder="Rua, avenida ou travessa"
+                  required
+                  field="addressLine"
+                  error={fieldErrors.addressLine}
                   onChange={(value) => changeClinic('addressLine', value)}
                 />
                 <GlassField
@@ -1995,6 +2087,9 @@ export function ScheduleStep({
                   icon={<Hash size={18} />}
                   value={payload.clinic.addressNumber}
                   placeholder="Nº"
+                  required
+                  field="addressNumber"
+                  error={fieldErrors.addressNumber}
                   onChange={(value) => changeClinic('addressNumber', value)}
                 />
               </div>
@@ -2003,6 +2098,9 @@ export function ScheduleStep({
                   label="Bairro"
                   value={payload.clinic.addressDistrict}
                   placeholder="Bairro"
+                  required
+                  field="addressDistrict"
+                  error={fieldErrors.addressDistrict}
                   onChange={(value) => changeClinic('addressDistrict', value)}
                 />
                 <GlassField
@@ -2010,6 +2108,9 @@ export function ScheduleStep({
                   icon={<Building2 size={18} />}
                   value={payload.clinic.city}
                   placeholder="Cidade"
+                  required
+                  field="city"
+                  error={fieldErrors.city}
                   onChange={(value) => changeClinic('city', value)}
                 />
                 <GlassField
@@ -2018,6 +2119,9 @@ export function ScheduleStep({
                   value={payload.clinic.state}
                   maxLength={2}
                   placeholder="SP"
+                  required
+                  field="state"
+                  error={fieldErrors.state}
                   onChange={(value) => changeClinic('state', value.toUpperCase())}
                 />
               </div>
@@ -2071,6 +2175,7 @@ export function PaymentsStep({
   payload,
   setPayload,
   error,
+  fieldErrors = {},
   footer,
   onReadyChange,
   onSettledChange,
@@ -2079,6 +2184,7 @@ export function PaymentsStep({
   payload: Payload
   setPayload: (value: Payload) => void
   error: string
+  fieldErrors?: FieldErrors
   onReadyChange: (ready: boolean) => void
   onSettledChange: (settled: boolean) => void
   footer: ReactNode
@@ -2123,13 +2229,14 @@ export function PaymentsStep({
 
   return (
     <div className="ob2-stack">
-      <div className="ob2-grid ob2-grid-payments">
+      <div className="ob2-grid ob2-grid-payments" data-field="payments">
         <ChoiceCard
           className="ob2-pay-choice"
           title="Receber fora do app"
           detail="Pix, maquininha ou link da própria clínica"
           icon={<CreditCard size={22} />}
           selected={!payload.preferences.acceptInApp}
+          selection="single"
           onPress={selectOutside}
         />
         <ChoiceCard
@@ -2138,9 +2245,15 @@ export function PaymentsStep({
           detail="Cliente paga pelo app quando você ativar o recebimento"
           icon={<Banknote size={22} />}
           selected={payload.preferences.acceptInApp}
+          selection="single"
           onPress={selectInApp}
         />
       </div>
+      {fieldErrors.payments ? (
+        <p className="ob2-field-error" role="alert">
+          {fieldErrors.payments}
+        </p>
+      ) : null}
       {payload.preferences.acceptInApp ? (
         <>
           <div className="ob2-pay-rule" aria-hidden="true" />
@@ -2165,7 +2278,8 @@ export function PaymentsStep({
                 }
               />
               <p className="ob2-copy">
-                Esta escolha define a forma de recebimento. Nenhum pacote é vendido ou cobrado agora.
+                Esta escolha define a forma de recebimento. Nenhum pacote é vendido ou cobrado
+                agora.
               </p>
             </Card.Content>
           </Card>

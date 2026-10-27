@@ -669,6 +669,23 @@
   --button-bg-hover: rgba(255, 255, 255, 0.16);
   --button-bg-pressed: rgba(255, 255, 255, 0.12);
   --button-fg: #fff;
+  transition:
+    opacity 180ms ease,
+    border-color 180ms ease,
+    transform 180ms ease,
+    box-shadow 180ms ease,
+    background 180ms ease;
+}
+
+.ob2 .button.ob2-choice:not(.is-selected):not(.ob2-add-service):not(.is-disabled) {
+  opacity: 0.58;
+}
+
+.ob2 .button.ob2-choice:not(.is-disabled):hover,
+.ob2 .button.ob2-choice:not(.is-disabled):focus-visible {
+  opacity: 1;
+  transform: translateY(-2px);
+  border-color: color-mix(in srgb, var(--space-highlight, #ffb3d0) 82%, white);
 }
 
 .ob2 .button.ob2-choice.ob2-category-card {
@@ -810,6 +827,21 @@
   color: #fff;
   --button-bg: rgba(255, 255, 255, 0.1);
   --button-fg: #fff;
+  transition:
+    opacity 180ms ease,
+    border-color 180ms ease,
+    transform 180ms ease,
+    background 180ms ease;
+}
+
+.ob2 .button.ob2-hours-person:not(.is-selected) {
+  opacity: 0.58;
+}
+
+.ob2 .button.ob2-hours-person:hover,
+.ob2 .button.ob2-hours-person:focus-visible {
+  opacity: 1;
+  transform: translateY(-2px);
 }
 
 .ob2 .button.ob2-hours-person.is-clinic {
@@ -857,8 +889,19 @@
   border: 2px solid var(--space-highlight, #ff8db7);
 }
 
+.ob2-hours-person-mark.has-logo {
+  position: relative;
+  overflow: hidden;
+  background: #fff;
+}
+
+.ob2-hours-clinic-logo {
+  object-fit: cover;
+}
+
 .ob2-hours-person-copy {
   display: grid;
+  flex: 1 1 auto;
   gap: 4px;
   min-width: 0;
   max-width: 100%;
@@ -1058,12 +1101,16 @@
   grid-template-columns: 168px 168px;
 }
 
-.ob2-hours-pause-split {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  flex-wrap: wrap;
-  gap: 28px;
+.ob2-hours-pause-split,
+.ob2-hours-head {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 16px 28px;
+}
+
+.ob2-hours-head .ob2-hours-dots {
+  justify-self: end;
 }
 
 .ob2-hours-dots {
@@ -1107,6 +1154,16 @@
 }
 
 @media (max-width: 720px) {
+  .ob2-hours-head,
+  .ob2-hours-pause-split {
+    grid-template-columns: 1fr;
+  }
+
+  .ob2-hours-head .ob2-hours-dots,
+  .ob2-hours-pause-split .ob2-hours-dots {
+    justify-self: start;
+  }
+
   .ob2-hours-people {
     display: grid;
     grid-template-columns: 1fr;
@@ -1248,8 +1305,44 @@
   padding-bottom: 4px;
 }
 
+.ob2-choice-mark {
+  width: 22px;
+  height: 22px;
+  margin-left: auto;
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  border-radius: 999px;
+  border: 2px solid rgba(255, 255, 255, 0.78);
+  background: transparent;
+  color: #fff;
+  transition:
+    background 180ms ease,
+    border-color 180ms ease,
+    box-shadow 180ms ease;
+}
+
+.ob2 .is-selected > .ob2-choice-mark,
+.ob2 .button.ob2-choice.is-selected .ob2-choice-mark,
+.ob2 .space-theme-option[aria-pressed='true'] .space-theme-mark {
+  background: var(--space-accent, #ff2d79);
+  border-color: #fff;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--space-accent, #ff2d79) 35%, transparent);
+}
+
+.ob2 .is-selected > .ob2-choice-mark.is-single::after,
+.ob2 .button.ob2-choice.is-selected .ob2-choice-mark.is-single::after,
+.ob2 .space-theme-option[aria-pressed='true'] .space-theme-mark::after {
+  content: '';
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: #fff;
+}
+
 .ob2-choice-copy {
   min-width: 0;
+  flex: 1 1 auto;
   display: grid;
   gap: 4px;
 }
@@ -1449,6 +1542,11 @@
   align-items: center;
   justify-content: flex-start;
   gap: 8px;
+  transition:
+    opacity 180ms ease,
+    border-color 180ms ease,
+    transform 180ms ease,
+    background 180ms ease;
   min-height: 48px;
   padding: 7px 12px;
   font-size: 14px;
@@ -1469,10 +1567,30 @@
   object-fit: contain;
 }
 
+.ob2-required {
+  margin-left: 4px;
+  color: var(--space-accent, #ff2d79);
+  font-weight: 750;
+}
+
+.ob2-field-block,
+.ob2-section-issue {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+
+.ob2-field.is-invalid .input-group,
+.ob2-field.is-invalid .select__trigger {
+  box-shadow: inset 0 0 0 1.5px #ff9a3c;
+}
+
 .ob2-field-error {
-  margin: -6px 0 0;
+  margin: 0;
   font-size: 13px;
-  color: var(--space-highlight, #ffb8d4);
+  font-weight: 650;
+  line-height: 1.4;
+  color: #ff9a3c;
 }
 
 .ob2-service-group {
@@ -3241,6 +3359,41 @@ html:has(.ob2)::-webkit-scrollbar-thumb:hover,
   gap: 14px;
 }
 
+.ob2 .space-theme-section {
+  margin-bottom: 24px;
+}
+
+.ob2 .space-theme-option {
+  position: relative;
+  transition:
+    opacity 180ms ease,
+    transform 180ms ease,
+    outline-color 180ms ease,
+    background 180ms ease;
+}
+
+.ob2 .space-theme-option:not([aria-pressed='true']) {
+  opacity: 0.58;
+}
+
+.ob2 .space-theme-option:hover,
+.ob2 .space-theme-option:focus-visible {
+  opacity: 1;
+  transform: translateY(-2px);
+}
+
+.ob2 .space-theme-mark {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  display: grid;
+  width: 18px;
+  height: 18px;
+  place-items: center;
+  border-radius: 999px;
+  border: 2px solid rgba(255, 255, 255, 0.8);
+}
+
 .ob2-logo-drop {
   position: relative;
   display: flex;
@@ -3248,7 +3401,7 @@ html:has(.ob2)::-webkit-scrollbar-thumb:hover,
   align-items: center;
   justify-content: flex-start;
   gap: 12px;
-  width: min(100%, 196px);
+  width: min(100%, 343px);
   justify-self: center;
   min-height: 0;
   padding: 0;
@@ -3270,8 +3423,9 @@ html:has(.ob2)::-webkit-scrollbar-thumb:hover,
   position: relative;
   display: grid;
   place-items: center;
-  width: 148px;
-  height: 148px;
+  width: min(259px, 100%);
+  height: auto;
+  aspect-ratio: 1;
   overflow: hidden;
   border-radius: 28px;
   background: #fff;
@@ -3402,6 +3556,30 @@ html:has(.ob2)::-webkit-scrollbar-thumb:hover,
   .ob2-pro-photo-veil {
     animation: none;
   }
+
+  .ob2 .button.ob2-choice,
+  .ob2 .button.ob2-hours-person,
+  .ob2 .button.ob2-gender-choice,
+  .ob2 .ob2-tax-kind .button,
+  .ob2 .space-theme-option,
+  .ob2-equipment-card {
+    transition: none;
+  }
+}
+
+.ob2[data-surface='solid'] .ob2-field-error {
+  color: #c2410c;
+}
+
+.ob2-detail-grid > [data-field],
+.ob2-intimate-list > [data-field] {
+  min-width: 0;
+  display: grid;
+}
+
+.ob2-detail-grid > [data-field] > .card,
+.ob2-intimate-list > [data-field] > .card {
+  height: 100%;
 }
 
 .ob2-clinic-more {
@@ -3416,7 +3594,7 @@ html:has(.ob2)::-webkit-scrollbar-thumb:hover,
 
 @media (min-width: 900px) {
   .ob2-clinic-layout {
-    grid-template-columns: minmax(0, 1fr) 196px;
+    grid-template-columns: minmax(0, 1fr) 343px;
     gap: 28px;
     align-items: start;
   }
@@ -3432,6 +3610,23 @@ html:has(.ob2)::-webkit-scrollbar-thumb:hover,
   color: #fff;
   --button-bg: rgba(255, 255, 255, 0.12);
   --button-fg: #fff;
+  transition:
+    opacity 180ms ease,
+    border-color 180ms ease,
+    transform 180ms ease,
+    background 180ms ease;
+}
+
+.ob2 .ob2-tax-kind .button:not(.is-selected),
+.ob2 .button.ob2-gender-choice:not(.is-selected) {
+  opacity: 0.58;
+}
+
+.ob2 .ob2-tax-kind .button:hover,
+.ob2 .ob2-tax-kind .button:focus-visible,
+.ob2 .button.ob2-gender-choice:hover,
+.ob2 .button.ob2-gender-choice:focus-visible {
+  opacity: 1;
 }
 
 .ob2 .ob2-tax-kind .button.is-selected {

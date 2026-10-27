@@ -26,7 +26,7 @@ import {
   type Payload,
   type Service,
 } from './model'
-import { BlurDialog, GlassSelect, StepEnd } from './ui'
+import { BlurDialog, GlassSelect, SectionIssue, StepEnd, type FieldErrors } from './ui'
 import { formatBrPhone } from '@/lib/phone'
 import './rules-review.css'
 
@@ -176,11 +176,13 @@ export function RulesStep({
   payload,
   setPayload,
   error,
+  fieldErrors = {},
   footer,
 }: {
   payload: Payload
   setPayload: (value: Payload) => void
   error: string
+  fieldErrors?: FieldErrors
   footer: ReactNode
 }) {
   const preferences = payload.preferences
@@ -253,6 +255,9 @@ export function RulesStep({
   }[help ?? 'notice']
   return (
     <div className="ob2-stack ob2-rules">
+      {fieldErrors.rules ? (
+        <SectionIssue title="Recebimento dos pacotes" field="rules" error={fieldErrors.rules} />
+      ) : null}
       <div className="ob2-rules-layout">
         <div className="ob2-stack">
           <Card className="ob2-panel">
@@ -640,7 +645,9 @@ export function ReviewStep({
               {
                 label: 'Formato',
                 value:
-                  payload.teamMode === 'solo' ? 'Atendimento individual' : 'Equipe multiprofissional',
+                  payload.teamMode === 'solo'
+                    ? 'Atendimento individual'
+                    : 'Equipe multiprofissional',
               },
               {
                 label: 'Público padrão',
@@ -663,10 +670,7 @@ export function ReviewStep({
           {orderedDays.length > 0 ? (
             <ul className="ob2-review-chips">
               {orderedDays.map((day) => (
-                <li
-                  key={day.weekday}
-                  className={day.enabled ? 'is-open' : 'is-closed'}
-                >
+                <li key={day.weekday} className={day.enabled ? 'is-open' : 'is-closed'}>
                   <b>{shortDays[day.weekday] ?? dayNames[day.weekday]}</b>
                   <small>{day.enabled ? `${day.start}–${day.end}` : 'Folga'}</small>
                 </li>
@@ -697,9 +701,7 @@ export function ReviewStep({
       kicker: 'RECEBIMENTO E PACOTES',
       icon: CreditCard,
       key: 'payments',
-      lead: payload.preferences.acceptInApp
-        ? 'Recebimento pelo app'
-        : 'Diretamente com a clínica',
+      lead: payload.preferences.acceptInApp ? 'Recebimento pelo app' : 'Diretamente com a clínica',
       band: payload.preferences.acceptInApp
         ? 'Checkout integrado via Stripe Connect'
         : 'Acerto direto no atendimento',
@@ -740,14 +742,11 @@ export function ReviewStep({
               },
               {
                 label: 'Especiais',
-                value: special.length
-                  ? hours(payload.preferences.specialCancellationHours)
-                  : '',
+                value: special.length ? hours(payload.preferences.specialCancellationHours) : '',
               },
               {
                 label: 'Para remarcar',
-                value:
-                  rescheduling == null ? 'Mesmo prazo do cancelamento' : hours(rescheduling),
+                value: rescheduling == null ? 'Mesmo prazo do cancelamento' : hours(rescheduling),
               },
             ]}
           />
@@ -781,9 +780,7 @@ export function ReviewStep({
             <div
               className="ob2-review-mark"
               role="img"
-              aria-label={
-                payload.clinic.logoUrl ? `Logo de ${logoName}` : `Marca de ${logoName}`
-              }
+              aria-label={payload.clinic.logoUrl ? `Logo de ${logoName}` : `Marca de ${logoName}`}
             >
               {payload.clinic.logoUrl ? (
                 <Image

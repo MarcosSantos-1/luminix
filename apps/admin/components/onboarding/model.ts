@@ -83,6 +83,7 @@ export type ProfessionalSchedule = {
   name: string
   days: DaySchedule[]
   holidayHours?: HolidayHours
+  followsClinicHours?: boolean
 }
 export type Payload = {
   name: string
@@ -249,7 +250,7 @@ export const stepInfo = [
     key: 'clinic',
     label: 'Clínica',
     title: 'Como sua clínica se chama?',
-    text: 'Esse é o nome que suas clientes veem na agenda e no convite. Redes, documento e o ano de abertura podem esperar.',
+    text: 'Esse é o nome que suas clientes veem na agenda e no convite. Redes e o ano de abertura podem esperar.',
     icon: Building2,
   },
   {

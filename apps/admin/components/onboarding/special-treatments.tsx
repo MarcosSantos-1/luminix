@@ -15,10 +15,7 @@ import {
 } from './special-equipment'
 
 function foldServiceName(value: string) {
-  return value
-    .normalize('NFD')
-    .replace(/\p{M}/gu, '')
-    .toLocaleLowerCase('pt-BR')
+  return value.normalize('NFD').replace(/\p{M}/gu, '').toLocaleLowerCase('pt-BR')
 }
 
 function EquipmentServiceList({
@@ -242,9 +239,9 @@ export function SpecialTreatments({
                     `${specialCount} ${specialCount === 1 ? 'serviço depende' : 'serviços dependem'} de aparelhos disponíveis em datas específicas.`
                   ) : (
                     <>
-                      Ideal para Laser, Criolipólise ou máquinas compartilhadas. O Luminix
-                      bloqueará esses serviços <span className="ob2-phrase">na agenda normal</span>{' '}
-                      e liberará apenas nos dias em que o aparelho estiver na clínica.
+                      Ideal para Laser, Criolipólise ou máquinas compartilhadas. O Luminix bloqueará
+                      esses serviços <span className="ob2-phrase">na agenda normal</span> e liberará
+                      apenas nos dias em que o aparelho estiver na clínica.
                     </>
                   )}
                 </p>
@@ -453,11 +450,9 @@ export function SpecialTreatments({
                               : `${choice.serviceIds.length} ${choice.serviceIds.length === 1 ? 'serviço compatível' : 'serviços compatíveis'}`}
                           </span>
                         </span>
-                        {active ? (
-                          <Check className="ob2-equipment-check" size={20} aria-hidden />
-                        ) : (
-                          <Plus className="ob2-equipment-check" size={20} aria-hidden />
-                        )}
+                        <span className="ob2-equipment-check" aria-hidden>
+                          {active ? <Check size={14} strokeWidth={3} /> : null}
+                        </span>
                       </Button>
                       {active ? (
                         <details className="ob2-equipment-edit">

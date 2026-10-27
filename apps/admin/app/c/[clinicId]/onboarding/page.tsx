@@ -26,6 +26,7 @@ import {
 } from '@/components/onboarding/schedule-sync'
 import { hasDraftChanges } from '@/components/onboarding/review-persistence'
 import { RulesStep, ReviewStep } from '@/components/onboarding/rules-review'
+import type { FieldErrors } from '@/components/onboarding/ui'
 import { WelcomeStep } from '@/components/onboarding/welcome'
 import { useStaff } from '@/components/staff-provider'
 import { isCompletePhone } from '@/lib/phone'
@@ -314,6 +315,7 @@ export default function OnboardingPage() {
   }, [step])
 
   const [stepError, setStepError] = useState('')
+  const [fieldErrors, setFieldErrors] = useState<FieldErrors>({})
   const [stripeReady, setStripeReady] = useState(false)
   const [stripeChecked, setStripeChecked] = useState(false)
   const [stripeSettled, setStripeSettled] = useState(false)
@@ -376,45 +378,49 @@ export default function OnboardingPage() {
     if (payload) setTheme(spaceTheme(payload.clinic.theme))
   }, [payload, setTheme])
 
-  function validateStep(targetStep: number) {
-    if (!payload) return 'Cadastro indisponível.'
-    if (targetStep === 1 && !payload.name.trim()) return 'Informe o nome da clínica ou estúdio.'
-    if (targetStep === 1 && !payload.ownerName.trim())
-      return 'Informe o nome da pessoa responsável pela clínica.'
-    if (targetStep === 1 && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(payload.email.trim()))
-      return 'Informe um e-mail de contato válido.'
-    if (targetStep === 1 && !isCompletePhone(payload.phone))
-      return 'Informe o celular com DDD usado no cadastro.'
-    if (
-      targetStep === 1 &&
-      payload.clinic.taxId.trim() &&
-      !isValidBrazilianTaxId(
-        payload.clinic.taxIdKind === 'cpf' ? 'cpf' : 'cnpj',
-        payload.clinic.taxId,
-      )
-    )
-      return `O ${payload.clinic.taxIdKind === 'cpf' ? 'CPF' : 'CNPJ'} informado é inválido. Corrija ou deixe o campo vazio.`
+  function validateStep(targetStep: number): { message: string; fields: FieldErrors } {
+    const fields: FieldErrors = {}
+    if (!payload)
+      return { message: 'Cadastro indisponível.', fields: { form: 'Cadastro indisponível.' } }
+    if (targetStep === 1) {
+      if (!payload.name.trim()) fields.name = 'Informe o nome da clínica ou estúdio.'
+      if (!payload.ownerName.trim())
+        fields.ownerName = 'Informe o nome da pessoa responsável pela clínica.'
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(payload.email.trim()))
+        fields.email = 'Informe um e-mail de contato válido.'
+      if (!isCompletePhone(payload.phone))
+        fields.phone = 'Informe o celular com DDD usado no cadastro.'
+      const taxKind = payload.clinic.taxIdKind === 'cpf' ? 'cpf' : 'cnpj'
+      const taxLabel = taxKind === 'cpf' ? 'CPF' : 'CNPJ'
+      if (!payload.clinic.taxId.trim()) fields.taxId = `Informe o ${taxLabel}.`
+      else if (!isValidBrazilianTaxId(taxKind, payload.clinic.taxId))
+        fields.taxId = `O ${taxLabel} informado é inválido.`
+    }
     if (targetStep === 2 && payload.services.length === 0)
-      return 'Escolha pelo menos um serviço para abrir sua agenda.'
-    if (
-      targetStep === 3 &&
-      payload.services.some(
-        (service) => !service.name.trim() || service.durationMinutes < 1 || service.priceCents < 0,
-      )
-    )
-      return 'Revise nome, duração e valor dos serviços.'
-    if (
-      targetStep === 4 &&
-      payload.teamMode === 'solo' &&
-      payload.services.some(
-        (service) => serviceIsIntimate(service) && service.audienceChosen !== true,
-      )
-    )
-      return 'Escolha o público de cada atendimento íntimo para continuar.'
+      fields.services = 'Escolha pelo menos um serviço para abrir sua agenda.'
+    if (targetStep === 3) {
+      for (const service of payload.services) {
+        if (!service.name.trim()) fields[`service-${service.id}`] = 'Informe o nome do serviço.'
+        else if (service.durationMinutes < 1)
+          fields[`service-${service.id}`] = 'Informe a duração do serviço.'
+        else if (service.priceCents < 0)
+          fields[`service-${service.id}`] = 'Revise o valor do serviço.'
+      }
+      if (Object.keys(fields).length > 0)
+        fields.services = 'Revise nome, duração e valor dos serviços.'
+    }
+    if (targetStep === 4 && payload.teamMode === 'solo') {
+      for (const service of payload.services) {
+        if (serviceIsIntimate(service) && service.audienceChosen !== true)
+          fields[`audience-${service.id}`] = 'Escolha o público deste atendimento.'
+      }
+      if (Object.keys(fields).some((key) => key.startsWith('audience-')))
+        fields.intimate = 'Escolha o público de cada atendimento íntimo para continuar.'
+    }
     if (targetStep === 4 && payload.teamMode === 'team') {
       if (payload.professionals.length === 0)
-        return 'Adicione ao menos uma profissional ou marque “somente eu”.'
-      if (
+        fields.team = 'Adicione ao menos uma profissional ou marque “somente eu”.'
+      else if (
         payload.professionals.some(
           (person) =>
             !person.name.trim() ||
@@ -422,16 +428,22 @@ export default function OnboardingPage() {
             (person.gender !== 'female' && person.gender !== 'male'),
         )
       )
-        return 'Informe nome, função e sexo de cada profissional para continuar.'
+        fields.team = 'Informe nome, função e sexo de cada profissional para continuar.'
     }
     if (stepInfo[targetStep]?.key === 'schedule') {
       const postal = payload.clinic.postalCode.replace(/\D/g, '')
-      if (payload.clinic.postalCode.trim() && postal.length !== 8)
-        return 'Informe o CEP completo ou deixe em branco para completar depois.'
-      if (payload.clinic.state.trim() && !/^[A-Z]{2}$/.test(payload.clinic.state))
-        return 'Use a sigla do estado com duas letras (ex.: SP).'
+      if (postal.length !== 8) fields.postalCode = 'Informe o CEP completo, com 8 números.'
+      if (!payload.clinic.addressLine.trim()) fields.addressLine = 'Informe a rua ou avenida.'
+      if (!payload.clinic.addressNumber.trim()) fields.addressNumber = 'Informe o número.'
+      if (!payload.clinic.addressDistrict.trim()) fields.addressDistrict = 'Informe o bairro.'
+      if (!payload.clinic.city.trim()) fields.city = 'Informe a cidade.'
+      if (!/^[A-Z]{2}$/.test(payload.clinic.state.trim()))
+        fields.state = 'Use a sigla do estado com duas letras (ex.: SP).'
     }
-    if (stepInfo[targetStep]?.key === 'hours') return validateClinicAndProfessionalHours(payload)
+    if (stepInfo[targetStep]?.key === 'hours') {
+      const hours = validateClinicAndProfessionalHours(payload)
+      if (hours) fields.hours = hours
+    }
     if (
       stepInfo[targetStep]?.key === 'payments' &&
       payload.preferences.acceptInApp &&
@@ -439,12 +451,27 @@ export default function OnboardingPage() {
       !stripeReady &&
       !stripeSettled
     )
-      return stripeRequiredMessage
-    if (stepInfo[targetStep]?.key === 'rules' && !payload.preferences.acceptInApp) {
-      if (payload.preferences.packagePaymentMode !== 'clinic_only')
-        return 'Com recebimento fora do app, pacotes ficam somente na clínica.'
-    }
-    return ''
+      fields.payments = stripeRequiredMessage
+    if (
+      stepInfo[targetStep]?.key === 'rules' &&
+      !payload.preferences.acceptInApp &&
+      payload.preferences.packagePaymentMode !== 'clinic_only'
+    )
+      fields.rules = 'Com recebimento fora do app, pacotes ficam somente na clínica.'
+    const message = Object.values(fields)[0] ?? ''
+    return { message, fields }
+  }
+
+  function focusIssue(fields: FieldErrors) {
+    const key = Object.keys(fields)[0]
+    if (!key) return
+    window.setTimeout(() => {
+      const node = document.querySelector<HTMLElement>(`[data-field="${CSS.escape(key)}"]`)
+      if (!node) return
+      node.scrollIntoView({ block: 'center', behavior: 'smooth' })
+      const target = node.querySelector<HTMLElement>('input, textarea, button, select')
+      target?.focus()
+    }, 80)
   }
 
   function firstProblem(throughStep: number) {
@@ -453,10 +480,18 @@ export default function OnboardingPage() {
       candidate <= Math.min(throughStep, stepInfo.length - 2);
       candidate += 1
     ) {
-      const message = validateStep(candidate)
-      if (message) return { step: candidate, message }
+      const issue = validateStep(candidate)
+      if (issue.message) return { step: candidate, ...issue }
     }
     return null
+  }
+
+  function showProblem(problem: { step: number; message: string; fields: FieldErrors }) {
+    setStep(problem.step)
+    setStepError(problem.message)
+    setFieldErrors(problem.fields)
+    notifyError(problem.message)
+    focusIssue(problem.fields)
   }
 
   function navigateTo(targetStep: number) {
@@ -464,12 +499,11 @@ export default function OnboardingPage() {
     if (busy || uploadingMedia || targetStep < minimumStep || targetStep > availableThrough) return
     const problem = targetStep > step ? firstProblem(targetStep - 1) : null
     if (problem) {
-      setStep(problem.step)
-      setStepError(problem.message)
-      notifyError(problem.message)
+      showProblem(problem)
       return
     }
     setStepError('')
+    setFieldErrors({})
     setStep(targetStep)
   }
 
@@ -478,9 +512,7 @@ export default function OnboardingPage() {
     if (!user || !payload || !draft || busy || uploadingMedia) return
     const problem = nextStep > step ? firstProblem(step) : null
     if (problem) {
-      setStep(problem.step)
-      setStepError(problem.message)
-      notifyError(problem.message)
+      showProblem(problem)
       return
     }
     const nextKey = stepInfo[nextStep].key
@@ -529,6 +561,7 @@ export default function OnboardingPage() {
           setStripeReady(false)
           setStep(7)
         }
+        setFieldErrors({})
         setStepError(message)
         notifyError(message)
         return
@@ -540,9 +573,13 @@ export default function OnboardingPage() {
       if (nextKey === 'review') setEditingFromReview(false)
       setAvailableThrough((current) => Math.max(current, nextStep))
       setStepError('')
+      setFieldErrors({})
       if (isCompletePhone(payloadToSave.phone)) clearSignupPhone(user.uid)
     } catch {
-      notifyError('Sem conexão para salvar. Seus campos continuam nesta tela.')
+      const message = 'Sem conexão para salvar. Seus campos continuam nesta tela.'
+      setFieldErrors({})
+      setStepError(message)
+      notifyError(message)
     } finally {
       setBusy(false)
     }
@@ -553,9 +590,7 @@ export default function OnboardingPage() {
     if (!user || !payload || !draft || busy || uploadingMedia) return
     const problem = firstProblem(stepInfo.length - 2)
     if (problem) {
-      setStep(problem.step)
-      setStepError(problem.message)
-      notifyError(problem.message)
+      showProblem(problem)
       return
     }
     setBusy(true)
@@ -580,6 +615,7 @@ export default function OnboardingPage() {
             saved.status === 409
               ? 'Este cadastro mudou em outra aba. Recarregue antes de concluir.'
               : 'Não foi possível salvar seus últimos ajustes. Confira as etapas e tente novamente.'
+          setFieldErrors({})
           setStepError(message)
           notifyError(message)
           return
@@ -608,6 +644,7 @@ export default function OnboardingPage() {
               : response.status === 409
                 ? 'O cadastro mudou. Recarregue e confira o resumo.'
                 : 'Ainda há um dado inconsistente. Use “Editar” no resumo ou escolha a etapa na lateral.'
+        setFieldErrors({})
         setStepError(message)
         notifyError(message)
         return
@@ -615,7 +652,11 @@ export default function OnboardingPage() {
       staff.refresh()
       router.push(`/c/${clinic.share_code || clinic.id}`)
     } catch {
-      notifyError('A resposta não chegou. Pode tentar novamente sem risco de duplicar a clínica.')
+      const message =
+        'A resposta não chegou. Pode tentar novamente sem risco de duplicar a clínica.'
+      setFieldErrors({})
+      setStepError(message)
+      notifyError(message)
     } finally {
       setBusy(false)
     }
@@ -703,9 +744,17 @@ export default function OnboardingPage() {
   const updatePayload = (value: Payload) => {
     if (busy) return
     setStepError('')
+    setFieldErrors({})
     setPayload(value)
   }
-  const stepProps = { payload: ready, setPayload: updatePayload, error: stepError, footer }
+  const bannerError = Object.keys(fieldErrors).length > 0 ? '' : stepError
+  const stepProps = {
+    payload: ready,
+    setPayload: updatePayload,
+    error: bannerError,
+    fieldErrors,
+    footer,
+  }
 
   return (
     <OnboardingShell
@@ -728,8 +777,15 @@ export default function OnboardingPage() {
           onSettledChange={(settled) => {
             setStripeChecked(true)
             setStripeSettled(settled)
-            if (settled)
+            if (settled) {
               setStepError((current) => (current === stripeRequiredMessage ? '' : current))
+              setFieldErrors((current) => {
+                if (!current.payments) return current
+                const next = { ...current }
+                delete next.payments
+                return next
+              })
+            }
           }}
           {...stepProps}
         />

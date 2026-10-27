@@ -12,7 +12,44 @@ import {
   useOverlayState,
   type UseOverlayStateReturn,
 } from '@heroui/react'
+import { Check } from 'lucide-react'
 import type { ReactNode } from 'react'
+
+export type FieldErrors = Record<string, string>
+
+export function RequiredMark() {
+  return (
+    <span className="ob2-required" aria-hidden="true">
+      *
+    </span>
+  )
+}
+
+export function SectionIssue({
+  title,
+  required,
+  error,
+  field,
+}: {
+  title: string
+  required?: boolean
+  error?: string
+  field?: string
+}) {
+  return (
+    <div className="ob2-section-issue" data-field={field}>
+      <p className="ob2-dialog-section">
+        {title}
+        {required ? <RequiredMark /> : null}
+      </p>
+      {error ? (
+        <p className="ob2-field-error" role="alert">
+          {error}
+        </p>
+      ) : null}
+    </div>
+  )
+}
 
 export function GlassField({
   label,
@@ -27,6 +64,9 @@ export function GlassField({
   isDisabled,
   suffix,
   className,
+  required,
+  error,
+  field,
 }: {
   label: string
   icon?: ReactNode
@@ -40,28 +80,43 @@ export function GlassField({
   isDisabled?: boolean
   suffix?: ReactNode
   className?: string
+  required?: boolean
+  error?: string
+  field?: string
 }) {
   return (
-    <TextField
-      className={['ob2-field', className].filter(Boolean).join(' ')}
-      fullWidth
-      type={type}
-      value={value}
-      onChange={onChange}
-      isDisabled={isDisabled}
-    >
-      <Label>{label}</Label>
-      <InputGroup fullWidth>
-        {icon ? <InputGroup.Prefix>{icon}</InputGroup.Prefix> : null}
-        <InputGroup.Input
-          placeholder={placeholder}
-          inputMode={inputMode}
-          autoComplete={autoComplete}
-          maxLength={maxLength}
-        />
-        {suffix ? <InputGroup.Suffix>{suffix}</InputGroup.Suffix> : null}
-      </InputGroup>
-    </TextField>
+    <div className="ob2-field-block" data-field={field}>
+      <TextField
+        className={['ob2-field', error ? 'is-invalid' : '', className].filter(Boolean).join(' ')}
+        fullWidth
+        type={type}
+        value={value}
+        onChange={onChange}
+        isDisabled={isDisabled}
+        isInvalid={Boolean(error)}
+      >
+        <Label>
+          {label}
+          {required ? <RequiredMark /> : null}
+        </Label>
+        <InputGroup fullWidth>
+          {icon ? <InputGroup.Prefix>{icon}</InputGroup.Prefix> : null}
+          <InputGroup.Input
+            placeholder={placeholder}
+            inputMode={inputMode}
+            autoComplete={autoComplete}
+            maxLength={maxLength}
+            aria-invalid={error ? true : undefined}
+          />
+          {suffix ? <InputGroup.Suffix>{suffix}</InputGroup.Suffix> : null}
+        </InputGroup>
+      </TextField>
+      {error ? (
+        <p className="ob2-field-error" role="alert">
+          {error}
+        </p>
+      ) : null}
+    </div>
   )
 }
 
@@ -72,6 +127,9 @@ export function GlassSelect({
   options,
   isDisabled,
   menu = 'glass',
+  required,
+  error,
+  field,
 }: {
   label: ReactNode
   value: string
@@ -79,32 +137,46 @@ export function GlassSelect({
   options: { id: string; label: string }[]
   isDisabled?: boolean
   menu?: 'glass' | 'ice'
+  required?: boolean
+  error?: string
+  field?: string
 }) {
   return (
-    <Select
-      className="ob2-field"
-      fullWidth
-      selectedKey={value}
-      isDisabled={isDisabled}
-      onSelectionChange={(key) => {
-        if (key != null) onChange(String(key))
-      }}
-    >
-      <Label>{label}</Label>
-      <Select.Trigger>
-        <Select.Value />
-        <Select.Indicator />
-      </Select.Trigger>
-      <Select.Popover className={menu === 'ice' ? 'ob2-popover ob2-popover-ice' : 'ob2-popover'}>
-        <ListBox>
-          {options.map((option) => (
-            <ListBox.Item key={option.id} id={option.id} textValue={option.label}>
-              {option.label}
-            </ListBox.Item>
-          ))}
-        </ListBox>
-      </Select.Popover>
-    </Select>
+    <div className="ob2-field-block" data-field={field}>
+      <Select
+        className={['ob2-field', error ? 'is-invalid' : ''].filter(Boolean).join(' ')}
+        fullWidth
+        selectedKey={value}
+        isDisabled={isDisabled}
+        isInvalid={Boolean(error)}
+        onSelectionChange={(key) => {
+          if (key != null) onChange(String(key))
+        }}
+      >
+        <Label>
+          {label}
+          {required ? <RequiredMark /> : null}
+        </Label>
+        <Select.Trigger>
+          <Select.Value />
+          <Select.Indicator />
+        </Select.Trigger>
+        <Select.Popover className={menu === 'ice' ? 'ob2-popover ob2-popover-ice' : 'ob2-popover'}>
+          <ListBox>
+            {options.map((option) => (
+              <ListBox.Item key={option.id} id={option.id} textValue={option.label}>
+                {option.label}
+              </ListBox.Item>
+            ))}
+          </ListBox>
+        </Select.Popover>
+      </Select>
+      {error ? (
+        <p className="ob2-field-error" role="alert">
+          {error}
+        </p>
+      ) : null}
+    </div>
   )
 }
 
@@ -116,6 +188,7 @@ export function ChoiceCard({
   selected,
   className,
   isDisabled,
+  selection = 'multiple',
   onPress,
 }: {
   title: string
@@ -125,6 +198,7 @@ export function ChoiceCard({
   selected?: boolean
   className?: string
   isDisabled?: boolean
+  selection?: 'single' | 'multiple' | 'none'
   onPress: () => void
 }) {
   return (
@@ -139,6 +213,7 @@ export function ChoiceCard({
         .join(' ')}
       variant="ghost"
       isDisabled={isDisabled}
+      aria-pressed={selected}
       onPress={onPress}
     >
       <span className="ob2-choice-icon" aria-hidden>
@@ -151,6 +226,11 @@ export function ChoiceCard({
         </strong>
         {detail ? <small>{detail}</small> : null}
       </span>
+      {selection !== 'none' ? (
+        <span className={`ob2-choice-mark is-${selection}`} aria-hidden>
+          {selection === 'multiple' && selected ? <Check size={12} strokeWidth={3} /> : null}
+        </span>
+      ) : null}
     </Button>
   )
 }

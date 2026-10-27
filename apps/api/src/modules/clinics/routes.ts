@@ -845,6 +845,7 @@ export async function clinicRoutes(
           properties: {
             professionalId: { type: 'string', format: 'uuid' },
             name: { type: 'string', minLength: 1, maxLength: 160 },
+            followsClinicHours: { type: 'boolean' },
             holidayHours: {
               type: 'object',
               additionalProperties: false,

@@ -76,6 +76,10 @@ html[data-space-theme='azul'] {
   outline-offset: -2px;
   background: #ffffff16;
 }
+.space-theme-mark {
+  display: none;
+}
+
 .space-theme-option:focus-visible {
   outline: 3px solid var(--space-highlight, #ffb5d3);
   outline-offset: 3px;
