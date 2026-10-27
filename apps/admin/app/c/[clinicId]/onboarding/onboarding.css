@@ -677,6 +677,10 @@
     background 180ms ease;
 }
 
+.ob2 .space-theme-option[aria-pressed='true']:not(:focus-visible) {
+  outline: none;
+}
+
 .ob2 .button.ob2-choice:not(.is-selected):not(.ob2-add-service):not(.is-disabled) {
   opacity: 0.58;
 }

@@ -244,13 +244,13 @@ function DayCards({
                 <Switch
                   className="ob2-switch"
                   isSelected={Boolean(pause)}
-                  aria-label={`Intervalo de ${dayNames[day.weekday]}`}
+                  aria-label={`${forPerson ? 'Intervalo' : 'Intervalo fixo'} de ${dayNames[day.weekday]}`}
                   onChange={(enabled) =>
                     onChange(setDayInterval(days, day.weekday, enabled, forPerson))
                   }
                 >
                   <Switch.Content>
-                    <Label>Intervalo</Label>
+                    <Label>{forPerson ? 'Intervalo' : 'Intervalo fixo'}</Label>
                     <Switch.Control>
                       <Switch.Thumb />
                     </Switch.Control>
@@ -408,7 +408,7 @@ function HolidayCard({
           <Switch
             className="ob2-switch"
             isSelected={Boolean(pause)}
-            aria-label="Intervalo em feriados"
+            aria-label={forPerson ? 'Intervalo em feriados' : 'Intervalo fixo em feriados'}
             onChange={(enabled) =>
               onChange({
                 ...holiday,
@@ -418,7 +418,7 @@ function HolidayCard({
             }
           >
             <Switch.Content>
-              <Label>Intervalo</Label>
+              <Label>{forPerson ? 'Intervalo' : 'Intervalo fixo'}</Label>
               <Switch.Control>
                 <Switch.Thumb />
               </Switch.Control>

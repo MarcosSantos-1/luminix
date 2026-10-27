@@ -248,8 +248,8 @@ export const stepInfo = [
   },
   {
     key: 'clinic',
-    label: 'Clínica',
-    title: 'Como sua clínica se chama?',
+    label: 'Espaço',
+    title: 'Como seu espaço se chama?',
     text: 'Esse é o nome que suas clientes veem na agenda e no convite. Redes e o ano de abertura podem esperar.',
     icon: Building2,
   },

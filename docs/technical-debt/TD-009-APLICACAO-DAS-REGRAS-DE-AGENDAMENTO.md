@@ -20,3 +20,24 @@ for especificado. Implementar edição posterior segura das políticas antes de 
 no painel. Cobrir fronteiras de horário, isolamento entre clínicas, troca de sessão e mudanças
 concorrentes; definir efeitos sobre reservas existentes. Vídeos explicativos dependem de conteúdo
 real fornecido/aprovado, sem players falsos ou links vazios.
+
+## Discussão de produto — 2026-10-27 (ainda não adotada)
+
+Definir separadamente cancelamento/remarcação de horário, falta e desistência da compra de
+tratamento/pacote. O prazo sozinho não define consequência financeira. Avaliar aviso de
+cancelamento tardio em vez de impedir a cliente de liberar o horário; falta exige registro próprio.
+
+Considerar regra padrão sem penalidade e exceções explícitas por serviço, inclusive aparelhos
+alugados. O exemplo solicitado foi devolver 75% de um procedimento pré-pago, retendo 25%; ainda
+definir evento, antecedência, base de cálculo e tratamento de remarcação e falta. Não adotar esse
+percentual como padrão ou como conclusão jurídica. Para pacotes comuns, o usuário descreveu
+cancelamento/remarcação de horários sem penalidade; desistência da compra e devolução de saldo
+precisam de regra separada, considerando sessões já utilizadas.
+
+Antes de implementar: decidir entre ausência de penalidade, retenção de valor pré-pago, consumo
+de sessão e eventual cobrança posterior, evitando aplicação cumulativa automática. Pagamento na
+clínica não fornece meio para débito automático; avaliar sinal para reservas com custo antecipado.
+Reembolso parcial é suportado pela Stripe, mas o checkout e sua conciliação ainda estão pendentes.
+Validar políticas com assessoria jurídica, incluindo direitos legais de cancelamento. Mostrar a
+consequência em reais/sessões antes da confirmação, guardar a versão aceita por reserva e permitir
+isenção administrativa auditada. Alterações futuras não devem reescrever reservas já aceitas.
