@@ -81,6 +81,8 @@ type OnboardingPayload = {
     sensitive?: boolean
     resourceName: string
     cancellationHours: number | null
+    lateChangeRetentionPercent?: number | null
+    noShowRetentionPercent?: number | null
   }[]
   teamMode: 'solo' | 'team'
   professionals: {
@@ -132,6 +134,8 @@ type OnboardingPayload = {
     bookingWindowDays?: number
     reschedulingHours?: number | null
     clientInstructions?: string
+    lateChangeRetentionPercent?: number
+    noShowRetentionPercent?: number
     cancellationHours: number
     specialCancellationHours: number
     acceptInApp: boolean
@@ -579,6 +583,15 @@ export async function clinicRoutes(
                     rules.booking_notice_minutes, rules.booking_window_days,
                     rules.cancellation_notice_minutes, rules.special_cancellation_notice_minutes,
                     rules.rescheduling_notice_minutes, rules.client_instructions,
+                    rules.late_change_retention_percent, rules.no_show_retention_percent,
+                    (SELECT coalesce(jsonb_agg(jsonb_build_object(
+                      'serviceId', svc.id, 'name', svc.name,
+                      'lateChangeRetentionPercent', svc.late_change_retention_percent,
+                      'noShowRetentionPercent', svc.no_show_retention_percent
+                    ) ORDER BY svc.name), '[]'::jsonb)
+                     FROM luminix.services svc WHERE svc.clinic_id = s.clinic_id
+                       AND (svc.late_change_retention_percent IS NOT NULL
+                         OR svc.no_show_retention_percent IS NOT NULL)) AS retention_overrides,
                     logo.small_object_key AS logo_key
                FROM luminix.clinic_settings s
                LEFT JOIN luminix.clinic_profiles p ON p.clinic_id = s.clinic_id
@@ -613,6 +626,9 @@ export async function clinicRoutes(
                       ? null
                       : Number(settings.rescheduling_notice_minutes) / 60,
                   clientInstructions: settings.client_instructions,
+                  lateChangeRetentionPercent: settings.late_change_retention_percent,
+                  noShowRetentionPercent: settings.no_show_retention_percent,
+                  serviceRetentionOverrides: settings.retention_overrides,
                 },
           profile: settings.owner_name
             ? {
@@ -765,6 +781,12 @@ export async function clinicRoutes(
             resourceName: { type: 'string', maxLength: 160 },
             cancellationHours: {
               anyOf: [{ type: 'integer', minimum: 0, maximum: 168 }, { type: 'null' }],
+            },
+            lateChangeRetentionPercent: {
+              anyOf: [{ type: 'integer', minimum: 0, maximum: 100 }, { type: 'null' }],
+            },
+            noShowRetentionPercent: {
+              anyOf: [{ type: 'integer', minimum: 0, maximum: 100 }, { type: 'null' }],
             },
           },
         },
@@ -924,6 +946,8 @@ export async function clinicRoutes(
             anyOf: [{ type: 'integer', minimum: 0, maximum: 336 }, { type: 'null' }],
           },
           clientInstructions: { type: 'string', maxLength: 500 },
+          lateChangeRetentionPercent: { type: 'integer', minimum: 0, maximum: 100 },
+          noShowRetentionPercent: { type: 'integer', minimum: 0, maximum: 100 },
           specialTreatmentsDismissed: { type: 'boolean' },
           cancellationHours: { type: 'integer', minimum: 0, maximum: 168 },
           specialCancellationHours: { type: 'integer', minimum: 0, maximum: 336 },

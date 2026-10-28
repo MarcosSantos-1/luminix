@@ -4,7 +4,7 @@ Status: Aberta. Prioridade: P1 antes da abertura do agendamento público.
 
 Data: 2026-10-25.
 
-O onboarding persiste regras em `booking_policies` (ADR-017), mas o fluxo de agendamento para
+O onboarding persiste regras em `booking_policies` (ADR-017 e ADR-018), mas o fluxo de agendamento para
 clientes ainda não aplica antecedência, horizonte, cancelamento ou remarcação. O recado também
 não é publicado no portal. A interface informa essa limitação e não simula cobrança ou multa.
 
@@ -21,23 +21,24 @@ no painel. Cobrir fronteiras de horário, isolamento entre clínicas, troca de s
 concorrentes; definir efeitos sobre reservas existentes. Vídeos explicativos dependem de conteúdo
 real fornecido/aprovado, sem players falsos ou links vazios.
 
-## Discussão de produto — 2026-10-27 (ainda não adotada)
+## Retenção, faltas e pacotes — evolução de 2026-10-27
 
-Definir separadamente cancelamento/remarcação de horário, falta e desistência da compra de
-tratamento/pacote. O prazo sozinho não define consequência financeira. Avaliar aviso de
-cancelamento tardio em vez de impedir a cliente de liberar o horário; falta exige registro próprio.
+Direção adotada e preferências implementadas na ADR-018: aviso tardio permitido, padrão sem
+retenção, percentuais separados para alteração tardia e falta, exceção por serviço e pacotes
+com sessões preservadas. O prazo sozinho não define consequência financeira. A mudança de
+semântica dos prazos substitui o bloqueio anterior; o motor público ainda não foi implementado.
 
-Considerar regra padrão sem penalidade e exceções explícitas por serviço, inclusive aparelhos
-alugados. O exemplo solicitado foi devolver 75% de um procedimento pré-pago, retendo 25%; ainda
-definir evento, antecedência, base de cálculo e tratamento de remarcação e falta. Não adotar esse
-percentual como padrão ou como conclusão jurídica. Para pacotes comuns, o usuário descreveu
-cancelamento/remarcação de horários sem penalidade; desistência da compra e devolução de saldo
-precisam de regra separada, considerando sessões já utilizadas.
+Base definida: valor antecipado efetivamente pago pelo atendimento avulso. Cancelamento devolve
+saldo não retido; remarcação pode aproveitar esse saldo com eventual complemento, sem duplicar
+retenção no mesmo evento. Antes de ativar, definir alocação de pagamentos/sinais, arredondamento,
+conciliação, prevenção de abuso por remarcações sucessivas, cancelamento pelo estabelecimento,
+isenções e tratamento de erros/disputas. Não usar automaticamente o valor de tabela ou de um pacote
+como base. O exemplo de 25% é configurável e não representa padrão nem conclusão jurídica.
 
-Antes de implementar: decidir entre ausência de penalidade, retenção de valor pré-pago, consumo
-de sessão e eventual cobrança posterior, evitando aplicação cumulativa automática. Pagamento na
-clínica não fornece meio para débito automático; avaliar sinal para reservas com custo antecipado.
-Reembolso parcial é suportado pela Stripe, mas o checkout e sua conciliação ainda estão pendentes.
+Consumo de sessão e cobrança posterior não foram adotados nesta configuração. Desistência da
+compra de pacote e devolução de saldo continuam pendentes. Pagamento na clínica não fornece
+meio para débito automático; avaliar sinal para reservas com custo antecipado. Reembolso parcial
+é suportado pela Stripe, mas checkout, execução e conciliação ainda estão pendentes.
 Validar políticas com assessoria jurídica, incluindo direitos legais de cancelamento. Mostrar a
 consequência em reais/sessões antes da confirmação, guardar a versão aceita por reserva e permitir
 isenção administrativa auditada. Alterações futuras não devem reescrever reservas já aceitas.

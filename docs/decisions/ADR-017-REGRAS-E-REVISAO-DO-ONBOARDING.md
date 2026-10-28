@@ -4,6 +4,10 @@ Status: Accepted.
 
 Data: 2026-10-25.
 
+Evolução: a [ADR-018](ADR-018-CANCELAMENTO-TARDIO-E-FALTAS.md) substitui o bloqueio de
+cancelamento após o prazo pela classificação de aviso tardio e acrescenta preferências de
+retenção para avulsos. A execução automática continua pendente.
+
 ## Decisão
 
 Regras passa a reunir antecedência mínima para agendar, horizonte de agenda, cancelamento,

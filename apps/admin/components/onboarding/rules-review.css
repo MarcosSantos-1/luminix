@@ -3,6 +3,26 @@
   gap: 20px;
   align-items: start;
 }
+.ob2-retention-subtitle,
+.ob2-retention-service h3 {
+  margin: 0;
+  font-size: 16px;
+  line-height: 1.5;
+  font-weight: 650;
+}
+.ob2-retention-service {
+  display: grid;
+  gap: 16px;
+  min-width: 0;
+  padding: 16px;
+  border-radius: 16px;
+  border: 1px solid rgb(255 255 255 / 24%);
+  background: rgb(255 255 255 / 6%);
+}
+.ob2-retention-service h3,
+.ob2-rule-preview dd {
+  overflow-wrap: anywhere;
+}
 .ob2-rules-heading {
   display: flex;
   align-items: center;
@@ -549,11 +569,7 @@
   display: block;
   height: 100%;
   border-radius: inherit;
-  background: linear-gradient(
-    90deg,
-    var(--space-accent, #ff2d79),
-    var(--space-highlight, #ffb3d0)
-  );
+  background: linear-gradient(90deg, var(--space-accent, #ff2d79), var(--space-highlight, #ffb3d0));
 }
 .ob2-review-total {
   display: inline-flex;

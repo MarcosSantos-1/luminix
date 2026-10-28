@@ -40,6 +40,8 @@ export type Service = {
   sensitive: boolean
   resourceName: string
   cancellationHours: number | null
+  lateChangeRetentionPercent?: number | null
+  noShowRetentionPercent?: number | null
 }
 export type ProfessionalGender = 'female' | 'male'
 export type Professional = {
@@ -125,6 +127,8 @@ export type Payload = {
     bookingWindowDays?: number
     reschedulingHours?: number | null
     clientInstructions?: string
+    lateChangeRetentionPercent?: number
+    noShowRetentionPercent?: number
     specialTreatmentsDismissed?: boolean
     cancellationHours: number
     specialCancellationHours: number

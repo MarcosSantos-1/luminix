@@ -127,6 +127,7 @@ describe('versioned core migration', () => {
       { name: '0015_clinic_theme.sql' },
       { name: '0016_stripe_connect.sql' },
       { name: '0017_onboarding_booking_rules.sql' },
+      { name: '0018_attendance_retention_preferences.sql' },
     ])
   })
 
@@ -255,6 +256,50 @@ describe('Clinic A × Clinic B foreign keys', () => {
 })
 
 describe('authorized database scope', () => {
+  it('isolates retention overrides, enforces their bounds and audits changes', async () => {
+    await rejected(
+      'UPDATE luminix.services SET late_change_retention_percent = 101 WHERE id = $1',
+      [ids.serviceA],
+      '23514',
+    )
+    await rejected(
+      'UPDATE luminix.services SET no_show_retention_percent = -1 WHERE id = $1',
+      [ids.serviceA],
+      '23514',
+    )
+    await asRuntime(async () => {
+      await withClinicTransaction(pool, ids.user, ids.a, 'service:manage', async (client) => {
+        expect(
+          (
+            await client.query(
+              'UPDATE luminix.services SET late_change_retention_percent = 25 WHERE id = $1 RETURNING id',
+              [ids.serviceB],
+            )
+          ).rows,
+        ).toEqual([])
+        await client.query(
+          'UPDATE luminix.services SET late_change_retention_percent = 25, no_show_retention_percent = 0 WHERE id = $1',
+          [ids.serviceA],
+        )
+        const audit = await client.query(
+          `SELECT actor_identity_id FROM luminix.audit_logs
+           WHERE clinic_id = $1 AND entity_table = 'services' AND entity_key->>'id' = $2 AND action = 'UPDATE'`,
+          [ids.a, ids.serviceA],
+        )
+        expect(audit.rows.length).toBeGreaterThan(0)
+        expect(audit.rows[0].actor_identity_id).toBe(ids.user)
+      })
+    })
+    expect(
+      (
+        await db.query<{ late_change_retention_percent: number | null }>(
+          'SELECT late_change_retention_percent FROM luminix.services WHERE id = $1',
+          [ids.serviceB],
+        )
+      ).rows[0].late_change_retention_percent,
+    ).toBeNull()
+  })
+
   it('discards a connection if rollback fails, preserving the original denial', async () => {
     let discarded: boolean | undefined
     const brokenPool = {

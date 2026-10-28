@@ -203,6 +203,10 @@ describe('versioned clinic onboarding', () => {
       { reschedulingHours: 337 },
       { reschedulingHours: 1.5 },
       { clientInstructions: 'a'.repeat(501) },
+      { lateChangeRetentionPercent: -1 },
+      { lateChangeRetentionPercent: 101 },
+      { noShowRetentionPercent: 25.5 },
+      { noShowRetentionPercent: null },
     ]) {
       const result = await call('onboarding-a', 'PUT', clinicA, 'onboarding', {
         version: 0,
@@ -211,6 +215,34 @@ describe('versioned clinic onboarding', () => {
       })
       expect(result.statusCode).toBe(400)
     }
+    expect((await call('onboarding-a', 'GET', clinicA, 'onboarding')).json().draft.version).toBe(0)
+  })
+
+  it('rejects invalid service retention before saving or authorizing another clinic', async () => {
+    for (const patch of [
+      { lateChangeRetentionPercent: -1 },
+      { noShowRetentionPercent: 101 },
+      { lateChangeRetentionPercent: 2.5 },
+    ]) {
+      const result = await call('onboarding-a', 'PUT', clinicA, 'onboarding', {
+        version: 0,
+        step: 'rules',
+        payload: {
+          ...payload,
+          services: payload.services.map((service) => ({ ...service, ...patch })),
+        },
+      })
+      expect(result.statusCode).toBe(400)
+    }
+    expect(
+      (
+        await call('onboarding-a', 'PUT', clinicB, 'onboarding', {
+          version: 0,
+          step: 'rules',
+          payload,
+        })
+      ).statusCode,
+    ).toBe(403)
     expect((await call('onboarding-a', 'GET', clinicA, 'onboarding')).json().draft.version).toBe(0)
   })
 
@@ -313,6 +345,9 @@ describe('versioned clinic onboarding', () => {
       specialCancellationHours: 24,
       reschedulingHours: null,
       clientInstructions: 'Chegue 10 minutos antes. 💜',
+      lateChangeRetentionPercent: 0,
+      noShowRetentionPercent: 0,
+      serviceRetentionOverrides: [],
     })
     expect((await call('onboarding-b', 'GET', clinicA, 'settings')).statusCode).toBe(403)
     expect((await call('onboarding-b', 'GET', clinicB, 'settings')).json().bookingRules).toBeNull()
@@ -512,14 +547,29 @@ it('requires current Stripe readiness for advancement and completion, with an ou
   ) as typeof payload
   const inside = {
     ...uniquePayload,
+    services: uniquePayload.services.map((service, index) => ({
+      ...service,
+      lateChangeRetentionPercent: index === 0 ? 0 : null,
+      noShowRetentionPercent: index === 1 ? 25 : null,
+    })),
     uiFocus: 'payments',
-    preferences: { ...payload.preferences, acceptInApp: true },
+    preferences: {
+      ...payload.preferences,
+      acceptInApp: true,
+      lateChangeRetentionPercent: 25,
+      noShowRetentionPercent: 50,
+    },
   }
   let version = (await call('onboarding-b', 'GET', clinicB, 'onboarding')).json().draft.version
   const save = (step: string, value = inside) =>
     call('onboarding-b', 'PUT', clinicB, 'onboarding', { version, step, payload: value })
   expect((await save('payments')).statusCode).toBe(200)
   version++
+  const resumed = (await call('onboarding-b', 'GET', clinicB, 'onboarding')).json().draft.payload
+  expect(resumed.preferences.lateChangeRetentionPercent).toBe(25)
+  expect(resumed.preferences.noShowRetentionPercent).toBe(50)
+  expect(resumed.services[0].lateChangeRetentionPercent).toBe(0)
+  expect(resumed.services[1].noShowRetentionPercent).toBe(25)
   expect((await save('rules')).json().error).toBe('Stripe onboarding incomplete')
   expect(
     (await call('onboarding-b', 'POST', clinicB, 'onboarding/complete', { version })).json().error,
@@ -578,7 +628,7 @@ it('requires current Stripe readiness for advancement and completion, with an ou
     (await call('onboarding-b', 'POST', clinicB, 'onboarding/complete', { version })).statusCode,
   ).toBe(409)
   const calls = connectContext.mock.calls.length
-  const outside = { ...inside, preferences: { ...payload.preferences, acceptInApp: false } }
+  const outside = { ...inside, preferences: { ...inside.preferences, acceptInApp: false } }
   expect((await save('review', outside)).statusCode).toBe(200)
   expect(connectContext.mock.calls.length).toBe(calls)
   version++
@@ -593,4 +643,26 @@ it('requires current Stripe readiness for advancement and completion, with an ou
       .replayed,
   ).toBe(true)
   expect(connectContext.mock.calls.length).toBe(completedCalls)
+  const rules = (await call('onboarding-b', 'GET', clinicB, 'settings')).json().bookingRules
+  expect(rules.lateChangeRetentionPercent).toBe(25)
+  expect(rules.noShowRetentionPercent).toBe(50)
+  expect(rules.serviceRetentionOverrides).toEqual([
+    {
+      serviceId: uniquePayload.services[1].id,
+      name: uniquePayload.services[1].name,
+      lateChangeRetentionPercent: null,
+      noShowRetentionPercent: 25,
+    },
+    {
+      serviceId: uniquePayload.services[0].id,
+      name: uniquePayload.services[0].name,
+      lateChangeRetentionPercent: 0,
+      noShowRetentionPercent: null,
+    },
+  ])
+  expect((await call('onboarding-a', 'GET', clinicB, 'settings')).statusCode).toBe(403)
+  expect(
+    (await call('onboarding-a', 'GET', clinicA, 'settings')).json().bookingRules
+      .serviceRetentionOverrides,
+  ).toEqual([])
 })
