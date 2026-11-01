@@ -22,8 +22,18 @@ export function DepositSettings({
   const scope = preferences.depositScope ?? 'none'
   const percent = preferences.depositPercent ?? 20
   const threshold = preferences.depositThresholdCents ?? 30000
-  const update = (patch: Partial<Payload['preferences']>) =>
+  const update = (patch: Partial<Payload['preferences']>) => {
+    // An unfinished amount must not block continuing after choosing another scope.
+    if (
+      patch.depositScope &&
+      patch.depositScope !== 'threshold' &&
+      (threshold < 1 || threshold > 100000000)
+    ) {
+      patch = { ...patch, depositThresholdCents: 30000 }
+      setThresholdText('300')
+    }
     setPayload({ ...payload, preferences: { ...preferences, ...patch } })
+  }
   const count = payload.services.filter((service) =>
     serviceNeedsDeposit(service, preferences),
   ).length
