@@ -42,3 +42,18 @@ meio para débito automático; avaliar sinal para reservas com custo antecipado.
 Validar políticas com assessoria jurídica, incluindo direitos legais de cancelamento. Mostrar a
 consequência em reais/sessões antes da confirmação, guardar a versão aceita por reserva e permitir
 isenção administrativa auditada. Alterações futuras não devem reescrever reservas já aceitas.
+
+## Proteção seletiva e sinal — 2026-10-31
+
+A etapa 9 agora orienta escolher proteção por serviço com custo antecipado, sem alterar o contrato
+financeiro existente (ADR-018). Sinal permanece indisponível e é identificado assim na interface.
+Antes de ativá-lo, separar percentual de antecipação sobre o preço e percentual de retenção sobre
+o valor antecipado. Explicitar o resultado em reais e o saldo devido no atendimento; não confundir
+“reter 25% do sinal” com “reter 25% do serviço”. Para locação por diária, considerar rateio entre
+reservas, recuperação da vaga e custos efetivos, sem multiplicar o custo integral por cliente.
+
+Implementar cancelamento pelo espaço sem retenção desta política, devolução integral quando
+legalmente devida, crédito apenas com concordância e isenção auditada. O aceite não afasta direitos
+legais; validar especialmente contratação online e serviços marcados no período de arrependimento.
+Não ativar cobrança com base apenas nas preferências salvas. Lembretes, confirmação e lista de
+espera continuam evolução planejada, sem automações prometidas nesta entrega.

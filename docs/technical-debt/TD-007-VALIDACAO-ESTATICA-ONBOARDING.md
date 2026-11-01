@@ -46,3 +46,8 @@ Builds e TypeScript de todo o workspace passaram após corrigir a tipagem de `Co
 na rota de pagamentos. Testes: 99 API (um worker), dez admin e dois web aprovados. A página
 QA agora é versionada e restrita a desenvolvimento, com lint próprio aprovado. As pendências
 estáticas anteriores seguem abertas; não foi realizada refatoração ampla nesta publicação.
+
+Atualização 2026-10-31: `pnpm check` continua parando na formatação de sete arquivos externos à
+revisão da etapa 9: rota de geocode, CSS principal do onboarding, `address-map.tsx`,
+`connect-panel.tsx`, geocode da API, `stripe-connect.ts` e teste de geocode. A entrega de regras
+passou em lint direcionado, TypeScript/build do admin, 17 testes admin e 101 testes API (um worker).

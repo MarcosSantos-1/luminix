@@ -63,3 +63,63 @@ lint da API e dos arquivos admin alterados aprovado. `pnpm check` continua bloqu
 formatação preexistente fora desta entrega, conforme TD-007. Prévia desktop conferiu padrão
 zero, escolha de serviço, exemplo 25% e revisão. Mobile e conclusão autenticada completa
 permanecem conferências manuais necessárias.
+
+## Evolução do onboarding e estudo de mercado — 2026-10-31
+
+Benchmark qualitativo de funcionalidades públicas, sem estimativa própria de redução de faltas
+ou validação de disponibilidade regional. Fontes consultadas em 2026-10-31:
+
+| Referência                                                                                                                             | Comportamento observado                                                                                                                       | Aplicação ao Luminix                                                                                                            |
+| -------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
+| [Trinks — pagamento antecipado](https://ajuda.trinks.com/pagamento-antecipado-via-site-mais-seguranca-e-controle-para-o-seu-negocio)   | Pagamento integral ou sinal de 10%, 20%, 30% ou 50%; confirmação após aprovação do sinal; estorno ou crédito no cancelamento.                 | Separar antecipação de política de retenção. Sinal abate o preço final, não é uma taxa adicional.                               |
+| [Booksy — No-Show Protection](https://biz.booksy.com/features/no-show-protection)                                                      | Sinal ou cartão para taxa de cancelamento, seleção por serviço e possibilidade de isenção; lembretes e lista de espera. Página internacional. | Preferir proteção seletiva, prevenção e possibilidade de dispensar a retenção. Não importar percentuais como padrão brasileiro. |
+| [Fresha — cancelamentos e faltas](https://www.fresha.com/help-center/knowledge-base/payments/617-charge-no-show-and-cancellation-fees) | Consequência conforme política aceita, usando antecipação ou cartão; cobrança posterior pode falhar.                                          | Não tratar cartão salvo como garantia de recebimento nem acumular duas penalidades no mesmo evento.                             |
+
+O [CDC, arts. 46, 49 e 51](https://www2.camara.leg.br/legin/fed/lei/1990/lei-8078-11-setembro-1990-365086-normaatualizada-pl.html)
+exige informação prévia, prevê arrependimento em contratações fora do estabelecimento e veda
+cláusulas abusivas. Antecipação e aceite não tornam qualquer retenção válida. Não existe nesta
+análise um percentual universalmente permitido. Validar o contrato e suas exceções com assessoria
+jurídica antes da execução financeira.
+
+### Direção de produto
+
+Manter sem retenção como padrão. Para serviços com custo antecipado, recomendar exceções por
+serviço; a regra geral continua disponível por escolha explícita. Não gerar dívida automática para
+quem não antecipou pagamento. Isso é uma decisão de escopo do produto, não afirmação de que toda
+cobrança posterior é ilegal. Pacotes mantêm as sessões, inclusive em falta.
+
+Para aparelho alugado, recomendar sinal e prazo compatíveis com o compromisso assumido com a
+locadora, avaliando 24/48 horas conforme a operação. O aluguel não justifica perda integral
+automática. Exemplo de planejamento, não taxa recomendada: em um avulso de R$ 400 integralmente
+antecipado, uma retenção de 25% representaria R$ 100, com R$ 300 de saldo a devolver. Se só R$ 100
+fossem antecipados, os mesmos 25% representariam R$ 25, não R$ 100. Sinal e retenção têm bases
+diferentes; definir sua integração antes de lançar o checkout. Um custo por diária deve considerar
+a divisão entre reservas e recuperação da vaga, não ser cobrado integralmente de cada cliente.
+
+Cancelamento pelo estabelecimento não sofre retenção desta política. Direitos legais prevalecem;
+crédito depende de concordância e não substitui restituição devida. Isenção por imprevistos e
+prevenção com lembretes/lista de espera são direção para o motor futuro, não funcionalidades
+ativadas pelo onboarding.
+
+### Implementado nesta evolução
+
+Etapa 9 oferece “sem retenção”, “somente em serviços específicos” e “regra geral”. A escolha é um
+editor das preferências existentes, sem campo/schema novo: ao reabrir, o modo reflete os percentuais
+salvos. Abrir um editor sem definir percentual não ativa retenção. Escolher sem retenção zera os
+globais e remove exceções financeiras; escolher serviços zera os globais e mantém exceções
+explícitas. Nenhuma troca modifica preços, pagamentos ou prazos. Valores antigos válidos, inclusive
+percentuais fora dos atalhos e isenções explícitas, são preservados ao abrir/editar.
+
+O editor individual também permite ajustar o prazo de cancelamento existente. Remarcação herda
+esse prazo somente se não houver prazo próprio geral de remarcação. O resumo distingue regra geral
+e exceções e inclui prazos individuais. Orientações visíveis diferenciam pagamentos antecipados,
+pagamento na clínica, pacotes e aparelho alugado. A tela informa que sinal e execução financeira
+continuam indisponíveis. Não há novas dependências, migrations, consultas ou permissões; os campos
+seguem o mesmo rascunho, validação da API e materialização transacional com isolamento por clínica.
+
+Validação desta evolução: TypeScript e build de produção do admin aprovados; lint dos arquivos
+alterados aprovado; 17 testes do admin e 101 da API aprovados. Navegador desktop com fixture
+sintética conferiu seleção por serviço, 25% por falta, prazo próprio de 48h, revisão, retorno à
+edição e remoção da retenção sem apagar prazos; console sem erros. Fluxo autenticado completo e
+mobile seguem conferências manuais pendentes. `pnpm check` parou na formatação preexistente em
+sete arquivos externos à mudança (TD-007); não declarar validação agregada verde.

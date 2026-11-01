@@ -29,7 +29,15 @@ import {
 import { BlurDialog, GlassSelect, SectionIssue, StepEnd, type FieldErrors } from './ui'
 import { formatBrPhone } from '@/lib/phone'
 import './rules-review.css'
-import { attendancePercent, retentionLabel, serviceRetentionSummary } from './attendance-policy'
+import {
+  attendancePercent,
+  retentionLabel,
+  retentionScope,
+  retentionScopeLabel,
+  serviceRetentionSummary,
+  withRetentionScope,
+  type RetentionScope,
+} from './attendance-policy'
 
 function retentionOptions(current: number) {
   return [...new Set([0, 10, 20, 25, 30, 50, current])]
@@ -37,13 +45,13 @@ function retentionOptions(current: number) {
     .map((percent) => ({ id: String(percent), label: retentionLabel(percent) }))
 }
 
-function RetentionExample({ percent }: { percent: number }) {
+function RetentionExample({ percent, noShow = false }: { percent: number; noShow?: boolean }) {
   const retained = Math.round((20000 * percent) / 100)
   return (
     <p className="ob2-rule-example">
       {percent === 0
         ? 'Sem retenção: esta regra não desconta nenhum valor já pago.'
-        : `Exemplo ilustrativo: de R$ 200 pagos pelo atendimento, ${formatMoney(retained)} ficam retidos e ${formatMoney(20000 - retained)} podem ser devolvidos. Ao remarcar, o saldo restante pode ser aproveitado no novo horário.`}
+        : `Simulação, se a retenção for aplicável: de R$ 200 antecipados pelo avulso, ${formatMoney(retained)} seriam retidos e ${formatMoney(20000 - retained)} devolvidos ${noShow ? 'em caso de falta.' : 'no cancelamento. Na remarcação, o saldo pode ser aproveitado com a concordância da cliente.'} Sem antecipação: R$ 0 de retenção.`}
     </p>
   )
 }
@@ -56,6 +64,7 @@ function AttendanceRules({
   setPayload: (value: Payload) => void
 }) {
   const [serviceId, setServiceId] = useState('none')
+  const [scope, setScope] = useState<RetentionScope>(() => retentionScope(payload))
   const service = payload.services.find((item) => item.id === serviceId)
   const preferences = payload.preferences
   const overrides = payload.services.filter(
@@ -77,39 +86,84 @@ function AttendanceRules({
       <Card.Content className="ob2-form">
         <div className="ob2-rules-heading">
           <ShieldCheck aria-hidden size={22} />
-          <h2>Se houver atraso no aviso ou falta</h2>
+          <h2>Cancelamentos e faltas, sem surpresas</h2>
         </div>
         <p className="ob2-copy">
-          Comece sem penalidade. Se um atendimento tem custo de preparo, você pode definir uma
-          retenção sobre o valor já pago por ele. As regras abaixo são para atendimentos avulsos.
+          Nossa sugestão: comece sem retenção e personalize apenas os serviços com custo antecipado,
+          como aluguel de aparelho. Retenção é descontar uma parte do valor já pago pelo atendimento
+          avulso; não é uma nova cobrança.
         </p>
         <GlassSelect
-          label="Cancelamento ou remarcação depois do prazo"
-          value={String(preferences.lateChangeRetentionPercent ?? 0)}
-          options={retentionOptions(preferences.lateChangeRetentionPercent ?? 0)}
-          onChange={(value) => setDefault('lateChangeRetentionPercent', value)}
+          label="Como você quer começar?"
+          value={scope}
+          options={[
+            { id: 'none', label: 'Sem retenção em todos os serviços' },
+            { id: 'services', label: 'Somente em serviços específicos' },
+            { id: 'all', label: 'Definir uma regra geral' },
+          ]}
+          onChange={(value) => {
+            const next = value as RetentionScope
+            setScope(next)
+            setPayload(withRetentionScope(payload, next))
+          }}
         />
-        <RetentionExample percent={preferences.lateChangeRetentionPercent ?? 0} />
-        <GlassSelect
-          label="Quando a cliente não comparece"
-          value={String(preferences.noShowRetentionPercent ?? 0)}
-          options={retentionOptions(preferences.noShowRetentionPercent ?? 0)}
-          onChange={(value) => setDefault('noShowRetentionPercent', value)}
-        />
-        <RetentionExample percent={preferences.noShowRetentionPercent ?? 0} />
+        <p className="ob2-copy">
+          Escolher “Sem retenção” zera os percentuais gerais e remove as exceções de retenção.
+          “Somente em serviços específicos” zera a regra geral e mantém as exceções que você
+          definir. Os prazos de aviso continuam valendo.
+        </p>
+        {scope === 'all' ? (
+          <>
+            <GlassSelect
+              label="Cancelamento ou remarcação depois do prazo"
+              value={String(preferences.lateChangeRetentionPercent ?? 0)}
+              options={retentionOptions(preferences.lateChangeRetentionPercent ?? 0)}
+              onChange={(value) => setDefault('lateChangeRetentionPercent', value)}
+            />
+            <RetentionExample percent={preferences.lateChangeRetentionPercent ?? 0} />
+            <GlassSelect
+              label="Quando a cliente não comparece"
+              value={String(preferences.noShowRetentionPercent ?? 0)}
+              options={retentionOptions(preferences.noShowRetentionPercent ?? 0)}
+              onChange={(value) => setDefault('noShowRetentionPercent', value)}
+            />
+            <RetentionExample percent={preferences.noShowRetentionPercent ?? 0} noShow />
+          </>
+        ) : null}
+        <div className="ob2-retention-service">
+          <h3>O que muda em cada caso</h3>
+          <ul className="ob2-policy-cases">
+            <li>
+              <strong>Avisou dentro do prazo:</strong> sem retenção por esta política.
+            </li>
+            <li>
+              <strong>Não pagou antecipadamente:</strong> nada a reter e nenhuma dívida automática.
+            </li>
+            <li>
+              <strong>Pagou pelo avulso:</strong> só o percentual combinado, quando aplicável, sobre
+              o valor antecipado desse atendimento.
+            </li>
+            <li>
+              <strong>Usou um pacote:</strong> as sessões ficam preservadas nesta configuração,
+              inclusive em caso de falta.
+            </li>
+          </ul>
+        </div>
         <p className="ob2-copy">
           A cliente ainda poderá avisar que não vai, mesmo depois do prazo. Esse aviso é um
           cancelamento tardio; falta é quando ela não comparece nem cancela. As duas retenções não
           se somam para o mesmo horário.
         </p>
-        {payload.services.length > 0 ? (
+        {scope !== 'none' && payload.services.length > 0 ? (
           <>
             <h3 className="ob2-retention-subtitle">
-              Algum serviço precisa de uma regra diferente?
+              {scope === 'services'
+                ? 'Escolha quais serviços terão retenção'
+                : 'Exceções à regra geral'}
             </h3>
             <p className="ob2-copy">
-              Por exemplo, laser com aparelho alugado. Escolha o serviço e ajuste só o que for
-              necessário.
+              Ajuste o prazo e os percentuais de cada serviço. Nenhuma porcentagem é aplicada só por
+              selecionar um serviço. Zero significa sem retenção.
             </p>
             <GlassSelect
               label="Personalizar um serviço"
@@ -123,6 +177,32 @@ function AttendanceRules({
             {service ? (
               <div className="ob2-retention-service">
                 <h3>{service.name}</h3>
+                <GlassSelect
+                  label="Prazo de cancelamento neste serviço"
+                  value={
+                    service.cancellationHours == null
+                      ? 'inherit'
+                      : String(service.cancellationHours)
+                  }
+                  options={[
+                    {
+                      id: 'inherit',
+                      label: `Seguir o espaço: ${hours(service.bookingMode === 'manual_release' ? preferences.specialCancellationHours : preferences.cancellationHours)}`,
+                    },
+                    ...hourOptions(
+                      [0, 4, 12, 24, 48, 72],
+                      service.cancellationHours ?? preferences.cancellationHours,
+                    ),
+                  ]}
+                  onChange={(value) =>
+                    setService({ cancellationHours: value === 'inherit' ? null : Number(value) })
+                  }
+                />
+                <p className="ob2-copy">
+                  {preferences.reschedulingHours == null
+                    ? 'A remarcação acompanha este prazo.'
+                    : `A remarcação segue o prazo geral próprio: ${hours(preferences.reschedulingHours).toLocaleLowerCase('pt-BR')}.`}
+                </p>
                 <GlassSelect
                   label="Alteração tardia neste serviço"
                   value={
@@ -168,6 +248,7 @@ function AttendanceRules({
                 />
                 <RetentionExample
                   percent={attendancePercent(preferences, service, 'noShowRetentionPercent')}
+                  noShow
                 />
                 <Button
                   variant="ghost"
@@ -175,12 +256,40 @@ function AttendanceRules({
                     setService({ lateChangeRetentionPercent: null, noShowRetentionPercent: null })
                   }
                 >
-                  Voltar às regras do espaço
+                  Usar os percentuais do espaço
                 </Button>
               </div>
             ) : null}
           </>
         ) : null}
+        {scope === 'services' && retentionScope(payload) === 'none' ? (
+          <p className="ob2-rule-example" role="status">
+            Ainda não há serviço com retenção. Se continuar assim, todos ficarão sem retenção.
+          </p>
+        ) : null}
+        <div className="ob2-retention-service">
+          <h3>Vai alugar um aparelho para atender?</h3>
+          <p className="ob2-copy">
+            Combine o prazo com a locadora antes de confirmar a reserva. Considere 24 ou 48 horas
+            para aviso, ajustando ao custo e à antecedência real do aluguel. O prazo sozinho não
+            cobre o prejuízo de uma falta.
+          </p>
+          <p className="ob2-copy">
+            Para esses serviços, nossa recomendação é sinal antecipado, abatido do preço final, com
+            política proporcional ao custo da reserva e informada antes do pagamento. Alugar o
+            aparelho não autoriza ficar automaticamente com todo o valor.
+          </p>
+          <p className="ob2-rule-status">
+            O sinal ainda não está disponível no Luminix. Aqui você define apenas prazos e
+            preferências de retenção; a garantia da reserva depende do futuro checkout.
+          </p>
+        </div>
+        <p className="ob2-rule-example">
+          Pagamento antecipado não significa perda automática: a política deve ser informada antes
+          da reserva, ser proporcional e respeitar os direitos da cliente. Se o espaço cancelar,
+          esta política não retém valores. Crédito para outra data deve ser uma opção aceita pela
+          cliente, sem substituir um reembolso devido.
+        </p>
         {overrides.length > 0 ? (
           <Help
             items={[
@@ -201,12 +310,12 @@ function AttendanceRules({
               text: 'Cancelar ou remarcar o horário mantém as sessões. Nesta configuração, a falta também não consome sessão nem gera retenção em pacote. Desistir da compra e devolver o saldo é outra operação, que precisa considerar o que já foi utilizado.',
             },
             {
-              title: 'E se ela escolheu pagar na clínica?',
-              text: 'Sem valor pago antecipadamente, não há valor para reter. Não será criada uma cobrança automática. Para serviços com custo de preparo, considere trabalhar com sinal quando o checkout estiver disponível.',
+              title: 'E o direito de arrependimento?',
+              text: 'O CDC prevê 7 dias para arrependimento nas contratações fora do estabelecimento, como pela internet, nas hipóteses do art. 49, com devolução integral. Essa regra legal prevalece sobre a política do espaço quando aplicável. A análise depende da contratação e do serviço; não trate falta ou aviso tardio como autorização automática para reter.',
             },
             {
               title: 'Quem pode escolher a porcentagem?',
-              text: 'O espaço define sua política e deve validar se ela é adequada e permitida para o serviço. Nenhuma porcentagem é uma recomendação jurídica. Direitos legais de cancelamento e situações de isenção precisam ser respeitados.',
+              text: 'O espaço define sua política e deve validá-la com assessoria jurídica antes de usar. Não existe uma porcentagem universalmente segura para todos os serviços. Considere os custos envolvidos, evite valores excessivos e preveja análise de imprevistos e isenções. Chamar a cobrança de sinal ou retenção não afasta os direitos da cliente.',
             },
           ]}
         />
@@ -581,11 +690,15 @@ export function RulesStep({
               <dd>{rescheduling == null ? 'Mesmo prazo do cancelamento' : hours(rescheduling)}</dd>
             </div>
             <div>
-              <dt>Alteração tardia · avulsos</dt>
+              <dt>Política escolhida</dt>
+              <dd>{retentionScopeLabel(payload)}</dd>
+            </div>
+            <div>
+              <dt>Alteração tardia · padrão dos avulsos</dt>
               <dd>{retentionLabel(preferences.lateChangeRetentionPercent ?? 0)}</dd>
             </div>
             <div>
-              <dt>Falta · avulsos</dt>
+              <dt>Falta · padrão dos avulsos</dt>
               <dd>{retentionLabel(preferences.noShowRetentionPercent ?? 0)}</dd>
             </div>
             <div>
@@ -963,11 +1076,15 @@ export function ReviewStep({
                 value: rescheduling == null ? 'Mesmo prazo do cancelamento' : hours(rescheduling),
               },
               {
-                label: 'Alteração tardia · avulsos',
+                label: 'Retenção',
+                value: retentionScopeLabel(payload),
+              },
+              {
+                label: 'Alteração tardia · padrão dos avulsos',
                 value: retentionLabel(payload.preferences.lateChangeRetentionPercent ?? 0),
               },
               {
-                label: 'Falta · avulsos',
+                label: 'Falta · padrão dos avulsos',
                 value: retentionLabel(payload.preferences.noShowRetentionPercent ?? 0),
               },
               { label: 'Pacotes', value: 'Sessões preservadas, sem retenção' },
@@ -988,10 +1105,12 @@ export function ReviewStep({
                     .filter(
                       (service) =>
                         service.lateChangeRetentionPercent != null ||
-                        service.noShowRetentionPercent != null,
+                        service.noShowRetentionPercent != null ||
+                        service.cancellationHours != null,
                     )
                     .map((service) => serviceRetentionSummary(service, payload.preferences)),
                   'Preferências salvas; retenções, reembolsos e aplicação automática ainda não estão ativos.',
+                  'Sem pagamento antecipado, não há retenção nem dívida automática. Cancelamento pelo espaço não gera retenção; direitos legais prevalecem.',
                 ]
                   .filter(Boolean)
                   .join(' '),

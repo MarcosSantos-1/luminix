@@ -3,6 +3,14 @@
   gap: 20px;
   align-items: start;
 }
+.ob2-policy-cases {
+  display: grid;
+  gap: 12px;
+  margin: 0;
+  padding-left: 20px;
+  font-size: 15px;
+  line-height: 1.6;
+}
 .ob2-retention-subtitle,
 .ob2-retention-service h3 {
   margin: 0;
