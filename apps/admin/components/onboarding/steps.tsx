@@ -1,3 +1,4 @@
+import { DepositSettings } from './deposit-settings'
 import { ConnectPanel, type ConnectPhase } from '@/components/payments/connect-panel'
 import { ThemePicker } from '@/components/space-theme'
 import { spaceTheme } from '@/lib/space-theme'
@@ -2245,6 +2246,7 @@ export function PaymentsStep({
   footer: ReactNode
 }) {
   const [phase, setPhase] = useState<ConnectPhase>('loading')
+  const [packageHelp, setPackageHelp] = useState(false)
   const selectOutside = () => {
     onReadyChange(false)
     toast.info('Recebimento fora do app selecionado. Você pode continuar sem configurar a Stripe.')
@@ -2315,36 +2317,45 @@ export function PaymentsStep({
         </p>
       )}
       <PaymentHelp inApp={payload.preferences.acceptInApp} />
+
+      <div className="ob2-pay-rule" aria-hidden="true" />
+      <Card className="ob2-panel">
+        <Card.Content className="ob2-form">
+          <Button variant="ghost" onPress={() => setPackageHelp(true)}>
+            <Info size={18} />
+            Entenda o pagamento dos pacotes
+          </Button>
+          <GlassSelect
+            label="Como os pacotes de sessões serão pagos?"
+            value={payload.preferences.packagePaymentMode}
+            options={
+              payload.preferences.acceptInApp
+                ? [
+                    { id: 'clinic_only', label: 'Diretamente com a clínica' },
+                    { id: 'in_app', label: 'Pelo app' },
+                    { id: 'both', label: 'A cliente pode escolher' },
+                  ]
+                : [{ id: 'clinic_only', label: 'Diretamente com a clínica' }]
+            }
+            onChange={(value) =>
+              setPayload({
+                ...payload,
+                preferences: {
+                  ...payload.preferences,
+                  packagePaymentMode: value as Payload['preferences']['packagePaymentMode'],
+                },
+              })
+            }
+          />
+          <p className="ob2-copy">
+            Esta escolha define a forma de recebimento. Nenhum pacote é vendido ou cobrado agora.
+          </p>
+        </Card.Content>
+      </Card>
+      <div className="ob2-pay-rule" aria-hidden="true" />
+      <DepositSettings payload={payload} setPayload={setPayload} />
       {payload.preferences.acceptInApp ? (
         <>
-          <div className="ob2-pay-rule" aria-hidden="true" />
-          <Card className="ob2-panel">
-            <Card.Content className="ob2-form">
-              <GlassSelect
-                label="Como os pacotes de sessões serão pagos?"
-                value={payload.preferences.packagePaymentMode}
-                options={[
-                  { id: 'clinic_only', label: 'Diretamente com a clínica' },
-                  { id: 'in_app', label: 'Pelo app' },
-                  { id: 'both', label: 'A cliente pode escolher' },
-                ]}
-                onChange={(value) =>
-                  setPayload({
-                    ...payload,
-                    preferences: {
-                      ...payload.preferences,
-                      packagePaymentMode: value as Payload['preferences']['packagePaymentMode'],
-                    },
-                  })
-                }
-              />
-              <p className="ob2-copy">
-                Esta escolha define a forma de recebimento. Nenhum pacote é vendido ou cobrado
-                agora.
-              </p>
-            </Card.Content>
-          </Card>
-          <div className="ob2-pay-rule" aria-hidden="true" />
           <ConnectPanel
             key={clinicId}
             onReadyChange={onReadyChange}
@@ -2355,6 +2366,29 @@ export function PaymentsStep({
         </>
       ) : null}
       <div className="ob2-pay-rule" aria-hidden="true" />
+      <BlurDialog
+        isOpen={packageHelp}
+        onOpenChange={setPackageHelp}
+        title="Como os pacotes de sessões serão pagos?"
+        size="md"
+        footer={<Button onPress={() => setPackageHelp(false)}>Entendi</Button>}
+      >
+        <div className="ob2-form">
+          <p>
+            Pacote é uma compra que reúne várias sessões, como 10 sessões de depilação. Esta escolha
+            define onde a cliente pagará pela compra do pacote.
+          </p>
+          <p>
+            <strong>Diretamente com a clínica:</strong> vocês combinam Pix, maquininha ou link
+            próprio. <strong>Pelo app:</strong> pagamento integrado à Stripe quando o checkout
+            estiver disponível. <strong>A cliente pode escolher:</strong> oferece as duas formas.
+          </p>
+          <p>
+            Isso não define parcelamento, pagamento por sessão ou sinal. Nenhum pacote é criado ou
+            cobrado nesta etapa.
+          </p>
+        </div>
+      </BlurDialog>
       <StepEnd
         error={error}
         footer={

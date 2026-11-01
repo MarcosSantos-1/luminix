@@ -128,6 +128,7 @@ describe('versioned core migration', () => {
       { name: '0016_stripe_connect.sql' },
       { name: '0017_onboarding_booking_rules.sql' },
       { name: '0018_attendance_retention_preferences.sql' },
+      { name: '0019_deposit_preferences.sql' },
     ])
   })
 

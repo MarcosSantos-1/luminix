@@ -34,7 +34,6 @@
   --radius: 0.9rem;
   --field-radius: 14px;
   min-height: 100vh;
-  overflow-x: clip;
   color: #fff;
 }
 
@@ -42,7 +41,7 @@
   content: '';
   position: fixed;
   inset: 0;
-  z-index: -1;
+  z-index: 0;
   pointer-events: none;
   background: var(--space-deep, #780033)
     var(--space-background, url('/brand/background-desktop.png')) center / cover no-repeat;
@@ -5353,5 +5352,31 @@ html:has(.ob2)::-webkit-scrollbar-thumb:hover,
     width: 100%;
     min-width: 0;
     max-width: 100%;
+  }
+}
+
+/* Keep fixed background and content in explicit layers. Avoid negative fixed layers
+   inside a clipped container, which can repaint incompletely on mobile WebKit. */
+.ob2 > .ob2-top,
+.ob2 > .ob2-board {
+  position: relative;
+  z-index: 1;
+}
+
+/* The heading is a screen-reader navigation target, not an interactive control. */
+#onboarding-title:focus {
+  outline: none;
+}
+
+@media (max-width: 719px) {
+  .ob2 {
+    min-height: 100svh;
+  }
+  .ob2 .card.ob2-panel,
+  .ob2 .ob2-pay-choice,
+  .ob2 .ob2-pay-help {
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+    background-color: color-mix(in srgb, var(--space-deep, #780033) 90%, #fff 10%);
   }
 }

@@ -308,11 +308,12 @@ export default function OnboardingPage() {
   const [editingFromReview, setEditingFromReview] = useState(false)
   const [step, setStep] = useState(0)
   const [availableThrough, setAvailableThrough] = useState(0)
+  const hasPayload = payload !== null
   useEffect(() => {
     const heading = document.getElementById('onboarding-title')
     heading?.focus({ preventScroll: true })
-    heading?.scrollIntoView({ block: 'start', behavior: 'instant' })
-  }, [step])
+    document.querySelector('.ob2-top')?.scrollIntoView({ block: 'start', behavior: 'instant' })
+  }, [step, hasPayload])
 
   const [stepError, setStepError] = useState('')
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({})
@@ -458,6 +459,13 @@ export default function OnboardingPage() {
       payload.preferences.packagePaymentMode !== 'clinic_only'
     )
       fields.rules = 'Com recebimento fora do app, pacotes ficam somente na clínica.'
+    if (
+      stepInfo[targetStep]?.key === 'payments' &&
+      payload.preferences.depositThresholdCents !== undefined &&
+      (payload.preferences.depositThresholdCents < 1 ||
+        payload.preferences.depositThresholdCents > 100000000)
+    )
+      fields.payments = 'Informe um limite válido para o sinal, entre R$ 0,01 e R$ 1.000.000.'
     const message = Object.values(fields)[0] ?? ''
     return { message, fields }
   }

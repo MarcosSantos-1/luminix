@@ -51,3 +51,10 @@ Atualização 2026-10-31: `pnpm check` continua parando na formatação de sete 
 revisão da etapa 9: rota de geocode, CSS principal do onboarding, `address-map.tsx`,
 `connect-panel.tsx`, geocode da API, `stripe-connect.ts` e teste de geocode. A entrega de regras
 passou em lint direcionado, TypeScript/build do admin, 17 testes admin e 101 testes API (um worker).
+
+Atualização 2026-11-01: entrega de sinal passou TypeScript/builds admin/API e testes (101 API,
+23 admin). O lint direcionado de `steps.tsx` mantém imports não usados e refs em render já
+existentes; os demais arquivos alterados passam. Check agregado ainda bloqueado por formatação
+preexistente em geocode, address-map, attendance-service-dialog, shell, space-theme e Stripe.
+A falha inicial da lista fixa de migrations foi corrigida para incluir 0019, com 34 testes do
+núcleo aprovados na reexecução. Não declarar `pnpm check` verde.

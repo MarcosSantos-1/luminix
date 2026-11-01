@@ -80,6 +80,7 @@ type OnboardingPayload = {
     audience: 'all' | 'women' | 'men'
     sensitive?: boolean
     resourceName: string
+    depositRequired?: boolean
     cancellationHours: number | null
     lateChangeRetentionPercent?: number | null
     noShowRetentionPercent?: number | null
@@ -129,6 +130,9 @@ type OnboardingPayload = {
     }
   }[]
   preferences: {
+    depositScope?: 'none' | 'all' | 'threshold' | 'special' | 'selected'
+    depositPercent?: number
+    depositThresholdCents?: number
     specialTreatmentsDismissed?: boolean
     bookingNoticeHours?: number
     bookingWindowDays?: number
@@ -584,6 +588,10 @@ export async function clinicRoutes(
                     rules.cancellation_notice_minutes, rules.special_cancellation_notice_minutes,
                     rules.rescheduling_notice_minutes, rules.client_instructions,
                     rules.late_change_retention_percent, rules.no_show_retention_percent,
+                    rules.deposit_scope, rules.deposit_percent, rules.deposit_threshold_cents,
+                    (SELECT coalesce(jsonb_agg(svc.id), '[]'::jsonb)
+                       FROM luminix.services svc WHERE svc.clinic_id = s.clinic_id
+                         AND svc.deposit_required) AS deposit_service_ids,
                     (SELECT coalesce(jsonb_agg(jsonb_build_object(
                       'serviceId', svc.id, 'name', svc.name,
                       'lateChangeRetentionPercent', svc.late_change_retention_percent,
@@ -629,6 +637,10 @@ export async function clinicRoutes(
                   lateChangeRetentionPercent: settings.late_change_retention_percent,
                   noShowRetentionPercent: settings.no_show_retention_percent,
                   serviceRetentionOverrides: settings.retention_overrides,
+                  depositScope: settings.deposit_scope,
+                  depositPercent: settings.deposit_percent,
+                  depositThresholdCents: settings.deposit_threshold_cents,
+                  depositServiceIds: settings.deposit_service_ids,
                 },
           profile: settings.owner_name
             ? {
@@ -782,6 +794,7 @@ export async function clinicRoutes(
             cancellationHours: {
               anyOf: [{ type: 'integer', minimum: 0, maximum: 168 }, { type: 'null' }],
             },
+            depositRequired: { type: 'boolean' },
             lateChangeRetentionPercent: {
               anyOf: [{ type: 'integer', minimum: 0, maximum: 100 }, { type: 'null' }],
             },
@@ -948,6 +961,12 @@ export async function clinicRoutes(
           clientInstructions: { type: 'string', maxLength: 500 },
           lateChangeRetentionPercent: { type: 'integer', minimum: 0, maximum: 100 },
           noShowRetentionPercent: { type: 'integer', minimum: 0, maximum: 100 },
+          depositScope: {
+            type: 'string',
+            enum: ['none', 'all', 'threshold', 'special', 'selected'],
+          },
+          depositPercent: { type: 'integer', minimum: 1, maximum: 100 },
+          depositThresholdCents: { type: 'integer', minimum: 1, maximum: 100000000 },
           specialTreatmentsDismissed: { type: 'boolean' },
           cancellationHours: { type: 'integer', minimum: 0, maximum: 168 },
           specialCancellationHours: { type: 'integer', minimum: 0, maximum: 336 },

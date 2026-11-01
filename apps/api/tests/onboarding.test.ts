@@ -207,6 +207,12 @@ describe('versioned clinic onboarding', () => {
       { lateChangeRetentionPercent: 101 },
       { noShowRetentionPercent: 25.5 },
       { noShowRetentionPercent: null },
+      { depositScope: 'unknown' },
+      { depositPercent: 0 },
+      { depositPercent: 101 },
+      { depositPercent: 20.5 },
+      { depositThresholdCents: 0 },
+      { depositThresholdCents: 100000001 },
     ]) {
       const result = await call('onboarding-a', 'PUT', clinicA, 'onboarding', {
         version: 0,
@@ -223,6 +229,7 @@ describe('versioned clinic onboarding', () => {
       { lateChangeRetentionPercent: -1 },
       { noShowRetentionPercent: 101 },
       { lateChangeRetentionPercent: 2.5 },
+      { depositRequired: 'yes' },
     ]) {
       const result = await call('onboarding-a', 'PUT', clinicA, 'onboarding', {
         version: 0,
@@ -348,6 +355,10 @@ describe('versioned clinic onboarding', () => {
       lateChangeRetentionPercent: 0,
       noShowRetentionPercent: 0,
       serviceRetentionOverrides: [],
+      depositScope: 'none',
+      depositPercent: 20,
+      depositThresholdCents: 30000,
+      depositServiceIds: [],
     })
     expect((await call('onboarding-b', 'GET', clinicA, 'settings')).statusCode).toBe(403)
     expect((await call('onboarding-b', 'GET', clinicB, 'settings')).json().bookingRules).toBeNull()
@@ -549,6 +560,7 @@ it('requires current Stripe readiness for advancement and completion, with an ou
     ...uniquePayload,
     services: uniquePayload.services.map((service, index) => ({
       ...service,
+      depositRequired: index === 0,
       lateChangeRetentionPercent: index === 0 ? 0 : null,
       noShowRetentionPercent: index === 1 ? 25 : null,
     })),
@@ -556,6 +568,9 @@ it('requires current Stripe readiness for advancement and completion, with an ou
     preferences: {
       ...payload.preferences,
       acceptInApp: true,
+      depositScope: 'selected',
+      depositPercent: 30,
+      depositThresholdCents: 45000,
       lateChangeRetentionPercent: 25,
       noShowRetentionPercent: 50,
     },
@@ -566,6 +581,10 @@ it('requires current Stripe readiness for advancement and completion, with an ou
   expect((await save('payments')).statusCode).toBe(200)
   version++
   const resumed = (await call('onboarding-b', 'GET', clinicB, 'onboarding')).json().draft.payload
+  expect(resumed.preferences.depositScope).toBe('selected')
+  expect(resumed.preferences.depositPercent).toBe(30)
+  expect(resumed.services[0].depositRequired).toBe(true)
+  expect(resumed.services[1].depositRequired).toBe(false)
   expect(resumed.preferences.lateChangeRetentionPercent).toBe(25)
   expect(resumed.preferences.noShowRetentionPercent).toBe(50)
   expect(resumed.services[0].lateChangeRetentionPercent).toBe(0)
@@ -644,6 +663,10 @@ it('requires current Stripe readiness for advancement and completion, with an ou
   ).toBe(true)
   expect(connectContext.mock.calls.length).toBe(completedCalls)
   const rules = (await call('onboarding-b', 'GET', clinicB, 'settings')).json().bookingRules
+  expect(rules.depositScope).toBe('selected')
+  expect(rules.depositPercent).toBe(30)
+  expect(rules.depositThresholdCents).toBe(45000)
+  expect(rules.depositServiceIds).toEqual([uniquePayload.services[0].id])
   expect(rules.lateChangeRetentionPercent).toBe(25)
   expect(rules.noShowRetentionPercent).toBe(50)
   expect(rules.serviceRetentionOverrides).toEqual([

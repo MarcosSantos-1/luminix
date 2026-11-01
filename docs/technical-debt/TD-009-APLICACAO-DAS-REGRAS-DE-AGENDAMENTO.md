@@ -57,3 +57,12 @@ legalmente devida, crédito apenas com concordância e isenção auditada. O ace
 legais; validar especialmente contratação online e serviços marcados no período de arrependimento.
 Não ativar cobrança com base apenas nas preferências salvas. Lembretes, confirmação e lista de
 espera continuam evolução planejada, sem automações prometidas nesta entrega.
+
+## Configuração de sinal — 2026-11-01
+
+A ADR-019 implementa preferências de sinal em Pagamentos e materialização transacional na
+migration 0019. A indisponibilidade anterior refere-se agora à **cobrança**, não à configuração.
+Antes do checkout, calcular o sinal sobre preço final autorizado, resolver orçamento/“a partir de”,
+respeitar escopo `none`, aplicar limite estritamente maior e validar serviço/clínica no servidor.
+Congelar preço e política aceita na reserva, alocar antecipações e saldo sem dupla cobrança e
+implementar confirmação/reembolso idempotentes. Preferências não autorizam movimentação financeira.

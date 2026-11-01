@@ -1,3 +1,4 @@
+import { depositSummary } from './deposit-policy'
 import { Accordion, Button, Card } from '@heroui/react'
 import {
   CalendarDays,
@@ -187,8 +188,8 @@ function AttendanceRules({
             aparelho não autoriza ficar automaticamente com todo o valor.
           </p>
           <p className="ob2-rule-status">
-            O sinal ainda não está disponível no Luminix. Aqui você define apenas prazos e
-            preferências de retenção; a garantia da reserva depende do futuro checkout.
+            O sinal é configurado em Pagamentos. Aqui você define apenas prazos e preferências de
+            retenção; a garantia da reserva depende do futuro checkout.
           </p>
         </div>
         <p className="ob2-rule-example">
@@ -410,6 +411,7 @@ export function RulesStep({
   fieldErrors?: FieldErrors
   footer: ReactNode
 }) {
+  const [policyRevision, setPolicyRevision] = useState(0)
   const preferences = payload.preferences
   const change = (patch: Partial<Payload['preferences']>) =>
     setPayload({ ...payload, preferences: { ...preferences, ...patch } })
@@ -649,7 +651,65 @@ export function RulesStep({
               />
             </Card.Content>
           </Card>
-          <AttendanceRules payload={payload} setPayload={setPayload} />
+          <Card className="ob2-panel">
+            <Card.Content className="ob2-form">
+              <h2>Se a cliente cancelar, remarcar ou faltar</h2>
+              <p className="ob2-copy">
+                Recomendado para começar: permitir o aviso a qualquer momento, liberar a vaga e não
+                descontar valores nem sessões. Se houve sinal, ele não é perdido automaticamente.
+              </p>
+              <Button
+                variant="secondary"
+                onPress={() => {
+                  setPayload(withRetentionScope(payload, 'none'))
+                  setPolicyRevision((value) => value + 1)
+                }}
+              >
+                Usar recomendado: sem desconto
+              </Button>
+              <p className="ob2-copy">
+                Política atual: {retentionScopeLabel(payload)}. Você pode continuar com ela e voltar
+                a esta etapa antes de concluir.
+              </p>
+              <ul className="ob2-policy-cases">
+                <li>
+                  <strong>Dentro do prazo:</strong> cancelar não desconta valores; remarcar preserva
+                  o valor para o novo horário, com concordância da cliente.
+                </li>
+                <li>
+                  <strong>Depois do prazo:</strong> o aviso libera a vaga e fica registrado como
+                  tardio. Sem desconto, a política não retém o sinal.
+                </li>
+                <li>
+                  <strong>Não compareceu:</strong> registrar falta. Sem desconto, não gerar multa ou
+                  dívida.
+                </li>
+                <li>
+                  <strong>O espaço cancelou:</strong> não descontar valores. Pacotes preservam as
+                  sessões nesta política.
+                </li>
+              </ul>
+              <p className="ob2-copy">
+                São preferências para o futuro agendamento. Nenhuma cobrança, devolução ou alteração
+                de reserva é executada agora.
+              </p>
+            </Card.Content>
+          </Card>
+          <Accordion className="ob2-rules-help">
+            <Accordion.Item id="custom-consequences">
+              <Accordion.Heading>
+                <Accordion.Trigger>
+                  Personalizar descontos e exceções (opcional)
+                  <Accordion.Indicator />
+                </Accordion.Trigger>
+              </Accordion.Heading>
+              <Accordion.Panel>
+                <Accordion.Body>
+                  <AttendanceRules key={policyRevision} payload={payload} setPayload={setPayload} />
+                </Accordion.Body>
+              </Accordion.Panel>
+            </Accordion.Item>
+          </Accordion>
           <div className="ob2-rules-summary-mobile">
             <Accordion className="ob2-rules-help ob2-rules-summary">
               <Accordion.Item id="rules-summary">
@@ -989,6 +1049,7 @@ export function ReviewStep({
               value: payload.preferences.acceptInApp ? 'Pelo app' : 'Na clínica',
             },
             { label: 'Pacotes', value: packageMode },
+            { label: 'Sinal', value: depositSummary(payload) },
             {
               label: 'Mensalidade agora',
               value: 'Nenhuma cobrança nesta etapa',

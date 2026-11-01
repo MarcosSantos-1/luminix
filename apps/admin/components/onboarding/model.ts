@@ -39,6 +39,7 @@ export type Service = {
   audienceChosen?: boolean
   sensitive: boolean
   resourceName: string
+  depositRequired?: boolean
   cancellationHours: number | null
   lateChangeRetentionPercent?: number | null
   noShowRetentionPercent?: number | null
@@ -129,6 +130,9 @@ export type Payload = {
     clientInstructions?: string
     lateChangeRetentionPercent?: number
     noShowRetentionPercent?: number
+    depositScope?: 'none' | 'all' | 'threshold' | 'special' | 'selected'
+    depositPercent?: number
+    depositThresholdCents?: number
     specialTreatmentsDismissed?: boolean
     cancellationHours: number
     specialCancellationHours: number
