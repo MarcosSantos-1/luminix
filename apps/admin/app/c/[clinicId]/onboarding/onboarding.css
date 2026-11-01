@@ -1,6 +1,9 @@
 @import '@heroui/styles';
 
 .ob2 {
+  position: relative;
+  isolation: isolate;
+  min-width: 0;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -33,8 +36,16 @@
   min-height: 100vh;
   overflow-x: clip;
   color: #fff;
+}
+
+.ob2::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
   background: var(--space-deep, #780033)
-    var(--space-background, url('/brand/background-desktop.png')) center / cover fixed;
+    var(--space-background, url('/brand/background-desktop.png')) center / cover no-repeat;
 }
 
 .ob2[data-surface='solid'] {
@@ -48,6 +59,10 @@
   --default: var(--space-highlight, #fff4f8);
   --default-foreground: var(--space-deep, #34101f);
   color: var(--space-deep, #34101f);
+  background: var(--space-highlight, #fff4f8);
+}
+
+.ob2[data-surface='solid']::before {
   background: var(--space-highlight, #fff4f8);
 }
 
@@ -1298,6 +1313,45 @@
   margin: 0;
 }
 
+.ob2-pay-help {
+  width: 100%;
+  overflow: hidden;
+  border-radius: 18px;
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
+}
+
+.ob2-pay-help .accordion__trigger {
+  min-height: 52px;
+  color: #fff;
+  font-size: 16px;
+  font-weight: 700;
+  text-align: left;
+}
+
+.ob2-pay-help .accordion__indicator {
+  color: #fff;
+}
+
+.ob2-pay-help .accordion__body,
+.ob2-pay-help .accordion__body-inner {
+  display: grid;
+  gap: 10px;
+  color: rgba(255, 255, 255, 0.88);
+  font-size: 15px;
+  line-height: 1.55;
+}
+
+.ob2-pay-help .accordion__body p,
+.ob2-pay-help .accordion__body-inner p {
+  margin: 0;
+}
+
+.ob2-pay-help .accordion__item::after {
+  background: rgba(255, 255, 255, 0.18);
+}
+
 .ob2 .button.ob2-pay-escape {
   width: auto;
   min-height: 44px;
@@ -1433,6 +1487,9 @@
   justify-content: flex-start;
   gap: 16px;
   width: 100%;
+  height: auto;
+  overflow: visible;
+  white-space: normal;
   min-height: 92px;
   margin-top: 8px;
   padding: 18px 20px;
@@ -1488,6 +1545,9 @@
   gap: 16px;
   width: min(100%, 460px);
   flex: 0 1 460px;
+  height: auto;
+  overflow: visible;
+  white-space: normal;
   min-height: 132px;
   padding: 18px 22px;
   text-align: left;
@@ -1666,8 +1726,8 @@
 }
 
 .ob2-dialog-container {
-  width: min(1680px, calc(100vw - 32px)) !important;
-  max-width: 1680px;
+  width: min(1680px, calc(100% - 24px)) !important;
+  max-width: min(1680px, calc(100% - 24px));
 }
 
 .ob2-dialog {
@@ -2087,8 +2147,8 @@ html:has(.ob2)::-webkit-scrollbar-thumb:hover,
 }
 
 .ob2-dialog-container.ob2-pro-dialog {
-  width: min(1120px, calc(100vw - 24px)) !important;
-  max-width: 1120px;
+  width: min(1120px, calc(100% - 16px)) !important;
+  max-width: min(1120px, calc(100% - 16px));
 }
 
 .ob2-pro-identity {
@@ -2206,7 +2266,7 @@ html:has(.ob2)::-webkit-scrollbar-thumb:hover,
 
 @media (min-width: 2200px) {
   .ob2-dialog-container.ob2-pro-dialog {
-    width: min(1180px, calc(100vw - 48px)) !important;
+    width: min(1180px, calc(100% - 48px)) !important;
     max-width: 1180px;
   }
 
@@ -2775,7 +2835,11 @@ html:has(.ob2)::-webkit-scrollbar-thumb:hover,
   gap: 8px;
 }
 
-.ob2-pro-dialog .ob2-intimate-card .ob2-audience.is-marked .ob2-audience-option.is-selected .checkbox__content {
+.ob2-pro-dialog
+  .ob2-intimate-card
+  .ob2-audience.is-marked
+  .ob2-audience-option.is-selected
+  .checkbox__content {
   border-color: #ff8db7;
   box-shadow: 0 0 0 1px #ff8db7;
   background: color-mix(in srgb, var(--space-accent, #ff2d79) 24%, transparent);
@@ -3061,30 +3125,39 @@ html:has(.ob2)::-webkit-scrollbar-thumb:hover,
   color: rgba(255, 255, 255, 0.72);
 }
 
-.ob2 .button.ob2-drawer-step > span {
-  width: 32px;
-  height: 32px;
+.ob2 .button.ob2-drawer-step > .ob2-step-num {
+  width: 36px;
+  height: 36px;
   display: grid;
   place-items: center;
-  border-radius: 10px;
-  border: 1px solid rgba(255, 255, 255, 0.28);
-  font-size: 14px;
-  font-weight: 700;
+  flex: 0 0 auto;
+  border-radius: 12px;
+  border: 1px solid color-mix(in srgb, var(--space-accent, #ff2d79) 28%, white);
+  background: #fff4f8;
+  color: var(--space-accent, #e21870);
+  font-size: 15px;
+  font-weight: 750;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
 }
 
 .ob2-step-list li.current {
   color: #fff;
 }
 
-.ob2-step-list li.current .button.ob2-drawer-step > span,
-.ob2-step-list li.done .button.ob2-drawer-step > span {
-  border-color: transparent;
-  background: linear-gradient(
-    135deg,
-    var(--space-accent, #ff2d79),
-    var(--space-highlight, #ff91ba)
-  );
-  color: #fff;
+.ob2-step-copy {
+  min-width: 0;
+}
+
+.ob2-step-copy strong {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.ob2-step-verified {
+  flex: 0 0 auto;
+  color: var(--space-accent, #e21870);
 }
 
 .ob2 .button.ob2-drawer-step {
@@ -3103,6 +3176,12 @@ html:has(.ob2)::-webkit-scrollbar-thumb:hover,
 .ob2-step-list strong,
 .ob2-step-list small {
   display: block;
+}
+
+.ob2-step-list .ob2-step-copy strong {
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .ob2-step-list strong {
@@ -3205,7 +3284,13 @@ html:has(.ob2)::-webkit-scrollbar-thumb:hover,
   --overlay: #fffafa;
   --separator: var(--space-highlight, #d7b7c6);
   width: min(440px, 100%);
-  background: #fffafa;
+  background:
+    radial-gradient(
+      90% 32% at 100% 0%,
+      color-mix(in srgb, var(--space-accent, #ff2d79) 24%, transparent),
+      transparent 68%
+    ),
+    #fffafa;
   color: var(--space-deep, #2a1020);
   border: 2px solid var(--space-accent, #ff4a91);
   box-shadow: 0 18px 50px color-mix(in srgb, var(--space-deep, rgb(39, 1, 19)) 28%, transparent);
@@ -3235,15 +3320,124 @@ html:has(.ob2)::-webkit-scrollbar-thumb:hover,
 }
 
 .ob2-drawer-dialog .drawer__close-trigger {
-  width: 44px;
-  height: 44px;
-  top: 12px;
-  right: 12px;
+  width: 40px;
+  height: 40px;
+  top: 14px;
+  right: 14px;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--space-accent, #ff2d79) 35%, white);
+  background: #fff;
+  color: var(--space-deep, #2a1020);
+  box-shadow: 0 8px 18px color-mix(in srgb, var(--space-accent, #ff2d79) 18%, transparent);
+}
+
+.ob2-step-lead {
+  margin: 0;
+  padding: 12px 14px;
+  border-radius: 16px;
+  background: linear-gradient(
+    120deg,
+    color-mix(in srgb, var(--space-accent, #ff2d79) 16%, white),
+    #fff
+  );
+  border: 1px solid color-mix(in srgb, var(--space-accent, #ff2d79) 28%, white);
+  color: var(--space-deep, #2a1020);
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+.ob2-drawer-dialog .ob2-step-menu {
+  gap: 8px;
+  width: 100%;
+}
+
+.ob2-drawer-dialog .ob2-step-menu li {
+  width: 100%;
+  color: var(--space-deep, #2a1020);
+}
+
+.ob2-drawer-dialog .button.ob2-drawer-step {
+  display: grid;
+  grid-template-columns: 36px minmax(0, 1fr);
+  align-items: center;
+  column-gap: 12px;
+  width: 100%;
+  min-height: 60px;
+  height: auto;
+  padding: 10px 12px;
+  border-radius: 16px;
+  border: 1px solid color-mix(in srgb, var(--space-highlight, #f0cfdb) 80%, white);
+  background: #fff;
+  --button-bg: #fff;
+  --button-bg-hover: #fff7fa;
+  --button-fg: var(--space-deep, #2a1020);
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.8);
+}
+
+.ob2-drawer-dialog .button.ob2-drawer-step > .ob2-step-num {
+  width: 36px;
+  height: 36px;
+  border-radius: 12px;
+  border: 1px solid color-mix(in srgb, var(--space-accent, #ff2d79) 24%, white);
+  background: #fff4f8;
+  color: var(--space-accent, #e21870);
+}
+
+.ob2-drawer-dialog .ob2-step-menu li.current .button.ob2-drawer-step {
+  border-color: color-mix(in srgb, var(--space-accent, #ff2d79) 62%, white);
+  background: linear-gradient(
+    105deg,
+    color-mix(in srgb, var(--space-accent, #ff2d79) 14%, white),
+    #fff
+  );
+  --button-bg: color-mix(in srgb, var(--space-accent, #ff2d79) 10%, white);
+  box-shadow: 0 8px 18px color-mix(in srgb, var(--space-accent, #ff2d79) 14%, transparent);
+}
+
+.ob2-drawer-dialog .ob2-step-menu li.current .ob2-step-num {
+  border-color: transparent;
+  background: linear-gradient(
+    145deg,
+    var(--space-accent, #ff2d79),
+    var(--space-highlight, #ff8db7)
+  );
+  color: #fff;
+}
+
+.ob2-drawer-dialog .ob2-step-menu li.done .button.ob2-drawer-step {
+  background: #fff;
+  --button-bg: #fff;
+}
+
+.ob2-drawer-dialog .ob2-step-menu li.done .ob2-step-num {
+  background: #fff;
+  border-color: color-mix(in srgb, var(--space-accent, #ff2d79) 35%, white);
+  color: var(--space-accent, #e21870);
+}
+
+.ob2-drawer-dialog .ob2-step-menu strong {
+  font-size: 15px;
+  letter-spacing: -0.02em;
+}
+
+.ob2-drawer-dialog .ob2-step-menu small {
+  color: color-mix(in srgb, var(--space-deep, #5e4250) 72%, white);
 }
 
 .ob2-drawer-dialog .drawer__body {
   overflow: auto;
   padding-top: 22px;
+}
+
+.ob2-drawer-dialog:has(.ob2-step-menu) .drawer__body {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.ob2-drawer-dialog:has(.ob2-step-menu) .drawer__body::-webkit-scrollbar {
+  display: none;
+  width: 0;
+  height: 0;
 }
 
 .ob2-drawer-dialog .ob2-form {
@@ -3269,9 +3463,8 @@ html:has(.ob2)::-webkit-scrollbar-thumb:hover,
   color: var(--space-deep, #2a1020);
 }
 
-.ob2-drawer-dialog .ob2-step-list li > span {
-  border-color: var(--space-highlight, #d7b7c6);
-  color: var(--space-deep, #2a1020);
+.ob2-drawer-dialog .ob2-step-menu li .ob2-step-num {
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.7);
 }
 
 .ob2-drawer-dialog .input-group,
@@ -3900,22 +4093,27 @@ html:has(.ob2)::-webkit-scrollbar-thumb:hover,
 
 @media (max-width: 719px) {
   .ob2 {
-    gap: 40px;
-    padding: 28px 18px 56px;
+    gap: 24px;
+    padding: max(16px, env(safe-area-inset-top)) max(12px, env(safe-area-inset-right))
+      max(32px, env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left));
+  }
+
+  .ob2::before {
+    height: 100lvh;
     background-image: var(--space-background, url('/brand/background-portrait.png'));
   }
 
   .ob2-top {
-    gap: 26px;
+    gap: 16px;
   }
 
   .ob2-heading h1 {
-    font-size: 34px;
+    font-size: 28px;
   }
 
   .ob2-heading p {
-    margin-top: 16px;
-    font-size: 17px;
+    margin-top: 10px;
+    font-size: 16px;
   }
 
   .ob2-address-art {
@@ -3923,8 +4121,15 @@ html:has(.ob2)::-webkit-scrollbar-thumb:hover,
   }
 
   .ob2-hours,
+  .ob2-hours.is-compact,
   .ob2-break {
-    grid-template-columns: 1fr;
+    width: 100%;
+    max-width: 100%;
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .ob2 .card.ob2-panel.ob2-hours-card {
+    padding: 16px 12px 12px;
   }
 
   .ob2 .button.ob2-break-remove {
@@ -3933,11 +4138,11 @@ html:has(.ob2)::-webkit-scrollbar-thumb:hover,
 
   .ob2-form,
   .ob2-column {
-    gap: 24px;
+    gap: 18px;
   }
 
   .ob2 .card.ob2-panel {
-    padding: 24px 18px;
+    padding: 18px 14px;
   }
 
   .ob2-stack,
@@ -4765,5 +4970,360 @@ html:has(.ob2)::-webkit-scrollbar-thumb:hover,
 
   .ob2-dialog-form {
     gap: 14px;
+  }
+}
+
+/* Let grid/flex children shrink before text and controls can widen the viewport. */
+.ob2-top,
+.ob2-board,
+.ob2-column,
+.ob2-stack,
+.ob2-form,
+.ob2-grid,
+.ob2-field-block,
+.ob2-clinic-layout,
+.ob2-contact-fields,
+.ob2-contact-grid,
+.ob2 .card__content {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.ob2,
+.ob2-dialog,
+.ob2-drawer-dialog {
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 719px) {
+  .ob2 .card.ob2-panel > .card__content {
+    padding: 0;
+  }
+
+  .ob2-clinic-layout,
+  .ob2-contact-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .ob2-clinic-audience,
+  .ob2-clinic-audience .ob2-audience.is-inline,
+  .ob2-clinic-home-choices {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    width: 100%;
+    gap: 10px;
+    min-width: 0;
+  }
+
+  .ob2-clinic-audience .ob2-audience-option,
+  .ob2-clinic-home-choices .ob2-audience-option {
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  .ob2-clinic-audience .checkbox__content,
+  .ob2-clinic-home-choices .checkbox__content {
+    justify-content: flex-start;
+    min-height: 48px;
+    white-space: normal;
+  }
+
+  .ob2-clinic-home {
+    margin-top: 8px;
+    gap: 12px;
+  }
+
+  .ob2 .space-theme-section {
+    margin-bottom: 8px;
+  }
+
+  .ob2 .space-theme-picker {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
+  }
+
+  .ob2 .space-theme-option {
+    min-width: 0;
+    width: 100%;
+    padding: 8px 4px;
+  }
+
+  .ob2-logo-frame {
+    width: min(180px, 100%);
+  }
+
+  .ob2-logo-drop {
+    margin-block: 8px;
+  }
+
+  .ob2 .button,
+  .ob2-dialog .button,
+  .ob2-drawer-dialog .button {
+    white-space: normal;
+    overflow-wrap: anywhere;
+    max-width: 100%;
+  }
+
+  .ob2 .input-group,
+  .ob2 .input-group__input,
+  .ob2 .select__trigger,
+  .ob2 .select__value,
+  .ob2-dialog .input-group__input,
+  .ob2-dialog .select__value {
+    min-width: 0;
+    font-size: 16px;
+  }
+
+  .ob2 .select__trigger,
+  .ob2-dialog .select__trigger {
+    height: auto;
+    min-height: 48px;
+    padding-block: 10px;
+  }
+
+  .ob2 .select__value,
+  .ob2-dialog .select__value {
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+
+  .ob2-copy {
+    display: block;
+  }
+
+  .ob2-copy > svg {
+    display: inline-block;
+    vertical-align: middle;
+    margin-right: 6px;
+  }
+
+  .ob2-phrase {
+    white-space: normal;
+  }
+
+  .ob2-dialog .modal__heading {
+    padding-right: 32px;
+  }
+
+  .ob2-dialog .modal__body,
+  .ob2-dialog .modal__header,
+  .ob2-dialog .modal__footer {
+    padding-inline: 14px;
+    min-width: 0;
+  }
+}
+
+@media (max-width: 719px) {
+  .ob2-address-fields,
+  .ob2-address-line,
+  .ob2-city-state {
+    min-width: 0;
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .ob2-cep-field,
+  .ob2 .textfield {
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  .ob2.ob2-is-welcome {
+    padding: max(16px, env(safe-area-inset-top)) max(12px, env(safe-area-inset-right))
+      max(32px, env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left));
+  }
+
+  .ob2-welcome-card {
+    padding: 16px 16px 20px;
+  }
+
+  .ob2 .card.ob2-guide-card .card__content.ob2-guide-body {
+    flex-wrap: wrap;
+  }
+
+  .ob2 .button.ob2-guide-all {
+    flex: 1 1 auto;
+    margin-left: 0;
+    white-space: normal;
+  }
+
+  .ob2-service-group-head {
+    flex-wrap: wrap;
+  }
+
+  .ob2-service-group-meta,
+  .ob2-dialog .ob2-service-group-meta {
+    white-space: normal;
+  }
+}
+
+@media (max-width: 390px) {
+  .ob2-hours-dots {
+    max-width: 100%;
+    padding: 6px 6px 0 0;
+    box-sizing: border-box;
+  }
+
+  .ob2-hours-dots-row {
+    flex-wrap: wrap;
+    justify-content: flex-start;
+    max-width: 100%;
+  }
+
+  .ob2-hours-dot {
+    width: 44px;
+    height: 44px;
+    flex: 0 0 44px;
+  }
+
+  .ob2-intimate-card .ob2-audience.is-inline,
+  .ob2-dialog .ob2-intimate-card .ob2-audience.is-inline {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 8px;
+  }
+
+  .ob2-intimate-card .ob2-audience-option .checkbox__content,
+  .ob2-dialog .ob2-intimate-card .ob2-audience-option .checkbox__content {
+    justify-content: flex-start;
+    white-space: normal;
+  }
+
+  .ob2-intimate-card .ob2-audience.is-short .label,
+  .ob2-dialog .ob2-intimate-card .ob2-audience.is-short .label,
+  .ob2-intimate-card .label,
+  .ob2-dialog .ob2-intimate-card .label {
+    font-size: 14px;
+    line-height: 1.25;
+    white-space: normal;
+  }
+}
+
+@media (max-width: 719px) {
+  .ob2-drawer,
+  .ob2-drawer .drawer__content,
+  .ob2-drawer-dialog {
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+
+  .ob2-drawer-dialog {
+    height: 100dvh;
+    max-height: 100dvh;
+    border: 0;
+    border-radius: 0;
+  }
+
+  .ob2-drawer-dialog .drawer__header {
+    padding-top: max(14px, env(safe-area-inset-top));
+  }
+
+  .ob2-drawer-dialog .drawer__close-trigger {
+    top: max(12px, env(safe-area-inset-top));
+  }
+
+  .ob2-drawer-dialog .drawer__body {
+    padding-bottom: calc(28px + env(safe-area-inset-bottom));
+  }
+
+  .ob2-dialog-backdrop .modal__container.ob2-dialog-container,
+  .ob2-dialog-container,
+  .ob2-dialog-container.ob2-pro-dialog {
+    width: calc(100% - 12px) !important;
+    max-width: calc(100% - 12px) !important;
+    padding: 6px;
+  }
+
+  .ob2-dialog {
+    max-height: calc(100dvh - 12px);
+    border-radius: 20px;
+  }
+
+  .ob2-pro-dialog .ob2-pro-gender,
+  .ob2-pro-dialog .ob2-gender-grid {
+    width: 100%;
+    max-width: 100%;
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .ob2-pro-dialog .button.ob2-gender-choice {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .ob2-pro-dialog .ob2-pro-section > .ob2-audience.is-inline,
+  .ob2-dialog .ob2-service-line.is-intimate .ob2-audience.is-inline,
+  .ob2-intimate-card .ob2-audience.is-inline,
+  .ob2-dialog .ob2-intimate-card .ob2-audience.is-inline {
+    width: 100%;
+    max-width: 100%;
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .ob2-pro-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .ob2 .button.ob2-pro-card,
+  .ob2 .button.ob2-add-pro,
+  .ob2 .button.ob2-choice {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    flex: 1 1 auto;
+  }
+
+  .ob2 .button.ob2-pro-card,
+  .ob2 .button.ob2-add-pro {
+    height: auto;
+    min-height: 84px;
+    align-items: center;
+    overflow: visible;
+    white-space: normal;
+  }
+
+  .ob2 .button.ob2-pro-card {
+    padding: 14px 16px;
+    gap: 12px;
+  }
+
+  .ob2-pro-card-avatar {
+    width: 64px;
+    height: 64px;
+  }
+
+  .ob2-pro-card-copy strong,
+  .ob2-pro-card-copy small,
+  .ob2-add-pro-copy strong,
+  .ob2-add-pro-copy small {
+    overflow-wrap: anywhere;
+  }
+
+  .ob2-hours-daycard {
+    min-width: 0;
+    padding: 14px 12px;
+  }
+
+  .ob2-hours-toggles {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+  }
+
+  .ob2-hours-daycard .switch,
+  .ob2-hours-pause .switch {
+    max-width: 100%;
+    min-width: 0;
+  }
+
+  .ob2-time,
+  .ob2-time-row,
+  .ob2-time .select,
+  .ob2-time .select__trigger {
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
   }
 }

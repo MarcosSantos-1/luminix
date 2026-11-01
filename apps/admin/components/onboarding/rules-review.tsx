@@ -29,8 +29,9 @@ import {
 import { BlurDialog, GlassSelect, SectionIssue, StepEnd, type FieldErrors } from './ui'
 import { formatBrPhone } from '@/lib/phone'
 import './rules-review.css'
+import { AttendanceServiceDialog } from './attendance-service-dialog'
 import {
-  attendancePercent,
+  retentionOptions,
   retentionLabel,
   retentionScope,
   retentionScopeLabel,
@@ -38,12 +39,6 @@ import {
   withRetentionScope,
   type RetentionScope,
 } from './attendance-policy'
-
-function retentionOptions(current: number) {
-  return [...new Set([0, 10, 20, 25, 30, 50, current])]
-    .sort((a, b) => a - b)
-    .map((percent) => ({ id: String(percent), label: retentionLabel(percent) }))
-}
 
 function RetentionExample({ percent, noShow = false }: { percent: number; noShow?: boolean }) {
   const retained = Math.round((20000 * percent) / 100)
@@ -63,24 +58,19 @@ function AttendanceRules({
   payload: Payload
   setPayload: (value: Payload) => void
 }) {
-  const [serviceId, setServiceId] = useState('none')
+  const [editingIds, setEditingIds] = useState<string[] | null>(null)
   const [scope, setScope] = useState<RetentionScope>(() => retentionScope(payload))
-  const service = payload.services.find((item) => item.id === serviceId)
   const preferences = payload.preferences
   const overrides = payload.services.filter(
-    (item) => item.lateChangeRetentionPercent != null || item.noShowRetentionPercent != null,
+    (item) =>
+      item.lateChangeRetentionPercent != null ||
+      item.noShowRetentionPercent != null ||
+      item.cancellationHours != null,
   )
   const setDefault = (
     event: 'lateChangeRetentionPercent' | 'noShowRetentionPercent',
     value: string,
   ) => setPayload({ ...payload, preferences: { ...preferences, [event]: Number(value) } })
-  const setService = (patch: Partial<Service>) =>
-    setPayload({
-      ...payload,
-      services: payload.services.map((item) =>
-        item.id === serviceId ? { ...item, ...patch } : item,
-      ),
-    })
   return (
     <Card className="ob2-panel">
       <Card.Content className="ob2-form">
@@ -165,101 +155,18 @@ function AttendanceRules({
               Ajuste o prazo e os percentuais de cada serviço. Nenhuma porcentagem é aplicada só por
               selecionar um serviço. Zero significa sem retenção.
             </p>
-            <GlassSelect
-              label="Personalizar um serviço"
-              value={service ? service.id : 'none'}
-              options={[
-                { id: 'none', label: 'Escolher serviço (opcional)' },
-                ...payload.services.map((item) => ({ id: item.id, label: item.name })),
-              ]}
-              onChange={setServiceId}
-            />
-            {service ? (
-              <div className="ob2-retention-service">
-                <h3>{service.name}</h3>
-                <GlassSelect
-                  label="Prazo de cancelamento neste serviço"
-                  value={
-                    service.cancellationHours == null
-                      ? 'inherit'
-                      : String(service.cancellationHours)
-                  }
-                  options={[
-                    {
-                      id: 'inherit',
-                      label: `Seguir o espaço: ${hours(service.bookingMode === 'manual_release' ? preferences.specialCancellationHours : preferences.cancellationHours)}`,
-                    },
-                    ...hourOptions(
-                      [0, 4, 12, 24, 48, 72],
-                      service.cancellationHours ?? preferences.cancellationHours,
-                    ),
-                  ]}
-                  onChange={(value) =>
-                    setService({ cancellationHours: value === 'inherit' ? null : Number(value) })
-                  }
-                />
-                <p className="ob2-copy">
-                  {preferences.reschedulingHours == null
-                    ? 'A remarcação acompanha este prazo.'
-                    : `A remarcação segue o prazo geral próprio: ${hours(preferences.reschedulingHours).toLocaleLowerCase('pt-BR')}.`}
-                </p>
-                <GlassSelect
-                  label="Alteração tardia neste serviço"
-                  value={
-                    service.lateChangeRetentionPercent == null
-                      ? 'inherit'
-                      : String(service.lateChangeRetentionPercent)
-                  }
-                  options={[
-                    {
-                      id: 'inherit',
-                      label: `Seguir o espaço: ${retentionLabel(preferences.lateChangeRetentionPercent ?? 0)}`,
-                    },
-                    ...retentionOptions(service.lateChangeRetentionPercent ?? 0),
-                  ]}
-                  onChange={(value) =>
-                    setService({
-                      lateChangeRetentionPercent: value === 'inherit' ? null : Number(value),
-                    })
-                  }
-                />
-                <RetentionExample
-                  percent={attendancePercent(preferences, service, 'lateChangeRetentionPercent')}
-                />
-                <GlassSelect
-                  label="Falta neste serviço"
-                  value={
-                    service.noShowRetentionPercent == null
-                      ? 'inherit'
-                      : String(service.noShowRetentionPercent)
-                  }
-                  options={[
-                    {
-                      id: 'inherit',
-                      label: `Seguir o espaço: ${retentionLabel(preferences.noShowRetentionPercent ?? 0)}`,
-                    },
-                    ...retentionOptions(service.noShowRetentionPercent ?? 0),
-                  ]}
-                  onChange={(value) =>
-                    setService({
-                      noShowRetentionPercent: value === 'inherit' ? null : Number(value),
-                    })
-                  }
-                />
-                <RetentionExample
-                  percent={attendancePercent(preferences, service, 'noShowRetentionPercent')}
-                  noShow
-                />
-                <Button
-                  variant="ghost"
-                  onPress={() =>
-                    setService({ lateChangeRetentionPercent: null, noShowRetentionPercent: null })
-                  }
-                >
-                  Usar os percentuais do espaço
-                </Button>
-              </div>
-            ) : null}
+            <Button
+              className="ob2-retention-pick"
+              variant="secondary"
+              onPress={() => setEditingIds([])}
+            >
+              Selecionar tratamentos e definir regras
+            </Button>
+            <p className="ob2-copy">
+              {payload.services.length} tratamento(s) disponível(is), incluindo{' '}
+              {payload.services.filter((item) => item.bookingMode === 'manual_release').length}{' '}
+              especial(is). Pesquise, marque vários e aplique a regra de uma vez.
+            </p>
           </>
         ) : null}
         {scope === 'services' && retentionScope(payload) === 'none' ? (
@@ -291,16 +198,34 @@ function AttendanceRules({
           cliente, sem substituir um reembolso devido.
         </p>
         {overrides.length > 0 ? (
-          <Help
-            items={[
-              {
-                title:
-                  overrides.length === 1
-                    ? 'Conferir o serviço com regra própria'
-                    : `Conferir os ${overrides.length} serviços com regra própria`,
-                text: overrides.map((item) => serviceRetentionSummary(item, preferences)).join(' '),
-              },
-            ]}
+          <div className="ob2-policy-overrides">
+            <h3>Tratamentos com regras próprias</h3>
+            {overrides.map((item) => (
+              <div className="ob2-policy-override" key={item.id}>
+                <p>
+                  {serviceRetentionSummary(item, preferences)}
+                  {item.bookingMode === 'manual_release' ? ' Tratamento especial.' : ''}
+                </p>
+                <Button
+                  variant="ghost"
+                  aria-label={`Editar regras de ${item.name}`}
+                  onPress={() => setEditingIds([item.id])}
+                >
+                  Editar
+                </Button>
+              </div>
+            ))}
+          </div>
+        ) : null}
+        {editingIds !== null ? (
+          <AttendanceServiceDialog
+            payload={payload}
+            initialIds={editingIds}
+            onApply={(value) => {
+              setPayload(value)
+              setScope(retentionScope(value))
+            }}
+            onClose={() => setEditingIds(null)}
           />
         ) : null}
         <Help
@@ -532,13 +457,13 @@ export function RulesStep({
     special: {
       title: 'E nos atendimentos com aparelhos especiais?',
       paragraphs: [
-        'Alguns atendimentos usam aparelho ou sala que você prepara antes. Por isso o cancelamento pode ser mais longo do que o dos outros serviços.',
+        'Tratamentos e aparelhos especiais são aparelhos alugados. O atendimento depende do aparelho estar com você, então o cancelamento pede mais atenção e pode ser mais longo do que o dos outros serviços.',
         `Para esses atendimentos às 14h, o cancelamento é considerado dentro do prazo quando avisado ${sameDayHour(preferences.specialCancellationHours)}.`,
-        'Vale só para os serviços especiais. Os demais continuam no prazo geral de cancelamento.',
+        'Vale só para os serviços classificados como aparelho especial. Os demais continuam no prazo geral de cancelamento.',
         special.length
           ? `Serviços nesta regra: ${special.map((service) => service.name).join(' · ')}.`
           : 'Nenhum serviço especial está marcado agora.',
-        'Usar aparelho especial não cria penalidade automaticamente. Você pode personalizar a retenção por serviço abaixo.',
+        'Entrar nessa classificação não cria penalidade sozinho. Você pode personalizar a retenção de cada serviço abaixo.',
       ],
     },
     reschedule: {
@@ -553,6 +478,70 @@ export function RulesStep({
       ],
     },
   }[help ?? 'notice']
+  function rulesSummary() {
+    return (
+      <>
+        <Image src="/brand/onboarding/calendar-3.png" width={112} height={112} alt="" />
+        <span className="ob2-rule-eyebrow">SEUS COMBINADOS</span>
+        <h2>{payload.name || 'Seu espaço'}, do seu jeito</h2>
+        <dl>
+          <div>
+            <dt>Para agendar</dt>
+            <dd>{notice === 0 ? 'Sem antecedência mínima' : `Pelo menos ${notice}h antes`}</dd>
+          </div>
+          <div>
+            <dt>Agenda disponível</dt>
+            <dd>Próximos {windowDays} dias</dd>
+          </div>
+          <div>
+            <dt>Cancelar dentro do prazo</dt>
+            <dd>{hours(preferences.cancellationHours)}</dd>
+          </div>
+          {special.length > 0 ? (
+            <div>
+              <dt>Atendimentos especiais</dt>
+              <dd>{hours(preferences.specialCancellationHours)}</dd>
+            </div>
+          ) : null}
+          <div>
+            <dt>Para remarcar</dt>
+            <dd>{rescheduling == null ? 'Mesmo prazo do cancelamento' : hours(rescheduling)}</dd>
+          </div>
+          <div>
+            <dt>Política escolhida</dt>
+            <dd>{retentionScopeLabel(payload)}</dd>
+          </div>
+          <div>
+            <dt>Alteração tardia · padrão dos avulsos</dt>
+            <dd>{retentionLabel(preferences.lateChangeRetentionPercent ?? 0)}</dd>
+          </div>
+          <div>
+            <dt>Falta · padrão dos avulsos</dt>
+            <dd>{retentionLabel(preferences.noShowRetentionPercent ?? 0)}</dd>
+          </div>
+          <div>
+            <dt>Pacotes</dt>
+            <dd>Sessões preservadas, sem retenção</dd>
+          </div>
+          <div>
+            <dt>Exceções por serviço</dt>
+            <dd>
+              {payload.services.filter(
+                (service) =>
+                  service.lateChangeRetentionPercent != null ||
+                  service.noShowRetentionPercent != null,
+              ).length || 'Nenhuma'}
+            </dd>
+          </div>
+        </dl>
+        <p className="ob2-rule-status">
+          <ShieldCheck size={20} aria-hidden />
+          As escolhas ficam salvas no cadastro. A aplicação automática dessas regras depende da
+          liberação do agendamento para clientes.
+        </p>
+      </>
+    )
+  }
   return (
     <div className="ob2-stack ob2-rules">
       {fieldErrors.rules ? (
@@ -661,66 +650,26 @@ export function RulesStep({
             </Card.Content>
           </Card>
           <AttendanceRules payload={payload} setPayload={setPayload} />
+          <div className="ob2-rules-summary-mobile">
+            <Accordion className="ob2-rules-help ob2-rules-summary">
+              <Accordion.Item id="rules-summary">
+                <Accordion.Heading>
+                  <Accordion.Trigger>
+                    Seus combinados
+                    <Accordion.Indicator />
+                  </Accordion.Trigger>
+                </Accordion.Heading>
+                <Accordion.Panel>
+                  <Accordion.Body>
+                    <div className="ob2-rule-preview is-nested">{rulesSummary()}</div>
+                  </Accordion.Body>
+                </Accordion.Panel>
+              </Accordion.Item>
+            </Accordion>
+          </div>
         </div>
-        <aside className="ob2-rule-preview" aria-label="Resumo das regras escolhidas">
-          <Image src="/brand/onboarding/calendar-3.png" width={112} height={112} alt="" />
-          <span className="ob2-rule-eyebrow">SEUS COMBINADOS</span>
-          <h2>{payload.name || 'Seu espaço'}, do seu jeito</h2>
-          <dl>
-            <div>
-              <dt>Para agendar</dt>
-              <dd>{notice === 0 ? 'Sem antecedência mínima' : `Pelo menos ${notice}h antes`}</dd>
-            </div>
-            <div>
-              <dt>Agenda disponível</dt>
-              <dd>Próximos {windowDays} dias</dd>
-            </div>
-            <div>
-              <dt>Cancelar dentro do prazo</dt>
-              <dd>{hours(preferences.cancellationHours)}</dd>
-            </div>
-            {special.length > 0 ? (
-              <div>
-                <dt>Atendimentos especiais</dt>
-                <dd>{hours(preferences.specialCancellationHours)}</dd>
-              </div>
-            ) : null}
-            <div>
-              <dt>Para remarcar</dt>
-              <dd>{rescheduling == null ? 'Mesmo prazo do cancelamento' : hours(rescheduling)}</dd>
-            </div>
-            <div>
-              <dt>Política escolhida</dt>
-              <dd>{retentionScopeLabel(payload)}</dd>
-            </div>
-            <div>
-              <dt>Alteração tardia · padrão dos avulsos</dt>
-              <dd>{retentionLabel(preferences.lateChangeRetentionPercent ?? 0)}</dd>
-            </div>
-            <div>
-              <dt>Falta · padrão dos avulsos</dt>
-              <dd>{retentionLabel(preferences.noShowRetentionPercent ?? 0)}</dd>
-            </div>
-            <div>
-              <dt>Pacotes</dt>
-              <dd>Sessões preservadas, sem retenção</dd>
-            </div>
-            <div>
-              <dt>Exceções por serviço</dt>
-              <dd>
-                {payload.services.filter(
-                  (service) =>
-                    service.lateChangeRetentionPercent != null ||
-                    service.noShowRetentionPercent != null,
-                ).length || 'Nenhuma'}
-              </dd>
-            </div>
-          </dl>
-          <p className="ob2-rule-status">
-            <ShieldCheck size={20} aria-hidden />
-            As escolhas ficam salvas no cadastro. A aplicação automática dessas regras depende da
-            liberação do agendamento para clientes.
-          </p>
+        <aside className="ob2-rule-preview is-desktop" aria-label="Resumo das regras escolhidas">
+          {rulesSummary()}
         </aside>
       </div>
       <StepEnd error={error} footer={footer} />

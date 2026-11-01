@@ -281,7 +281,7 @@ export const stepInfo = [
   {
     key: 'schedule',
     label: 'Endereço',
-    title: 'Onde fica a clínica?',
+    title: 'Onde fica o seu espaço?',
     text: 'Comece pelo CEP. A busca automática entra em seguida; enquanto isso, você completa rua, número e cidade na mão.',
     icon: MapPin,
   },

@@ -1,6 +1,6 @@
-import { Button, Drawer, Separator } from '@heroui/react'
+import { Button, Drawer, useOverlayState } from '@heroui/react'
 import Image from 'next/image'
-import { ArrowLeft, Check, Headphones } from 'lucide-react'
+import { ArrowLeft, BadgeCheck, Check, Headphones } from 'lucide-react'
 import type { ReactNode } from 'react'
 import { stepInfo } from './model'
 
@@ -22,6 +22,7 @@ export function OnboardingShell({
   const current = stepInfo[step]
   const progress = Math.round(((availableThrough + 1) / stepInfo.length) * 100)
   const minimumStep = 0
+  const stepsMenu = useOverlayState()
   return (
     <main className="ob2" data-surface="glass">
       <div className="ob2-top">
@@ -60,7 +61,7 @@ export function OnboardingShell({
           >
             <ArrowLeft />
           </Button>
-          <Drawer>
+          <Drawer state={stepsMenu}>
             <Drawer.Trigger className="ob2-steps-trigger" aria-label="Ver etapas">
               <span className="ob2-steps" aria-hidden>
                 {stepInfo.map((item, index) => (
@@ -75,13 +76,12 @@ export function OnboardingShell({
                     <Drawer.Heading>Etapas do cadastro</Drawer.Heading>
                     <Drawer.CloseTrigger />
                   </Drawer.Header>
-                  <Drawer.Body className="ob2-form">
-                    <p className="ob2-copy">
-                      Você está na etapa {step + 1} de {stepInfo.length}. Cada vez que continua, o
-                      que já preencheu fica salvo para retomar depois.
+                  <Drawer.Body className="ob2-form ob2-step-sheet">
+                    <p className="ob2-step-lead">
+                      Etapa {step + 1} de {stepInfo.length}. O que você já preencheu fica salvo
+                      para retomar depois.
                     </p>
-                    <Separator />
-                    <ol className="ob2-step-list">
+                    <ol className="ob2-step-list ob2-step-menu">
                       {stepInfo.map((item, index) => (
                         <li
                           key={item.key}
@@ -93,17 +93,23 @@ export function OnboardingShell({
                             className="ob2-drawer-step"
                             variant="ghost"
                             isDisabled={busy || index < minimumStep || index > availableThrough}
-                            onPress={() => onSelectStep(index)}
+                            onPress={() => {
+                              onSelectStep(index)
+                              stepsMenu.close()
+                            }}
                           >
-                            <span>
-                              {index !== step && index <= availableThrough ? (
-                                <Check size={16} />
-                              ) : (
-                                index + 1
-                              )}
-                            </span>
-                            <div>
-                              <strong>{item.label}</strong>
+                            <span className="ob2-step-num">{index + 1}</span>
+                            <div className="ob2-step-copy">
+                              <strong>
+                                {item.label}
+                                {index !== step && index <= availableThrough ? (
+                                  <BadgeCheck
+                                    className="ob2-step-verified"
+                                    size={16}
+                                    aria-hidden
+                                  />
+                                ) : null}
+                              </strong>
                               <small>{item.title}</small>
                             </div>
                           </Button>

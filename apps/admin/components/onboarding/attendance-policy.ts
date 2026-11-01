@@ -1,6 +1,48 @@
 import type { Payload, Service } from './model'
 
 export type RetentionScope = 'none' | 'services' | 'all'
+export type ServicePolicyPatch = Partial<
+  Pick<Service, 'cancellationHours' | 'lateChangeRetentionPercent' | 'noShowRetentionPercent'>
+>
+
+export function applyServicePolicies(
+  payload: Payload,
+  ids: string[],
+  patch: ServicePolicyPatch,
+): Payload {
+  const selected = new Set(ids)
+  return {
+    ...payload,
+    services: payload.services.map((service) =>
+      selected.has(service.id) ? { ...service, ...patch } : service,
+    ),
+  }
+}
+
+export function filterPolicyServices(
+  services: Service[],
+  query: string,
+  filter: 'all' | 'special' | 'overrides',
+) {
+  const fold = (value: string) =>
+    value.normalize('NFD').replace(/\p{M}/gu, '').toLocaleLowerCase('pt-BR')
+  const needle = fold(query.trim())
+  return services.filter(
+    (service) =>
+      (filter !== 'special' || service.bookingMode === 'manual_release') &&
+      (filter !== 'overrides' ||
+        service.cancellationHours != null ||
+        service.lateChangeRetentionPercent != null ||
+        service.noShowRetentionPercent != null) &&
+      fold(`${service.name} ${service.category} ${service.resourceName}`).includes(needle),
+  )
+}
+
+export function retentionOptions(current = 0) {
+  return [...new Set([0, 10, 20, 25, 30, 50, current])]
+    .sort((a, b) => a - b)
+    .map((percent) => ({ id: String(percent), label: retentionLabel(percent) }))
+}
 
 export function retentionScope(payload: Payload): RetentionScope {
   if (

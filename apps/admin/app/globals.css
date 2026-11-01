@@ -38,6 +38,18 @@ body {
   color: var(--foreground);
   font-family: var(--font-sans);
 }
+
+/* Match the canvas behind fixed Glass backgrounds and suppress pull-to-refresh/bounce. */
+html:has(.ob2, .manager-shell),
+body:has(.ob2, .manager-shell) {
+  background-color: var(--space-deep, #780033);
+  overscroll-behavior-y: none;
+}
+
+html:has(.ob2[data-surface='solid']),
+body:has(.ob2[data-surface='solid']) {
+  background-color: var(--space-highlight, #fff4f8);
+}
 button,
 input,
 select {
@@ -1813,6 +1825,68 @@ p {
   text-align: center;
 }
 
+.app-status.is-loading {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  width: 100%;
+  height: 100%;
+  min-height: 100dvh;
+  overflow: hidden;
+  overscroll-behavior: none;
+  touch-action: none;
+}
+
+html:has(.app-status.is-loading),
+body:has(.app-status.is-loading) {
+  overflow: hidden;
+  overscroll-behavior: none;
+  height: 100%;
+  background:
+    radial-gradient(circle at 88% 5%, #ff6c9e 0, transparent 34%),
+    linear-gradient(135deg, #530025 0%, #bd004a 46%, #f22970 100%);
+}
+
+html[data-space-theme='grafite']:has(.app-status.is-loading),
+html[data-space-theme='grafite']:has(.app-status.is-loading) body,
+html[data-space-theme='grafite'] .app-status.is-loading {
+  background:
+    radial-gradient(circle at 88% 5%, rgb(109 119 133 / 45%) 0, transparent 36%),
+    linear-gradient(135deg, #080a0d 0%, #1a1f26 52%, #2c3440 100%);
+}
+
+html[data-space-theme='violeta']:has(.app-status.is-loading),
+html[data-space-theme='violeta']:has(.app-status.is-loading) body,
+html[data-space-theme='violeta'] .app-status.is-loading {
+  background:
+    radial-gradient(circle at 88% 5%, rgb(119 72 193 / 45%) 0, transparent 36%),
+    linear-gradient(135deg, #210a45 0%, #32145f 52%, #4a2378 100%);
+}
+
+html[data-space-theme='dourado']:has(.app-status.is-loading),
+html[data-space-theme='dourado']:has(.app-status.is-loading) body,
+html[data-space-theme='dourado'] .app-status.is-loading {
+  background:
+    radial-gradient(circle at 88% 5%, rgb(136 101 31 / 42%) 0, transparent 36%),
+    linear-gradient(135deg, #30200b 0%, #4a3314 52%, #5c4218 100%);
+}
+
+html[data-space-theme='esmeralda']:has(.app-status.is-loading),
+html[data-space-theme='esmeralda']:has(.app-status.is-loading) body,
+html[data-space-theme='esmeralda'] .app-status.is-loading {
+  background:
+    radial-gradient(circle at 88% 5%, rgb(24 116 94 / 45%) 0, transparent 36%),
+    linear-gradient(135deg, #042c26 0%, #0d4036 52%, #145246 100%);
+}
+
+html[data-space-theme='azul']:has(.app-status.is-loading),
+html[data-space-theme='azul']:has(.app-status.is-loading) body,
+html[data-space-theme='azul'] .app-status.is-loading {
+  background:
+    radial-gradient(circle at 88% 5%, rgb(41 103 170 / 45%) 0, transparent 36%),
+    linear-gradient(135deg, #071e3b 0%, #0f3258 52%, #184472 100%);
+}
+
 .app-status.compact {
   min-height: 240px;
   background: transparent;
@@ -1842,7 +1916,7 @@ p {
 
 .luminix-loading-stage {
   display: grid;
-  min-width: min(340px, 90vw);
+  width: min(100%, calc(100vw - 32px));
   min-height: 210px;
   place-items: center;
   align-content: center;
@@ -1881,30 +1955,41 @@ p {
 }
 
 .luminix-loading-sentence {
-  display: flex;
+  --word-line: 1.35em;
+  display: inline-flex;
+  flex-flow: row nowrap;
   align-items: center;
-  height: 32px;
+  justify-content: center;
+  max-width: 100%;
+  height: var(--word-line);
   color: #ffe7f0;
-  font-size: clamp(17px, 4vw, 22px);
+  font-size: clamp(15px, 4.4vw, 22px);
   font-weight: 650;
+  line-height: var(--word-line);
+  white-space: nowrap;
 }
 
 .luminix-word-window {
-  height: 32px;
+  height: var(--word-line);
   overflow: hidden;
+  flex: 0 0 auto;
   text-align: left;
 }
 
 .luminix-word-track {
   display: grid;
-  height: 32px;
+  height: var(--word-line);
   color: #fff;
+  line-height: var(--word-line);
   animation: luminix-word-cycle 7s infinite;
 }
 
 .luminix-word-track > span {
-  height: 32px;
-  padding-left: 7px;
+  display: flex;
+  align-items: center;
+  height: var(--word-line);
+  padding-left: 0.35em;
+  line-height: var(--word-line);
   white-space: nowrap;
 }
 
@@ -1921,19 +2006,19 @@ p {
   }
   20%,
   35% {
-    transform: translateY(-32px);
+    transform: translateY(calc(var(--word-line) * -1));
   }
   40%,
   55% {
-    transform: translateY(-64px);
+    transform: translateY(calc(var(--word-line) * -2));
   }
   60%,
   75% {
-    transform: translateY(-96px);
+    transform: translateY(calc(var(--word-line) * -3));
   }
   80%,
   95% {
-    transform: translateY(-128px);
+    transform: translateY(calc(var(--word-line) * -4));
   }
   100% {
     transform: translateY(0);

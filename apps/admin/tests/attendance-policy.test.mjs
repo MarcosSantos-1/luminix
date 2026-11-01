@@ -2,6 +2,8 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import {
   attendancePercent,
+  applyServicePolicies,
+  filterPolicyServices,
   retentionScope,
   retentionScopeLabel,
   serviceRetentionSummary,
@@ -113,4 +115,85 @@ test('a laser exception distinguishes late changes from absence and retains its 
   assert.match(serviceRetentionSummary(service, preferences), /alteração tardia — Reter 25%/)
   assert.match(serviceRetentionSummary(service, preferences), /falta — Sem retenção/)
   assert.equal(attendancePercent(preferences, service, 'lateChangeRetentionPercent'), 25)
+})
+
+test('bulk edits change only selected services and explicit fields, including special treatments', () => {
+  const payload = {
+    preferences: { noShowRetentionPercent: 30 },
+    services: [
+      {
+        id: 'laser',
+        name: 'Laser',
+        bookingMode: 'manual_release',
+        cancellationHours: 48,
+        lateChangeRetentionPercent: 17,
+        noShowRetentionPercent: null,
+        priceCents: 20000,
+      },
+      {
+        id: 'hair',
+        name: 'Cabelo',
+        bookingMode: 'instant',
+        cancellationHours: 4,
+        lateChangeRetentionPercent: 0,
+        noShowRetentionPercent: 25,
+      },
+      { id: 'other', noShowRetentionPercent: 50 },
+    ],
+  }
+  const next = applyServicePolicies(payload, ['laser', 'hair', 'unknown'], {
+    noShowRetentionPercent: 0,
+  })
+  assert.equal(next.services[0].noShowRetentionPercent, 0)
+  assert.equal(next.services[1].noShowRetentionPercent, 0)
+  assert.equal(next.services[2], payload.services[2])
+  assert.equal(next.services[0].cancellationHours, 48)
+  assert.equal(next.services[1].cancellationHours, 4)
+  assert.equal(next.services[0].lateChangeRetentionPercent, 17)
+  assert.equal(next.services[0].priceCents, 20000)
+  assert.equal(next.preferences, payload.preferences)
+  assert.equal(payload.services[0].noShowRetentionPercent, null)
+  const inherited = applyServicePolicies(next, ['laser'], { noShowRetentionPercent: null })
+  assert.equal(
+    attendancePercent(inherited.preferences, inherited.services[0], 'noShowRetentionPercent'),
+    30,
+  )
+  assert.deepEqual(applyServicePolicies(payload, [], { cancellationHours: 24 }), payload)
+})
+
+test('search includes accents, category and rental equipment without excluding specials', () => {
+  const services = [
+    {
+      id: 'special',
+      name: 'Depilação a laser',
+      category: 'Estética',
+      resourceName: 'Aparelho Órion',
+      bookingMode: 'manual_release',
+      noShowRetentionPercent: 0,
+    },
+    {
+      id: 'normal',
+      name: 'Limpeza de pele',
+      category: 'Estética',
+      resourceName: '',
+      bookingMode: 'instant',
+      cancellationHours: 0,
+    },
+    { id: 'plain', name: 'Corte', category: 'Cabelo', resourceName: '', bookingMode: 'instant' },
+  ]
+  assert.deepEqual(filterPolicyServices(services, '', 'all'), services)
+  assert.deepEqual(
+    filterPolicyServices(services, 'DEPILACAO', 'all').map((s) => s.id),
+    ['special'],
+  )
+  assert.deepEqual(
+    filterPolicyServices(services, 'orion', 'special').map((s) => s.id),
+    ['special'],
+  )
+  assert.equal(filterPolicyServices(services, 'estetica', 'all').length, 2)
+  assert.deepEqual(
+    filterPolicyServices(services, '', 'overrides').map((s) => s.id),
+    ['special', 'normal'],
+  )
+  assert.deepEqual(filterPolicyServices(services, 'corte', 'special'), [])
 })

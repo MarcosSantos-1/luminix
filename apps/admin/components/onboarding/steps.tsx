@@ -2,6 +2,7 @@ import { ConnectPanel, type ConnectPhase } from '@/components/payments/connect-p
 import { ThemePicker } from '@/components/space-theme'
 import { spaceTheme } from '@/lib/space-theme'
 import {
+  Accordion,
   Button,
   Card,
   Checkbox,
@@ -2170,6 +2171,60 @@ export function ScheduleStep({
 
 export { HoursStep } from './hours-editor'
 
+function PaymentHelp({ inApp }: { inApp: boolean }) {
+  const items = [
+    {
+      id: 'difference',
+      title: 'Qual a diferença?',
+      paragraphs: [
+        'Receber fora do app evita o cadastro na Stripe. Você não precisa informar dados da clínica, documentos nem conta bancária por aqui. O pagamento continua combinado direto com a cliente, por Pix, maquininha ou link próprio.',
+        'Pagamentos no app passam pela Stripe. O valor entra de forma automática, o check-in da cliente pode ser confirmado na clínica, e regras como sinal e multa por cancelamento passam a valer nesse atendimento.',
+      ],
+    },
+    ...(inApp
+      ? [
+          {
+            id: 'stripe',
+            title: 'O que é a Stripe?',
+            paragraphs: [
+              'A Stripe é quem processa o pagamento da cliente e deposita na conta da clínica. O Luminix não guarda esse dinheiro.',
+              'O acesso da Stripe é separado do Luminix. Mesmo com o mesmo e-mail, a senha pode ser outra.',
+            ],
+          },
+          {
+            id: 'register',
+            title: 'Como cadastrar',
+            paragraphs: [
+              'No bloco abaixo, abra o cadastro e informe os dados da clínica, um documento e a conta bancária para o repasse. A conferência é feita pela Stripe.',
+              'Nada é cobrado de verdade neste teste. Se preferir não passar por esse cadastro agora, volte e escolha receber fora do app.',
+            ],
+          },
+        ]
+      : []),
+  ]
+  return (
+    <Accordion className="ob2-pay-help">
+      {items.map((item) => (
+        <Accordion.Item key={item.id} id={item.id}>
+          <Accordion.Heading>
+            <Accordion.Trigger>
+              {item.title}
+              <Accordion.Indicator />
+            </Accordion.Trigger>
+          </Accordion.Heading>
+          <Accordion.Panel>
+            <Accordion.Body>
+              {item.paragraphs.map((paragraph) => (
+                <p key={paragraph}>{paragraph}</p>
+              ))}
+            </Accordion.Body>
+          </Accordion.Panel>
+        </Accordion.Item>
+      ))}
+    </Accordion>
+  )
+}
+
 export function PaymentsStep({
   clinicId,
   payload,
@@ -2254,6 +2309,12 @@ export function PaymentsStep({
           {fieldErrors.payments}
         </p>
       ) : null}
+      {payload.preferences.acceptInApp ? null : (
+        <p className="ob2-copy">
+          Você combina o pagamento diretamente com a cliente, por Pix, maquininha ou link próprio.
+        </p>
+      )}
+      <PaymentHelp inApp={payload.preferences.acceptInApp} />
       {payload.preferences.acceptInApp ? (
         <>
           <div className="ob2-pay-rule" aria-hidden="true" />
@@ -2292,11 +2353,7 @@ export function PaymentsStep({
             onChooseOutside={selectOutside}
           />
         </>
-      ) : (
-        <p className="ob2-copy">
-          Você combina o pagamento diretamente com a cliente, por Pix, maquininha ou link próprio.
-        </p>
-      )}
+      ) : null}
       <div className="ob2-pay-rule" aria-hidden="true" />
       <StepEnd
         error={error}

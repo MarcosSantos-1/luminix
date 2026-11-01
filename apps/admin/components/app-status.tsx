@@ -36,7 +36,7 @@ export function AppStatus({
 
   return (
     <main
-      className={`app-status${compact ? ' compact' : ''}${alert ? ' alert' : ''}`}
+      className={`app-status${compact ? ' compact' : ''}${alert ? ' alert' : ''}${isLoading ? ' is-loading' : ''}`}
       role={alert ? 'alert' : 'status'}
     >
       {isLoading ? (

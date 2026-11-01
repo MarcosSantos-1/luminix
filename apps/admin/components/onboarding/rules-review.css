@@ -193,6 +193,38 @@
   line-height: 1.65;
   overflow-wrap: anywhere;
 }
+.ob2-rules-summary-mobile {
+  display: none;
+}
+.ob2-rules-summary {
+  overflow: hidden;
+  border-radius: 18px;
+  border: 1px solid rgb(255 255 255 / 28%);
+  background: rgb(255 255 255 / 10%);
+}
+.ob2-rules-summary .accordion__trigger {
+  min-height: 56px;
+  font-size: 16px;
+  font-weight: 750;
+}
+.ob2-rule-preview.is-nested {
+  padding: 0 4px 8px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+.ob2-rule-preview.is-nested img {
+  width: 72px;
+  height: 72px;
+}
+@media (max-width: 899px) {
+  .ob2-rule-preview.is-desktop {
+    display: none;
+  }
+  .ob2-rules-summary-mobile {
+    display: block;
+  }
+}
 .ob2-review {
   gap: 18px;
 }
@@ -777,5 +809,139 @@
   }
   .ob2-rule-preview {
     padding: 18px;
+  }
+}
+
+.ob2-dialog-container.ob2-policy-dialog {
+  width: min(1100px, 100%);
+  max-width: 1100px;
+}
+.ob2-policy-dialog .ob2-dialog {
+  width: 100%;
+  height: auto;
+}
+.ob2-policy-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);
+  gap: 24px;
+  align-items: start;
+}
+.ob2-policy-selection,
+.ob2-policy-values,
+.ob2-policy-overrides {
+  display: grid;
+  gap: 14px;
+  min-width: 0;
+}
+.ob2-policy-values h3,
+.ob2-policy-overrides h3 {
+  margin: 0;
+  font-size: 17px;
+}
+.ob2-policy-selection-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.ob2-policy-list {
+  display: grid;
+  gap: 8px;
+  max-height: 420px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 4px;
+}
+.ob2-policy-treatment {
+  width: 100%;
+  min-width: 0;
+  border: 1px solid var(--field-border);
+  border-radius: 14px;
+  padding: 12px;
+}
+.ob2-policy-treatment .checkbox__content {
+  align-items: flex-start;
+  width: 100%;
+  min-width: 0;
+  gap: 10px;
+}
+.ob2-policy-treatment .checkbox__control {
+  flex: 0 0 auto;
+  margin-top: 3px;
+}
+.ob2-policy-treatment .ob2-policy-treatment-copy {
+  display: grid;
+  min-width: 0;
+  white-space: normal;
+  gap: 4px;
+  line-height: 1.45;
+}
+.ob2-policy-treatment-copy span,
+.ob2-policy-treatment-copy small {
+  font-size: 13px;
+  font-weight: 400;
+}
+.ob2-policy-override {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  border-bottom: 1px solid var(--separator);
+  padding-bottom: 12px;
+}
+.ob2-policy-override p {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.5;
+}
+.ob2 .button.ob2-retention-pick {
+  width: fit-content;
+  max-width: 100%;
+  height: auto;
+  min-height: 44px;
+  padding: 12px 16px;
+  border-radius: 14px;
+  border: 1px solid color-mix(in srgb, var(--space-accent, #ff2d79) 72%, #1a1020);
+  background: #fff;
+  box-shadow: 0 8px 18px rgba(26, 16, 32, 0.16);
+  color: #1a1020;
+  font-weight: 650;
+  white-space: normal;
+  --button-bg: #fff;
+  --button-bg-hover: #fff4f8;
+  --button-fg: #1a1020;
+}
+.ob2[data-surface='solid'] .button.ob2-retention-pick {
+  background: #fff;
+  color: #1a1020;
+  border-color: color-mix(in srgb, var(--space-accent, #ff2d79) 72%, #1a1020);
+  --button-bg: #fff;
+  --button-bg-hover: #fff4f8;
+  --button-fg: #1a1020;
+}
+@media (max-width: 719px) {
+  .ob2-policy-layout {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 20px;
+  }
+  .ob2-policy-list {
+    max-height: 300px;
+  }
+  .ob2-policy-dialog .modal__footer {
+    flex-wrap: wrap;
+  }
+  .ob2-policy-dialog .modal__footer > .button {
+    flex: 1 1 140px;
+    height: auto;
+    min-height: 48px;
+  }
+  .ob2-rule-preview {
+    padding: 18px 14px;
+  }
+  .ob2-retention-service {
+    padding: 12px;
+  }
+  .ob2 .button.ob2-retention-pick {
+    width: 100%;
   }
 }
