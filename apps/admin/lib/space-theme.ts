@@ -14,6 +14,19 @@ export function spaceTheme(value: unknown): SpaceTheme {
 const themeStorageKey = 'luminix.spaceTheme'
 const themeMapStorageKey = 'luminix.spaceThemes'
 
+const loadingBackgrounds: Record<SpaceTheme, string> = {
+  rosa: 'radial-gradient(circle at 88% 5%, #ff6c9e 0, transparent 34%), linear-gradient(135deg, #530025 0%, #bd004a 46%, #f22970 100%)',
+  grafite:
+    'radial-gradient(circle at 88% 5%, rgb(109 119 133 / 45%) 0, transparent 36%), linear-gradient(135deg, #080a0d 0%, #1a1f26 52%, #2c3440 100%)',
+  violeta:
+    'radial-gradient(circle at 88% 5%, rgb(119 72 193 / 45%) 0, transparent 36%), linear-gradient(135deg, #210a45 0%, #32145f 52%, #4a2378 100%)',
+  dourado:
+    'radial-gradient(circle at 88% 5%, rgb(136 101 31 / 42%) 0, transparent 36%), linear-gradient(135deg, #30200b 0%, #4a3314 52%, #5c4218 100%)',
+  esmeralda:
+    'radial-gradient(circle at 88% 5%, rgb(24 116 94 / 45%) 0, transparent 36%), linear-gradient(135deg, #042c26 0%, #0d4036 52%, #145246 100%)',
+  azul: 'radial-gradient(circle at 88% 5%, rgb(41 103 170 / 45%) 0, transparent 36%), linear-gradient(135deg, #071e3b 0%, #0f3258 52%, #184472 100%)',
+}
+
 export function rememberSpaceTheme(theme: SpaceTheme, ...clinicKeys: Array<string | null | undefined>) {
   try {
     localStorage.setItem(themeStorageKey, theme)
@@ -28,5 +41,5 @@ export function rememberSpaceTheme(theme: SpaceTheme, ...clinicKeys: Array<strin
   }
 }
 
-/** Runs before paint so a reload uses the saved theme instead of the default pink screen. */
-export const spaceThemeBootScript = `(function(){try{var ok=${JSON.stringify(spaceThemes.map((theme) => theme.id))};var dark=${JSON.stringify(Object.fromEntries(spaceThemes.map((theme) => [theme.id, theme.dark])))};function allow(value){return ok.indexOf(value)>=0}var map={};try{map=JSON.parse(localStorage.getItem('${themeMapStorageKey}')||'{}')}catch(e){}var parts=location.pathname.split('/');var id=parts[1]==='c'?decodeURIComponent(parts[2]||''):'';var theme=id&&map[id];if(!allow(theme))theme=localStorage.getItem('${themeStorageKey}');if(!allow(theme))return;document.documentElement.dataset.spaceTheme=theme;var meta=document.querySelector('meta[name="theme-color"]');if(meta&&dark[theme])meta.setAttribute('content',dark[theme])}catch(e){}})()`
+/** Runs in the document head, before the first paint, and paints the saved theme inline. */
+export const spaceThemeBootScript = `(function(){try{var ok=${JSON.stringify(spaceThemes.map((theme) => theme.id))};var dark=${JSON.stringify(Object.fromEntries(spaceThemes.map((theme) => [theme.id, theme.dark])))};var backgrounds=${JSON.stringify(loadingBackgrounds)};function allow(value){return ok.indexOf(value)>=0}var map={};try{map=JSON.parse(localStorage.getItem('${themeMapStorageKey}')||'{}')}catch(e){}var parts=location.pathname.split('/');var id=parts[1]==='c'?decodeURIComponent(parts[2]||''):'';var theme=id&&map[id];if(!allow(theme))theme=localStorage.getItem('${themeStorageKey}');if(!allow(theme))return;var bg=backgrounds[theme];var root=document.documentElement;root.dataset.spaceTheme=theme;root.style.setProperty('--loading-bg',bg);root.style.background=bg;var meta=document.querySelector('meta[name="theme-color"]');if(meta&&dark[theme])meta.setAttribute('content',dark[theme]);var node=document.createElement('style');node.id='luminix-loading-bg';node.textContent='html,body,.app-status.is-loading{background:'+bg+'!important}';document.head.appendChild(node)}catch(e){}})()`

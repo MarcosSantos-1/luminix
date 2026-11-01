@@ -1818,9 +1818,11 @@ p {
   align-content: center;
   gap: 16px;
   padding: 32px 20px;
-  background:
+  background: var(
+    --loading-bg,
     radial-gradient(circle at 88% 5%, #ff6c9e 0, transparent 34%),
-    linear-gradient(135deg, #530025 0%, #bd004a 46%, #f22970 100%);
+    linear-gradient(135deg, #530025 0%, #bd004a 46%, #f22970 100%)
+  );
   color: #fff;
   text-align: center;
 }
@@ -1842,9 +1844,11 @@ body:has(.app-status.is-loading) {
   overflow: hidden;
   overscroll-behavior: none;
   height: 100%;
-  background:
+  background: var(
+    --loading-bg,
     radial-gradient(circle at 88% 5%, #ff6c9e 0, transparent 34%),
-    linear-gradient(135deg, #530025 0%, #bd004a 46%, #f22970 100%);
+    linear-gradient(135deg, #530025 0%, #bd004a 46%, #f22970 100%)
+  );
 }
 
 html[data-space-theme='grafite']:has(.app-status.is-loading),

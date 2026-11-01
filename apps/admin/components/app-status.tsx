@@ -1,4 +1,6 @@
-import type { ReactNode } from 'react'
+'use client'
+
+import { useLayoutEffect, type ReactNode } from 'react'
 
 const scenes = {
   workspace: {
@@ -33,6 +35,15 @@ export function AppStatus({
   const isLoading = !alert && !action
   const copy = scenes[scene]
   const label = children ?? copy.label
+  useLayoutEffect(() => {
+    if (!isLoading) return
+    return () => {
+      document.getElementById('luminix-loading-bg')?.remove()
+      const root = document.documentElement
+      root.style.background = ''
+      root.style.removeProperty('--loading-bg')
+    }
+  }, [isLoading])
 
   return (
     <main

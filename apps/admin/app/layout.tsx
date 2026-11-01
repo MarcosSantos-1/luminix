@@ -1,6 +1,5 @@
 import { Analytics } from '@vercel/analytics/next'
 import type { Metadata, Viewport } from 'next'
-import Script from 'next/script'
 import './globals.css'
 import { AppToastProvider } from '@/components/app-toast-provider'
 import { StaffProvider } from '@/components/staff-provider'
@@ -24,11 +23,11 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="pt-BR" className="bg-background">
+    <html lang="pt-BR" className="bg-background" suppressHydrationWarning>
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: spaceThemeBootScript }} />
+      </head>
       <body className="antialiased">
-        <Script id="luminix-space-theme" strategy="beforeInteractive">
-          {spaceThemeBootScript}
-        </Script>
         <StaffProvider>
           {children}
           <AppToastProvider />
