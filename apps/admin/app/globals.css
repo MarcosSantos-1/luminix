@@ -1817,12 +1817,15 @@ p {
   place-items: center;
   align-content: center;
   gap: 16px;
-  padding: 32px 20px;
-  background: var(
+  padding: max(32px, env(safe-area-inset-top)) 20px max(32px, env(safe-area-inset-bottom));
+  background-color: #530025;
+  background-image: var(
     --loading-bg,
     radial-gradient(circle at 88% 5%, #ff6c9e 0, transparent 34%),
     linear-gradient(135deg, #530025 0%, #bd004a 46%, #f22970 100%)
   );
+  background-repeat: no-repeat;
+  background-size: cover;
   color: #fff;
   text-align: center;
 }
@@ -1831,9 +1834,9 @@ p {
   position: fixed;
   inset: 0;
   z-index: 80;
-  width: 100%;
-  height: 100%;
-  min-height: 100dvh;
+  width: 100vw;
+  height: 100lvh;
+  min-height: 100lvh;
   overflow: hidden;
   overscroll-behavior: none;
   touch-action: none;
@@ -1844,17 +1847,22 @@ body:has(.app-status.is-loading) {
   overflow: hidden;
   overscroll-behavior: none;
   height: 100%;
-  background: var(
+  min-height: 100lvh;
+  background-color: #530025;
+  background-image: var(
     --loading-bg,
     radial-gradient(circle at 88% 5%, #ff6c9e 0, transparent 34%),
     linear-gradient(135deg, #530025 0%, #bd004a 46%, #f22970 100%)
   );
+  background-repeat: no-repeat;
+  background-size: cover;
 }
 
 html[data-space-theme='grafite']:has(.app-status.is-loading),
 html[data-space-theme='grafite']:has(.app-status.is-loading) body,
 html[data-space-theme='grafite'] .app-status.is-loading {
-  background:
+  background-color: #080a0d;
+  background-image:
     radial-gradient(circle at 88% 5%, rgb(109 119 133 / 45%) 0, transparent 36%),
     linear-gradient(135deg, #080a0d 0%, #1a1f26 52%, #2c3440 100%);
 }
@@ -1862,7 +1870,8 @@ html[data-space-theme='grafite'] .app-status.is-loading {
 html[data-space-theme='violeta']:has(.app-status.is-loading),
 html[data-space-theme='violeta']:has(.app-status.is-loading) body,
 html[data-space-theme='violeta'] .app-status.is-loading {
-  background:
+  background-color: #210a45;
+  background-image:
     radial-gradient(circle at 88% 5%, rgb(119 72 193 / 45%) 0, transparent 36%),
     linear-gradient(135deg, #210a45 0%, #32145f 52%, #4a2378 100%);
 }
@@ -1870,7 +1879,8 @@ html[data-space-theme='violeta'] .app-status.is-loading {
 html[data-space-theme='dourado']:has(.app-status.is-loading),
 html[data-space-theme='dourado']:has(.app-status.is-loading) body,
 html[data-space-theme='dourado'] .app-status.is-loading {
-  background:
+  background-color: #30200b;
+  background-image:
     radial-gradient(circle at 88% 5%, rgb(136 101 31 / 42%) 0, transparent 36%),
     linear-gradient(135deg, #30200b 0%, #4a3314 52%, #5c4218 100%);
 }
@@ -1878,7 +1888,8 @@ html[data-space-theme='dourado'] .app-status.is-loading {
 html[data-space-theme='esmeralda']:has(.app-status.is-loading),
 html[data-space-theme='esmeralda']:has(.app-status.is-loading) body,
 html[data-space-theme='esmeralda'] .app-status.is-loading {
-  background:
+  background-color: #042c26;
+  background-image:
     radial-gradient(circle at 88% 5%, rgb(24 116 94 / 45%) 0, transparent 36%),
     linear-gradient(135deg, #042c26 0%, #0d4036 52%, #145246 100%);
 }
@@ -1886,7 +1897,8 @@ html[data-space-theme='esmeralda'] .app-status.is-loading {
 html[data-space-theme='azul']:has(.app-status.is-loading),
 html[data-space-theme='azul']:has(.app-status.is-loading) body,
 html[data-space-theme='azul'] .app-status.is-loading {
-  background:
+  background-color: #071e3b;
+  background-image:
     radial-gradient(circle at 88% 5%, rgb(41 103 170 / 45%) 0, transparent 36%),
     linear-gradient(135deg, #071e3b 0%, #0f3258 52%, #184472 100%);
 }

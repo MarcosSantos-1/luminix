@@ -3126,19 +3126,23 @@ html:has(.ob2)::-webkit-scrollbar-thumb:hover,
 }
 
 .ob2 .button.ob2-drawer-step > .ob2-step-num {
-  width: 36px;
-  height: 36px;
-  display: grid;
-  place-items: center;
+  width: 44px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   flex: 0 0 auto;
-  border-radius: 12px;
+  margin: 0;
+  padding: 0;
+  border-radius: 14px;
   border: 1px solid color-mix(in srgb, var(--space-accent, #ff2d79) 28%, white);
   background: #fff4f8;
   color: var(--space-accent, #e21870);
-  font-size: 15px;
+  font-size: 18px;
   font-weight: 750;
   font-variant-numeric: tabular-nums;
   line-height: 1;
+  text-align: center;
 }
 
 .ob2-step-list li.current {
@@ -3358,13 +3362,15 @@ html:has(.ob2)::-webkit-scrollbar-thumb:hover,
 
 .ob2-drawer-dialog .button.ob2-drawer-step {
   display: grid;
-  grid-template-columns: 36px minmax(0, 1fr);
+  grid-template-columns: 44px minmax(0, 1fr);
   align-items: center;
+  justify-items: stretch;
   column-gap: 12px;
   width: 100%;
-  min-height: 60px;
+  min-height: 68px;
   height: auto;
-  padding: 10px 12px;
+  padding: 12px 14px;
+  text-align: left;
   border-radius: 16px;
   border: 1px solid color-mix(in srgb, var(--space-highlight, #f0cfdb) 80%, white);
   background: #fff;
@@ -3375,12 +3381,34 @@ html:has(.ob2)::-webkit-scrollbar-thumb:hover,
 }
 
 .ob2-drawer-dialog .button.ob2-drawer-step > .ob2-step-num {
-  width: 36px;
-  height: 36px;
-  border-radius: 12px;
+  width: 44px;
+  height: 44px;
+  align-self: center;
+  border-radius: 14px;
   border: 1px solid color-mix(in srgb, var(--space-accent, #ff2d79) 24%, white);
   background: #fff4f8;
   color: var(--space-accent, #e21870);
+}
+
+.ob2-drawer-dialog .ob2-step-copy {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: flex-start;
+  min-width: 0;
+  width: 100%;
+  text-align: left;
+}
+
+.ob2-drawer-dialog .ob2-step-copy strong,
+.ob2-drawer-dialog .ob2-step-copy small {
+  width: 100%;
+  margin: 0;
+  text-align: left;
+}
+
+.ob2-drawer-dialog .ob2-step-copy strong {
+  justify-content: flex-start;
 }
 
 .ob2-drawer-dialog .ob2-step-menu li.current .button.ob2-drawer-step {
