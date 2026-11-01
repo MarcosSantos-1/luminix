@@ -3,7 +3,7 @@
 import { Button } from '@heroui/react'
 import { Check } from 'lucide-react'
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react'
-import { spaceTheme, spaceThemes, type SpaceTheme } from '@/lib/space-theme'
+import { rememberSpaceTheme, spaceTheme, spaceThemes, type SpaceTheme } from '@/lib/space-theme'
 import '@/app/space-theme.css'
 
 const ThemeContext = createContext<{
@@ -13,18 +13,20 @@ const ThemeContext = createContext<{
 
 export function SpaceThemeProvider({
   initialTheme,
+  clinicId,
+  clinicCode,
   children,
 }: {
   initialTheme?: string
+  clinicId?: string
+  clinicCode?: string | null
   children: ReactNode
 }) {
   const [theme, setTheme] = useState<SpaceTheme>(spaceTheme(initialTheme))
   useEffect(() => {
     document.documentElement.dataset.spaceTheme = theme
-    return () => {
-      delete document.documentElement.dataset.spaceTheme
-    }
-  }, [theme])
+    rememberSpaceTheme(theme, clinicId, clinicCode)
+  }, [theme, clinicId, clinicCode])
   return <ThemeContext.Provider value={{ theme, setTheme }}>{children}</ThemeContext.Provider>
 }
 

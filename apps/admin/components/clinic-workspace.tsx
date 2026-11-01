@@ -142,7 +142,12 @@ export function ClinicWorkspace({ children }: { children: ReactNode }) {
   if (onboarding || pathname === `/c/${clinicId}` || pathname.endsWith('/settings'))
     return (
       <Context.Provider value={visible}>
-        <SpaceThemeProvider key={key} initialTheme={visible.clinic.theme}>
+        <SpaceThemeProvider
+          key={key}
+          initialTheme={visible.clinic.theme}
+          clinicId={visible.clinic.id}
+          clinicCode={visible.clinic.share_code}
+        >
           {children}
         </SpaceThemeProvider>
       </Context.Provider>

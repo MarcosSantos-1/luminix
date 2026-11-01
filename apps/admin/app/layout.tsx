@@ -1,8 +1,10 @@
 import { Analytics } from '@vercel/analytics/next'
 import type { Metadata, Viewport } from 'next'
+import Script from 'next/script'
 import './globals.css'
 import { AppToastProvider } from '@/components/app-toast-provider'
 import { StaffProvider } from '@/components/staff-provider'
+import { spaceThemeBootScript } from '@/lib/space-theme'
 
 export const metadata: Metadata = {
   title: 'Luminix — Sua clínica, mais simples',
@@ -24,6 +26,9 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
   return (
     <html lang="pt-BR" className="bg-background">
       <body className="antialiased">
+        <Script id="luminix-space-theme" strategy="beforeInteractive">
+          {spaceThemeBootScript}
+        </Script>
         <StaffProvider>
           {children}
           <AppToastProvider />
