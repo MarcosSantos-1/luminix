@@ -1357,6 +1357,77 @@
   padding-inline: 16px;
 }
 
+.ob2-deposit-picker {
+  display: grid;
+  gap: 14px;
+  padding: 16px;
+  border-radius: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.14), rgba(255, 255, 255, 0.06)),
+    rgba(255, 255, 255, 0.04);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.28);
+}
+
+.ob2-deposit-list {
+  display: grid;
+  gap: 8px;
+  max-height: 280px;
+  overflow-y: auto;
+  padding: 2px;
+}
+
+.ob2-deposit-service.checkbox {
+  min-height: 48px;
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.24);
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.ob2-deposit-service.is-picked.checkbox {
+  border-color: color-mix(in srgb, var(--space-highlight, #ff8dba) 72%, transparent);
+  background: color-mix(in srgb, var(--space-accent, #ff2d79) 24%, transparent);
+}
+
+.ob2-deposit-service .checkbox__content {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-width: 0;
+}
+
+.ob2-deposit-service .checkbox__control {
+  flex: 0 0 auto;
+}
+
+.ob2-deposit-service .label {
+  min-width: 0;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  line-height: 1.35;
+}
+
+.ob2[data-surface='solid'] .ob2-deposit-picker {
+  border-color: color-mix(in srgb, var(--space-accent, #e72875) 24%, #fff);
+  background: #fff;
+  box-shadow: 0 10px 24px rgba(80, 16, 40, 0.06);
+}
+
+.ob2[data-surface='solid'] .ob2-deposit-service.checkbox {
+  border-color: color-mix(in srgb, var(--space-accent, #e72875) 22%, #fff);
+  background: color-mix(in srgb, var(--space-accent, #e72875) 5%, #fff);
+}
+
+.ob2[data-surface='solid'] .ob2-deposit-service.is-picked.checkbox {
+  border-color: color-mix(in srgb, var(--space-accent, #e72875) 48%, #fff);
+  background: color-mix(in srgb, var(--space-accent, #e72875) 12%, #fff);
+}
+
 .ob2-hours-card .ob2-day:last-child {
   border-bottom: 0;
   padding-bottom: 4px;

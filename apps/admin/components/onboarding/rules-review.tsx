@@ -261,10 +261,13 @@ function hours(value: number) {
   return `${value} ${value === 1 ? 'hora' : 'horas'} antes`
 }
 
-function hourOptions(values: number[], current: number) {
+function hourOptions(values: number[], current: number, recommended?: number) {
   return [...new Set([...values, current])]
     .sort((a, b) => a - b)
-    .map((value) => ({ id: String(value), label: hours(value) }))
+    .map((value) => ({
+      id: String(value),
+      label: value === recommended ? `${hours(value)} (recomendado)` : hours(value),
+    }))
 }
 
 function sameDayHour(hoursBefore: number) {
@@ -565,7 +568,7 @@ export function RulesStep({
                   setHelp('notice'),
                 )}
                 value={String(notice)}
-                options={hourOptions([0, 1, 2, 4, 8, 12, 24, 48], notice)}
+                options={hourOptions([0, 1, 2, 4, 8, 12, 24, 48], notice, 1)}
                 onChange={(value) => change({ bookingNoticeHours: Number(value) })}
               />
               <GlassSelect
@@ -575,7 +578,10 @@ export function RulesStep({
                 value={String(windowDays)}
                 options={[...new Set([7, 15, 30, 60, windowDays])]
                   .sort((a, b) => a - b)
-                  .map((value) => ({ id: String(value), label: `${value} dias` }))}
+                  .map((value) => ({
+                    id: String(value),
+                    label: value === 30 ? `${value} dias (recomendado)` : `${value} dias`,
+                  }))}
                 onChange={(value) => change({ bookingWindowDays: Number(value) })}
               />
               <p className="ob2-rule-example">
@@ -595,7 +601,7 @@ export function RulesStep({
               <GlassSelect
                 label={fieldLabel('Prazo para cancelar sem ser tardio', () => setHelp('cancel'))}
                 value={String(preferences.cancellationHours)}
-                options={hourOptions([0, 4, 8, 12, 24, 48], preferences.cancellationHours)}
+                options={hourOptions([0, 4, 8, 12, 24, 48], preferences.cancellationHours, 4)}
                 onChange={(value) => change({ cancellationHours: Number(value) })}
               />
               {special.length > 0 ? (
@@ -605,7 +611,11 @@ export function RulesStep({
                       setHelp('special'),
                     )}
                     value={String(preferences.specialCancellationHours)}
-                    options={hourOptions([12, 24, 48, 72], preferences.specialCancellationHours)}
+                    options={hourOptions(
+                      [12, 24, 48, 72],
+                      preferences.specialCancellationHours,
+                      24,
+                    )}
                     onChange={(value) => change({ specialCancellationHours: Number(value) })}
                   />
                   <Help
@@ -624,7 +634,7 @@ export function RulesStep({
                 )}
                 value={rescheduling == null ? 'same' : String(rescheduling)}
                 options={[
-                  { id: 'same', label: 'O mesmo prazo do cancelamento' },
+                  { id: 'same', label: 'O mesmo prazo do cancelamento (recomendado)' },
                   ...hourOptions([0, 4, 8, 12, 24, 48], rescheduling ?? 12),
                 ]}
                 onChange={(value) =>

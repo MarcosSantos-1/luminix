@@ -1,10 +1,65 @@
-import { Button, Card, Checkbox } from '@heroui/react'
-import { Banknote, Check, CircleHelp } from 'lucide-react'
-import { useState } from 'react'
+import { Button, Card, Checkbox, Label } from '@heroui/react'
+import { Banknote, Check, CircleHelp, Search } from 'lucide-react'
+import { useRef, useState } from 'react'
 import type { Payload } from './model'
 import { formatMoney } from './model'
 import { BlurDialog, ChoiceCard, GlassField, GlassSelect } from './ui'
 import { serviceNeedsDeposit } from './deposit-policy'
+
+function DepositServiceList({
+  services,
+  search,
+  onToggle,
+}: {
+  services: Payload['services']
+  search: string
+  onToggle: (serviceId: string, selected: boolean) => void
+}) {
+  const visible = services
+    .map((service, index) => ({ service, index }))
+    .filter(({ service }) =>
+      service.name.toLocaleLowerCase('pt-BR').includes(search.toLocaleLowerCase('pt-BR')),
+    )
+    .sort((a, b) => {
+      const selectedA = a.service.depositRequired === true ? 0 : 1
+      const selectedB = b.service.depositRequired === true ? 0 : 1
+      return selectedA - selectedB || a.index - b.index
+    })
+  const listRef = useRef<HTMLDivElement>(null)
+  if (visible.length === 0) {
+    return (
+      <p className="ob2-copy">
+        {services.length === 0
+          ? 'Nenhum tratamento cadastrado ainda.'
+          : 'Nenhum tratamento com esse nome.'}
+      </p>
+    )
+  }
+  return (
+    <div className="ob2-deposit-list" ref={listRef}>
+      {visible.map(({ service }) => (
+        <Checkbox
+          key={service.id}
+          className={
+            service.depositRequired ? 'ob2-deposit-service is-picked' : 'ob2-deposit-service'
+          }
+          isSelected={service.depositRequired === true}
+          onChange={(selected) => {
+            onToggle(service.id, selected)
+            if (selected) listRef.current?.scrollTo({ top: 0, behavior: 'smooth' })
+          }}
+        >
+          <Checkbox.Content>
+            <Checkbox.Control>
+              <Checkbox.Indicator />
+            </Checkbox.Control>
+            <Label>{service.name}</Label>
+          </Checkbox.Content>
+        </Checkbox>
+      ))}
+    </div>
+  )
+}
 
 export function DepositSettings({
   payload,
@@ -90,37 +145,26 @@ export function DepositSettings({
               }
             />
             {scope === 'selected' && (
-              <div className="ob2-form" role="group" aria-label="Tratamentos com sinal">
-                <GlassField label="Buscar tratamento" value={search} onChange={setSearch} />
-                <div className="ob2-form" style={{ maxHeight: 280, overflowY: 'auto' }}>
-                  {payload.services
-                    .filter((service) =>
-                      service.name
-                        .toLocaleLowerCase('pt-BR')
-                        .includes(search.toLocaleLowerCase('pt-BR')),
-                    )
-                    .map((service) => (
-                      <Checkbox
-                        key={service.id}
-                        isSelected={service.depositRequired === true}
-                        onChange={(selected) =>
-                          setPayload({
-                            ...payload,
-                            services: payload.services.map((item) =>
-                              item.id === service.id
-                                ? { ...item, depositRequired: selected }
-                                : item,
-                            ),
-                          })
-                        }
-                      >
-                        <Checkbox.Control>
-                          <Checkbox.Indicator />
-                        </Checkbox.Control>
-                        <Checkbox.Content>{service.name}</Checkbox.Content>
-                      </Checkbox>
-                    ))}
-                </div>
+              <div className="ob2-deposit-picker" role="group" aria-label="Tratamentos com sinal">
+                <GlassField
+                  label="Buscar tratamento"
+                  icon={<Search size={16} />}
+                  value={search}
+                  placeholder="Nome do tratamento"
+                  onChange={setSearch}
+                />
+                <DepositServiceList
+                  services={payload.services}
+                  search={search}
+                  onToggle={(serviceId, selected) =>
+                    setPayload({
+                      ...payload,
+                      services: payload.services.map((item) =>
+                        item.id === serviceId ? { ...item, depositRequired: selected } : item,
+                      ),
+                    })
+                  }
+                />
               </div>
             )}
             {scope === 'threshold' && (

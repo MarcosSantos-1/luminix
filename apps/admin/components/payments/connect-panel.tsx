@@ -46,7 +46,7 @@ const labels = {
   pending: 'Cadastro em andamento',
   reviewing: 'Dados enviados. A Stripe ainda está conferindo.',
   active: 'Conta habilitada pela Stripe',
-  restricted: 'Complete o cadastro para receber pelo app',
+  restricted: 'Complete o cadastro na Stripe',
 }
 const summaries = {
   not_started: 'Ainda falta criar o recebimento da clínica na Stripe.',
@@ -54,7 +54,7 @@ const summaries = {
   reviewing: 'Não falta nenhum dado seu. Neste teste, você já pode continuar.',
   active: 'A Stripe liberou pagamentos e repasses neste teste.',
   restricted:
-    'Abra o formulário da Stripe e preencha os dados solicitados da clínica, da pessoa responsável e da conta bancária.',
+    'Abra o formulário da Stripe e preencha os dados da clínica, da pessoa responsável e da conta bancária.',
 }
 
 type PanelProps = {
@@ -285,7 +285,24 @@ function ConnectContent({
   const [prepOpen, setPrepOpen] = useState(Boolean(dashboard))
   const [timingOpen, setTimingOpen] = useState(false)
   const [feesOpen, setFeesOpen] = useState(false)
+  const openedKey = `luminix-stripe-form:${clinicId}`
+  const [formOpened, setFormOpened] = useState(false)
   const prepCollapsed = useRef(false)
+  useEffect(() => {
+    try {
+      setFormOpened(sessionStorage.getItem(openedKey) === '1')
+    } catch {
+      setFormOpened(false)
+    }
+  }, [openedKey])
+  function rememberFormOpened() {
+    setFormOpened(true)
+    try {
+      sessionStorage.setItem(openedKey, '1')
+    } catch {
+      /* Private mode can block storage; the button still appears in this visit. */
+    }
+  }
   useEffect(() => {
     if (!prepSettled || prepCollapsed.current) return
     prepCollapsed.current = true
@@ -443,6 +460,7 @@ function ConnectContent({
         },
       })
       instances.current.push(instance)
+      rememberFormOpened()
       setEmbedded({ instance, purpose })
       toast.info('Cadastro aberto. A Stripe pode abrir uma janela para confirmar seu acesso.', {
         timeout: 6000,
@@ -470,6 +488,13 @@ function ConnectContent({
     toast.danger(message, { timeout: 7000 })
   }
   const loaderStart = () => setComponentLoading(false)
+  const showRefresh = Boolean(
+    status &&
+      status.state !== 'not_started' &&
+      (dashboard || formOpened || status.state === 'active' || status.state === 'reviewing'),
+  )
+  const awaitingForm =
+    status?.state === 'not_started' || status?.state === 'pending' || status?.state === 'restricted'
 
   const flow = !dashboard
   return (
@@ -514,9 +539,21 @@ function ConnectContent({
           <Card.Header>
             <div className="connect-title-block">
               <Card.Title className="connect-title">
+                {flow && awaitingForm ? <span className="connect-pulse" aria-hidden="true" /> : null}
                 {status ? labels[status.state] : 'Recebimentos da clínica'}
               </Card.Title>
-              {flow && status ? <p className="connect-lead">{summaries[status.state]}</p> : null}
+              {flow && status ? (
+                <p className="connect-lead">
+                  {status.state === 'restricted' ? (
+                    <>
+                      Abra o formulário da Stripe e preencha os dados da clínica, da{' '}
+                      <span className="connect-keep">pessoa responsável</span> e da conta bancária.
+                    </>
+                  ) : (
+                    summaries[status.state]
+                  )}
+                </p>
+              ) : null}
             </div>
           </Card.Header>
           <Card.Content className="connect-body">
@@ -556,7 +593,7 @@ function ConnectContent({
               <>
                 <FlowDisclosure
                   id="connect-what-stripe"
-                  title="O que é a Stripe"
+                  title="O que é a Stripe?"
                   hint="Quem recebe o pagamento e deposita na conta da clínica."
                   icon={CreditCard}
                   open={stripeOpen}
@@ -582,7 +619,7 @@ function ConnectContent({
                 </FlowDisclosure>
                 <FlowDisclosure
                   id="connect-when-money"
-                  title="Quando o dinheiro chega na conta"
+                  title="Quando o dinheiro chega na conta?"
                   hint="Cartão nacional leva cerca de 30 dias. Pix e boleto, cerca de 2 dias úteis."
                   icon={Landmark}
                   open={timingOpen}
@@ -952,14 +989,14 @@ function ConnectContent({
                         dados ou documentos precisa receber. Ao terminar, volte aqui para conferir o
                         resultado.
                       </p>
-                      <Button
-                        variant="ghost"
-                        className="connect-doc-link"
-                        isDisabled={opening || loading}
-                        onPress={() => void open('onboarding')}
+                      <button
+                        type="button"
+                        className="ob2-areas-link connect-text-action"
+                        disabled={opening || loading}
+                        onClick={() => void open('onboarding')}
                       >
-                        Abrir cadastro e preencher meus dados →
-                      </Button>
+                        Abrir cadastro e preencher meus dados
+                      </button>
                     </div>
                   </div>
                 )}
@@ -974,8 +1011,10 @@ function ConnectContent({
                 {!ready && status.state !== 'reviewing' && status.requirementsDue === 0 && (
                   <p className="connect-note is-info connect-span">
                     A conta ainda não está pronta. Abra o cadastro para verificar se é necessário
-                    enviar algum dado ou aguardar uma análise da Stripe. Se você já enviou tudo, use
-                    “Atualizar situação” para consultar novamente.
+                    enviar algum dado ou aguardar uma análise da Stripe.
+                    {showRefresh
+                      ? ' Se você já enviou tudo, use “Atualizar situação” para consultar novamente.'
+                      : ''}
                   </p>
                 )}
               </div>
@@ -1001,11 +1040,9 @@ function ConnectContent({
                   ? 'Abrindo…'
                   : status?.state === 'active'
                     ? 'Revisar cadastro Stripe'
-                    : status?.state === 'not_started'
-                      ? 'Começar cadastro na Stripe'
-                      : 'Abrir cadastro Stripe'}
+                    : 'Abrir cadastro Stripe'}
               </Button>
-              {status && status.state !== 'not_started' && (
+              {showRefresh && (
                 <Button
                   variant={flow ? 'secondary' : 'primary'}
                   className={

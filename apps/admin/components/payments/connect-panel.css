@@ -10,10 +10,36 @@
 }
 
 .connect-panel .connect-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
   font-size: 18px;
   font-weight: 700;
   line-height: 1.3;
   letter-spacing: -0.02em;
+}
+
+.connect-pulse {
+  width: 10px;
+  height: 10px;
+  flex: 0 0 auto;
+  border-radius: 999px;
+  background: currentColor;
+  box-shadow: 0 0 0 0 color-mix(in srgb, currentColor 55%, transparent);
+  animation: connect-pulse 1.5s ease-out infinite;
+}
+
+.connect-keep {
+  white-space: nowrap;
+}
+
+@keyframes connect-pulse {
+  70% {
+    box-shadow: 0 0 0 8px transparent;
+  }
+  100% {
+    box-shadow: 0 0 0 0 transparent;
+  }
 }
 
 .connect-panel .connect-body {
@@ -514,6 +540,23 @@
   font-weight: 700;
 }
 
+.connect-text-action {
+  margin-top: 10px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  font: inherit;
+  font-weight: 700;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+
+.connect-text-action:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
 .connect-panel a:focus-visible {
   outline: 2px solid currentColor;
   outline-offset: 4px;
@@ -523,6 +566,7 @@
   container-name: connect-flow;
   container-type: inline-size;
   gap: 16px;
+  margin-top: 22px;
   padding: 0;
   border: 0;
   background: transparent;
@@ -573,6 +617,15 @@
   font-size: 20px;
 }
 
+.ob2 .connect-panel--flow .connect-title-block {
+  gap: 10px;
+  margin-bottom: 4px;
+}
+
+.ob2 .connect-panel--flow .connect-lead {
+  max-width: none;
+}
+
 .ob2 .connect-panel--flow .connect-step,
 .ob2 .connect-panel--flow .connect-when,
 .ob2 .connect-panel--flow .connect-prep,
@@ -602,7 +655,8 @@
   font-size: 20px;
 }
 
-.ob2 .connect-panel--flow .link.ob2-areas-link {
+.ob2 .connect-panel--flow .link.ob2-areas-link,
+.ob2 .connect-panel--flow .connect-text-action {
   color: var(--space-highlight, #ff8dba);
   font-size: 16px;
   font-weight: 700;
@@ -727,7 +781,8 @@
   --button-bg-hover: #fff5f8;
 }
 
-.ob2[data-surface='solid'] .connect-panel--flow .link.ob2-areas-link {
+.ob2[data-surface='solid'] .connect-panel--flow .link.ob2-areas-link,
+.ob2[data-surface='solid'] .connect-panel--flow .connect-text-action {
   color: var(--space-accent, #c2185b);
 }
 
@@ -778,7 +833,7 @@
 
 .ob2 .connect-panel--flow .connect-rule {
   height: 1px;
-  margin: 2px 0 4px;
+  margin: 14px 0 8px;
   background: color-mix(in srgb, #ffc2dc 78%, transparent);
 }
 
