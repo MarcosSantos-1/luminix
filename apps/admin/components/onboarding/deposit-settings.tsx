@@ -4,6 +4,14 @@ import Image from 'next/image'
 import { useRef, useState, type ReactNode } from 'react'
 import type { Payload, Service } from './model'
 import { formatMoney } from './model'
+
+function formatListPrice(cents: number) {
+  const amount = (cents / 100).toLocaleString('pt-BR', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })
+  return `R$ ${amount}`
+}
 import { ChoiceCard, GlassField, GlassSelect, type FieldErrors } from './ui'
 import {
   isSpecialService,
@@ -267,10 +275,12 @@ function RegularServices({
                     <Checkbox.Control>
                       <Checkbox.Indicator />
                     </Checkbox.Control>
-                    <Label>{service.name}</Label>
+                    <Label>
+                      <span className="ob2-deposit-service-name">{service.name}</span>
+                    </Label>
                     {service.priceType === 'fixed' && service.priceCents > 0 ? (
                       <small className="ob2-deposit-service-price">
-                        {formatMoney(service.priceCents)}
+                        {formatListPrice(service.priceCents)}
                       </small>
                     ) : null}
                   </Checkbox.Content>
@@ -409,13 +419,6 @@ export function DepositSettings({
             </p>
           </>
         ) : null}
-        <p className="ob2-copy">
-          Configuração salva para o futuro agendamento. O Luminix ainda não cobra sinal nem confirma
-          reservas por pagamento.{' '}
-          {preferences.acceptInApp
-            ? 'A cobrança pelo app depende da liberação do checkout.'
-            : 'Fora do app, o recebimento e a conferência serão combinados diretamente com a cliente.'}
-        </p>
       </Card.Content>
     </Card>
   )

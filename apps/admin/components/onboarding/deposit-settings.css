@@ -187,16 +187,23 @@
   white-space: nowrap;
 }
 .ob2-deposit-switch .switch__control {
-  background: #fff;
-  box-shadow:
-    inset 0 0 0 2px #1a1020,
-    0 0 0 3px rgba(255, 255, 255, 0.5);
+  background: rgba(26, 16, 32, 0.45);
+  box-shadow: inset 0 0 0 1.5px rgba(255, 255, 255, 0.72);
 }
-.ob2-deposit-switch[data-selected='true'] .switch__control {
+.ob2-deposit-switch .switch__thumb {
+  background: #fff;
+  box-shadow: 0 1px 2px rgba(26, 16, 32, 0.28);
+}
+.ob2-deposit-switch[data-selected='true'] .switch__control,
+.ob2-deposit-switch[aria-checked='true'] .switch__control {
   background: #1a1020;
   box-shadow:
     inset 0 0 0 2px #ffe566,
-    0 0 0 3px rgba(255, 255, 255, 0.7);
+    0 0 0 3px rgba(255, 255, 255, 0.55);
+}
+.ob2-deposit-switch[data-selected='true'] .switch__thumb,
+.ob2-deposit-switch[aria-checked='true'] .switch__thumb {
+  background: #ffe566;
 }
 
 .ob2-deposit-machines {
@@ -309,18 +316,35 @@
 }
 
 .ob2 .ob2-deposit-service.checkbox {
-  display: flex;
+  display: block;
   width: 100%;
+  height: max-content;
+  min-height: max-content;
   padding: 0;
 }
 .ob2 .ob2-deposit-service .checkbox__content {
-  min-height: 48px;
+  align-items: center;
+  min-height: 52px;
   padding: 10px 12px;
   border-radius: inherit;
   cursor: pointer;
 }
 .ob2-deposit-service .checkbox__content .label {
-  flex: 1;
+  flex: 1 1 auto;
+  min-width: 0;
+  height: auto;
+  overflow: visible;
+  white-space: normal;
+  line-height: 1.35;
+}
+.ob2-deposit-service-name {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  line-clamp: 3;
+  overflow-wrap: anywhere;
+  line-height: 1.35;
 }
 .ob2-deposit-service-price {
   flex: 0 0 auto;
@@ -401,6 +425,23 @@
 .ob2[data-surface='solid'] .ob2-booking-type-copy p,
 .ob2[data-surface='solid'] .ob2-deposit-machine-copy small,
 .ob2[data-surface='solid'] .ob2-deposit-machine-services summary,
+.ob2[data-surface='solid'] .ob2-deposit-switch .switch__control {
+  background: color-mix(in srgb, var(--space-deep, #34101f) 10%, #fff);
+  box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--space-deep, #34101f) 28%, #fff);
+}
+.ob2[data-surface='solid'] .ob2-deposit-switch .switch__thumb {
+  background: #fff;
+  box-shadow: 0 1px 2px rgba(52, 16, 31, 0.22);
+}
+.ob2[data-surface='solid'] .ob2-deposit-switch[data-selected='true'] .switch__control,
+.ob2[data-surface='solid'] .ob2-deposit-switch[aria-checked='true'] .switch__control {
+  background: #1a1020;
+  box-shadow: inset 0 0 0 2px #e0a100;
+}
+.ob2[data-surface='solid'] .ob2-deposit-switch[data-selected='true'] .switch__thumb,
+.ob2[data-surface='solid'] .ob2-deposit-switch[aria-checked='true'] .switch__thumb {
+  background: #ffe566;
+}
 .ob2[data-surface='solid'] .ob2-deposit-service-price {
   color: color-mix(in srgb, var(--space-deep, #34101f) 72%, #fff);
 }
