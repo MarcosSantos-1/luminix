@@ -24,6 +24,7 @@ import {
   syncProfessionalSchedules,
   validateClinicAndProfessionalHours,
 } from '@/components/onboarding/schedule-sync'
+import { depositProblem, normalizeLegacyDepositScope } from '@/components/onboarding/deposit-policy'
 import { hasDraftChanges } from '@/components/onboarding/review-persistence'
 import { RulesStep, ReviewStep } from '@/components/onboarding/rules-review'
 import type { FieldErrors } from '@/components/onboarding/ui'
@@ -205,10 +206,11 @@ function normalizePayload(value: Partial<Payload>, fallback: Payload): Payload {
       professionalByName.get(schedule.name.trim().toLocaleLowerCase('pt-BR'))?.id ||
       '',
   }))
-  return syncProfessionalSchedules(enforcePaymentPreferences(merged))
+  return syncProfessionalSchedules(normalizeLegacyDepositScope(enforcePaymentPreferences(merged)))
 }
 
-function payloadForApi(payload: Payload): Payload {
+function payloadForApi(value: Payload): Payload {
+  const payload = normalizeLegacyDepositScope(value)
   const serviceNameById = new Map(payload.services.map((service) => [service.id, service.name]))
   const clinic = { ...payload.clinic }
   delete clinic.logoUrl
@@ -466,6 +468,10 @@ export default function OnboardingPage() {
         payload.preferences.depositThresholdCents > 100000000)
     )
       fields.payments = 'Informe um limite válido para o sinal, entre R$ 0,01 e R$ 1.000.000.'
+    if (stepInfo[targetStep]?.key === 'payments') {
+      const deposit = depositProblem(payload)
+      if (deposit) fields[deposit.field] = deposit.message
+    }
     const message = Object.values(fields)[0] ?? ''
     return { message, fields }
   }

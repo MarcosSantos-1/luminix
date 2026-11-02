@@ -66,3 +66,12 @@ Antes do checkout, calcular o sinal sobre preço final autorizado, resolver orç
 respeitar escopo `none`, aplicar limite estritamente maior e validar serviço/clínica no servidor.
 Congelar preço e política aceita na reserva, alocar antecipações e saldo sem dupla cobrança e
 implementar confirmação/reembolso idempotentes. Preferências não autorizam movimentação financeira.
+
+## Tipos de reserva e limite da retenção — 2026-11-01
+
+A ADR-020 simplifica a configuração para três tipos de reserva e três destinos do sinal. O motor
+deve, no escopo `selected`, cobrar sinal só onde `depositRequired = true` (especiais inclusive, já
+que a gestora pode desligá-los por aparelho), e calcular a
+retenção como `min(percentual × valor antecipado, sinal)`. Nunca reter mais que o sinal, mesmo com
+pagamento integral antecipado. Manter a precedência de exceções por serviço para rascunhos antigos
+classificados como regra personalizada.

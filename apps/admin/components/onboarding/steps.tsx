@@ -2179,7 +2179,7 @@ function PaymentHelp({ inApp }: { inApp: boolean }) {
       title: 'Qual a diferença?',
       paragraphs: [
         'Receber fora do app evita o cadastro na Stripe. Você não precisa informar dados da clínica, documentos nem conta bancária por aqui. O pagamento continua combinado direto com a cliente, por Pix, maquininha ou link próprio.',
-        'Pagamentos no app passam pela Stripe. O valor entra de forma automática, o check-in da cliente pode ser confirmado na clínica, e regras como sinal e multa por cancelamento passam a valer nesse atendimento.',
+        'Pagamentos no app passam pela Stripe. O valor entra de forma automática, o check-in da cliente pode ser confirmado na clínica, e o sinal e suas regras de cancelamento passam a valer nesse atendimento.',
       ],
     },
     ...(inApp
@@ -2353,7 +2353,7 @@ export function PaymentsStep({
         </Card.Content>
       </Card>
       <div className="ob2-pay-rule" aria-hidden="true" />
-      <DepositSettings payload={payload} setPayload={setPayload} />
+      <DepositSettings payload={payload} setPayload={setPayload} fieldErrors={fieldErrors} />
       {payload.preferences.acceptInApp ? (
         <>
           <ConnectPanel

@@ -1,0 +1,436 @@
+.ob2 .ob2-field.has-icon .select__trigger {
+  gap: 10px;
+}
+.ob2-select-icon {
+  display: inline-grid;
+  flex: 0 0 auto;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--space-accent, #ff2d79) 34%, transparent);
+  color: #fff;
+}
+.ob2 .ob2-field.has-icon .select__value[data-placeholder] {
+  color: rgba(255, 255, 255, 0.66);
+}
+
+.ob2-deposit-percent {
+  display: grid;
+  gap: 14px;
+  padding: 16px;
+  border-radius: 20px;
+  border: 1px solid color-mix(in srgb, var(--space-highlight, #ff8dba) 55%, transparent);
+  background:
+    linear-gradient(
+      150deg,
+      color-mix(in srgb, var(--space-accent, #ff2d79) 22%, transparent),
+      rgba(255, 255, 255, 0.05)
+    ),
+    rgba(255, 255, 255, 0.04);
+}
+
+.ob2-deposit-example {
+  display: grid;
+  gap: 12px;
+  padding: 14px 16px;
+  border-radius: 16px;
+  background: rgba(26, 16, 32, 0.22);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+}
+.ob2-deposit-example-title {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 4px 12px;
+  margin: 0;
+  font-size: 14px;
+  font-weight: 650;
+}
+.ob2-deposit-example-title span {
+  font-size: 13px;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.72);
+  overflow-wrap: anywhere;
+}
+.ob2-deposit-example-bar {
+  height: 10px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.2);
+  overflow: hidden;
+}
+.ob2-deposit-example-bar b {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #ffe566, #ffb84d);
+  transition: width 240ms ease;
+}
+.ob2-deposit-example-split {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+.ob2-deposit-example-split > div {
+  display: grid;
+  gap: 2px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.1);
+}
+.ob2-deposit-example-split > div.is-deposit {
+  background: rgba(255, 229, 102, 0.16);
+  box-shadow: inset 0 0 0 1px rgba(255, 229, 102, 0.42);
+}
+.ob2-deposit-example-split small {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.78);
+}
+.ob2-deposit-example-split strong {
+  font-size: 20px;
+  font-weight: 750;
+  line-height: 1.2;
+}
+.ob2-deposit-example-foot {
+  margin: 0;
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.ob2-booking-types {
+  display: grid;
+  gap: 14px;
+}
+.ob2-booking-type {
+  display: grid;
+  gap: 14px;
+  min-width: 0;
+  padding: 16px;
+  border-radius: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.24);
+  background: rgba(255, 255, 255, 0.07);
+}
+.ob2-booking-type.is-special {
+  border-color: rgba(255, 213, 128, 0.55);
+  background: linear-gradient(150deg, rgba(255, 213, 128, 0.16), rgba(255, 255, 255, 0.05));
+}
+.ob2-booking-type-head {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+.ob2-booking-type-icon {
+  display: grid;
+  flex: 0 0 auto;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.16);
+  color: #fff;
+}
+.ob2-booking-type.is-special .ob2-booking-type-icon {
+  background: rgba(255, 213, 128, 0.24);
+  color: #ffe1a6;
+}
+.ob2-booking-type.is-free .ob2-booking-type-icon {
+  background: rgba(140, 255, 190, 0.18);
+  color: #c8ffe0;
+}
+.ob2-booking-type-copy {
+  display: grid;
+  flex: 1;
+  gap: 4px;
+  min-width: 0;
+}
+.ob2-booking-type-copy h3 {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 10px;
+  margin: 0;
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 1.35;
+}
+.ob2-booking-type-copy p {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.5;
+  color: rgba(255, 255, 255, 0.84);
+  overflow-wrap: anywhere;
+}
+.ob2-booking-type-badge {
+  padding: 2px 10px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.18);
+  font-size: 12px;
+  font-weight: 650;
+  white-space: nowrap;
+}
+.ob2-booking-type-action {
+  flex: 0 0 auto;
+}
+
+.ob2 .ob2-deposit-switch {
+  --accent: #1a1020;
+  --accent-foreground: #ffe566;
+}
+.ob2-deposit-switch .switch__content {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.ob2-deposit-switch .label {
+  font-size: 13px;
+  white-space: nowrap;
+}
+.ob2-deposit-switch .switch__control {
+  background: #fff;
+  box-shadow:
+    inset 0 0 0 2px #1a1020,
+    0 0 0 3px rgba(255, 255, 255, 0.5);
+}
+.ob2-deposit-switch[data-selected='true'] .switch__control {
+  background: #1a1020;
+  box-shadow:
+    inset 0 0 0 2px #ffe566,
+    0 0 0 3px rgba(255, 255, 255, 0.7);
+}
+
+.ob2-deposit-machines {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.ob2-deposit-machine {
+  display: grid;
+  min-width: 0;
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: rgba(255, 255, 255, 0.07);
+}
+.ob2-deposit-machine.is-on {
+  border-color: rgba(255, 213, 128, 0.7);
+  background: rgba(255, 213, 128, 0.12);
+}
+.ob2-deposit-machine-main {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+}
+.ob2-deposit-machine-art {
+  display: grid;
+  flex: 0 0 auto;
+  place-items: center;
+  width: 56px;
+  height: 56px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.9);
+  overflow: hidden;
+}
+.ob2-deposit-machine-art img {
+  width: 52px;
+  height: 52px;
+  object-fit: contain;
+}
+.ob2-deposit-machine-copy {
+  display: grid;
+  flex: 1;
+  gap: 2px;
+  min-width: 0;
+}
+.ob2-deposit-machine-copy strong {
+  font-size: 15px;
+  line-height: 1.3;
+  overflow-wrap: anywhere;
+}
+.ob2-deposit-machine-copy small {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.76);
+}
+.ob2-deposit-machine.is-on .ob2-deposit-machine-copy small {
+  color: #ffe1a6;
+}
+.ob2-deposit-machine-services {
+  border-top: 1px solid rgba(255, 255, 255, 0.14);
+}
+.ob2-deposit-machine-services summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-height: 40px;
+  padding: 8px 14px;
+  cursor: pointer;
+  list-style: none;
+  font-size: 13px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.86);
+}
+.ob2-deposit-machine-services summary::-webkit-details-marker {
+  display: none;
+}
+.ob2-deposit-machine-services summary svg {
+  transition: transform 180ms ease;
+}
+.ob2-deposit-machine-services[open] summary svg {
+  transform: rotate(180deg);
+}
+.ob2-deposit-machine-services ul {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding: 0 14px 12px;
+  list-style: none;
+  font-size: 13px;
+  line-height: 1.4;
+}
+.ob2-deposit-machine-services li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  overflow-wrap: anywhere;
+}
+.ob2-deposit-machine-services li svg {
+  flex: 0 0 auto;
+  color: #ffe1a6;
+}
+.ob2-deposit-machine-services li i {
+  flex: 0 0 auto;
+  width: 14px;
+  height: 14px;
+  border-radius: 999px;
+  border: 1.5px solid rgba(255, 255, 255, 0.5);
+}
+
+.ob2 .ob2-deposit-service.checkbox {
+  display: flex;
+  width: 100%;
+  padding: 0;
+}
+.ob2 .ob2-deposit-service .checkbox__content {
+  min-height: 48px;
+  padding: 10px 12px;
+  border-radius: inherit;
+  cursor: pointer;
+}
+.ob2-deposit-service .checkbox__content .label {
+  flex: 1;
+}
+.ob2-deposit-service-price {
+  flex: 0 0 auto;
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.74);
+}
+
+.ob2-booking-facts {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 14px;
+  line-height: 1.45;
+}
+.ob2-booking-facts li {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+.ob2-booking-facts svg {
+  flex: 0 0 auto;
+  margin-top: 2px;
+  color: #c8ffe0;
+}
+
+.ob2[data-surface='solid'] .ob2-select-icon {
+  background: color-mix(in srgb, var(--space-accent, #e72875) 14%, #fff);
+  color: var(--space-accent, #e72875);
+}
+.ob2[data-surface='solid'] .ob2-field.has-icon .select__value[data-placeholder] {
+  color: color-mix(in srgb, var(--space-deep, #34101f) 55%, #fff);
+}
+.ob2[data-surface='solid'] .ob2-deposit-percent {
+  border-color: color-mix(in srgb, var(--space-accent, #e72875) 30%, #fff);
+  background: color-mix(in srgb, var(--space-accent, #e72875) 6%, #fff);
+}
+.ob2[data-surface='solid'] .ob2-deposit-example,
+.ob2[data-surface='solid'] .ob2-booking-type,
+.ob2[data-surface='solid'] .ob2-deposit-machine {
+  background: #fff;
+  border-color: color-mix(in srgb, var(--space-accent, #e72875) 20%, #fff);
+}
+.ob2[data-surface='solid'] .ob2-booking-type.is-special,
+.ob2[data-surface='solid'] .ob2-deposit-machine.is-on {
+  border-color: #f2c76b;
+  background: #fffaf0;
+}
+.ob2[data-surface='solid'] .ob2-deposit-example-bar,
+.ob2[data-surface='solid'] .ob2-deposit-example-split > div,
+.ob2[data-surface='solid'] .ob2-booking-type-icon,
+.ob2[data-surface='solid'] .ob2-booking-type-badge {
+  background: color-mix(in srgb, var(--space-accent, #e72875) 9%, #fff);
+}
+.ob2[data-surface='solid'] .ob2-deposit-example-split > div.is-deposit {
+  background: #fff4cc;
+  box-shadow: inset 0 0 0 1px #f2c76b;
+}
+.ob2[data-surface='solid'] .ob2-booking-type-icon {
+  color: var(--space-accent, #e72875);
+}
+.ob2[data-surface='solid'] .ob2-booking-type.is-special .ob2-booking-type-icon,
+.ob2[data-surface='solid'] .ob2-deposit-machine.is-on .ob2-deposit-machine-copy small,
+.ob2[data-surface='solid'] .ob2-deposit-machine-services li svg {
+  color: #a86b00;
+}
+.ob2[data-surface='solid'] .ob2-booking-type.is-free .ob2-booking-type-icon {
+  background: #e6f8ee;
+  color: #1d7a4a;
+}
+.ob2[data-surface='solid'] .ob2-booking-facts svg {
+  color: #1d7a4a;
+}
+.ob2[data-surface='solid'] .ob2-deposit-example-title span,
+.ob2[data-surface='solid'] .ob2-deposit-example-split small,
+.ob2[data-surface='solid'] .ob2-deposit-example-foot,
+.ob2[data-surface='solid'] .ob2-booking-type-copy p,
+.ob2[data-surface='solid'] .ob2-deposit-machine-copy small,
+.ob2[data-surface='solid'] .ob2-deposit-machine-services summary,
+.ob2[data-surface='solid'] .ob2-deposit-service-price {
+  color: color-mix(in srgb, var(--space-deep, #34101f) 72%, #fff);
+}
+.ob2[data-surface='solid'] .ob2-deposit-machine-services {
+  border-top-color: color-mix(in srgb, var(--space-accent, #e72875) 14%, #fff);
+}
+.ob2[data-surface='solid'] .ob2-deposit-machine-services li i {
+  border-color: color-mix(in srgb, var(--space-deep, #34101f) 35%, #fff);
+}
+
+@media (max-width: 719px) {
+  .ob2-deposit-percent,
+  .ob2-booking-type {
+    padding: 12px;
+  }
+  .ob2-booking-type-head {
+    flex-wrap: wrap;
+  }
+  .ob2-booking-type-action {
+    width: 100%;
+    padding-left: 52px;
+  }
+  .ob2-deposit-machine-main {
+    flex-wrap: wrap;
+  }
+  .ob2-deposit-machine-main .ob2-deposit-switch {
+    width: 100%;
+    padding-left: 68px;
+  }
+  .ob2-deposit-example-split strong {
+    font-size: 18px;
+  }
+}

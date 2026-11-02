@@ -130,6 +130,8 @@ export function GlassSelect({
   required,
   error,
   field,
+  icon,
+  placeholder,
 }: {
   label: ReactNode
   value: string
@@ -140,13 +142,19 @@ export function GlassSelect({
   required?: boolean
   error?: string
   field?: string
+  icon?: ReactNode
+  /** Shown while `value` is empty, so a required choice starts unselected. */
+  placeholder?: string
 }) {
   return (
     <div className="ob2-field-block" data-field={field}>
       <Select
-        className={['ob2-field', error ? 'is-invalid' : ''].filter(Boolean).join(' ')}
+        className={['ob2-field', error ? 'is-invalid' : '', icon ? 'has-icon' : '']
+          .filter(Boolean)
+          .join(' ')}
         fullWidth
-        selectedKey={value}
+        selectedKey={value || null}
+        placeholder={placeholder}
         isDisabled={isDisabled}
         isInvalid={Boolean(error)}
         onSelectionChange={(key) => {
@@ -158,6 +166,11 @@ export function GlassSelect({
           {required ? <RequiredMark /> : null}
         </Label>
         <Select.Trigger>
+          {icon ? (
+            <span className="ob2-select-icon" aria-hidden>
+              {icon}
+            </span>
+          ) : null}
           <Select.Value />
           <Select.Indicator />
         </Select.Trigger>
