@@ -4,14 +4,6 @@ import Image from 'next/image'
 import { useRef, useState, type ReactNode } from 'react'
 import type { Payload, Service } from './model'
 import { formatMoney } from './model'
-
-function formatListPrice(cents: number) {
-  const amount = (cents / 100).toLocaleString('pt-BR', {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  })
-  return `R$ ${amount}`
-}
 import { ChoiceCard, GlassField, GlassSelect, type FieldErrors } from './ui'
 import {
   isSpecialService,
@@ -280,7 +272,7 @@ function RegularServices({
                     </Label>
                     {service.priceType === 'fixed' && service.priceCents > 0 ? (
                       <small className="ob2-deposit-service-price">
-                        {formatListPrice(service.priceCents)}
+                        {formatMoney(service.priceCents)}
                       </small>
                     ) : null}
                   </Checkbox.Content>

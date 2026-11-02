@@ -95,10 +95,13 @@
   --accent: #e72875;
   --accent-foreground: #fff;
   --accent-hover: #ff4a91;
+  display: flex;
+  flex-direction: column;
   width: 100%;
   max-width: none;
   height: auto;
-  max-height: 90dvh;
+  max-height: min(90dvh, calc(100dvh - 16px));
+  overflow: hidden;
   animation: ob2-equipment-enter 220ms ease-out;
 }
 
@@ -109,9 +112,21 @@
   text-wrap: pretty;
 }
 
+.ob2-special-modal .modal__header,
+.ob2-special-confirm .modal__header,
+.ob2-special-modal .modal__footer,
+.ob2-special-confirm .modal__footer {
+  flex: 0 0 auto;
+}
+
 .ob2-special-modal .modal__body,
 .ob2-special-confirm .modal__body {
+  flex: 1 1 auto;
+  min-height: 0;
   align-content: start;
+  overflow: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
 }
 
 .ob2-equipment-grid {
@@ -411,7 +426,36 @@
   }
   .ob2-special-modal .modal__footer,
   .ob2-special-confirm .modal__footer {
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
+    gap: 8px;
+  }
+
+  .ob2-special-modal .modal__footer .button,
+  .ob2-special-confirm .modal__footer .button {
+    flex: 1 1 0;
+    width: auto;
+    min-width: 0;
+    height: auto;
+    min-height: 48px;
+    padding-inline: 10px;
+    white-space: normal;
+    overflow-wrap: normal;
+    line-height: 1.25;
+  }
+
+  .ob2-special-modal .ob2-equipment-services {
+    max-height: none;
+    overflow: visible;
+  }
+
+  .ob2-equipment-custom-intro {
+    gap: 12px;
+  }
+
+  .ob2-equipment-custom-intro img {
+    flex-basis: 64px;
+    width: 64px;
+    height: auto;
   }
 }
 

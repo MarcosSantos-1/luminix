@@ -367,11 +367,41 @@ export function servicesInCategory(name: string) {
   return catalog.filter((item) => item.categoria === name)
 }
 
-export function formatMoney(cents: number) {
-  return `R$ ${(cents / 100).toFixed(2).replace('.', ',')}`
+export function formatMoneyAmount(cents: number) {
+  return (cents / 100).toLocaleString('pt-BR', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })
 }
 
-export const durationChoices = [30, 45, 60, 90, 120, 150, 180, 240]
+export function formatMoney(cents: number) {
+  return `R$ ${formatMoneyAmount(cents)}`
+}
+
+export function parseMoneyInput(value: string) {
+  const trimmed = value.trim()
+  if (!trimmed) return 0
+  const normalized = trimmed.includes(',')
+    ? trimmed.replace(/\./g, '').replace(',', '.')
+    : /^\d{1,3}(\.\d{3})+$/.test(trimmed)
+      ? trimmed.replace(/\./g, '')
+      : trimmed
+  const amount = Number(normalized)
+  if (!Number.isFinite(amount)) return 0
+  return Math.max(0, Math.round(amount * 100))
+}
+
+export const durationChoices = [30, 45, 60, 90, 120, 150, 180, 240, 300]
+
+export function formatDuration(minutes: number) {
+  if (!Number.isFinite(minutes) || minutes <= 0) return ''
+  if (minutes < 60) return `${minutes} min`
+  const hours = Math.floor(minutes / 60)
+  const rest = minutes % 60
+  const hoursLabel = hours === 1 ? '1 hora' : `${hours} horas`
+  if (rest === 0) return hoursLabel
+  return `${hoursLabel} e ${rest} min`
+}
 
 export function persistedStepKey(key: string) {
   if (key === 'preferences') return 'payments'

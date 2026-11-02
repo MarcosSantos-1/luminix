@@ -35,6 +35,7 @@ import {
   Mars,
   MoreHorizontal,
   Plus,
+  Pencil,
   Phone,
   Scissors,
   Search,
@@ -65,7 +66,10 @@ import {
   dayNames,
   durationChoices,
   effectiveServiceAudience,
+  formatDuration,
   formatMoney,
+  formatMoneyAmount,
+  parseMoneyInput,
   intimateAudiencesFor,
   isAudience,
   professionalAvatarSrc,
@@ -94,7 +98,6 @@ import {
 
 const priceOptions = [
   { id: 'fixed', label: 'Preço fixo' },
-  { id: 'from', label: 'A partir de' },
   { id: 'quote', label: 'Sob consulta' },
 ]
 
@@ -121,7 +124,7 @@ function IntimateAudienceCards({
   audienceFor: (service: Service) => Audience | undefined
   onChange: (service: Service, audience: Audience) => void
   question: string
-  labels?: 'full' | 'short'
+  labels?: 'full' | 'short' | 'named'
   required?: boolean
   errorFor?: (service: Service) => string | undefined
 }) {
@@ -182,16 +185,18 @@ function AudienceChoices({
   value?: Audience
   onChange: (value: Audience) => void
   layout?: 'stack' | 'inline' | 'compact'
-  labels?: 'full' | 'short'
+  labels?: 'full' | 'short' | 'named'
   marked?: boolean
 }) {
+  const compact = labels === 'short' || labels === 'named'
   const layoutClass = [
     layout === 'compact'
       ? 'ob2-audience is-inline is-compact'
       : layout === 'inline'
         ? 'ob2-audience is-inline'
         : 'ob2-audience',
-    labels === 'short' ? 'is-short' : '',
+    compact ? 'is-short' : '',
+    labels === 'named' ? 'is-named' : '',
     marked ? 'is-marked' : '',
   ]
     .filter(Boolean)
@@ -201,7 +206,7 @@ function AudienceChoices({
       {audienceChoices.map((option) => {
         const Icon = option.icon
         const shortLabel = option.id === 'women' ? 'F' : option.id === 'men' ? 'M' : 'Todos'
-        const showIcon = labels === 'full' || option.id !== 'all'
+        const showIcon = labels !== 'short' || option.id !== 'all'
         return (
           <Checkbox
             key={option.id}
@@ -289,8 +294,7 @@ function selectedByCategory(services: Payload['services']) {
 
 function priceLabel(service: Service) {
   if (service.priceType === 'quote') return 'Sob consulta'
-  const prefix = service.priceType === 'from' ? 'A partir de ' : ''
-  return `${prefix}${formatMoney(service.priceCents)}`
+  return formatMoney(service.priceCents)
 }
 
 export function ClinicStep({
@@ -1014,7 +1018,7 @@ export function CatalogStep({
                         icon={selected ? <Check size={18} /> : <Plus size={18} />}
                         title={item.nome}
                         badge={catalogItemIsSensitive(item) ? 'Íntimo' : undefined}
-                        detail={`${item.duracao_minutos} min · sugestão ${formatMoney(Math.round(item.preco_sugerido_brl * 100))}`}
+                        detail={`${formatDuration(item.duracao_minutos)} · sugestão ${formatMoney(Math.round(item.preco_sugerido_brl * 100))}`}
                         onPress={() => toggle(item)}
                       />
                     </Fragment>
@@ -1188,6 +1192,7 @@ export function ServicesStep({
           ? {
               ...item,
               durationMinutes: item.durationMinutes < 30 ? 30 : item.durationMinutes,
+              priceType: item.priceType === 'from' ? 'fixed' : item.priceType,
             }
           : item,
       ),
@@ -1259,7 +1264,10 @@ export function ServicesStep({
                           {item.bookingMode === 'manual_release' && item.resourceName ? (
                             <span className="ob2-special-resource">{item.resourceName}</span>
                           ) : null}
-                          <p>{item.durationMinutes} min</p>
+                          <p className="ob2-detail-duration">
+                            <Clock3 size={16} aria-hidden />
+                            {formatDuration(item.durationMinutes)}
+                          </p>
                           <b>{priceLabel(item)}</b>
                           <Button
                             className="ob2-quiet"
@@ -1310,7 +1318,8 @@ export function ServicesStep({
             <GlassSelect
               label="Como cobrar"
               menu="ice"
-              value={service.priceType}
+              icon={<Banknote size={18} />}
+              value={service.priceType === 'from' ? 'fixed' : service.priceType}
               options={priceOptions}
               onChange={(value) => update({ priceType: value as Service['priceType'] })}
             />
@@ -1319,32 +1328,26 @@ export function ServicesStep({
               icon={<Banknote size={18} />}
               inputMode="decimal"
               isDisabled={service.priceType === 'quote'}
-              value={
-                service.priceType === 'quote'
-                  ? ''
-                  : (service.priceCents / 100).toFixed(2).replace('.', ',')
-              }
+              value={service.priceType === 'quote' ? '' : formatMoneyAmount(service.priceCents)}
               placeholder="0,00"
-              onChange={(value) =>
-                update({
-                  priceCents: Math.max(0, Math.round(Number(value.replace(',', '.')) * 100) || 0),
-                })
-              }
+              onChange={(value) => update({ priceCents: parseMoneyInput(value) })}
             />
             <GlassSelect
-              label={
-                <>
-                  <Clock3 size={16} /> Duração
-                </>
-              }
+              label="Quanto tempo dura"
               menu="ice"
+              icon={<Clock3 size={18} />}
               value={String(service.durationMinutes)}
               options={durations.map((minutes) => ({
                 id: String(minutes),
-                label: `${minutes} min`,
+                label: formatDuration(minutes),
               }))}
               onChange={(value) => update({ durationMinutes: Number(value) })}
             />
+            <p className="ob2-duration-note">
+              Cada horário da agenda vai até 5 horas. Se o trabalho passa disso, como uma tatuagem
+              ou um procedimento longo, a divisão em sessões fica para depois do cadastro, no
+              painel: um atendimento para cada sessão, reunidos em um pacote.
+            </p>
             <Separator />
             <p className="ob2-copy">Público atendido</p>
             <AudienceChoices
@@ -1610,6 +1613,7 @@ export function TeamStep({
           <IntimateAudienceCards
             services={intimateServices}
             required
+            labels="named"
             errorFor={(service) => fieldErrors[`audience-${service.id}`]}
             audienceFor={(service) => (service.audienceChosen ? service.audience : undefined)}
             question="Qual é o público padrão deste serviço?"
@@ -2150,7 +2154,10 @@ export function ScheduleStep({
                 height={1254}
               />
               <span>{summary}</span>
-              <small>Editar</small>
+              <small className="ob2-address-edit">
+                <Pencil className="ob2-address-edit-icon" size={18} aria-hidden />
+                <span>Editar</span>
+              </small>
             </Button>
           )}
           <AddressMap
