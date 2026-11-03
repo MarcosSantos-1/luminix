@@ -2,17 +2,17 @@
 
 ## Mapa adotado
 
-| Endereço                            | Projeto Vercel   | Pasta                | Estado                                             |
-| ----------------------------------- | ---------------- | -------------------- | -------------------------------------------------- |
-| `luminix.beauty/`                   | `luminix-web`    | `apps/web`           | Landing pública (rascunho do template)             |
-| `luminix.beauty/acesso`             | `luminix-web`    | `apps/web`           | Login de cliente stub (CPF + senha → demonstração) |
-| `luminix.beauty/c/<slug>`           | `luminix-web`    | `apps/web`           | Apenas `/c/demonstracao` funciona                  |
-| `luminix.beauty/c/<slug>/meu-plano` | `luminix-web`    | `apps/web`           | Aviso sem login/dados privados                     |
-| `www.luminix.beauty`                | `luminix-web`    | `apps/web`           | Redirect 308 para o domínio principal cadastrado   |
-| `app.luminix.beauty/`               | `luminix-admin`  | `apps/admin`         | Sem sessão → `/login`; com sessão → clínica        |
-| `app.luminix.beauty/cadastro`       | `luminix-admin`  | `apps/admin`         | Cadastro da gestora (Firebase)                     |
-| `app.luminix.beauty/login`          | `luminix-admin`  | `apps/admin`         | Login da gestora (Firebase)                        |
-| URL `luminix-client.vercel.app`     | `luminix-client` | `apps/mobile-client` | Revisão do shell mobile, não portal web            |
+| Endereço                            | Projeto Vercel   | Pasta                | Estado                                               |
+| ----------------------------------- | ---------------- | -------------------- | ---------------------------------------------------- |
+| `luminix.beauty/`                   | `luminix-web`    | `apps/web`           | Landing responsiva, caminhos de gestão e cliente     |
+| `luminix.beauty/acesso`             | `luminix-web`    | `apps/web`           | Orientações para clientes; sem coleta de credenciais |
+| `luminix.beauty/c/<slug>`           | `luminix-web`    | `apps/web`           | Página real por publicação opt-in; demo separada     |
+| `luminix.beauty/c/<slug>/meu-plano` | `luminix-web`    | `apps/web`           | Aviso sem login/dados privados                       |
+| `www.luminix.beauty`                | `luminix-web`    | `apps/web`           | Redirect 308 para o domínio principal cadastrado     |
+| `app.luminix.beauty/`               | `luminix-admin`  | `apps/admin`         | Sem sessão → `/login`; com sessão → clínica          |
+| `app.luminix.beauty/cadastro`       | `luminix-admin`  | `apps/admin`         | Cadastro da gestora (Firebase)                       |
+| `app.luminix.beauty/login`          | `luminix-admin`  | `apps/admin`         | Login da gestora (Firebase)                          |
+| URL `luminix-client.vercel.app`     | `luminix-client` | `apps/mobile-client` | Revisão do shell mobile, não portal web              |
 
 Referência: [ADR-008](decisions/ADR-008-DOMINIOS-E-PORTAL-WEB.md).
 
@@ -35,25 +35,26 @@ Web local usa porta 3001 e admin usa 3000. Todos os projetos Vercel conectados u
 Production e demais branches/PRs para Preview. O CI GitHub valida o workspace, mas não bloqueia por
 si só o deploy Git da Vercel. Validar Preview e CI antes de integrar mudanças em `master`.
 
-A Vercel tentou atribuir o primeiro deploy Git do web a Production; ele foi cancelado antes do build.
-O script manual de Preview usa `--target preview` explicitamente. Nesta preparação, o web ainda não
-tem Production publicado; integrar a branch em `master` somente depois da revisão.
+Na fase inicial autorizada, entrega validada segue commit/push direto em `master`, conforme
+AGENTS.md. O script manual de Preview usa `--target preview` explicitamente.
 
-`NEXT_PUBLIC_ADMIN_URL` usa a URL Vercel do admin em Preview enquanto o DNS não foi ativado.
-Production pode usar `https://app.luminix.beauty`. A API ainda não é consumida por este shell.
+`NEXT_PUBLIC_ADMIN_URL` define o destino da gestão. `API_URL` é server-only e aponta para
+`https://luminix-api.fly.dev` por padrão; em desenvolvimento pode apontar à API local.
+Aplicar migration 0020 e publicar API antes do web/admin que consomem publicação.
 
 ## Roadmap
 
 1. **Base e topologia — implementadas nesta etapa.** Shell web, rotas, testes da fixture, projetos e
    associações de domínio. Nenhum cadastro real é inventado a partir do slug.
-2. **Clínicas publicáveis na API — pendente.** Reusar PostgreSQL, runner SQL e schema clínico já existentes (ADR-009/014);
-   revisar slug/estado persistidos e criar somente migrations incrementais necessárias. Definir
-   política de mudança de slug. Endpoint público devolve apenas campos publicáveis de clínica ativa.
-   Testar desconhecida, não publicada, slug inválido e isolamento/cache entre clínicas.
-3. **Página real da clínica — pendente.** Substituir fixture por contrato público da API. Implementar
-   identidade visual, contato, serviços e metadata/SEO. Não liberar indexação da demonstração.
-4. **Portal privado — pendente.** `/acesso` é só um rascunho visual (CPF + senha sem autenticação,
-   redireciona à demonstração). Implementar identidade CPF/senha e recuperação segura conforme
+2. **Clínicas publicáveis na API — implementado.** Migration 0020, publicação opt-in e projeção
+   pública restrita de clínica ativa. GET/PUT autenticados em `/clinics/:ref/publication` exigem
+   `settings:manage`; GET público `/public/clinics/:slug` retorna 404 para não publicada/inativa.
+3. **Página real da clínica — implementada.** Tema e dados salvos, serviços ativos por categoria,
+   frases introdutórias, localização, horários e redes opcionais. Configurações da gestão permite
+   publicar e retirar do ar. Não há agendamento online nem editor das frases nesta etapa.
+   Páginas em `noindex` durante preparação. Contrato e segurança: [ADR-021](decisions/ADR-021-PAGINAS-PUBLICAS-DAS-CLINICAS.md).
+4. **Portal privado — pendente.** `/acesso` orienta clientes e sinaliza que o portal está em preparação;
+   não solicita CPF/senha nem simula autenticação. Implementar identidade CPF/senha e recuperação segura conforme
    ADR-002 e documentação de autenticação. A API valida identidade + vínculo + clínica em cada
    operação; testar alteração de URL, IDs de outra clínica e vínculo removido. Só depois conectar
    `/meu-plano` a dados reais. `noindex` não é proteção de acesso.
@@ -100,3 +101,34 @@ qualquer edição. Propagação/cache impede rollback instantâneo. Rollback de 
 Vercel anterior validado, não restauração manual de banco.
 
 Documentação oficial: [domínio com DNS externo](https://vercel.com/docs/domains/set-up-custom-domain).
+
+## Site público e documentos legais — 2026-11-02
+
+Landing reorganizada em apresentação, benefícios, configuração guiada, área da cliente, FAQ
+expansível e footer. Header e footer em `components/marketing`; estilos em `app/marketing.css`.
+Navegação mobile e FAQ usam `details/summary` nativos: conteúdo semântico acessível sem instalar
+HeroUI (não presente no web) apenas para duas divulgações. O admin mantém HeroUI nos controles.
+A prévia de agenda é ilustrativa; removidas alegações de adoção e métricas não comprovadas.
+
+`/acesso` deixa de pedir CPF/senha em formulário sem backend. Oferece orientação para falar com o
+estabelecimento, demonstração explicitamente identificada e caminho separado à gestão. Não cria
+busca pública de clínicas ou acesso a agendamentos que ainda não existem.
+
+`/termos` e `/privacidade` são documentos públicos preliminares v0.1, datados de 2026-11-02.
+A pedido do usuário, nome do responsável é fictício e identificado como tal; razão social,
+CPF/CNPJ, endereço e canal de contato permanecem a preencher. Não foi inventado CNPJ ou e-mail
+operacional. Completar identidade, canal, retenção, transferências e revisão jurídica antes de
+clientes reais. Links do cadastro abrem o domínio público em nova aba para preservar preenchimento.
+A apresentação dessas páginas não implementa registro versionado do aceite (TD-005).
+
+Referências utilizadas: [LGPD, texto atualizado](https://www2.camara.leg.br/legin/fed/lei/2018/lei-13709-14-agosto-2018-787077-normaatualizada-pl.html)
+e [ANPD — Direitos dos titulares](https://www.gov.br/anpd/pt-br/assuntos/titular-de-dados-1/direito-dos-titulares).
+
+## Validação operacional — 2026-11-03
+
+Migration `0020_public_clinic_pages.sql` aplicada no destino Neon confirmado
+`ep-bitter-fog-acchavo1.sa-east-1.aws.neon.tech/neondb`. Nenhum perfil publicado automaticamente.
+API publicada no Fly; `/health` retorna 200 e slug desconhecido retorna 404 pela nova projeção.
+`pnpm check` passou: 108 testes API, 23 admin e 4 web, além de lint, TypeScript e builds.
+Revisão visual local em desktop e mobile (320/390 px), navegação por categorias e termos.
+Editor de frases, agendamentos e fluxo privado seguem explicitamente pendentes.

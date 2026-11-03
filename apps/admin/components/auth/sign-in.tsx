@@ -7,18 +7,10 @@ import { AuthCheckbox } from './auth-checkbox'
 import './auth.css'
 import { Eye, EyeOff } from 'lucide-react'
 
-export interface Testimonial {
-  avatarSrc: string
-  name: string
-  handle: string
-  text: string
-}
-
 interface SignInPageProps {
   title?: React.ReactNode
   description?: React.ReactNode
   heroImageSrc?: string | StaticImageData
-  testimonials?: Testimonial[]
   busy?: boolean
   error?: string
   message?: string
@@ -32,26 +24,10 @@ const LightInputWrapper = ({ children }: { children: React.ReactNode }) => (
   </div>
 )
 
-const TestimonialCard = ({ testimonial, delay }: { testimonial: Testimonial; delay: string }) => (
-  <div
-    className={`animate-testimonial ${delay} flex w-64 items-start gap-3 rounded-3xl border border-white/55 bg-white/90 p-5 text-[#371a29] shadow-[0_18px_45px_rgba(80,15,44,0.18)] backdrop-blur-xl`}
-  >
-    <div className="relative h-10 w-10 shrink-0 overflow-hidden rounded-2xl">
-      <Image src={testimonial.avatarSrc} fill sizes="40px" className="object-cover" alt="" />
-    </div>
-    <div className="text-sm leading-snug">
-      <p className="flex items-center gap-1 font-medium">{testimonial.name}</p>
-      <p className="text-[#806c77]">{testimonial.handle}</p>
-      <p className="mt-1 text-[#573746]">{testimonial.text}</p>
-    </div>
-  </div>
-)
-
 export const SignInPage: React.FC<SignInPageProps> = ({
   title = <span className="font-light tracking-tighter text-[#34101f]">Bem-vinda</span>,
   description = 'Acesse a gestão da sua clínica e continue de onde parou.',
   heroImageSrc,
-  testimonials = [],
   busy = false,
   error,
   message,
@@ -203,21 +179,6 @@ export const SignInPage: React.FC<SignInPageProps> = ({
                 Agenda, clientes e gestão no mesmo lugar.
               </p>
             </div>
-            {testimonials.length > 0 ? (
-              <div className="absolute bottom-5 left-1/2 hidden w-full justify-center gap-4 px-8 -translate-x-1/2 md:flex lg:bottom-7">
-                <TestimonialCard testimonial={testimonials[0]} delay="animate-delay-1000" />
-                {testimonials[1] ? (
-                  <div className="hidden xl:flex">
-                    <TestimonialCard testimonial={testimonials[1]} delay="animate-delay-1200" />
-                  </div>
-                ) : null}
-                {testimonials[2] ? (
-                  <div className="hidden 2xl:flex">
-                    <TestimonialCard testimonial={testimonials[2]} delay="animate-delay-1400" />
-                  </div>
-                ) : null}
-              </div>
-            ) : null}
           </div>
         </section>
       ) : null}

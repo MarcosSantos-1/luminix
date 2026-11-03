@@ -35,3 +35,14 @@ e ensaio autenticado hospedado (recuperação, persistência, retomada e conclus
 novidades ainda não aciona envio nem representa consentimento persistido. Não encerrar esta dívida
 com base só em aparência ou build. Próxima frente: fechar conteúdo/contratos de consentimento antes
 de cadastro de clientes reais. Histórico de loading não comprova defeito atual nem sua resolução.
+
+## Evolução do site público — 2026-11-02
+
+Resolvidos: links `#` de termos/privacidade substituídos por páginas públicas, depoimentos do login
+removidos, alegação de 2.000 clínicas e métricas fictícias da landing retiradas. `/acesso` agora
+orienta clientes sem pedir CPF/senha ou simular login. Prévia de agenda identificada como exemplo.
+
+Termos/política são preliminares: usuário solicitou dados fictícios enquanto não possui responsável
+jurídico/canal definidos. Identificação e contato reais, revisão jurídica, retenção/transferências,
+registro versionado do aceite e preferência de marketing persistida continuam abertos. O documento
+não deve ser tratado como conformidade concluída. Critérios hospedados anteriores continuam válidos.

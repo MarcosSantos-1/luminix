@@ -3,34 +3,10 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { useRouter } from 'next/navigation'
 import { AppStatus } from '@/components/app-status'
-import { SignInPage, type Testimonial } from '@/components/auth/sign-in'
+import { SignInPage } from '@/components/auth/sign-in'
 import { useStaff } from '@/components/staff-provider'
 import { useStaffAuth } from '@/hooks/use-staff-auth'
 import { loadingScene, staffHomePath } from '@/lib/staff-destination'
-
-const testimonials: Testimonial[] = [
-  {
-    avatarSrc:
-      'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=96&q=80',
-    name: 'Camila Santos',
-    handle: 'Clínica Aurora',
-    text: 'A agenda e o cadastro das clientes ficaram no mesmo lugar. A rotina da clínica ficou bem mais leve.',
-  },
-  {
-    avatarSrc:
-      'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=96&q=80',
-    name: 'Marcos Lima',
-    handle: 'Studio Lumière',
-    text: 'Consegui configurar o espaço em poucos minutos e já compartilhar o acesso com a equipe.',
-  },
-  {
-    avatarSrc:
-      'https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=96&q=80',
-    name: 'Juliana Alves',
-    handle: 'Espaço Bela',
-    text: 'O visual é limpo e o fluxo de cadastro faz sentido. É o tipo de ferramenta que a equipe realmente usa.',
-  },
-]
 
 export default function LoginPage() {
   const staff = useStaff()
@@ -92,7 +68,6 @@ export default function LoginPage() {
   return (
     <SignInPage
       heroImageSrc="/brand/login.png"
-      testimonials={testimonials}
       busy={auth.busy}
       error={auth.error || staff.error}
       message={auth.message}

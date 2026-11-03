@@ -399,6 +399,53 @@ export async function clinicRoutes(
     }
   }
   app.get<{ Params: { clinicId: string } }>(
+    '/clinics/:clinicId/publication',
+    { schema: { params } },
+    async (request, reply) =>
+      authorized(request, reply, 'settings:manage', async (connection, tenant) => {
+        const row = (
+          await connection.query(
+            `SELECT c.slug, c.status,
+        coalesce(p.public_enabled, false) AS enabled, coalesce(p.public_address, false) AS address,
+        coalesce(p.public_contacts, false) AS contacts FROM luminix.clinics c
+        LEFT JOIN luminix.clinic_profiles p ON p.clinic_id = c.id WHERE c.id = $1`,
+            [tenant.clinicId],
+          )
+        ).rows[0]
+        return { publication: row }
+      }),
+  )
+  app.put<{
+    Params: { clinicId: string }
+    Body: { enabled: boolean; address: boolean; contacts: boolean }
+  }>(
+    '/clinics/:clinicId/publication',
+    {
+      schema: {
+        params,
+        body: {
+          type: 'object',
+          additionalProperties: false,
+          required: ['enabled', 'address', 'contacts'],
+          properties: {
+            enabled: { type: 'boolean' },
+            address: { type: 'boolean' },
+            contacts: { type: 'boolean' },
+          },
+        },
+      },
+    },
+    async (request, reply) =>
+      authorized(request, reply, 'settings:manage', async (connection, tenant) => {
+        const { enabled, address, contacts } = request.body
+        await connection.query(
+          'SELECT luminix.set_clinic_publication($1::uuid, $2::boolean, $3::boolean, $4::boolean)',
+          [tenant.clinicId, enabled, address, contacts],
+        )
+        return { saved: true }
+      }),
+  )
+  app.get<{ Params: { clinicId: string } }>(
     '/clinics/:clinicId/context',
     { schema: { params } },
     async (request, reply) =>

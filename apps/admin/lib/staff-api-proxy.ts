@@ -2,6 +2,7 @@
 export async function staffApiGet(
   request: Request,
   path:
+    | `/clinics/${string}/publication`
     | `/clinics/${string}/payments/connect`
     | '/auth/clinics'
     | '/address/geocode'
@@ -74,6 +75,7 @@ export async function staffApiGet(
 export async function staffApiWrite(
   request: Request,
   path:
+    | `/clinics/${string}/publication`
     | `/clinics/${string}/onboarding`
     | `/clinics/${string}/payments/connect/session`
     | `/clinics/${string}/onboarding/complete`

@@ -1,5 +1,8 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
+import { notFound } from 'next/navigation'
+import { loadPublicClinic } from '../../../../lib/load-public-clinic'
+import { PortalShell } from '../../../../components/portal-shell'
 
 export const metadata: Metadata = {
   title: 'Área do cliente — Em preparação',
@@ -8,17 +11,21 @@ export const metadata: Metadata = {
 
 export default async function ClientPlanPage({ params }: { params: Promise<{ clinica: string }> }) {
   const { clinica } = await params
+  if (!(await loadPublicClinic(clinica))) notFound()
   return (
-    <section className="panel">
-      <p className="eyebrow">Área do cliente · Em preparação</p>
-      <h1>Seu plano, em breve.</h1>
-      <p className="lead">
-        Esta rota está reservada. O acesso a planos dependerá do login e da validação do vínculo do
-        cliente com a clínica pela API. Não há formulário de login ou dados privados nesta página.
-      </p>
-      <Link className="button" href={`/c/${encodeURIComponent(clinica)}`}>
-        Voltar à página da clínica
-      </Link>
-    </section>
+    <PortalShell>
+      <section className="panel">
+        <p className="eyebrow">Área do cliente · Em preparação</p>
+        <h1>Seu plano, em breve.</h1>
+        <p className="lead">
+          Esta rota está reservada. O acesso a planos dependerá do login e da validação do vínculo
+          do cliente com a clínica pela API. Não há formulário de login ou dados privados nesta
+          página.
+        </p>
+        <Link className="button" href={`/c/${encodeURIComponent(clinica)}`}>
+          Voltar à página da clínica
+        </Link>
+      </section>
+    </PortalShell>
   )
 }

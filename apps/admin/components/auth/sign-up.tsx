@@ -22,17 +22,21 @@ const termsText = (
   <>
     Ao criar uma conta, você concorda com os{' '}
     <a
-      href="#"
+      href="https://luminix.beauty/termos"
+      target="_blank"
+      rel="noopener noreferrer"
       className="font-medium text-[#c70e59] underline underline-offset-2 hover:text-[#34101f]"
     >
-      Termos de uso
+      Termos de uso<span className="sr-only"> (abre em nova aba)</span>
     </a>{' '}
     e a{' '}
     <a
-      href="#"
+      href="https://luminix.beauty/privacidade"
+      target="_blank"
+      rel="noopener noreferrer"
       className="font-medium text-[#c70e59] underline underline-offset-2 hover:text-[#34101f]"
     >
-      Política de privacidade
+      Política de privacidade<span className="sr-only"> (abre em nova aba)</span>
     </a>
   </>
 )

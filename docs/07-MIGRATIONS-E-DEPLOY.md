@@ -66,7 +66,7 @@ O CLI (`flyctl`) autentica a máquina local e não observa o Git. O deploy atual
 `pnpm fly:validate` e `pnpm fly:deploy`, ou workflow explicitamente acionado por
 `workflow_dispatch`. Push não publica a API. Não habilitar deploy automático sem decisão própria.
 
-Não reutilizar a app `charme-bela` nem o `fly.toml` do legado. Agentes não disparam deploy de produção. O token de deploy não entra no repositório.
+Não reutilizar a app `charme-bela` nem o `fly.toml` do legado. Fora da fase inicial autorizada em AGENTS.md, agentes não disparam deploy de produção sem autorização. O token de deploy não entra no repositório.
 
 ### CLI local
 
@@ -169,3 +169,7 @@ compilar a API. A página auxiliar `qa-machines-local` foi versionada com acesso
 `NODE_ENV=development`; em produção responde 404. Os builds e TypeScript do workspace passaram;
 99 testes da API, dez do admin e dois do web passaram. O check agregado continua bloqueado
 pelas pendências de formatação/lint da TD-007; não representa validação agregada verde.
+
+Em 2026-11-03, o contexto Docker foi restringido explicitamente com `apps/*` antes da inclusão
+de `apps/api` no `.dockerignore`; a exceção de pasta pai não deve incluir outros apps, caches ou
+seus arquivos locais no upload do builder. Preservar as exclusões de `.env` e `.secrets`.

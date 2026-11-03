@@ -1,69 +1,63 @@
-'use client'
-
+import type { Metadata } from 'next'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
-import { useState, type FormEvent } from 'react'
+import { ArrowRight, Heart, MessageCircle } from 'lucide-react'
+import { SiteHeader } from '../../components/marketing/site-header'
+import { SiteFooter } from '../../components/marketing/site-footer'
+import { adminUrl } from '../../lib/admin-url'
+import '../marketing.css'
 
-import { Brand } from '../../components/brand'
-
-function formatCpf(value: string): string {
-  const digits = value.replace(/\D/g, '').slice(0, 11)
-  return digits
-    .replace(/(\d{3})(\d)/, '$1.$2')
-    .replace(/(\d{3})(\d)/, '$1.$2')
-    .replace(/(\d{3})(\d{1,2})$/, '$1-$2')
-}
+export const metadata: Metadata = { title: 'Área da cliente' }
 
 export default function AcessoPage() {
-  const router = useRouter()
-  const [cpf, setCpf] = useState('')
-  const [password, setPassword] = useState('')
-
-  function submit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault()
-    router.push('/c/demonstracao')
-  }
-
   return (
-    <main className="acesso">
-      <div className="acesso-card">
-        <Link href="/" className="acesso-home" aria-label="Voltar ao Luminix">
-          <Brand />
-        </Link>
-        <h1>Entrar</h1>
-        <p>Acesso rápido para clientes das clínicas. Esta tela ainda é um rascunho.</p>
-        <form onSubmit={submit}>
-          <label>
-            CPF
-            <input
-              name="cpf"
-              inputMode="numeric"
-              autoComplete="username"
-              required
-              placeholder="000.000.000-00"
-              value={cpf}
-              onChange={(event) => setCpf(formatCpf(event.target.value))}
-            />
-          </label>
-          <label>
-            Senha
-            <input
-              name="password"
-              type="password"
-              autoComplete="current-password"
-              required
-              minLength={6}
-              placeholder="Sua senha"
-              value={password}
-              onChange={(event) => setPassword(event.target.value)}
-            />
-          </label>
-          <button type="submit">Entrar</button>
-        </form>
-        <Link href="/" className="acesso-back">
-          Voltar à página inicial
-        </Link>
-      </div>
-    </main>
+    <div className="marketing" id="topo">
+      <SiteHeader />
+      <main className="client-access-main" id="conteudo">
+        <span className="section-kicker">
+          <Heart size={16} aria-hidden /> CLIENTES DE CLÍNICAS, SALÕES E STUDIOS
+        </span>
+        <h1>
+          Você está no lugar certo.
+          <br />
+          <em>Vamos te orientar.</em>
+        </h1>
+        <p>
+          Esta área é para quem recebe os cuidados. O portal de clientes está em preparação; por
+          enquanto, não é preciso informar CPF ou senha por aqui.
+        </p>
+        <div className="client-access-grid">
+          <section className="client-access-card">
+            <MessageCircle size={28} aria-hidden />
+            <h2>Já frequenta um espaço?</h2>
+            <p>
+              Fale com a clínica, salão ou studio pelo canal que você já utiliza. A equipe pode
+              confirmar seu horário, informar sobre pagamentos e orientar o atendimento.
+            </p>
+            <p>
+              Quando o acesso pelo Luminix estiver disponível, o estabelecimento poderá orientar
+              você sobre como entrar.
+            </p>
+          </section>
+          <section className="client-access-card">
+            <Heart size={28} aria-hidden />
+            <h2>Quer conhecer a experiência?</h2>
+            <p>
+              Explore uma página ilustrativa de clínica, com serviços e informações de exemplo. Ela
+              não faz agendamentos, cobranças ou acesso a dados pessoais.
+            </p>
+            <Link className="marketing-button primary" href="/c/demonstracao">
+              Ver demonstração <ArrowRight size={18} aria-hidden />
+            </Link>
+          </section>
+        </div>
+        <p>
+          Você gerencia um estabelecimento?{' '}
+          <a className="text-link" href={adminUrl('/login')}>
+            Entre na gestão do seu espaço <ArrowRight size={16} aria-hidden />
+          </a>
+        </p>
+      </main>
+      <SiteFooter />
+    </div>
   )
 }

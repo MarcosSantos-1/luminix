@@ -4,6 +4,7 @@
 !pnpm-workspace.yaml
 !tsconfig.base.json
 !apps/
+apps/*
 !apps/api/
 !apps/api/**
 

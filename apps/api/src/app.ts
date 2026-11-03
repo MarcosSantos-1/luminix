@@ -1,5 +1,6 @@
 import Fastify, { type FastifyServerOptions } from 'fastify'
 
+import { publicClinicRoutes } from './modules/public-clinics/routes.js'
 import { healthRoutes } from './modules/health/routes.js'
 import { authRoutes, type AuthDependencies } from './modules/auth/routes.js'
 import { registerTenantContext } from './shared/tenant/tenant-context.js'
@@ -15,7 +16,10 @@ export async function buildApp(options: FastifyServerOptions = {}, auth?: AuthDe
 
   await registerTenantContext(app)
   await app.register(healthRoutes)
-  if (auth) await authRoutes(app, auth)
+  if (auth) {
+    await authRoutes(app, auth)
+    await publicClinicRoutes(app, auth.database)
+  }
 
   return app
 }

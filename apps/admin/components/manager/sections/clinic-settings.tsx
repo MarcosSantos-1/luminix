@@ -1,5 +1,7 @@
 'use client'
 
+import { ClinicPublication } from './clinic-publication'
+
 import Link from 'next/link'
 import Image from 'next/image'
 import { useEffect, useState } from 'react'
@@ -38,13 +40,6 @@ const mockOptions = [
     rows: [
       { label: 'No aplicativo', value: 'Não configurado' },
       { label: 'Máquina', value: 'Própria' },
-    ],
-  },
-  {
-    title: 'Página pública',
-    rows: [
-      { label: 'Publicação', value: 'Rascunho' },
-      { label: 'Endereço', value: 'Ainda não publicado' },
     ],
   },
   {
@@ -190,6 +185,7 @@ export function ClinicSettings({
   const phone = contact?.phone ? formatBrPhone(contact.phone) || contact.phone : ''
   return (
     <div className="manager-section">
+      <ClinicPublication clinicId={clinic.id} />
       <Card className="manager-panel space-theme-section">
         <Card.Title>Tema do espaço</Card.Title>
         <p>Personalize as cores e o fundo do painel da sua clínica.</p>

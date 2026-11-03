@@ -56,6 +56,7 @@ da equipe implementados. Onboarding inicial persistido e conclusão transacional
 Domínios e portal web: [ADR-008](decisions/ADR-008-DOMINIOS-E-PORTAL-WEB.md) e
 [16 — Operação e roadmap](16-DOMINIOS-E-PORTAL-WEB.md). Consultar ao trabalhar com site,
 rotas `/c/`, portal do cliente, DNS ou domínios personalizados.
+Publicação opt-in e projeção pública: [ADR-021](decisions/ADR-021-PAGINAS-PUBLICAS-DAS-CLINICAS.md).
 
 ### `/decisions`
 
