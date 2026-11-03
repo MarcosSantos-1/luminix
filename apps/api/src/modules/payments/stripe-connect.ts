@@ -21,7 +21,8 @@ function openStripeReview(details: Array<{ code: string; resolution: string }>):
     details.length > 0 &&
     details.every(
       (detail) =>
-        detail.code === 'requirements_pending_verification' && detail.resolution === 'no_resolution',
+        detail.code === 'requirements_pending_verification' &&
+        detail.resolution === 'no_resolution',
     )
   )
 }

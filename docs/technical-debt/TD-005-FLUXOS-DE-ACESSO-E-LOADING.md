@@ -22,3 +22,16 @@ Limites observados na revisão desta publicação, a resolver antes de clientes 
 Validação desta entrega: `pnpm check` passou, incluindo 70 testes da API, dois testes do web e
 builds. Isso não substitui a validação autenticada no navegador, pendente junto da investigação
 do loading. Não houve mudança de schema, de autorização da API ou de isolamento de tenant.
+
+## Revisão 2026-11-02
+
+Resolvido: opção “Manter conectada” ligada à persistência Firebase, check visível e acessível;
+cadastro mobile sem hero, campos rotulados e alvos maiores. Composição agrupada em
+`components/auth`. Revisão visual local de login desktop e cadastro mobile executada.
+
+Permanecem abertos: páginas de termos/privacidade aprovadas e publicadas (links ainda `#`),
+registro versionado de aceite, preferência de novidades persistida, conteúdo comercial verificável
+e ensaio autenticado hospedado (recuperação, persistência, retomada e conclusão). O checkbox de
+novidades ainda não aciona envio nem representa consentimento persistido. Não encerrar esta dívida
+com base só em aparência ou build. Próxima frente: fechar conteúdo/contratos de consentimento antes
+de cadastro de clientes reais. Histórico de loading não comprova defeito atual nem sua resolução.

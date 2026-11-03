@@ -3,6 +3,9 @@
 import { useEffect, useState } from 'react'
 import {
   GoogleAuthProvider,
+  browserLocalPersistence,
+  browserSessionPersistence,
+  setPersistence,
   createUserWithEmailAndPassword,
   isSignInWithEmailLink,
   sendPasswordResetEmail,
@@ -72,19 +75,24 @@ export function useStaffAuth() {
     return run(async () => {
       const provider = new GoogleAuthProvider()
       provider.setCustomParameters({ prompt: 'select_account' })
-      await signInWithPopup(getFirebaseAuth(), provider)
+      const auth = getFirebaseAuth()
+      await setPersistence(auth, browserSessionPersistence)
+      await signInWithPopup(auth, provider)
     })
   }
 
-  function signIn(email: string, password: string) {
+  function signIn(email: string, password: string, remember = false) {
     return run(async () => {
-      await signInWithEmailAndPassword(getFirebaseAuth(), email.trim(), password)
+      const auth = getFirebaseAuth()
+      await setPersistence(auth, remember ? browserLocalPersistence : browserSessionPersistence)
+      await signInWithEmailAndPassword(auth, email.trim(), password)
     })
   }
 
   function signUp(email: string, password: string, displayName?: string) {
     return run(async () => {
       const auth = getFirebaseAuth()
+      await setPersistence(auth, browserSessionPersistence)
       const credential = await createUserWithEmailAndPassword(auth, email.trim(), password)
       const name = displayName?.trim()
       if (name) await updateProfile(credential.user, { displayName: name })
@@ -94,7 +102,9 @@ export function useStaffAuth() {
 
   function confirmEmailLink(email: string) {
     return run(async () => {
-      await signInWithEmailLink(getFirebaseAuth(), email.trim(), window.location.href)
+      const auth = getFirebaseAuth()
+      await setPersistence(auth, browserSessionPersistence)
+      await signInWithEmailLink(auth, email.trim(), window.location.href)
       window.history.replaceState(null, '', window.location.pathname)
       setEmailLink(false)
     })

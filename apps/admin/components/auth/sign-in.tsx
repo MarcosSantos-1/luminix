@@ -3,6 +3,8 @@
 import React, { useState } from 'react'
 import Image, { type StaticImageData } from 'next/image'
 import Link from 'next/link'
+import { AuthCheckbox } from './auth-checkbox'
+import './auth.css'
 import { Eye, EyeOff } from 'lucide-react'
 
 export interface Testimonial {
@@ -83,9 +85,12 @@ export const SignInPage: React.FC<SignInPageProps> = ({
 
             <form className="space-y-3.5 sm:space-y-5" onSubmit={onSignIn}>
               <div className="animate-element animate-delay-300">
-                <label className="text-sm font-medium text-[#573746]">E-mail</label>
+                <label htmlFor="login-email" className="text-sm font-medium text-[#573746]">
+                  E-mail
+                </label>
                 <LightInputWrapper>
                   <input
+                    id="login-email"
                     name="email"
                     type="email"
                     required
@@ -97,10 +102,13 @@ export const SignInPage: React.FC<SignInPageProps> = ({
               </div>
 
               <div className="animate-element animate-delay-400">
-                <label className="text-sm font-medium text-[#573746]">Senha</label>
+                <label htmlFor="login-password" className="text-sm font-medium text-[#573746]">
+                  Senha
+                </label>
                 <LightInputWrapper>
                   <div className="relative">
                     <input
+                      id="login-password"
                       name="password"
                       type={showPassword ? 'text' : 'password'}
                       required
@@ -112,7 +120,7 @@ export const SignInPage: React.FC<SignInPageProps> = ({
                     <button
                       type="button"
                       onClick={() => setShowPassword(!showPassword)}
-                      className="absolute inset-y-0 right-3 flex items-center"
+                      className="auth-password-toggle absolute inset-y-0 right-3 flex items-center justify-center"
                       aria-label={showPassword ? 'Ocultar senha' : 'Mostrar senha'}
                     >
                       {showPassword ? (
@@ -126,14 +134,7 @@ export const SignInPage: React.FC<SignInPageProps> = ({
               </div>
 
               <div className="animate-element animate-delay-500 flex items-center justify-between text-sm">
-                <label className="flex cursor-pointer items-center gap-3">
-                  <input
-                    type="checkbox"
-                    name="rememberMe"
-                    className="size-4 appearance-none rounded border border-[#f0cfdb] bg-white checked:border-[#ff2d79] checked:bg-[#ff2d79]"
-                  />
-                  <span className="text-[#573746]">Manter conectada</span>
-                </label>
+                <AuthCheckbox name="rememberMe">Manter conectada</AuthCheckbox>
                 <a
                   href="#"
                   onClick={(event) => {

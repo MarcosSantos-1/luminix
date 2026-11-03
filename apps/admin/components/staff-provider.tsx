@@ -8,13 +8,7 @@ import {
   useState,
   type ReactNode,
 } from 'react'
-import {
-  browserSessionPersistence,
-  onIdTokenChanged,
-  setPersistence,
-  signOut,
-  type User,
-} from 'firebase/auth'
+import { onIdTokenChanged, signOut, type User } from 'firebase/auth'
 import { getFirebaseAuth } from '@/lib/firebase'
 
 export type StaffClinic = {
@@ -113,7 +107,6 @@ export function StaffProvider({ children }: { children: ReactNode }) {
     void (async () => {
       try {
         const auth = getFirebaseAuth()
-        await setPersistence(auth, browserSessionPersistence)
         if (active)
           unsubscribe = onIdTokenChanged(auth, (next) => {
             void sync(next)

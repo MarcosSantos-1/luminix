@@ -14,7 +14,9 @@ export function formatClinicGeocodeAddress(address: GeocodeAddress) {
     .join(' - ')
   const place = [address.district?.trim() ?? '', cityLine].filter(Boolean).join(', ')
   const postalCode = (address.postalCode ?? '').replace(/\D/g, '')
-  return [street, place, postalCode.length === 8 ? postalCode : '', 'Brasil'].filter(Boolean).join(', ')
+  return [street, place, postalCode.length === 8 ? postalCode : '', 'Brasil']
+    .filter(Boolean)
+    .join(', ')
 }
 
 type GeocodePayload = {

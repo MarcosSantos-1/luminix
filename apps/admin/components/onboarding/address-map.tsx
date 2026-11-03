@@ -90,16 +90,7 @@ function createPin(maps: MapsApi, position: object, logoUrl: string | null, mark
   return pin
 }
 
-export function AddressMap({
-  line,
-  number,
-  district,
-  city,
-  state,
-  postalCode,
-  logoUrl,
-  clinicName,
-}: {
+type AddressMapProps = {
   line: string
   number: string
   district: string
@@ -108,10 +99,40 @@ export function AddressMap({
   postalCode: string
   logoUrl: string | null
   clinicName: string
-}) {
+}
+
+export function AddressMap(props: AddressMapProps) {
+  const { user } = useStaff()
+  const key = [
+    user?.uid,
+    props.line,
+    props.number,
+    props.district,
+    props.city,
+    props.state,
+    props.postalCode,
+  ].join('|')
+  return <AddressMapResult key={key} {...props} />
+}
+
+function AddressMapResult({
+  line,
+  number,
+  district,
+  city,
+  state,
+  postalCode,
+  logoUrl,
+  clinicName,
+}: AddressMapProps) {
   const staff = useStaff()
   const canvasRef = useRef<HTMLDivElement>(null)
-  const [status, setStatus] = useState<Status>('idle')
+  const validAddress =
+    line.trim().length >= 3 &&
+    (city.trim().length >= 2 || postalCode.replace(/\D/g, '').length === 8)
+  const [status, setStatus] = useState<Status>(
+    !validAddress ? 'idle' : !mapsKey ? 'unavailable' : 'loading',
+  )
   const [point, setPoint] = useState<Point | null>(null)
   const addressKey = [line, number, district, city, state, postalCode].join('|')
 
@@ -119,18 +140,15 @@ export function AddressMap({
     const street = line.trim()
     const cityName = city.trim()
     const cep = postalCode.replace(/\D/g, '')
-    if (street.length < 3 || (cityName.length < 2 && cep.length !== 8)) {
-      setPoint(null)
-      setStatus('idle')
-      return
-    }
+    if (!validAddress || !mapsKey) return
     const controller = new AbortController()
     const timer = window.setTimeout(() => {
       void (async () => {
         setStatus('loading')
         try {
           const token = staff.user ? await staff.user.getIdToken() : ''
-          if (!token || controller.signal.aborted) return
+          if (controller.signal.aborted) return
+          if (!token) throw new Error('Session unavailable')
           const params = new URLSearchParams({ line: street })
           if (number.trim()) params.set('number', number.trim())
           if (district.trim()) params.set('district', district.trim())
@@ -150,6 +168,7 @@ export function AddressMap({
           }
           if (!response.ok) throw new Error('Geocode failed')
           const data = (await response.json()) as { location?: Point }
+          if (controller.signal.aborted) return
           if (typeof data.location?.lat !== 'number' || typeof data.location.lng !== 'number')
             throw new Error('Geocode failed')
           setPoint(data.location)
@@ -166,14 +185,11 @@ export function AddressMap({
       controller.abort()
       window.clearTimeout(timer)
     }
-  }, [addressKey, city, district, line, number, postalCode, staff.user, state])
+  }, [addressKey, city, district, line, number, postalCode, staff.user, state, validAddress])
 
   useEffect(() => {
     if (status !== 'ready' || !point || !canvasRef.current) return
-    if (!mapsKey) {
-      setStatus('unavailable')
-      return
-    }
+    if (!mapsKey) return
     let cancelled = false
     let pin: OverlayViewBase | null = null
     const position = point

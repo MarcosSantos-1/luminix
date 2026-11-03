@@ -3,7 +3,7 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { useRouter } from 'next/navigation'
 import { AppStatus } from '@/components/app-status'
-import { SignInPage, type Testimonial } from '@/components/ui/sign-in'
+import { SignInPage, type Testimonial } from '@/components/auth/sign-in'
 import { useStaff } from '@/components/staff-provider'
 import { useStaffAuth } from '@/hooks/use-staff-auth'
 import { loadingScene, staffHomePath } from '@/lib/staff-destination'
@@ -51,7 +51,7 @@ export default function LoginPage() {
     const data = new FormData(event.currentTarget)
     const email = String(data.get('email') ?? '')
     const password = String(data.get('password') ?? '')
-    void auth.signIn(email, password)
+    void auth.signIn(email, password, data.get('rememberMe') === 'on')
   }
 
   function resetPassword(email: string) {

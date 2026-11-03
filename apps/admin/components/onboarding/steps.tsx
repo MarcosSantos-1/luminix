@@ -49,8 +49,15 @@ import {
   Venus,
 } from 'lucide-react'
 import Image from 'next/image'
-import { Fragment, useEffect, useRef, useState, type DragEvent, type ReactNode } from 'react'
-import { syncProfessionalSchedules } from './schedule-sync'
+import {
+  Fragment,
+  useEffect,
+  useEffectEvent,
+  useRef,
+  useState,
+  type DragEvent,
+  type ReactNode,
+} from 'react'
 import { SpecialTreatments } from './special-treatments'
 import { formatBrPhone, toE164Phone } from '@/lib/phone'
 import { useStaff } from '@/components/staff-provider'
@@ -63,7 +70,6 @@ import {
   categories,
   serviceIsIntimate,
   categoryArtSrc,
-  dayNames,
   durationChoices,
   effectiveServiceAudience,
   formatDuration,
@@ -77,7 +83,6 @@ import {
   syncIntimateServiceAudiences,
   servicesInCategory,
   type Audience,
-  type DaySchedule,
   type Payload,
   type Professional,
   type Service,
@@ -824,19 +829,18 @@ function ClinicLogoDropzone({
 }) {
   const { clinic } = useClinic()
   const staff = useStaff()
-  const [preview, setPreview] = useState<string | null>(payload.clinic.logoUrl ?? null)
+  const [preview, setPreview] = useState<string | null>(null)
   const [fileName, setFileName] = useState('')
   const payloadRef = useRef(payload)
-  payloadRef.current = payload
   useEffect(() => {
-    if (payload.clinic.logoUrl) setPreview(payload.clinic.logoUrl)
-  }, [payload.clinic.logoUrl])
+    payloadRef.current = payload
+  }, [payload])
   return (
     <ImageDropzone
       label="Logo da clínica"
       emptyHint="PNG, JPG ou WebP"
       fileHint="Imagem salva · clique ou arraste para trocar"
-      preview={preview}
+      preview={preview ?? payload.clinic.logoUrl ?? null}
       fileName={fileName}
       onPreviewChange={(next, name) => {
         setPreview((current) => {
@@ -1416,7 +1420,9 @@ export function TeamStep({
   const [index, setIndex] = useState<number | null>(null)
   const [draft, setDraft] = useState<ProfessionalDraft>(() => emptyProfessionalDraft(payload))
   const draftRef = useRef(draft)
-  draftRef.current = draft
+  useEffect(() => {
+    draftRef.current = draft
+  }, [draft])
   const [formErrors, setFormErrors] = useState<{
     name?: string
     role?: string
@@ -1961,7 +1967,9 @@ export function ScheduleStep({
   const payloadRef = useRef(payload)
   const lookedUpCep = useRef('')
   const lookupRequest = useRef(0)
-  payloadRef.current = payload
+  useEffect(() => {
+    payloadRef.current = payload
+  }, [payload])
   const changeClinic = (key: keyof Payload['clinic'], value: string) =>
     setPayload({ ...payload, clinic: { ...payload.clinic, [key]: value } })
   const [open, setOpen] = useState(payload.clinic.addressLine.trim() === '')
@@ -2025,11 +2033,12 @@ export function ScheduleStep({
       if (request === lookupRequest.current) setCepBusy(false)
     }
   }
+  const autoLookupPostalCode = useEffectEvent(lookupPostalCode)
   useEffect(() => {
     const cep = payload.clinic.postalCode.replace(/\D/g, '')
     if (cep.length !== 8 || cep === lookedUpCep.current) return
     const timer = window.setTimeout(() => {
-      void lookupPostalCode(cep)
+      void autoLookupPostalCode(cep)
     }, 280)
     return () => window.clearTimeout(timer)
   }, [payload.clinic.postalCode])

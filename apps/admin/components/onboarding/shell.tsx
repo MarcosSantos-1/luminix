@@ -78,8 +78,8 @@ export function OnboardingShell({
                   </Drawer.Header>
                   <Drawer.Body className="ob2-form ob2-step-sheet">
                     <p className="ob2-step-lead">
-                      Etapa {step + 1} de {stepInfo.length}. O que você já preencheu fica salvo
-                      para retomar depois.
+                      Etapa {step + 1} de {stepInfo.length}. O que você já preencheu fica salvo para
+                      retomar depois.
                     </p>
                     <ol className="ob2-step-list ob2-step-menu">
                       {stepInfo.map((item, index) => (
@@ -103,11 +103,7 @@ export function OnboardingShell({
                               <strong>
                                 {item.label}
                                 {index !== step && index <= availableThrough ? (
-                                  <BadgeCheck
-                                    className="ob2-step-verified"
-                                    size={16}
-                                    aria-hidden
-                                  />
+                                  <BadgeCheck className="ob2-step-verified" size={16} aria-hidden />
                                 ) : null}
                               </strong>
                               <small>{item.title}</small>

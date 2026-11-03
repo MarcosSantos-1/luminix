@@ -27,7 +27,10 @@ const loadingBackgrounds: Record<SpaceTheme, string> = {
   azul: 'radial-gradient(circle at 88% 5%, rgb(41 103 170 / 45%) 0, transparent 36%), linear-gradient(135deg, #071e3b 0%, #0f3258 52%, #184472 100%)',
 }
 
-export function rememberSpaceTheme(theme: SpaceTheme, ...clinicKeys: Array<string | null | undefined>) {
+export function rememberSpaceTheme(
+  theme: SpaceTheme,
+  ...clinicKeys: Array<string | null | undefined>
+) {
   try {
     localStorage.setItem(themeStorageKey, theme)
     const raw = localStorage.getItem(themeMapStorageKey)

@@ -17,7 +17,14 @@ import {
   SquarePen,
   TriangleAlert,
 } from 'lucide-react'
-import { type ReactNode, useCallback, useEffect, useRef, useState } from 'react'
+import {
+  type ReactNode,
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from 'react'
 import { loadConnectAndInitialize, type StripeConnectInstance } from '@stripe/connect-js/pure'
 import {
   ConnectAccountManagement,
@@ -286,21 +293,21 @@ function ConnectContent({
   const [timingOpen, setTimingOpen] = useState(false)
   const [feesOpen, setFeesOpen] = useState(false)
   const openedKey = `luminix-stripe-form:${clinicId}`
-  const [formOpened, setFormOpened] = useState(false)
+  const [openedInVisit, setOpenedInVisit] = useState(false)
+  const storedFormOpened = useSyncExternalStore(
+    subscribeFormOpened,
+    () => readFormOpened(openedKey),
+    () => false,
+  )
+  const formOpened = openedInVisit || storedFormOpened
   const prepCollapsed = useRef(false)
-  useEffect(() => {
-    try {
-      setFormOpened(sessionStorage.getItem(openedKey) === '1')
-    } catch {
-      setFormOpened(false)
-    }
-  }, [openedKey])
   function rememberFormOpened() {
-    setFormOpened(true)
+    setOpenedInVisit(true)
     try {
       sessionStorage.setItem(openedKey, '1')
+      window.dispatchEvent(new Event('luminix-stripe-form-opened'))
     } catch {
-      /* Private mode can block storage; the button still appears in this visit. */
+      /* Storage is optional; provider status remains the source of truth. */
     }
   }
   useEffect(() => {
@@ -490,8 +497,8 @@ function ConnectContent({
   const loaderStart = () => setComponentLoading(false)
   const showRefresh = Boolean(
     status &&
-      status.state !== 'not_started' &&
-      (dashboard || formOpened || status.state === 'active' || status.state === 'reviewing'),
+    status.state !== 'not_started' &&
+    (dashboard || formOpened || status.state === 'active' || status.state === 'reviewing'),
   )
   const awaitingForm =
     status?.state === 'not_started' || status?.state === 'pending' || status?.state === 'restricted'
@@ -539,7 +546,9 @@ function ConnectContent({
           <Card.Header>
             <div className="connect-title-block">
               <Card.Title className="connect-title">
-                {flow && awaitingForm ? <span className="connect-pulse" aria-hidden="true" /> : null}
+                {flow && awaitingForm ? (
+                  <span className="connect-pulse" aria-hidden="true" />
+                ) : null}
                 {status ? labels[status.state] : 'Recebimentos da clínica'}
               </Card.Title>
               {flow && status ? (
@@ -1145,4 +1154,20 @@ function ConnectContent({
       )}
     </Card>
   )
+}
+
+function readFormOpened(key: string) {
+  try {
+    return sessionStorage.getItem(key) === '1'
+  } catch {
+    return false
+  }
+}
+function subscribeFormOpened(onChange: () => void) {
+  window.addEventListener('storage', onChange)
+  window.addEventListener('luminix-stripe-form-opened', onChange)
+  return () => {
+    window.removeEventListener('storage', onChange)
+    window.removeEventListener('luminix-stripe-form-opened', onChange)
+  }
 }

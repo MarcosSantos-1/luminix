@@ -2,12 +2,44 @@
 
 ## Estado e mapa adotado
 
-O Luminix possui o bootstrap técnico inicial descrito na
-[ADR-003](decisions/ADR-003-BOOTSTRAP-DO-WORKSPACE.md): workspace `pnpm`, admin Next.js, API Fastify
-e shells Expo. Isso ainda não representa domínios de produto, banco ou integrações implementados.
-A árvore abaixo continua conceitual: criar módulos apenas junto de funcionalidades reais. O legado
-em `legacy/charme-bela/` possui [inventário estático inicial](12-INVENTARIO-LEGADO.md), sem validação
-em execução ou auditoria completa. Ver [ADR-001](decisions/ADR-001-BASE-DO-REPOSITORIO.md).
+O workspace implementa admin Next.js, API Fastify/PostgreSQL e site público Next.js. Os dois
+aplicativos Expo ainda são shells. A árvore de domínios ao fim deste documento é uma direção de
+evolução, não um inventário de funcionalidades prontas. Criar módulos apenas quando houver uma
+responsabilidade real. O legado continua referência, sem importação automática.
+
+## Mapa implementado e sequência de evolução — revisão 2026-11-02
+
+| Frente                       | Implementado / localização                                                                     | Próximo trabalho e limite atual                                                                                                                                                         |
+| ---------------------------- | ---------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Identidade da equipe         | `apps/admin/components/staff-provider.tsx`, `hooks/use-staff-auth.ts`, API `modules/auth`      | Convites, delegação e proteção do último owner; cliente final usa outra jornada                                                                                                         |
+| Contexto clínico             | `shared/auth`, `shared/tenant`, `shared/database`, migrations SQL versionadas                  | Reusar autorização por operação, role restrita, RLS, FKs compostas e auditoria em cada novo domínio                                                                                     |
+| Entrada e cadastro           | `apps/admin/components/auth`, rotas `/login` e `/cadastro`                                     | Termos publicados, consentimentos persistidos e validação autenticada hospedada; TD-005                                                                                                 |
+| Onboarding                   | `components/onboarding`, API `modules/clinics`, `onboarding-persist.ts`                        | Configuração, retomada e conclusão transacional existem; não equivalem à operação de todas as regras                                                                                    |
+| Mídia e marca                | `modules/clinics/media-storage.ts`, `shared/integrations/r2`, `components/space-theme.tsx`     | Logo/fotos e seis paletas existem; limpeza/retenção de assets e domínio definitivo: TD-006                                                                                              |
+| Clientes e agenda da gestora | API `modules/operations`, admin `components/manager/sections/{clients-panel,agenda-panel}.tsx` | Listar/criar clientes, agenda, criar atendimento com avisos e disponibilidade existem; cadastro completo, edição/cancelamento e capacidade operacional ainda precisam evoluir (ADR-012) |
+| Pagamentos                   | `modules/payments`, `components/payments`, Stripe Connect em teste                             | Cadastro incorporado e preferências existem; checkout, webhooks, conciliação, pacotes e billing SaaS pendentes (TD-008)                                                                 |
+| Regras de reserva            | Configuração no onboarding, migrations e ADR-017–020                                           | Motor público, concorrência, preços/política congelados e efeitos financeiros ainda pendentes (TD-009)                                                                                  |
+| Site e portal                | `apps/web/app`, fixture de demonstração                                                        | API pública de clínicas, publicação real, autenticação do cliente e portal privado pendentes                                                                                            |
+| Mobile                       | `apps/mobile-admin/App.tsx`, `apps/mobile-client/App.tsx`                                      | Shells Expo; `legacy-source` não participa do app ativo. Implementar por jornada sobre os contratos da API                                                                              |
+| Packages                     | Diretórios reservados                                                                          | Ainda sem package compartilhado implementado; extrair contratos quando houver consumidores reais, sem importar internals da API nos apps                                                |
+
+Sequência sugerida para as próximas entregas:
+
+1. Fechar edição pós-onboarding de clínica, catálogo, equipe e recursos; especificar convites e permissões.
+2. Consolidar clientes e agenda administrativa sobre a base existente, com capacidade, estados,
+   alterações/cancelamentos, fuso e concorrência testados. Não reutilizar override da gestora no cliente.
+3. Especificar e implementar checkout, ledger/conciliação e eventos idempotentes; depois ligar
+   sinal, retenção, pacotes e assinaturas aos estados reais do pagamento. Billing SaaS é separado.
+4. Publicação da clínica e identidade/vínculo do cliente; portal e autoagendamento com regras
+   aplicadas no servidor, sem usar preferências salvas como prova de cobrança/consentimento.
+5. Levar cada jornada estabilizada aos apps nativos, compartilhando contratos e regras do backend,
+   com UI nativa própria. Não transportar componentes DOM ou o fluxo single-tenant legado.
+
+Antes de clientes reais: resolver os critérios de ativação TD-003/005/006/008/009, separar ambientes,
+validar jornadas hospedadas, conteúdo comercial e políticas de dados. Esses critérios não impedem
+continuar desenvolvimento autorizado em `master`. `docs/tests` contém cenários, não prova de execução.
+
+## Responsabilidades adotadas
 
 | Responsabilidade                                        | Destino adotado                                                                      |
 | ------------------------------------------------------- | ------------------------------------------------------------------------------------ |
@@ -37,7 +69,8 @@ Turbo nesta etapa. A [ADR-009](decisions/ADR-009-NUCLEO-MULTI-TENANT.md) adota m
 versionadas, runner interno com pg e o primeiro schema multi-tenant, validado localmente com
 PGlite. A primeira migration foi aplicada e verificada no Neon principal em 2026-09-15,
 durante a fase inicial autorizada. Login/sessão Firebase, bootstrap owner e autorização HTTP
-clínica foram implementados nas entregas 1–3 da Step 4 (ADR-010); CRUD de domínio pendente.
+clínica foram implementados nas entregas 1–3 da Step 4 (ADR-010). Clientes e agenda administrativa
+têm base operacional na ADR-012; os demais limites constam no mapa acima.
 
 ## Fronteira da plataforma
 

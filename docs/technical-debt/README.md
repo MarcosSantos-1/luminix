@@ -50,3 +50,18 @@ P2
 ```
 
 ---
+
+## Situação revisada em 2026-11-02
+
+- TD-004: resolvida (integração da principal).
+- TD-007: resolvida (check agregado verde; PGlite com concorrência limitada).
+- TD-001: aberta para riscos do legado; fronteira corporativa documental já resolvida.
+- TD-002: dependências transitivas ainda exigem revisão antes do build nativo; não reavaliadas por esta entrega.
+- TD-003: critérios de ativação e identidade do cliente ainda abertos.
+- TD-005: acesso visual/persistência corrigidos; termos, consentimentos, conteúdo e ensaio hospedado pendentes.
+- TD-006: retenção/limpeza e domínio de mídia pendentes.
+- TD-008: cobrança, eventos, conciliação, pacotes e billing pendentes.
+- TD-009: aplicação operacional das regras de reserva pendente.
+
+Consulte os arquivos por ID para critérios de fechamento. Onboarding concluído não encerra essas
+frentes. A sequência de implementação e os caminhos de código estão em `../00-ARQUITETURA.md`.

@@ -1,5 +1,18 @@
 # 03-AUTENTICACAO-E-AUTORIZACAO.md
 
+## Estado atual do acesso — 2026-11-02
+
+Rotas canônicas: `/login`, `/cadastro` e `/c`; `/clinics` redireciona para `/c`.
+`staffHomePath` encaminha rascunho ao onboarding, clínica única ao painel e múltiplos vínculos ao
+seletor. O formulário atual de login oferece e-mail/senha; Google e magic link continuam no hook,
+sem botão Google nessa composição. O histórico abaixo descreve as entregas originais.
+
+“Manter conectada” escolhe `browserLocalPersistence` no login; desmarcado e criação de conta usam
+`browserSessionPersistence`. O provider observa a sessão restaurada sem redefinir sua persistência
+em cada montagem. Google e confirmação de magic link usam sessão da aba. Nenhum token é copiado
+para storage próprio; autorização e revogação continuam no backend. Validar ambos os modos em
+navegador autenticado, incluindo fechamento/reabertura e logout, antes de clientes reais.
+
 ## Step 4 — entrega 1 (2026-09-15)
 
 Implementado: login da equipe em `/login` e na landing, com Google, senha, cadastro por e-mail,

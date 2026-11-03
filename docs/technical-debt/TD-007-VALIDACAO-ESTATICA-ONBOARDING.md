@@ -1,6 +1,6 @@
 # TD-007 — Validação estática preexistente do onboarding
 
-Status: Aberta.
+Status: Resolvida em 2026-11-02.
 
 Data: 2026-10-16.
 
@@ -58,3 +58,17 @@ existentes; os demais arquivos alterados passam. Check agregado ainda bloqueado 
 preexistente em geocode, address-map, attendance-service-dialog, shell, space-theme e Stripe.
 A falha inicial da lista fixa de migrations foi corrigida para incluir 0019, com 34 testes do
 núcleo aprovados na reexecução. Não declarar `pnpm check` verde.
+
+## Encerramento — 2026-11-02
+
+`pnpm check` completo passou: formatação, lint sem erros/avisos, TypeScript, 101 testes API,
+23 admin, dois web e todos os builds definidos. Corrigidos imports não utilizados, refs escritas
+em render, estado derivado do logo, ciclo do mapa e assinatura de storage do Connect. O mapa é
+remontado por endereço/identidade e descarta respostas abortadas; não mantém o endereço anterior.
+
+A execução paralela padrão reproduziu seis timeouts de inicialização PGlite. A API agora define
+`maxWorkers: 1` em `vitest.config.ts`, mantendo as suítes e limites de tempo existentes. O check
+raiz passa sem exigir comando manual alternativo. Não foram desabilitadas regras de lint/testes.
+
+Isso encerra a dívida de baseline, não as verificações hospedadas, acessibilidade formal,
+performance de produção ou os critérios financeiros/operacionais registrados nas demais dívidas.

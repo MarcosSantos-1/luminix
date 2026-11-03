@@ -46,8 +46,8 @@ Production pode usar `https://app.luminix.beauty`. A API ainda não é consumida
 
 1. **Base e topologia — implementadas nesta etapa.** Shell web, rotas, testes da fixture, projetos e
    associações de domínio. Nenhum cadastro real é inventado a partir do slug.
-2. **Clínicas publicáveis na API — pendente.** Escolher schema/ferramenta de migrations; criar
-   migration versionada com `clinic_id`, slug único/normalizado e estado de publicação. Definir
+2. **Clínicas publicáveis na API — pendente.** Reusar PostgreSQL, runner SQL e schema clínico já existentes (ADR-009/014);
+   revisar slug/estado persistidos e criar somente migrations incrementais necessárias. Definir
    política de mudança de slug. Endpoint público devolve apenas campos publicáveis de clínica ativa.
    Testar desconhecida, não publicada, slug inválido e isolamento/cache entre clínicas.
 3. **Página real da clínica — pendente.** Substituir fixture por contrato público da API. Implementar

@@ -1,12 +1,14 @@
 'use client'
 
 import Image from 'next/image'
+import { AuthCheckbox } from './auth-checkbox'
+import './auth.css'
 import Link from 'next/link'
 import { Eye, EyeOff, Lock, Mail, Phone, User } from 'lucide-react'
 import { useState, type FormEvent, type ReactNode } from 'react'
 import { formatBrPhone, isCompletePhone, toE164Phone } from '@/lib/phone'
 
-type AuthSectionOneProps = {
+type SignUpPageProps = {
   busy?: boolean
   error?: string
   message?: string
@@ -35,12 +37,7 @@ const termsText = (
   </>
 )
 
-export default function AuthSectionOne({
-  busy = false,
-  error,
-  message,
-  onSubmit,
-}: AuthSectionOneProps) {
+export default function SignUpPage({ busy = false, error, message, onSubmit }: SignUpPageProps) {
   const [localError, setLocalError] = useState('')
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
@@ -66,9 +63,9 @@ export default function AuthSectionOne({
   }
 
   return (
-    <main className="auth-shell grid min-h-dvh grid-cols-1 bg-[#fffafa] text-[#34101f] antialiased [font-synthesis:none] lg:grid-cols-[0.94fr_1.06fr]">
+    <main className="auth-shell auth-signup grid min-h-dvh grid-cols-1 bg-[#fffafa] text-[#34101f] antialiased [font-synthesis:none] lg:grid-cols-[0.94fr_1.06fr]">
       <section className="auth-form-pane order-2 flex items-center bg-[#fffafa] px-5 py-6 sm:px-8 sm:py-8 lg:order-1 lg:min-h-dvh lg:px-10 lg:py-8 xl:px-16 xl:py-12">
-        <div className="mx-auto w-full max-w-[520px] xl:max-w-[560px]">
+        <div className="animate-element mx-auto w-full max-w-[520px] xl:max-w-[560px]">
           <Link href="/" className="auth-logo mb-5 inline-flex w-fit sm:mb-7 xl:mb-10">
             <Image
               src="/brand/logo-letter-default.png"
@@ -84,7 +81,7 @@ export default function AuthSectionOne({
               Crie uma conta
             </h1>
             <p className="mt-1.5 text-base leading-snug text-[#6d4d5c] sm:mt-2 sm:text-lg xl:text-xl">
-              Cadastre sua clínica e comece a atender
+              Primeiro, seus dados. Depois, vamos preparar seu espaço juntas.
             </p>
           </div>
 
@@ -122,6 +119,7 @@ export default function AuthSectionOne({
               value={password}
               onChange={setPassword}
             />
+            <p className="auth-password-hint">Use pelo menos 6 caracteres.</p>
             <div className="space-y-1.5">
               <PasswordField
                 label="Confirmar senha"
@@ -145,12 +143,12 @@ export default function AuthSectionOne({
             </div>
 
             <div className="space-y-3 pt-1 text-sm leading-5 text-[#6d4d5c] sm:space-y-3.5 sm:pt-2">
-              <CheckboxLine name="updates">
+              <AuthCheckbox name="updates">
                 Não quero receber e-mails sobre novidades do Luminix
-              </CheckboxLine>
-              <CheckboxLine name="terms" required>
+              </AuthCheckbox>
+              <AuthCheckbox name="terms" required>
                 {termsText}
-              </CheckboxLine>
+              </AuthCheckbox>
             </div>
 
             {message ? (
@@ -173,7 +171,7 @@ export default function AuthSectionOne({
             </button>
           </form>
 
-          <p className="mt-10 text-center text-sm text-[#6d4d5c] sm:mt-12">
+          <p className="mt-6 text-center text-sm text-[#6d4d5c] sm:mt-12">
             Já tem uma conta?{' '}
             <Link
               href="/login"
@@ -185,7 +183,7 @@ export default function AuthSectionOne({
         </div>
       </section>
 
-      <aside className="auth-hero order-1 m-2.5 min-h-[160px] sm:m-3 sm:min-h-[220px] lg:sticky lg:top-2.5 lg:order-2 lg:h-[calc(100dvh-20px)] lg:min-h-0 lg:self-start">
+      <aside className="auth-hero animate-slide-right hidden lg:block order-1 m-2.5 min-h-[160px] sm:m-3 sm:min-h-[220px] lg:sticky lg:top-2.5 lg:order-2 lg:h-[calc(100dvh-20px)] lg:min-h-0 lg:self-start">
         <div className="relative h-full min-h-[160px] overflow-hidden rounded-[22px] bg-[#f8d9e4] sm:min-h-[220px] sm:rounded-[28px] lg:min-h-0">
           <Image
             src="/brand/cadastro.png"
@@ -236,31 +234,29 @@ function FieldBox({
   formatValue?: (value: string) => string
 }) {
   const [value, setValue] = useState('')
-  const [focused, setFocused] = useState(false)
-  const showLabel = !focused && value.length === 0
 
   return (
-    <label className={fieldClass}>
-      {icon ? <span className="shrink-0 text-[#c70e59]">{icon}</span> : null}
-      <input
-        name={name}
-        type={type}
-        value={value}
-        required
-        minLength={minLength}
-        inputMode={inputMode}
-        autoComplete={autoComplete}
-        aria-label={label}
-        placeholder={focused ? label : ''}
-        onFocus={() => setFocused(true)}
-        onBlur={() => setFocused(false)}
-        onChange={(event) => {
-          const next = event.target.value
-          setValue(formatValue ? formatValue(next) : next)
-        }}
-        className="min-w-0 flex-1 truncate bg-transparent text-[#34101f] outline-none placeholder:text-[#a88898]"
-      />
-      {showLabel ? <span className="shrink-0 text-[#a88898]">{label}</span> : null}
+    <label className="auth-signup-field">
+      <span className="auth-field-label">{label}</span>
+      <span className={fieldClass}>
+        {icon ? <span className="shrink-0 text-[#c70e59]">{icon}</span> : null}
+        <input
+          name={name}
+          type={type}
+          value={value}
+          required
+          minLength={minLength}
+          inputMode={inputMode}
+          autoComplete={autoComplete}
+          aria-label={label}
+          placeholder={label === 'Celular' ? '(11) 99999-9999' : label}
+          onChange={(event) => {
+            const next = event.target.value
+            setValue(formatValue ? formatValue(next) : next)
+          }}
+          className="min-w-0 flex-1 truncate bg-transparent text-[#34101f] outline-none placeholder:text-[#a88898]"
+        />
+      </span>
     </label>
   )
 }
@@ -282,79 +278,40 @@ function PasswordField({
   onChange: (value: string) => void
   invalid?: boolean
 }) {
-  const [focused, setFocused] = useState(false)
   const [show, setShow] = useState(false)
-  const showLabel = !focused && value.length === 0
 
   return (
-    <label
-      className={`${fieldClass} ${invalid ? 'border-red-400 focus-within:border-red-400' : ''}`}
-    >
-      <span className="shrink-0 text-[#c70e59]">
-        <Lock size={17} aria-hidden />
-      </span>
-      <input
-        name={name}
-        type={show ? 'text' : 'password'}
-        value={value}
-        required
-        minLength={minLength}
-        autoComplete={autoComplete}
-        aria-label={label}
-        aria-invalid={invalid || undefined}
-        placeholder={focused ? label : ''}
-        onFocus={() => setFocused(true)}
-        onBlur={() => setFocused(false)}
-        onChange={(event) => onChange(event.target.value)}
-        className="auth-password-input min-w-0 flex-1 truncate bg-transparent text-[#34101f] outline-none placeholder:text-[#a88898]"
-      />
-      {showLabel ? <span className="shrink-0 text-[#a88898]">{label}</span> : null}
-      <button
-        type="button"
-        onClick={() => setShow((current) => !current)}
-        className="shrink-0 text-[#8a6a79] transition-colors hover:text-[#34101f]"
-        aria-label={show ? 'Ocultar senha' : 'Mostrar senha'}
+    <label className="auth-signup-field">
+      <span className="auth-field-label">{label}</span>
+      <span
+        className={`${fieldClass} ${invalid ? 'border-red-400 focus-within:border-red-400' : ''}`}
       >
-        {show ? <EyeOff size={17} /> : <Eye size={17} />}
-      </button>
-    </label>
-  )
-}
-
-function CheckboxLine({
-  children,
-  name,
-  required,
-}: {
-  children: ReactNode
-  name: string
-  required?: boolean
-}) {
-  return (
-    <label className="flex items-start gap-2.5">
-      <span className="relative mt-0.5 size-3.5 shrink-0">
+        <span className="shrink-0 text-[#c70e59]">
+          <Lock size={17} aria-hidden />
+        </span>
         <input
-          type="checkbox"
           name={name}
-          required={required}
-          className="peer size-full appearance-none rounded-[3px] border border-[#f0cfdb] bg-white checked:border-[#ff2d79] checked:bg-[#ff2d79]"
+          type={show ? 'text' : 'password'}
+          value={value}
+          required
+          minLength={minLength}
+          autoComplete={autoComplete}
+          aria-label={label}
+          aria-invalid={invalid || undefined}
+          placeholder={label === 'Celular' ? '(11) 99999-9999' : label}
+          onChange={(event) => onChange(event.target.value)}
+          className="auth-password-input min-w-0 flex-1 truncate bg-transparent text-[#34101f] outline-none placeholder:text-[#a88898]"
         />
-        <svg
-          viewBox="0 0 12 12"
-          className="pointer-events-none absolute inset-0 hidden size-full p-0.5 text-white peer-checked:block"
-          fill="none"
-          aria-hidden="true"
+
+        <button
+          type="button"
+          onClick={() => setShow((current) => !current)}
+          className="auth-password-toggle shrink-0 text-[#8a6a79] transition-colors hover:text-[#34101f]"
+          aria-label={show ? 'Ocultar senha' : 'Mostrar senha'}
         >
-          <path
-            d="M3 6.2 5 8.1 9 3.9"
-            stroke="currentColor"
-            strokeWidth="1.6"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-        </svg>
+          {show ? <EyeOff size={17} /> : <Eye size={17} />}
+        </button>
       </span>
-      <span>{children}</span>
     </label>
   )
 }

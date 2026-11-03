@@ -133,8 +133,9 @@ Cards, Button, Avatar, Chip, SearchField, Modal, ProgressBar e Table são HeroUI
 experimento em `app/dashboard/manager.css`. Não foi criado um package compartilhado sem consumidores reais.
 
 A Home autenticada recebe nome e status reais do contexto autorizado da clínica e nome de exibição
-Firebase (fallback “Gestor” quando ausente). Agenda, clientes, serviços, financeiro, estoque,
-marketing e relatórios são esboços com exemplos identificados como ilustrativos. Essas fixtures
+Firebase (fallback “Gestor” quando ausente). Agenda e clientes autenticados usam a API (ADR-012); na demonstração usam fixtures. Serviços,
+estoque, marketing, relatórios e resumos ainda possuem exemplos identificados; financeiro inclui
+o cadastro Stripe Connect em teste (ADR-016), sem checkout ou conciliação implementados. Essas fixtures
 nunca são fallback para erro de API. A rota continua protegida pelo contexto e `clinic:manage`.
 O layout recebe propriedades; a demonstração pública não importa nem consulta o contexto autenticado.
 

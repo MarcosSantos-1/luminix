@@ -6,6 +6,8 @@ Não é necessário ler todos os documentos para todas as tarefas.
 
 Consulte apenas os documentos relevantes para a alteração atual.
 
+Estado implementado e sequência das próximas frentes: [mapa de arquitetura](00-ARQUITETURA.md#mapa-implementado-e-sequência-de-evolução--revisão-2026-11-02).
+
 ## Documentos principais
 
 | Arquivo                                                              | Finalidade                                           | Consultar quando                                            |

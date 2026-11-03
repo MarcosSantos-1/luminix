@@ -3,7 +3,7 @@
 import { useEffect, type FormEvent } from 'react'
 import { useRouter } from 'next/navigation'
 import { AppStatus } from '@/components/app-status'
-import AuthSectionOne from '@/components/ui/auth-section-1'
+import SignUpPage from '@/components/auth/sign-up'
 import { useStaff } from '@/components/staff-provider'
 import { useStaffAuth } from '@/hooks/use-staff-auth'
 import { isCompletePhone, toE164Phone } from '@/lib/phone'
@@ -36,7 +36,7 @@ export default function CadastroPage() {
   }
 
   return (
-    <AuthSectionOne
+    <SignUpPage
       busy={auth.busy}
       error={auth.error || staff.error}
       message={auth.message}
