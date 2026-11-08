@@ -10,6 +10,8 @@ import { useStaff } from '@/components/staff-provider'
 import { ThemePicker, useSpaceTheme } from '@/components/space-theme'
 import type { SpaceTheme } from '@/lib/space-theme'
 import { formatBrPhone } from '@/lib/phone'
+import type { ManagerSectionId } from '../demo-data'
+import type { ManagerSettingsSection } from '../manager-settings-nav'
 
 type Settings = { timezone: string; locale: string; currency: string }
 type Overview = {
@@ -19,44 +21,16 @@ type Overview = {
 }
 type Contact = { ownerName: string; email: string; phone: string; logoUrl?: string | null }
 
-const mockOptions = [
-  {
-    title: 'Horários',
-    rows: [
-      { label: 'Segunda a sexta', value: '09:00–19:00' },
-      { label: 'Sábado', value: '09:00–14:00' },
-      { label: 'Domingo', value: 'Fechado' },
-    ],
-  },
-  {
-    title: 'Salas e recursos',
-    rows: [
-      { label: 'Sala rosa', value: 'Maca' },
-      { label: 'Sala lavanda', value: 'Cadeira' },
-    ],
-  },
-  {
-    title: 'Pagamentos',
-    rows: [
-      { label: 'No aplicativo', value: 'Não configurado' },
-      { label: 'Máquina', value: 'Própria' },
-    ],
-  },
-  {
-    title: 'Permissões da equipe',
-    rows: [
-      { label: 'Recepção', value: 'Agenda e clientes' },
-      { label: 'Profissional', value: 'A própria agenda' },
-    ],
-  },
-]
-
 export function ClinicSettings({
+  tab,
+  onOpen,
   clinic,
   shareCode,
   canContinueOnboarding,
   canReadOnboarding,
 }: {
+  tab: ManagerSettingsSection
+  onOpen: (section: ManagerSectionId) => void
   clinic: { id: string; name: string; slug: string; status: string }
   shareCode: string | null
   canContinueOnboarding: boolean
@@ -185,17 +159,6 @@ export function ClinicSettings({
   const phone = contact?.phone ? formatBrPhone(contact.phone) || contact.phone : ''
   return (
     <div className="manager-section">
-      <ClinicPublication clinicId={clinic.id} />
-      <Card className="manager-panel space-theme-section">
-        <Card.Title>Tema do espaço</Card.Title>
-        <p>Personalize as cores e o fundo do painel da sua clínica.</p>
-        <ThemePicker
-          value={theme}
-          disabled={savingTheme}
-          onChange={(next) => void changeTheme(next)}
-        />
-        <p role="status">{savingTheme ? 'Salvando tema…' : themeMessage}</p>
-      </Card>
       {clinic.status === 'draft' && (
         <Card className="manager-panel manager-onboarding-banner">
           <Card.Title>Conclua a configuração da sua clínica</Card.Title>
@@ -205,8 +168,23 @@ export function ClinicSettings({
           )}
         </Card>
       )}
-      <div className="manager-settings-group">
-        <p className="manager-settings-kicker">Cadastro da clínica</p>
+
+      <div hidden={tab !== 'vitrine'}>
+        <ClinicPublication clinicId={clinic.id} />
+      </div>
+      {tab === 'personalizacao' && (
+        <Card className="manager-panel space-theme-section">
+          <Card.Title>Tema do espaço</Card.Title>
+          <p>Personalize as cores e o fundo do painel da sua clínica.</p>
+          <ThemePicker
+            value={theme}
+            disabled={savingTheme}
+            onChange={(next) => void changeTheme(next)}
+          />
+          <p role="status">{savingTheme ? 'Salvando tema…' : themeMessage}</p>
+        </Card>
+      )}
+      {tab === 'espaco' && (
         <div className="manager-settings-grid">
           <Card className="manager-panel">
             <Card.Header className="manager-panel-heading">
@@ -236,6 +214,24 @@ export function ClinicSettings({
             </Card.Content>
           </Card>
           <Card className="manager-panel">
+            <Card.Header>
+              <Card.Title>Região</Card.Title>
+            </Card.Header>
+            <Card.Content>
+              <dl className="manager-definition">
+                <Field label="Fuso horário" value={settings.timezone} />
+                <Field label="Idioma" value={settings.locale} />
+                <Field label="Moeda" value={settings.currency} />
+              </dl>
+            </Card.Content>
+          </Card>
+
+          <Summary title="Ocupações" items={overview.occupations.map((item) => item.name)} />
+        </div>
+      )}
+      {tab === 'contato' && (
+        <div className="manager-settings-grid">
+          <Card className="manager-panel">
             <Card.Header className="manager-panel-heading">
               <Card.Title>Contato</Card.Title>
               <Chip size="sm" variant="soft">
@@ -255,25 +251,31 @@ export function ClinicSettings({
                   <Field label="WhatsApp" value={phone || 'Ainda não informado'} />
                 </dl>
               ) : (
-                <p className="manager-real-muted">
-                  O contato definitivo ainda não foi materializado.
-                </p>
+                <p className="manager-real-muted">O espaço ainda não tem um contato salvo.</p>
               )}
             </Card.Content>
           </Card>
+
           <Card className="manager-panel">
             <Card.Header>
-              <Card.Title>Região</Card.Title>
+              <Card.Title>Contato da página pública</Card.Title>
             </Card.Header>
             <Card.Content>
-              <dl className="manager-definition">
-                <Field label="Fuso horário" value={settings.timezone} />
-                <Field label="Idioma" value={settings.locale} />
-                <Field label="Moeda" value={settings.currency} />
-              </dl>
+              <p>Em Vitrine e site você escolhe quais dados de contato aparecem para clientes.</p>
             </Card.Content>
           </Card>
-          <Summary title="Ocupações" items={overview.occupations.map((item) => item.name)} />
+        </div>
+      )}
+      {tab === 'equipe' && (
+        <>
+          <TeamSummary professionals={overview.professionals} />
+          <p className="manager-real-muted">
+            O cadastro e a edição de acessos da equipe estão em preparação.
+          </p>
+        </>
+      )}
+      {tab === 'servicos' && (
+        <>
           <Summary
             title="Serviços"
             items={overview.services.map(
@@ -281,37 +283,45 @@ export function ClinicSettings({
                 `${item.name} · ${(item.price_cents / 100).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })} · ${item.duration_minutes} min`,
             )}
           />
-          <TeamSummary professionals={overview.professionals} />
-        </div>
-        <p className="manager-real-muted">
-          Estes dados vieram do cadastro. A edição entra nas próximas etapas.
-        </p>
-      </div>
-      <div className="manager-settings-group">
-        <p className="manager-settings-kicker">Em preparação</p>
+
+          <p className="manager-real-muted">
+            Confira os serviços cadastrados. A edição de preços e duração está em preparação.
+          </p>
+        </>
+      )}
+      {tab === 'rotina' && (
         <div className="manager-settings-grid">
-          {mockOptions.map((option) => (
-            <Card className="manager-panel" key={option.title}>
-              <Card.Header className="manager-panel-heading">
-                <Card.Title>{option.title}</Card.Title>
-                <Chip size="sm" variant="soft">
-                  Exemplo
-                </Chip>
-              </Card.Header>
-              <Card.Content>
-                <p className="manager-real-muted">
-                  Ilustrativo. Ainda não faz parte do cadastro salvo.
-                </p>
-                <dl className="manager-definition">
-                  {option.rows.map((row) => (
-                    <Field key={row.label} label={row.label} value={row.value} />
-                  ))}
-                </dl>
-              </Card.Content>
-            </Card>
-          ))}
+          <Card className="manager-panel">
+            <Card.Header>
+              <Card.Title>Agenda e expediente</Card.Title>
+            </Card.Header>
+            <Card.Content>
+              <p>
+                Abra Agenda e escolha Horários para configurar o expediente, as pausas e os dias
+                especiais.
+              </p>
+              <div className="manager-settings-links">
+                <Button variant="secondary" onPress={() => onOpen('agenda')}>
+                  Abrir Agenda
+                </Button>
+              </div>
+            </Card.Content>
+          </Card>
+          <Card className="manager-panel">
+            <Card.Header>
+              <Card.Title>Pagamentos</Card.Title>
+            </Card.Header>
+            <Card.Content>
+              <p>Consulte a configuração dos pagamentos na área Financeiro.</p>
+              <div className="manager-settings-links">
+                <Button variant="secondary" onPress={() => onOpen('financeiro')}>
+                  Abrir Financeiro
+                </Button>
+              </div>
+            </Card.Content>
+          </Card>
         </div>
-      </div>
+      )}
     </div>
   )
 }

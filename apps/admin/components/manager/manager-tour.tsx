@@ -4,72 +4,96 @@ import { Button } from '@heroui/react'
 import { ArrowRight, ChevronDown, ChevronUp, X } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import type { ManagerSectionId } from './demo-data'
+import type { ManagerSettingsSection } from './manager-settings-nav'
 import './manager-tour.css'
 
-type TourStep = {
+export type ManagerTourStep = {
   section: ManagerSectionId
+  target: string
+  label: string
+  settings?: ManagerSettingsSection
   title: string
   description: string
 }
 
-const steps: readonly TourStep[] = [
+const steps: readonly ManagerTourStep[] = [
   {
     section: 'inicio',
+    target: 'search',
+    label: 'Busca do painel',
     title: 'Conheça seu painel',
     description:
-      'O Início reúne os atalhos da rotina. Use o menu ou a busca para encontrar uma seção.',
+      'O Início reúne os atalhos da rotina. Experimente a busca do painel para encontrar uma seção.',
   },
   {
     section: 'agenda',
+    target: 'schedule',
+    label: 'Horários',
     title: 'Organize sua agenda semanal',
     description:
       'Passe pelas semanas e use Horários para ajustar o expediente e as pausas. Para marcar um atendimento, escolha Novo agendamento.',
   },
   {
     section: 'clientes',
+    target: 'add-client',
+    label: 'Adicionar cliente',
     title: 'Cadastre e receba clientes',
     description:
       'Use Adicionar cliente para cadastrar alguém. Para apresentar seu espaço, compartilhe o link da vitrine publicada. O envio de convites pelo painel está em preparação.',
   },
   {
     section: 'servicos',
+    target: 'section-heading',
+    label: 'Serviços',
     title: 'Confira seu catálogo',
     description:
-      'A seção Serviços mostra uma prévia. Quem gerencia o espaço pode consultar o catálogo em Configurações, em Cadastro da clínica. A edição de serviços pelo painel está em preparação.',
+      'A seção Serviços mostra uma prévia. Quem gerencia o espaço pode consultar o catálogo em Configurações → Serviços. A edição de serviços pelo painel está em preparação.',
   },
   {
     section: 'configuracoes',
+    target: 'settings-vitrine',
+    label: 'Vitrine e site',
+    settings: 'vitrine',
     title: 'Personalize sua vitrine',
     description:
-      'Em Página pública do espaço, revise a publicação, abra a página pública e use Editar vitrine para trocar a capa, destacar serviços ou incluir fotos.',
+      'Em Vitrine e site, revise a publicação, abra a página pública e use Editar vitrine para trocar a capa, destacar serviços ou incluir fotos.',
   },
   {
     section: 'estoque',
+    target: 'section-heading',
+    label: 'Estoque',
     title: 'Conheça a área de estoque',
     description:
       'Veja onde ficarão os produtos e as reposições. Os itens desta prévia são exemplos.',
   },
   {
     section: 'marketing',
+    target: 'section-heading',
+    label: 'Marketing',
     title: 'Conheça a área de marketing',
     description:
       'Veja onde ficarão campanhas e recados. A criação e o envio de campanhas estão em preparação.',
   },
   {
     section: 'configuracoes',
+    target: 'settings-espaco',
+    label: 'Dados do espaço',
+    settings: 'espaco',
     title: 'Encontre as configurações do espaço',
     description:
       'Aqui você encontra os dados da clínica, a equipe, o código de acesso e o tema do painel. A agenda semanal é ajustada na seção Agenda.',
   },
 ]
 
+export const firstManagerTourStep = steps[0]
+
 export function ManagerTour({
   canManageSettings,
-  onSection,
+  onStep,
   onClose,
 }: {
   canManageSettings: boolean
-  onSection: (section: ManagerSectionId) => void
+  onStep: (step: ManagerTourStep | null) => void
   onClose: () => void
 }) {
   const available = canManageSettings
@@ -89,12 +113,13 @@ export function ManagerTour({
 
   function goTo(next: number) {
     setIndex(next)
-    onSection(available[next].section)
+    onStep(available[next])
   }
 
   return (
     <aside
       className="manager-tour"
+      data-manager-spotlight="guide"
       aria-labelledby="manager-tour-title"
       onKeyDown={(event) => {
         if (event.key === 'Escape') {
@@ -117,7 +142,10 @@ export function ManagerTour({
           aria-label={collapsed ? 'Expandir tour' : 'Recolher tour'}
           aria-expanded={!collapsed}
           aria-controls="manager-tour-content"
-          onPress={() => setCollapsed(!collapsed)}
+          onPress={() => {
+            setCollapsed(!collapsed)
+            onStep(collapsed ? step : null)
+          }}
         >
           {collapsed ? <ChevronUp size={17} /> : <ChevronDown size={17} />}
         </Button>
@@ -129,6 +157,9 @@ export function ManagerTour({
         <div aria-live="polite" aria-atomic="true">
           <h3>{step.title}</h3>
           <p>{step.description}</p>
+          <p className="manager-tour-target">
+            <ArrowRight size={15} aria-hidden="true" /> <strong>{step.label}</strong>
+          </p>
         </div>
         <div className="manager-tour-actions">
           {index > 0 && (

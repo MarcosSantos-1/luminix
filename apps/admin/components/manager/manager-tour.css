@@ -80,3 +80,40 @@
     max-height: min(360px, calc(100dvh - 112px - env(safe-area-inset-bottom)));
   }
 }
+
+.manager-shell [data-spotlight-muted] {
+  opacity: 0.3;
+}
+
+.manager-shell [data-spotlight-current] {
+  position: relative;
+  outline: 2px solid var(--space-highlight, #ffd4e7);
+  outline-offset: 3px;
+  box-shadow: 0 0 0 6px #100810a0;
+  border-radius: 8px;
+}
+
+.manager-shell [data-spotlight-current]::after {
+  content: '↑' / '';
+  position: absolute;
+  z-index: 1;
+  inset-inline-end: 4px;
+  top: calc(100% + 4px);
+  display: grid;
+  width: 22px;
+  height: 22px;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--space-highlight, #ffd4e7);
+  color: var(--space-deep, #56203c);
+  font: bold 16px/1 system-ui;
+  pointer-events: none;
+}
+
+.manager-tour-content .manager-tour-target {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 6px;
+  color: var(--space-highlight, #ffd4e7);
+}

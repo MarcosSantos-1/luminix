@@ -15,6 +15,7 @@ import {
 import { useMemo, useRef, useState, type ReactNode } from 'react'
 import { useManagerMessages } from '@/hooks/use-manager-messages'
 import { useManagerLayout } from '@/hooks/use-manager-layout'
+import { useManagerSpotlight } from '@/hooks/use-manager-spotlight'
 import { useManagerSection } from '@/hooks/use-manager-section'
 import {
   managerNavigation,
@@ -24,7 +25,13 @@ import {
 } from './demo-data'
 import { ManagerMessageModal } from './manager-message-modal'
 import { ManagerSidebar } from './manager-sidebar'
-import { ManagerTour } from './manager-tour'
+import { firstManagerTourStep, ManagerTour, type ManagerTourStep } from './manager-tour'
+import {
+  ManagerSettingsNav,
+  managerSettingsSections,
+  type ManagerSettingsSection,
+} from './manager-settings-nav'
+import './manager-controls.css'
 import { HomePanels } from './sections/home-panels'
 import { AgendaPanel } from './sections/agenda-panel'
 import { ClientsPanel } from './sections/clients-panel'
@@ -58,7 +65,7 @@ export function ManagerHome({
   canManageSettings?: boolean
   profile?: ReactNode
   payments?: ReactNode
-  settings?: ReactNode
+  settings?: (tab: ManagerSettingsSection, open: (section: ManagerSectionId) => void) => ReactNode
   shareCode?: string | null
   banner?: ReactNode
   initialSection?: string
@@ -90,9 +97,13 @@ export function ManagerHome({
       .join('')
       .toUpperCase() || 'G'
   const message = useManagerMessages(messages?.welcome ?? false, messages?.scope)
-  const { collapsed, setCollapsed, searchOpen, changeSearch, query, setQuery, searchTrigger } =
-    useManagerLayout(!message.view)
   const [tourOpen, setTourOpen] = useState(false)
+  const [spotlight, setSpotlight] = useState<string>()
+  const [settingsTab, setSettingsTab] = useState<ManagerSettingsSection>('espaco')
+  const shell = useRef<HTMLDivElement>(null)
+  useManagerSpotlight(shell, spotlight)
+  const { collapsed, setCollapsed, searchOpen, changeSearch, query, setQuery, searchTrigger } =
+    useManagerLayout(!message.view && !spotlight)
   const sectionHeading = useRef<HTMLHeadingElement>(null)
   const [notice, setNotice] = useState<string | null>(null)
   const [announcement, setAnnouncement] = useState(true)
@@ -105,11 +116,19 @@ export function ManagerHome({
   const showDemoLabel = section.id !== 'agenda' && !(payments && section.id === 'financeiro')
 
   function startTour() {
-    select('inicio', 'replace')
     setTourOpen(true)
+    showTourStep(firstManagerTourStep)
+  }
+
+  function showTourStep(step: ManagerTourStep | null) {
+    setSpotlight(step?.target)
+    if (!step) return
+    if (step.settings) setSettingsTab(step.settings)
+    select(step.section, 'replace')
   }
 
   function closeTour() {
+    setSpotlight(undefined)
     setTourOpen(false)
     requestAnimationFrame(() => sectionHeading.current?.focus({ preventScroll: true }))
   }
@@ -191,6 +210,7 @@ export function ManagerHome({
   return (
     <div
       className={`manager-shell ${collapsed ? 'is-collapsed' : ''}`}
+      ref={shell}
       data-theme="manager-glass"
       data-transparency={forceGlass ? 'glass' : 'system'}
     >
@@ -210,7 +230,7 @@ export function ManagerHome({
             {isHome ? (
               <>
                 <p>Seu espaço de cuidado ✦</p>
-                <h1 ref={sectionHeading} tabIndex={-1}>
+                <h1 ref={sectionHeading} tabIndex={-1} data-manager-spotlight="section-heading">
                   Olá, {firstName}!
                 </h1>
                 <span>{clinicName}</span>
@@ -218,7 +238,7 @@ export function ManagerHome({
             ) : (
               <>
                 <p>{clinicName}</p>
-                <h1 ref={sectionHeading} tabIndex={-1}>
+                <h1 ref={sectionHeading} tabIndex={-1} data-manager-spotlight="section-heading">
                   {section.label}
                 </h1>
                 <span>{section.subtitle}</span>
@@ -227,6 +247,7 @@ export function ManagerHome({
           </div>
           <Button
             ref={searchTrigger}
+            data-manager-spotlight="search"
             className="manager-search-trigger"
             variant="secondary"
             onPress={() => changeSearch(true)}
@@ -341,21 +362,25 @@ export function ManagerHome({
             onAction={navigate}
           />
         )}
-        {section.id === 'configuracoes' &&
-          (settings ?? (
-            <Card className="manager-panel">
-              <Card.Header>
-                <Card.Title>Configurações da clínica</Card.Title>
-              </Card.Header>
-              <Card.Content>
-                <p>
-                  Nome, identificador, situação, fuso, idioma, moeda, ocupações, serviços e
-                  profissionais aparecem aqui depois do login, com os dados reais da clínica. Esta
-                  prévia não inventa esses registros.
-                </p>
-              </Card.Content>
-            </Card>
-          ))}
+        {section.id === 'configuracoes' && (
+          <>
+            <ManagerSettingsNav current={settingsTab} onSelect={setSettingsTab} />
+            {settings ? (
+              settings(settingsTab, select)
+            ) : (
+              <Card className="manager-panel">
+                <Card.Header>
+                  <Card.Title>
+                    {managerSettingsSections.find(({ id }) => id === settingsTab)?.label}
+                  </Card.Title>
+                </Card.Header>
+                <Card.Content>
+                  <p>Os dados e controles desta seção ficam disponíveis no painel do seu espaço.</p>
+                </Card.Content>
+              </Card>
+            )}
+          </>
+        )}
         <footer className="manager-footer">
           <span>Luminix · tempo para o que importa.</span>
           <div className="manager-tour-footer-actions">
@@ -387,7 +412,7 @@ export function ManagerHome({
             <span>{label}</span>
           </Button>
         ))}
-        <Button variant="ghost" onPress={() => changeSearch(true)}>
+        <Button variant="ghost" data-manager-spotlight="search" onPress={() => changeSearch(true)}>
           <Search size={21} />
           <span>Buscar</span>
         </Button>
@@ -395,7 +420,7 @@ export function ManagerHome({
       {tourOpen && (
         <ManagerTour
           canManageSettings={canManageSettings}
-          onSection={(section) => select(section, 'replace')}
+          onStep={showTourStep}
           onClose={closeTour}
         />
       )}
@@ -414,6 +439,7 @@ export function ManagerHome({
           }}
           onShowcase={() => {
             message.close()
+            setSettingsTab('vitrine')
             select('configuracoes')
           }}
         />

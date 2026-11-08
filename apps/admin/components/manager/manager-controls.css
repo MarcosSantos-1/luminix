@@ -1,0 +1,89 @@
+:is(.manager-shell, .manager-dialog)
+  .button:is(.button--secondary, .button--tertiary, .button--outline) {
+  color: #fff;
+  background-color: color-mix(in srgb, var(--space-deep, #56203c) 88%, white);
+  border: 1px solid #ffffff60;
+}
+
+:is(.manager-shell, .manager-dialog)
+  .button:is(.button--secondary, .button--tertiary, .button--outline):is(
+    :hover,
+    [data-pressed='true']
+  ) {
+  background-color: color-mix(in srgb, var(--space-deep, #56203c) 77%, white);
+}
+
+:is(.manager-shell, .manager-dialog) .button.button--ghost {
+  color: var(--manager-text);
+}
+
+:is(.manager-shell, .manager-dialog) .button.button--primary {
+  color: #fff;
+  background-color: color-mix(in srgb, var(--space-accent, #ec287a) 63%, #111);
+}
+
+:is(.manager-shell, .manager-dialog) .button.button--primary:is(:hover, [data-pressed='true']) {
+  background-color: color-mix(in srgb, var(--space-accent, #ec287a) 55%, #111);
+}
+
+.manager-dialog [data-slot='modal-close-trigger'] {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border: 1px solid #ffffff60;
+  border-radius: 50%;
+  background-color: var(--space-deep, #56203c);
+  color: #fff;
+}
+
+.manager-dialog [data-slot='modal-close-trigger']:hover {
+  background-color: color-mix(in srgb, var(--space-deep, #56203c) 77%, white);
+}
+
+.manager-dialog [data-slot='modal-close-trigger']:focus-visible {
+  outline: 2px solid var(--space-highlight, #ffd4e7);
+  outline-offset: 3px;
+}
+
+.manager-settings-nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 18px;
+}
+
+.manager-settings-nav .button[aria-current='page'] {
+  background: var(--space-highlight, #ffd4e7);
+  border-color: transparent;
+  color: var(--space-deep, #56203c);
+}
+
+.manager-settings-nav .button[aria-current='page']:hover {
+  background: color-mix(in srgb, var(--space-highlight, #ffd4e7) 88%, white);
+}
+
+.manager-settings-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+@media (max-width: 650px) {
+  .manager-settings-nav {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .manager-settings-nav .button {
+    justify-content: flex-start;
+    padding-inline: 10px;
+    white-space: normal;
+    text-align: start;
+  }
+
+  .manager-settings-nav .button svg {
+    flex-shrink: 0;
+  }
+}

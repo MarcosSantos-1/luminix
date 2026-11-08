@@ -146,7 +146,7 @@ export function ClientsPanel({ createSignal = 0 }: { createSignal?: number }) {
           <Button variant="secondary" onPress={() => setVoucherOpen(true)}>
             <TicketPercent size={18} /> Voucher
           </Button>
-          <Button onPress={() => setOpen(true)}>
+          <Button data-manager-spotlight="add-client" onPress={() => setOpen(true)}>
             <Plus size={18} /> Adicionar cliente
           </Button>
         </div>

@@ -84,14 +84,18 @@ export function ClinicHome({
       initialSection={initialSection}
       payments={<ConnectPanel dashboard />}
       settings={
-        canManageSettings ? (
-          <ClinicSettings
-            clinic={clinic}
-            shareCode={clinic.share_code ?? null}
-            canContinueOnboarding={permissions.includes('onboarding:manage')}
-            canReadOnboarding={permissions.includes('onboarding:manage')}
-          />
-        ) : undefined
+        canManageSettings
+          ? (tab, open) => (
+              <ClinicSettings
+                tab={tab}
+                onOpen={open}
+                clinic={clinic}
+                shareCode={clinic.share_code ?? null}
+                canContinueOnboarding={permissions.includes('onboarding:manage')}
+                canReadOnboarding={permissions.includes('onboarding:manage')}
+              />
+            )
+          : undefined
       }
       banner={
         clinic.status === 'draft' ? (

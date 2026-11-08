@@ -141,8 +141,8 @@ O layout recebe propriedades; a demonstração pública não importa nem consult
 
 Configurações respeita `settings:manage` e, na clínica autenticada, mostra o cadastro persistido:
 nome, identificador, situação, código, contato do onboarding, fuso, idioma, moeda, ocupações,
-serviços e equipe. Horários, recursos, pagamentos, página pública, marca e permissões aparecem como
-exemplos identificados e não substituem falha de API. A conta no cabeçalho abre um menu com Minha
+serviços e equipe. A página pública e o tema têm editores próprios. Agenda e Financeiro
+concentram os controles de expediente e pagamentos. A conta no cabeçalho abre um menu com Minha
 conta, Configurações e Sair. O gestor não troca de clínica. A lista `/clinics` continua sendo a
 entrada após o login e o retorno quando o acesso é negado. Clínicas em rascunho mantêm o atalho ao
 onboarding conforme `onboarding:manage`. Nenhuma migration ou mudança no fluxo de login foi necessária. O cache visual
@@ -155,14 +155,23 @@ Validação inicial: conferir desktop/mobile, sidebar, busca por teclado, foco/E
 de overflow. Contraste formal, fadiga visual e performance em dispositivos modestos continuam
 critérios de avaliação do experimento, não garantias já comprovadas.
 
+### Navegação de Configurações
+
+Configurações reúne Dados do espaço, Vitrine e site, Personalização, Contato, Equipe, Serviços
+e Rotina. A barra quebra em duas colunas no celular. Vitrine e tema preservam seus editores,
+Contato, Equipe e Serviços mostram os dados cadastrados, e Rotina abre Agenda e Financeiro.
+A edição do cadastro de equipe e catálogo segue em preparação.
+
 ### Boas-vindas e novidades
 
 Depois de concluir o onboarding, a gestora com acesso à Home entra no painel com as boas-vindas
 abertas. Os atalhos de abrir e copiar a vitrine aparecem quando a leitura autenticada confirma
 que ela está publicada. Ao iniciar o tour, o modal dá lugar a um cartão recolhível no canto do
 painel, com navegação entre Início, Agenda, Clientes, Serviços, Estoque, Marketing e, conforme
-a permissão, Vitrine e Configurações. A interface continua disponível para explorar cada área.
-O rodapé oferece o atalho temporário **Debug · Abrir tour**. O sino abre **Novidades e avisos**.
+a permissão, Vitrine e Configurações. Cada etapa realça um controle ou o título da área e
+desabilita temporariamente o restante do painel. Recolher ou fechar o cartão libera a navegação.
+O destaque usa a chave `data-manager-spotlight` no controle e pode ser reutilizado para
+apresentar novidades. O rodapé oferece o atalho temporário **Debug · Abrir tour**. O sino abre **Novidades e avisos**.
 
 O modal usa HeroUI e o tema atual. O catálogo fica em
 `apps/admin/components/manager/manager-updates.ts`, em ordem do mais recente ao mais antigo.

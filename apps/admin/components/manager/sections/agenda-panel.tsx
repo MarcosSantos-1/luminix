@@ -406,7 +406,11 @@ export function AgendaPanel({ createSignal = 0 }: { createSignal?: number }) {
               Mês
             </Button>
           </div>
-          <Button variant="secondary" onPress={() => setScheduleOpen(true)}>
+          <Button
+            variant="secondary"
+            data-manager-spotlight="schedule"
+            onPress={() => setScheduleOpen(true)}
+          >
             <Settings2 size={17} /> Horários
           </Button>
           <Button onPress={() => openBooking()}>
