@@ -44,7 +44,6 @@ beforeAll(async () => {
       slugB = slug
     }
     await connection.query("SELECT set_config('luminix.clinic_id', $1, false)", [id])
-    await connection.query("UPDATE luminix.clinics SET status = 'active' WHERE id = $1", [id])
     await connection.query(
       `INSERT INTO luminix.clinic_profiles (clinic_id, owner_name, contact_email, contact_phone, whatsapp_phone, instagram, tax_id)
       VALUES ($1, 'PRIVATE OWNER', 'private@example.com', '+5511999999999', '+5511888888888', '@publicstudio', 'PRIVATE TAX')`,
@@ -70,6 +69,7 @@ beforeAll(async () => {
       )
     ).rows[0].id
     showcaseFixtures.set(label, { service: String(service), photo: String(photo) })
+    await connection.query("UPDATE luminix.clinics SET status = 'active' WHERE id = $1", [id])
     await connection.query(
       `INSERT INTO luminix.services (clinic_id, name, price_cents, duration_minutes, status) VALUES ($1, 'ARCHIVED', 100, 10, 'archived')`,
       [id],
@@ -132,6 +132,7 @@ describe('public clinic boundary', () => {
       const clinic = (await read(slugA)).json().clinic
       expect(clinic).toMatchObject({
         style: 'hair-salon',
+        heroCategory: 'cabelo',
         subtitle: 'Estilo A',
         gallery: ['https://media.example.com/test-a-large.webp'],
         featured: [
@@ -267,4 +268,95 @@ describe('public clinic boundary', () => {
     expect(result.body).not.toContain('secret')
     await failing.close()
   })
+})
+
+it('chooses a stable cover from the winning service family', async () => {
+  const scenarios = [
+    { categories: { Cabelo: 4, Cílios: 1, 'Estética facial': 1 }, hero: 'cabelo' },
+    {
+      categories: { Cabelo: 2, 'Estética facial': 9, 'Estética corporal': 11 },
+      hero: 'estetica-facial',
+    },
+    {
+      categories: { 'Estética facial': 3, Biomedicina: 1, Depilação: 2 },
+      hero: 'estetica-avancada',
+    },
+    { categories: { 'Estética corporal': 2 }, hero: 'estetica-corporal' },
+    { categories: { Cabelo: 1 }, audience: 'men', hero: 'barbearia' },
+    { categories: { Cabelo: 1 }, audience: 'all', serviceAudience: 'men', hero: 'cabelo' },
+    { categories: { Depilação: 1, Cílios: 5, Sobrancelhas: 2 }, hero: 'depilacao' },
+    { categories: { Cílios: 3, Sobrancelhas: 2 }, hero: 'sobrancelhas' },
+    { categories: { Massoterapia: 1, Quiropraxia: 2 }, hero: 'massoterapia' },
+    { categories: { Tatuagem: 2, Piercing: 2 }, hero: 'tatuagem' },
+    { categories: { Tatuagem: 1, Piercing: 3 }, hero: 'piercing' },
+    { categories: { Cabelo: 1, 'Estética facial': 1 }, hero: 'cabelo' },
+  ]
+  await db.exec('RESET ROLE; BEGIN')
+  try {
+    for (const [index, scenario] of scenarios.entries()) {
+      const identity = (
+        await db.query('SELECT * FROM luminix.resolve_staff_identity($1)', [`hero-${index}`])
+      ).rows[0] as { identity_id: string }
+      const clinic = (
+        await db.query('SELECT * FROM luminix.bootstrap_owner_clinic($1, $2)', [
+          identity.identity_id,
+          'Vitrine de teste',
+        ])
+      ).rows[0] as { clinic_id: string }
+      const id = clinic.clinic_id
+      await db.query(
+        `INSERT INTO luminix.clinic_profiles (clinic_id, owner_name, contact_email, contact_phone, default_audience)
+         VALUES ($1, 'Owner', 'owner@example.com', '+5511999999999', $2)`,
+        [id, scenario.audience ?? 'all'],
+      )
+      for (const [category, total] of Object.entries(scenario.categories)) {
+        await db.query(
+          `INSERT INTO luminix.services (clinic_id, name, category, price_cents, duration_minutes, audience)
+           SELECT $1, $2 || ' ' || position, $2, 10000, 40, $4
+           FROM generate_series(1, $3::integer) position`,
+          [id, category, total, scenario.serviceAudience ?? scenario.audience ?? 'all'],
+        )
+      }
+      await db.query("UPDATE luminix.clinics SET status = 'active' WHERE id = $1", [id])
+      await db.query("UPDATE luminix.services SET status = 'archived' WHERE clinic_id = $1", [id])
+      const profile = await db.query(
+        'SELECT initial_public_hero AS hero FROM luminix.clinic_profiles WHERE clinic_id = $1',
+        [id],
+      )
+      expect(profile.rows[0], JSON.stringify(scenario.categories)).toEqual({ hero: scenario.hero })
+    }
+  } finally {
+    await db.exec('ROLLBACK; SET ROLE luminix_api')
+  }
+})
+
+it('applies public overrides while preserving the stored suggestion and internal name', async () => {
+  const update = (changes: Record<string, string>) =>
+    app.inject({
+      method: 'PUT',
+      url: `/clinics/${clinicA}/showcase`,
+      headers: { authorization: 'Bearer public-a' },
+      payload: { style: 'standard', subtitle: 'Escolha A', featured: [], gallery: [], ...changes },
+    })
+  expect((await publish(clinicA, 'public-a')).statusCode).toBe(200)
+  try {
+    expect((await update({ heroCategory: '__proto__' })).statusCode).toBe(400)
+    expect(
+      (await update({ heroCategory: 'unhas', title: 'Título público', theme: 'azul' })).statusCode,
+    ).toBe(200)
+    expect((await update({})).statusCode).toBe(200)
+    expect((await read(slugA)).json().clinic).toMatchObject({
+      name: 'Título público',
+      theme: 'azul',
+      heroCategory: 'unhas',
+      style: 'standard',
+    })
+    expect((await update({ title: '', theme: '', heroCategory: '' })).statusCode).toBe(200)
+    expect((await read(slugA)).json().clinic).toMatchObject({
+      name: 'Public a',
+      heroCategory: 'estetica-facial',
+    })
+  } finally {
+    await publish(clinicA, 'public-a', false)
+  }
 })

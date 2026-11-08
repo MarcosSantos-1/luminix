@@ -12,7 +12,11 @@ import {
   Sparkles,
 } from 'lucide-react'
 import { Brand } from '../../../components/brand'
-import { clinicCategories, dominantClinicCategory } from '../../../lib/clinic-categories'
+import {
+  clinicCategories,
+  dominantClinicCategory,
+  type ClinicCategory,
+} from '../../../lib/clinic-categories'
 import { demoOptions, getPreviewClinic, previewThemeOverride } from '../../../lib/preview-clinic'
 import { ClinicDemoDebugger } from './clinic-demo-debugger'
 import { ClinicMiniMap, ClinicSpaceCode } from './clinic-interactions'
@@ -59,9 +63,21 @@ export default async function ClinicPage({
   const theme = previewTheme ?? clinicTheme(clinic.theme)
   const themeQuery = previewTheme ? `?tema=${previewTheme}` : ''
   const category =
-    clinic.style === 'hair-salon' ? 'cabelo' : dominantClinicCategory(clinic.services)
-  const hero = category ? clinicCategories[category].hero : null
-  const style = category === 'cabelo' ? 'hair-salon' : 'classic'
+    clinic.heroCategory === undefined
+      ? clinic.style === 'hair-salon'
+        ? 'cabelo'
+        : dominantClinicCategory(clinic.services)
+      : clinic.heroCategory
+  const hero =
+    category && Object.hasOwn(clinicCategories, category)
+      ? clinicCategories[category as ClinicCategory].hero
+      : null
+  const style =
+    clinic.style === 'standard'
+      ? 'standard'
+      : clinic.style === 'hair-salon' || category === 'cabelo'
+        ? 'hair-salon'
+        : 'classic'
   const gallery = clinic.gallery ?? []
   const featured = showcaseServices(clinic)
   const servicePhotos = clinicServicePhotos(clinic)
@@ -264,7 +280,7 @@ export default async function ClinicPage({
         </section>
         <section className="clinic-visit" id="visita" aria-labelledby="visit-title">
           <div className="clinic-location">
-            {mapAddress && <ClinicMiniMap address={mapAddress} />}
+            {mapAddress && <ClinicMiniMap address={mapAddress} autoLoad={!demo} />}
             <div className="clinic-location-details">
               <h2 id="visit-title">
                 <MapPin size={21} aria-hidden /> Localização

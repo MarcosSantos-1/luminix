@@ -4,10 +4,10 @@
 - Estado: aberto; não bloqueia preparação sem clientes reais
 - Contexto: ADR-021
 
-A leitura pública usa `no-store` e limite de 120 requisições/minuto por IP/processo. A web faz
-SSR e pode compartilhar IP de saída entre visitantes. Antes de tráfego comercial, medir carga,
-definir limite distribuído e cache com invalidação imediata ao retirar publicação, sem expor
-endereços/contatos previamente removidos. Acrescentar métricas de disponibilidade sem dados pessoais.
+A API pública usa `no-store` e limite de 120 requisições/minuto por IP/processo. A web reutiliza a
+projeção por slug e invalida após escrita, com expiração limitada pela janela de um minuto.
+Antes de tráfego comercial, medir o cache e o compartilhamento de IP de saída entre visitantes,
+definir limite distribuído e acrescentar métricas de disponibilidade e de invalidação sem dados pessoais.
 
 Também pendentes: editor de frases por categoria, edição de slug com redirects, revisão de SEO
 antes de retirar `noindex`, fotos editoriais e testes browser autenticados de publicação completa.

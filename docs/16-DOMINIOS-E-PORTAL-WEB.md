@@ -40,7 +40,10 @@ AGENTS.md. O script manual de Preview usa `--target preview` explicitamente.
 
 `NEXT_PUBLIC_ADMIN_URL` define o destino da gestão. `API_URL` é server-only e aponta para
 `https://luminix-api.fly.dev` por padrão; em desenvolvimento pode apontar à API local.
-Aplicar migration 0020 e publicar API antes do web/admin que consomem publicação.
+Aplicar as migrations de páginas públicas (0020 a 0023) e publicar a API antes do web e do admin.
+Para invalidar o cache após alterações, configurar o mesmo `CLINIC_CACHE_SECRET` no web
+(Vercel) e na API (Fly). Configurar `PUBLIC_CLINIC_WEB_ORIGIN` na API com a origem HTTPS pública do
+web. A ausência da notificação mantém a atualização por janela de até um minuto.
 
 ## Roadmap
 
@@ -50,8 +53,9 @@ Aplicar migration 0020 e publicar API antes do web/admin que consomem publicaç�
    pública restrita de clínica ativa. GET/PUT autenticados em `/clinics/:ref/publication` exigem
    `settings:manage`; GET público `/public/clinics/:slug` retorna 404 para não publicada/inativa.
 3. **Página real da clínica — implementada.** Tema e dados salvos, serviços ativos por categoria,
-   frases introdutórias, localização, horários e redes opcionais. Configurações da gestão permite
-   publicar e retirar do ar. Não há agendamento online nem editor das frases nesta etapa.
+   frases introdutórias, localização, horários e redes opcionais. A revisão do onboarding sugere a
+   capa, oferece publicação e entrega o link para compartilhar. A gestão permite personalizar
+   a vitrine, publicar e retirar do ar. Agendamento online e editor das frases seguem pendentes.
    Páginas em `noindex` durante preparação. Contrato e segurança: [ADR-021](decisions/ADR-021-PAGINAS-PUBLICAS-DAS-CLINICAS.md).
 4. **Portal privado — pendente.** `/acesso` orienta clientes e sinaliza que o portal está em preparação;
    não solicita CPF/senha nem simula autenticação. Implementar identidade CPF/senha e recuperação segura conforme

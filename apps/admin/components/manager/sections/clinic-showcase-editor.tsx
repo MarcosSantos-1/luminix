@@ -5,9 +5,29 @@ import Image from 'next/image'
 import { useState } from 'react'
 import { useStaff } from '@/components/staff-provider'
 import { uploadClinicMedia } from '@/lib/media-upload'
+import { spaceThemes } from '@/lib/space-theme'
+
+const heroOptions = {
+  cabelo: 'Cabeleireiro feminino',
+  barbearia: 'Barbearia',
+  'estetica-avancada': 'Estética avançada',
+  'estetica-facial': 'Estética facial',
+  'estetica-corporal': 'Estética corporal',
+  depilacao: 'Depilação',
+  massoterapia: 'Massoterapia',
+  quiropraxia: 'Quiropraxia',
+  sobrancelhas: 'Sobrancelhas',
+  cilios: 'Cílios',
+  unhas: 'Nail design',
+  tatuagem: 'Tatuagem',
+  piercing: 'Piercing',
+} as const
 
 type Showcase = {
-  style: 'classic' | 'hair-salon'
+  style: 'classic' | 'hair-salon' | 'standard'
+  heroCategory: keyof typeof heroOptions | ''
+  theme: string
+  title: string
   subtitle: string
   featured: { serviceId: string; assetId?: string }[]
   gallery: string[]
@@ -16,6 +36,7 @@ type Showcase = {
 
 type ShowcaseData = {
   showcase: Partial<Showcase>
+  initialHero: keyof typeof heroOptions | null
   services: { id: string; name: string; category: string | null }[]
   photos: { id: string; url: string }[]
 }
@@ -25,6 +46,9 @@ export function ClinicShowcaseEditor({ clinicId }: { clinicId: string }) {
   const [data, setData] = useState<ShowcaseData | null>(null)
   const [value, setValue] = useState<Showcase>({
     style: 'classic',
+    heroCategory: '',
+    theme: '',
+    title: '',
     subtitle: '',
     featured: [],
     gallery: [],
@@ -72,6 +96,10 @@ export function ClinicShowcaseEditor({ clinicId }: { clinicId: string }) {
       setData(result)
       setValue({
         style: result.showcase.style ?? 'classic',
+        heroCategory:
+          result.showcase.heroCategory ?? (result.showcase.style === 'hair-salon' ? 'cabelo' : ''),
+        theme: result.showcase.theme ?? '',
+        title: result.showcase.title ?? '',
         subtitle: result.showcase.subtitle ?? '',
         featured: (result.showcase.featured ?? []).filter(({ serviceId }) =>
           activeIds.has(serviceId),
@@ -118,6 +146,7 @@ export function ClinicShowcaseEditor({ clinicId }: { clinicId: string }) {
         headers: { authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
         body: JSON.stringify({
           ...value,
+          title: value.title.trim(),
           subtitle: value.subtitle.trim(),
           featured: value.featured.map(({ serviceId }) => ({ serviceId })),
         }),
@@ -166,9 +195,53 @@ export function ClinicShowcaseEditor({ clinicId }: { clinicId: string }) {
                 setValue({ ...value, style: event.target.value as Showcase['style'] })
               }
             >
-              <option value="classic">Automático pela categoria dos serviços</option>
-              <option value="hair-salon">Salão de cabeleireiro feminino</option>
+              <option value="classic">Automático pela capa</option>
+              <option value="standard">Clássico</option>
+              <option value="hair-salon">Editorial</option>
             </select>
+          </label>
+          <label className="manager-field">
+            Ilustração da capa
+            <select
+              value={value.heroCategory}
+              onChange={(event) =>
+                setValue({ ...value, heroCategory: event.target.value as Showcase['heroCategory'] })
+              }
+            >
+              <option value="">
+                {data.initialHero
+                  ? `Sugestão do cadastro · ${heroOptions[data.initialHero]}`
+                  : 'Sugestão do cadastro'}
+              </option>
+              {Object.entries(heroOptions).map(([key, label]) => (
+                <option key={key} value={key}>
+                  {label}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="manager-field">
+            Tema da vitrine
+            <select
+              value={value.theme}
+              onChange={(event) => setValue({ ...value, theme: event.target.value })}
+            >
+              <option value="">Usar tema do espaço</option>
+              {spaceThemes.map(({ id, label }) => (
+                <option key={id} value={id}>
+                  {label}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="manager-field">
+            Título público (opcional)
+            <input
+              value={value.title}
+              maxLength={100}
+              placeholder="Usar nome do espaço"
+              onChange={(event) => setValue({ ...value, title: event.target.value })}
+            />
           </label>
           <label className="manager-field">
             Subtítulo (opcional)

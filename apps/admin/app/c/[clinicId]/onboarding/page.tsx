@@ -1,6 +1,6 @@
 'use client'
 
-import { Button, Spinner, Tooltip, toast } from '@heroui/react'
+import { Button, Checkbox, Label, Spinner, Tooltip, toast } from '@heroui/react'
 import { ArrowRight } from 'lucide-react'
 import { useEffect, useState, type ReactNode } from 'react'
 import { useRouter } from 'next/navigation'
@@ -323,14 +323,41 @@ export default function OnboardingPage() {
   const [stripeChecked, setStripeChecked] = useState(false)
   const [stripeSettled, setStripeSettled] = useState(false)
   const [busy, setBusy] = useState(false)
-  const [completed, setCompleted] = useState(false)
+  const [completion, setCompletion] = useState<{ publicSlug: string | null } | null>(null)
+  const [publishedSlug, setPublishedSlug] = useState<string | null>(null)
+  const [publishPage, setPublishPage] = useState(true)
+  const [publishAddress, setPublishAddress] = useState(false)
+  const [publishContacts, setPublishContacts] = useState(false)
+  const [shareMessage, setShareMessage] = useState('')
+  const canPublish = permissions.includes('settings:manage')
+  const willPublish = canPublish && publishPage
   const [uploadingMedia, setUploadingMedia] = useState(false)
   const [loadError, setLoadError] = useState('')
   const [retry, setRetry] = useState(0)
 
   useEffect(() => {
     const user = staff.user
-    if (!user || !permissions.includes('onboarding:manage')) return
+    if (!user || !canPublish || clinic.status !== 'active' || completion) return
+    const controller = new AbortController()
+    void (async () => {
+      const response = await fetch(`/api/clinics/${clinic.id}/publication`, {
+        headers: { authorization: `Bearer ${await user.getIdToken()}` },
+        cache: 'no-store',
+        signal: AbortSignal.any([controller.signal, AbortSignal.timeout(15_000)]),
+      })
+      if (!response.ok) return
+      const data: { publication: { enabled: boolean; slug: string } } = await response.json()
+      if (!controller.signal.aborted && data.publication.enabled)
+        setPublishedSlug(data.publication.slug)
+    })().catch(() => {
+      // Configurações remains available if the optional shortcut cannot be loaded.
+    })
+    return () => controller.abort()
+  }, [staff.user, canPublish, clinic.id, clinic.status, completion])
+
+  useEffect(() => {
+    const user = staff.user
+    if (!user || clinic.status === 'active' || !permissions.includes('onboarding:manage')) return
     const controller = new AbortController()
     void (async () => {
       try {
@@ -376,7 +403,16 @@ export default function OnboardingPage() {
       }
     })()
     return () => controller.abort()
-  }, [staff.user, clinic.id, clinic.name, clinic.theme, staff.revision, permissions, retry])
+  }, [
+    staff.user,
+    clinic.id,
+    clinic.name,
+    clinic.theme,
+    staff.revision,
+    permissions,
+    retry,
+    clinic.status,
+  ])
 
   useEffect(() => {
     if (payload) setTheme(spaceTheme(payload.clinic.theme))
@@ -645,7 +681,12 @@ export default function OnboardingPage() {
           authorization: `Bearer ${await user.getIdToken()}`,
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ version: completionVersion }),
+        body: JSON.stringify({
+          version: completionVersion,
+          publication: willPublish
+            ? { address: publishAddress, contacts: publishContacts }
+            : undefined,
+        }),
         cache: 'no-store',
         signal: AbortSignal.timeout(20_000),
       })
@@ -664,7 +705,8 @@ export default function OnboardingPage() {
         notifyError(message)
         return
       }
-      setCompleted(true)
+      const result: { publicSlug: string | null } = await response.json()
+      setCompletion({ publicSlug: result.publicSlug })
       staff.refresh()
     } catch {
       const message =
@@ -679,13 +721,35 @@ export default function OnboardingPage() {
 
   if (!permissions.includes('onboarding:manage'))
     return <AppStatus alert>Você não tem acesso ao onboarding.</AppStatus>
-  if (completed || clinic.status === 'active') {
+  if (completion || clinic.status === 'active') {
     const clinicPath = `/c/${encodeURIComponent(clinic.share_code || clinic.id)}`
+    const slug = completion ? completion.publicSlug : publishedSlug
+    const publicUrl = slug ? `https://luminix.beauty/c/${encodeURIComponent(slug)}` : null
     return (
       <AppStatus
         action={
           <div className="flex flex-wrap justify-center gap-3">
-            {permissions.includes('settings:manage') && (
+            {publicUrl && (
+              <>
+                <a href={publicUrl} target="_blank" rel="noopener noreferrer">
+                  Abrir vitrine ↗
+                </a>
+                <Button
+                  variant="secondary"
+                  onPress={() => {
+                    void navigator.clipboard.writeText(publicUrl).then(
+                      () => setShareMessage('Link copiado.'),
+                      () =>
+                        setShareMessage('Abra a vitrine para copiar o endereço pelo navegador.'),
+                    )
+                  }}
+                >
+                  Copiar link
+                </Button>
+                {shareMessage && <span role="status">{shareMessage}</span>}
+              </>
+            )}
+            {canPublish && (
               <Button className="ob2-cta" onPress={() => router.push(`${clinicPath}/settings`)}>
                 Configurar página e fotos
               </Button>
@@ -697,8 +761,10 @@ export default function OnboardingPage() {
         }
       >
         <strong>Onboarding concluído.</strong>{' '}
-        {permissions.includes('settings:manage') &&
-          'Sua vitrine está pronta para configurar a publicação. Você pode adicionar fotos aos serviços e à galeria agora ou depois.'}
+        {canPublish &&
+          (publicUrl
+            ? 'Sua vitrine está publicada e pronta para compartilhar. Você pode personalizá-la e adicionar fotos quando quiser.'
+            : 'Sua vitrine está pronta. Em Configurações, você pode publicá-la, personalizar e adicionar fotos opcionais.')}
       </AppStatus>
     )
   }
@@ -754,7 +820,9 @@ export default function OnboardingPage() {
                 ? 'Criando sua clínica…'
                 : 'Salvando…'
               : last
-                ? 'Abrir minha clínica'
+                ? willPublish
+                  ? 'Concluir e publicar vitrine'
+                  : 'Concluir cadastro'
                 : editingFromReview
                   ? 'Salvar e voltar ao resumo'
                   : 'Continuar'}
@@ -820,6 +888,48 @@ export default function OnboardingPage() {
           error={stepError}
           footer={footer}
           isDisabled={locked}
+          publication={
+            canPublish && (
+              <fieldset disabled={locked} className="grid gap-3">
+                <legend className="mb-2 font-semibold">Vitrine do seu espaço</legend>
+                <p>
+                  O link mostra seu catálogo, preços e horários. Você pode personalizar a página
+                  depois.
+                </p>
+                {[
+                  {
+                    label: 'Publicar minha vitrine ao concluir',
+                    selected: publishPage,
+                    change: setPublishPage,
+                  },
+                  {
+                    label: 'Mostrar meu endereço comercial no mapa',
+                    selected: publishAddress,
+                    change: setPublishAddress,
+                  },
+                  {
+                    label: 'Mostrar WhatsApp e redes sociais cadastradas',
+                    selected: publishContacts,
+                    change: setPublishContacts,
+                  },
+                ].map(({ label, selected, change }, index) => (
+                  <Checkbox
+                    key={label}
+                    isSelected={selected && (index === 0 || publishPage)}
+                    isDisabled={locked || (index > 0 && !publishPage)}
+                    onChange={change}
+                  >
+                    <Checkbox.Content>
+                      <Checkbox.Control>
+                        <Checkbox.Indicator />
+                      </Checkbox.Control>
+                      <Label>{label}</Label>
+                    </Checkbox.Content>
+                  </Checkbox>
+                ))}
+              </fieldset>
+            )
+          }
           onEdit={(target) => {
             setEditingFromReview(true)
             navigateTo(target)

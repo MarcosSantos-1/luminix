@@ -861,6 +861,13 @@
 .clinic-site[data-style='hair-salon'] .clinic-hero-identity {
   border-radius: 50%;
 }
+.clinic-site[data-style='standard'] .clinic-hero {
+  min-height: 400px;
+  padding-block: 42px 96px;
+}
+.clinic-site[data-style='standard'] .clinic-hero h1 {
+  font-size: clamp(40px, 4.8vw, 64px);
+}
 .clinic-site[data-style='classic'] .clinic-cover:not(.clinic-cover-has-portrait) .clinic-hero {
   min-height: 440px;
 }
@@ -959,6 +966,13 @@
   }
   .clinic-hero-art:not(.clinic-cover-has-portrait .clinic-hero-art) {
     display: none;
+  }
+  .clinic-site[data-style='standard'] .clinic-hero {
+    min-height: 320px;
+    padding-block: 26px 72px;
+  }
+  .clinic-site[data-style='standard'] .clinic-hero h1 {
+    font-size: clamp(32px, 8vw, 52px);
   }
   .clinic-site[data-style='classic'] .clinic-cover:not(.clinic-cover-has-portrait) .clinic-hero {
     min-height: 330px;

@@ -335,15 +335,30 @@ describe('versioned clinic onboarding', () => {
     ).toBe(409)
     const completed = await call('onboarding-a', 'POST', clinicA, 'onboarding/complete', {
       version: 5,
+      publication: { address: true, contacts: false },
     })
     expect(completed.statusCode).toBe(200)
     expect(completed.json().replayed).toBe(false)
     expect(completed.json().clinic.shareCode).toMatch(/^(?!CU|KU|FU|SH)[A-Z]{2}-[0-9]{4}$/)
+    const publicSlug = completed.json().clinic.shareCode.toLowerCase()
+    expect(completed.json().publicSlug).toBe(publicSlug)
     const replay = await call('onboarding-a', 'POST', clinicA, 'onboarding/complete', {
       version: 4,
+      publication: { address: false, contacts: true },
     })
     expect(replay.json().replayed).toBe(true)
     expect(replay.json().clinic.shareCode).toBe(completed.json().clinic.shareCode)
+    expect(replay.json().publicSlug).toBe(publicSlug)
+    const publicPage = await app.inject({ url: `/public/clinics/${publicSlug}` })
+    expect(publicPage.statusCode).toBe(200)
+    expect(publicPage.json().clinic).toMatchObject({
+      name: payload.name,
+      theme: 'violeta',
+      heroCategory: 'estetica-facial',
+      location: { line: 'Rua A' },
+      whatsapp: null,
+      instagram: null,
+    })
     const settings = (await call('onboarding-a', 'GET', clinicA, 'settings')).json()
     expect(settings.bookingRules).toEqual({
       bookingNoticeHours: 4,

@@ -8,6 +8,7 @@ import type { SqlConnection } from '../../shared/database/migrations.js'
 import { withClinicTransaction, type TenantPool } from '../../shared/tenant/clinic-transaction.js'
 import type { TenantContext } from '../../shared/tenant/tenant-context.js'
 import { saveOnboardingDraft } from './onboarding-persist.js'
+import { invalidatePublicClinic } from './public-cache.js'
 import { isValidBrazilianTaxId } from './tax-id.js'
 import {
   publicMediaUrl,
@@ -311,13 +312,15 @@ export async function clinicRoutes(
     permission: string | null,
     work: (connection: SqlConnection, tenant: TenantContext) => Promise<unknown>,
     beforeWrite?: (identityId: string) => Promise<void>,
+    affectsPublicPage = false,
   ) {
     const identityId = await authenticate(request, reply)
     if (!identityId) return
     if (!pool) return reply.code(503).send({ error: 'Clinic unavailable' })
     try {
       await beforeWrite?.(identityId)
-      return await withClinicTransaction(
+      let publicSlug: string | undefined
+      const result = await withClinicTransaction(
         pool,
         identityId,
         request.params.clinicId,
@@ -325,12 +328,22 @@ export async function clinicRoutes(
         async (connection, tenant) => {
           request.tenantContext = tenant
           try {
-            return await work(connection, tenant)
+            const result = await work(connection, tenant)
+            if (affectsPublicPage) {
+              const { rows } = await connection.query(
+                'SELECT slug FROM luminix.clinics WHERE id = $1',
+                [tenant.clinicId],
+              )
+              if (typeof rows[0]?.slug === 'string') publicSlug = rows[0].slug
+            }
+            return result
           } finally {
             request.tenantContext = null
           }
         },
       )
+      if (publicSlug) await invalidatePublicClinic(publicSlug, request.log)
+      return result
     } catch (error) {
       const statusCode = (error as { statusCode?: number })?.statusCode
       if (statusCode && [400, 409, 413].includes(statusCode))
@@ -436,14 +449,21 @@ export async function clinicRoutes(
       },
     },
     async (request, reply) =>
-      authorized(request, reply, 'settings:manage', async (connection, tenant) => {
-        const { enabled, address, contacts } = request.body
-        await connection.query(
-          'SELECT luminix.set_clinic_publication($1::uuid, $2::boolean, $3::boolean, $4::boolean)',
-          [tenant.clinicId, enabled, address, contacts],
-        )
-        return { saved: true }
-      }),
+      authorized(
+        request,
+        reply,
+        'settings:manage',
+        async (connection, tenant) => {
+          const { enabled, address, contacts } = request.body
+          await connection.query(
+            'SELECT luminix.set_clinic_publication($1::uuid, $2::boolean, $3::boolean, $4::boolean)',
+            [tenant.clinicId, enabled, address, contacts],
+          )
+          return { saved: true }
+        },
+        undefined,
+        true,
+      ),
   )
   app.get<{ Params: { clinicId: string } }>(
     '/clinics/:clinicId/showcase',
@@ -452,7 +472,7 @@ export async function clinicRoutes(
       authorized(request, reply, 'settings:manage', async (connection, tenant) => {
         const [profile, services, photos] = await Promise.all([
           connection.query(
-            'SELECT public_showcase AS showcase FROM luminix.clinic_profiles WHERE clinic_id = $1',
+            'SELECT public_showcase AS showcase, initial_public_hero AS "initialHero" FROM luminix.clinic_profiles WHERE clinic_id = $1',
             [tenant.clinicId],
           ),
           connection.query(
@@ -473,6 +493,7 @@ export async function clinicRoutes(
         ])
         return {
           showcase: profile.rows[0]?.showcase ?? {},
+          initialHero: profile.rows[0]?.initialHero ?? null,
           services: services.rows,
           photos: photos.rows.map(({ id, key }) => ({ id, url: publicMediaUrl(String(key)) })),
         }
@@ -488,7 +509,31 @@ export async function clinicRoutes(
           additionalProperties: false,
           required: ['style', 'subtitle', 'featured', 'gallery'],
           properties: {
-            style: { type: 'string', enum: ['classic', 'hair-salon'] },
+            style: { type: 'string', enum: ['classic', 'hair-salon', 'standard'] },
+            title: { type: 'string', maxLength: 100 },
+            theme: {
+              type: 'string',
+              enum: ['', 'rosa', 'grafite', 'violeta', 'dourado', 'esmeralda', 'azul'],
+            },
+            heroCategory: {
+              type: 'string',
+              enum: [
+                '',
+                'cabelo',
+                'barbearia',
+                'estetica-avancada',
+                'estetica-facial',
+                'estetica-corporal',
+                'depilacao',
+                'massoterapia',
+                'quiropraxia',
+                'sobrancelhas',
+                'cilios',
+                'unhas',
+                'tatuagem',
+                'piercing',
+              ],
+            },
             subtitle: { type: 'string', maxLength: 120 },
             gallery: { type: 'array', maxItems: 24, items: { type: 'string', format: 'uuid' } },
             servicePhotos: {
@@ -522,13 +567,20 @@ export async function clinicRoutes(
       },
     },
     async (request, reply) =>
-      authorized(request, reply, 'settings:manage', async (connection, tenant) => {
-        await connection.query('SELECT luminix.set_public_showcase($1::uuid, $2::jsonb)', [
-          tenant.clinicId,
-          JSON.stringify(request.body),
-        ])
-        return { saved: true }
-      }),
+      authorized(
+        request,
+        reply,
+        'settings:manage',
+        async (connection, tenant) => {
+          await connection.query('SELECT luminix.set_public_showcase($1::uuid, $2::jsonb)', [
+            tenant.clinicId,
+            JSON.stringify(request.body),
+          ])
+          return { saved: true }
+        },
+        undefined,
+        true,
+      ),
   )
   app.get<{ Params: { clinicId: string } }>(
     '/clinics/:clinicId/context',
@@ -571,13 +623,20 @@ export async function clinicRoutes(
       },
     },
     async (request, reply) =>
-      authorized(request, reply, 'settings:manage', async (connection, tenant) => {
-        await connection.query('SELECT luminix.set_clinic_theme($1::uuid, $2::text)', [
-          tenant.clinicId,
-          request.body.theme,
-        ])
-        return { theme: request.body.theme }
-      }),
+      authorized(
+        request,
+        reply,
+        'settings:manage',
+        async (connection, tenant) => {
+          await connection.query('SELECT luminix.set_clinic_theme($1::uuid, $2::text)', [
+            tenant.clinicId,
+            request.body.theme,
+          ])
+          return { theme: request.body.theme }
+        },
+        undefined,
+        true,
+      ),
   )
 
   const mediaParams = {
@@ -1250,7 +1309,10 @@ export async function clinicRoutes(
       )
     },
   )
-  app.post<{ Params: { clinicId: string }; Body: { version: number } }>(
+  app.post<{
+    Params: { clinicId: string }
+    Body: { version: number; publication?: { address: boolean; contacts: boolean } }
+  }>(
     '/clinics/:clinicId/onboarding/complete',
     {
       schema: {
@@ -1259,7 +1321,15 @@ export async function clinicRoutes(
           type: 'object',
           additionalProperties: false,
           required: ['version'],
-          properties: { version: { type: 'integer', minimum: 1 } },
+          properties: {
+            version: { type: 'integer', minimum: 1 },
+            publication: {
+              type: 'object',
+              additionalProperties: false,
+              required: ['address', 'contacts'],
+              properties: { address: { type: 'boolean' }, contacts: { type: 'boolean' } },
+            },
+          },
         },
       },
     },
@@ -1275,7 +1345,23 @@ export async function clinicRoutes(
               [tenant.clinicId, request.body.version],
             )
           ).rows[0]
+          const publication = request.body.publication
+          if (publication && !row.replayed) {
+            await connection.query(
+              'SELECT luminix.set_clinic_publication($1::uuid, true, $2::boolean, $3::boolean)',
+              [tenant.clinicId, publication.address, publication.contacts],
+            )
+          }
+          const {
+            rows: [publicPage],
+          } = await connection.query(
+            `SELECT c.slug, p.public_enabled AS enabled
+             FROM luminix.clinics c JOIN luminix.clinic_profiles p ON p.clinic_id = c.id
+             WHERE c.id = $1`,
+            [tenant.clinicId],
+          )
           return {
+            publicSlug: publicPage?.enabled ? String(publicPage.slug) : null,
             clinic: {
               id: tenant.clinicId,
               name: row.clinic_name,
@@ -1288,6 +1374,7 @@ export async function clinicRoutes(
         },
         (identityId) =>
           requireStripeReady(identityId, request.params.clinicId, undefined, request.body.version),
+        true,
       ),
   )
   app.get<{ Params: { clinicId: string } }>(

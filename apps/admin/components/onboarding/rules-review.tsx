@@ -560,12 +560,14 @@ export function ReviewStep({
   payload,
   error,
   footer,
+  publication,
   onEdit,
   isDisabled = false,
 }: {
   payload: Payload
   error: string
   footer: ReactNode
+  publication?: ReactNode
   onEdit: (step: number) => void
   isDisabled?: boolean
 }) {
@@ -1007,11 +1009,12 @@ export function ReviewStep({
         ))}
       </div>
       <div className="ob2-review-finale">
+        {publication}
         <Help
           items={[
             {
               title: 'O que acontece ao concluir?',
-              text: 'O cadastro, os serviços, a equipe e as preferências ficam salvos para sua clínica. Você poderá configurar a publicação da vitrine e adicionar fotos opcionais ou seguir para o painel.',
+              text: 'O cadastro, os serviços, a equipe e as preferências ficam salvos para sua clínica. Sua vitrine poderá ser personalizada depois, com fotos opcionais para o catálogo e a galeria.',
             },
           ]}
         />

@@ -132,6 +132,7 @@ describe('versioned core migration', () => {
       { name: '0020_public_clinic_pages.sql' },
       { name: '0021_clinic_showcase.sql' },
       { name: '0022_public_service_photos.sql' },
+      { name: '0023_initial_public_showcase.sql' },
     ])
   })
 

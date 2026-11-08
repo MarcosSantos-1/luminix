@@ -12,6 +12,7 @@ export type PublicClinic = {
   slug: string
   name: string
   theme: string
+  heroCategory?: string | null
   style?: string | null
   subtitle?: string | null
   featured?: { serviceId: string; photoUrl: string | null }[]

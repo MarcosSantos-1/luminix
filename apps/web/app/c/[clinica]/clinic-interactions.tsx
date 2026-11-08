@@ -3,14 +3,15 @@
 import { useState } from 'react'
 import { Copy, MapPin } from 'lucide-react'
 
-export function ClinicMiniMap({ address }: { address: string }) {
+export function ClinicMiniMap({ address, autoLoad }: { address: string; autoLoad: boolean }) {
   const [loaded, setLoaded] = useState(false)
 
-  return loaded ? (
+  return autoLoad || loaded ? (
     <iframe
       className="clinic-map-frame"
       title="Minimapa da localização no Google Maps"
       src={`https://maps.google.com/maps?q=${encodeURIComponent(address)}&output=embed`}
+      loading="lazy"
       referrerPolicy="no-referrer"
     />
   ) : (
