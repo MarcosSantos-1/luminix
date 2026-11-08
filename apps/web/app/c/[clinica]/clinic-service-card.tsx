@@ -1,0 +1,46 @@
+import Image from 'next/image'
+import { Clock3, Flower2 } from 'lucide-react'
+import type { PublicService } from '../../../lib/public-clinic'
+
+const money = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' })
+
+export function ClinicServiceCard({
+  service,
+  photoUrl,
+  showCategory = false,
+}: {
+  service: PublicService
+  photoUrl?: string | null
+  showCategory?: boolean
+}) {
+  return (
+    <article className="clinic-service">
+      <div className="clinic-service-mark" aria-hidden="true">
+        {photoUrl ? (
+          <Image src={photoUrl} alt="" width={112} height={112} unoptimized />
+        ) : (
+          <Flower2 size={26} strokeWidth={1.35} />
+        )}
+      </div>
+      <div className="clinic-service-copy">
+        {showCategory && <span className="clinic-service-category">{service.category}</span>}
+        <h3>{service.name}</h3>
+        {service.description && <p>{service.description}</p>}
+        <div className="clinic-service-meta">
+          <span>
+            <Clock3 size={14} aria-hidden />
+            {service.durationMinutes} min
+          </span>
+          <strong>
+            {service.priceType === 'quote'
+              ? 'Sob consulta'
+              : `${service.priceType === 'from' ? 'A partir de ' : ''}${money.format(service.priceCents / 100)}`}
+          </strong>
+        </div>
+        {service.bookingMode === 'manual_release' && (
+          <small>Disponibilidade sob consulta com a equipe.</small>
+        )}
+      </div>
+    </article>
+  )
+}

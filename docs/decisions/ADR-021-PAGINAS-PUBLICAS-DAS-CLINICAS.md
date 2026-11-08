@@ -55,3 +55,17 @@ Testes PGlite com todas as migrations e papel real `luminix_api`: publicação d
 401/403, separação de duas clínicas, projeção sem dados privados, opções de endereço/contatos,
 retirada imediata, clínica suspensa/draft, privilégios SQL, slug inválido e 503 saneado.
 Testes web cobrem saneamento de links e agrupamento/frases das categorias.
+
+## Vitrine e galeria
+
+A página inicial destaca até quatro serviços. A ordem escolhida pela gestora tem prioridade e
+as vagas restantes favorecem categorias ainda não representadas. O catálogo completo fica em
+`/c/<slug>/servicos`. A Galeria é opcional e reúne até 24 fotos, preservando suas proporções.
+O editor em Página pública do espaço salva subtítulo, estilo, destaques e referências às fotos.
+O estilo de salão feminino é a primeira variação editorial e é independente das seis paletas
+salvas no onboarding. Demais segmentos podem ganhar composições próprias futuramente.
+
+A migration 0021 amplia a projeção pública e reutiliza o upload WebP no R2 para fotos destinadas
+à publicação. A escrita valida serviços ativos e fotos prontas do mesmo estabelecimento. Remover
+uma foto da vitrine ou despublicar a página remove a referência pública, mas não invalida URLs
+de mídia já conhecidas nem elimina objetos do R2. A interface orienta o envio de fotos autorizadas.

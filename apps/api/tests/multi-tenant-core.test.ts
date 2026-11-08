@@ -130,6 +130,7 @@ describe('versioned core migration', () => {
       { name: '0018_attendance_retention_preferences.sql' },
       { name: '0019_deposit_preferences.sql' },
       { name: '0020_public_clinic_pages.sql' },
+      { name: '0021_clinic_showcase.sql' },
     ])
   })
 

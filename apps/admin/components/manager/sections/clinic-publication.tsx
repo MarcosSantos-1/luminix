@@ -2,6 +2,7 @@
 
 import { Button, Card, Checkbox, Label, Spinner } from '@heroui/react'
 import { useEffect, useState } from 'react'
+import { ClinicShowcaseEditor } from './clinic-showcase-editor'
 import { useStaff } from '@/components/staff-provider'
 
 type Publication = {
@@ -135,6 +136,7 @@ function PublicationForm({ clinicId }: { clinicId: string }) {
             </Button>
           </div>
         )}
+        {publication?.status === 'active' && <ClinicShowcaseEditor clinicId={clinicId} />}
         {message && <p role="status">{message}</p>}
         {error && (
           <>

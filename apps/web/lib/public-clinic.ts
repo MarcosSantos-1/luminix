@@ -12,6 +12,10 @@ export type PublicClinic = {
   slug: string
   name: string
   theme: string
+  style?: string | null
+  subtitle?: string | null
+  featured?: { serviceId: string; photoUrl: string | null }[]
+  gallery?: string[]
   foundedYear: number | null
   logoUrl: string | null
   whatsapp: string | null
@@ -94,4 +98,34 @@ export function groupServices(services: PublicService[]) {
     anchor: `categoria-${index + 1}`,
     introduction: categoryIntroduction(name),
   }))
+}
+
+export function clinicTheme(theme: string) {
+  return ['rosa', 'grafite', 'violeta', 'dourado', 'esmeralda', 'azul'].includes(theme)
+    ? theme
+    : 'rosa'
+}
+
+export function showcaseServices(clinic: PublicClinic) {
+  const byId = new Map(clinic.services.map((service) => [service.id, service]))
+  const result: PublicService[] = []
+  const used = new Set<string>()
+  const categories = new Set<string>()
+  for (const { serviceId } of clinic.featured ?? []) {
+    const service = byId.get(serviceId)
+    if (!service || used.has(serviceId)) continue
+    result.push(service)
+    used.add(serviceId)
+    categories.add(service.category)
+    if (result.length === 4) return result
+  }
+  // Prefer one per category, then fill any remaining slots from the full catalog.
+  for (const service of clinic.services) {
+    if (categories.has(service.category)) continue
+    result.push(service)
+    categories.add(service.category)
+    used.add(service.id)
+    if (result.length === 4) return result
+  }
+  return [...result, ...clinic.services.filter(({ id }) => !used.has(id))].slice(0, 4)
 }

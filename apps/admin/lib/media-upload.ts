@@ -1,4 +1,4 @@
-type ImageKind = 'clinic_logo' | 'professional_photo'
+type ImageKind = 'clinic_logo' | 'professional_photo' | 'public_photo'
 
 const allowedTypes = new Set(['image/png', 'image/jpeg', 'image/webp'])
 
@@ -9,12 +9,18 @@ async function canvasBlob(bitmap: ImageBitmap, size: number, kind: ImageKind): P
   const context = canvas.getContext('2d')
   if (!context) throw new Error('Seu navegador não conseguiu preparar a imagem.')
   const scale =
-    kind === 'clinic_logo'
+    kind !== 'professional_photo'
       ? Math.min(size / bitmap.width, size / bitmap.height)
       : Math.max(size / bitmap.width, size / bitmap.height)
   const width = bitmap.width * scale
   const height = bitmap.height * scale
-  context.drawImage(bitmap, (size - width) / 2, (size - height) / 2, width, height)
+  if (kind === 'public_photo') {
+    canvas.width = Math.max(1, Math.round(width))
+    canvas.height = Math.max(1, Math.round(height))
+    context.drawImage(bitmap, 0, 0, canvas.width, canvas.height)
+  } else {
+    context.drawImage(bitmap, (size - width) / 2, (size - height) / 2, width, height)
+  }
   const blob = await new Promise<Blob | null>((resolve) =>
     canvas.toBlob(resolve, 'image/webp', 0.84),
   )

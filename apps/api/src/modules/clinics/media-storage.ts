@@ -1,7 +1,7 @@
 import { GetObjectCommand, HeadObjectCommand, PutObjectCommand } from '@aws-sdk/client-s3'
 import { createR2Client, readR2Config } from '../../shared/integrations/r2/client.js'
 
-export type MediaKind = 'clinic_logo' | 'professional_photo'
+export type MediaKind = 'clinic_logo' | 'professional_photo' | 'public_photo'
 export type MediaVariant = 'small' | 'large'
 
 const dimensions: Record<MediaVariant, number> = { small: 128, large: 512 }
@@ -13,7 +13,12 @@ export function mediaObjectKey(
   subjectRef: string | null,
   variant: MediaVariant,
 ) {
-  const module = kind === 'clinic_logo' ? 'branding/logo' : `team/${subjectRef}`
+  const module =
+    kind === 'clinic_logo'
+      ? 'branding/logo'
+      : kind === 'public_photo'
+        ? 'showcase'
+        : `team/${subjectRef}`
   return `${clinicId}/${module}/${assetId}/${variant}-${dimensions[variant]}.webp`
 }
 
@@ -43,6 +48,12 @@ export function readWebpDimensions(buffer: Buffer): { width: number; height: num
   return null
 }
 
+function validVariant(size: { width: number; height: number }, expected: number, kind: MediaKind) {
+  if (kind === 'public_photo')
+    return Math.min(size.width, size.height) > 0 && Math.max(size.width, size.height) === expected
+  return size.width === expected && size.height === expected
+}
+
 export async function uploadMediaVariant(options: {
   clinicId: string
   assetId: string
@@ -53,7 +64,7 @@ export async function uploadMediaVariant(options: {
 }) {
   const expected = dimensions[options.variant]
   const detected = readWebpDimensions(options.body.subarray(0, 64))
-  if (!detected || detected.width !== expected || detected.height !== expected)
+  if (!detected || !validVariant(detected, expected, options.kind))
     throw Object.assign(new Error('Invalid WebP variant'), { statusCode: 400 })
   const config = readR2Config()
   const key = mediaObjectKey(
@@ -101,11 +112,7 @@ export async function verifyMediaVariants(options: {
     )
     const bytes = Buffer.from(await object.Body!.transformToByteArray())
     const detected = readWebpDimensions(bytes)
-    if (
-      !detected ||
-      detected.width !== dimensions[variant] ||
-      detected.height !== dimensions[variant]
-    )
+    if (!detected || !validVariant(detected, dimensions[variant], options.kind))
       throw Object.assign(new Error('Invalid media upload'), { statusCode: 400 })
     result[variant] = { key, bytes: Number(head.ContentLength) }
   }

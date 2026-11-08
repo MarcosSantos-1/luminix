@@ -446,6 +446,76 @@ export async function clinicRoutes(
       }),
   )
   app.get<{ Params: { clinicId: string } }>(
+    '/clinics/:clinicId/showcase',
+    { schema: { params } },
+    async (request, reply) =>
+      authorized(request, reply, 'settings:manage', async (connection, tenant) => {
+        const [profile, services, photos] = await Promise.all([
+          connection.query(
+            'SELECT public_showcase AS showcase FROM luminix.clinic_profiles WHERE clinic_id = $1',
+            [tenant.clinicId],
+          ),
+          connection.query(
+            "SELECT id, name, category FROM luminix.services WHERE clinic_id = $1 AND status = 'active' ORDER BY category, name, id",
+            [tenant.clinicId],
+          ),
+          connection.query(
+            `SELECT m.id, m.large_object_key AS key
+            FROM luminix.media_assets m JOIN luminix.clinic_profiles p ON p.clinic_id = m.clinic_id
+            WHERE m.clinic_id = $1 AND m.kind = 'public_photo' AND m.status = 'ready'
+              AND (p.public_showcase->'gallery' ? m.id::text OR EXISTS (
+                SELECT 1 FROM jsonb_array_elements(p.public_showcase->'featured') f
+                WHERE f->>'assetId' = m.id::text))`,
+            [tenant.clinicId],
+          ),
+        ])
+        return {
+          showcase: profile.rows[0]?.showcase ?? {},
+          services: services.rows,
+          photos: photos.rows.map(({ id, key }) => ({ id, url: publicMediaUrl(String(key)) })),
+        }
+      }),
+  )
+  app.put<{ Params: { clinicId: string }; Body: Record<string, unknown> }>(
+    '/clinics/:clinicId/showcase',
+    {
+      schema: {
+        params,
+        body: {
+          type: 'object',
+          additionalProperties: false,
+          required: ['style', 'subtitle', 'featured', 'gallery'],
+          properties: {
+            style: { type: 'string', enum: ['classic', 'hair-salon'] },
+            subtitle: { type: 'string', maxLength: 120 },
+            gallery: { type: 'array', maxItems: 24, items: { type: 'string', format: 'uuid' } },
+            featured: {
+              type: 'array',
+              maxItems: 4,
+              items: {
+                type: 'object',
+                additionalProperties: false,
+                required: ['serviceId'],
+                properties: {
+                  serviceId: { type: 'string', format: 'uuid' },
+                  assetId: { type: 'string', format: 'uuid' },
+                },
+              },
+            },
+          },
+        },
+      },
+    },
+    async (request, reply) =>
+      authorized(request, reply, 'settings:manage', async (connection, tenant) => {
+        await connection.query('SELECT luminix.set_public_showcase($1::uuid, $2::jsonb)', [
+          tenant.clinicId,
+          JSON.stringify(request.body),
+        ])
+        return { saved: true }
+      }),
+  )
+  app.get<{ Params: { clinicId: string } }>(
     '/clinics/:clinicId/context',
     { schema: { params } },
     async (request, reply) =>
@@ -518,7 +588,7 @@ export async function clinicRoutes(
           additionalProperties: false,
           required: ['kind'],
           properties: {
-            kind: { type: 'string', enum: ['clinic_logo', 'professional_photo'] },
+            kind: { type: 'string', enum: ['clinic_logo', 'professional_photo', 'public_photo'] },
             subjectRef: { type: 'string', format: 'uuid' },
           },
         },
@@ -528,7 +598,7 @@ export async function clinicRoutes(
       authorized(
         request,
         reply,
-        request.body.kind === 'clinic_logo' ? 'settings:manage' : 'professional:manage',
+        request.body.kind === 'professional_photo' ? 'professional:manage' : 'settings:manage',
         async (connection, tenant) => {
           const row = (
             await connection.query(
@@ -560,7 +630,8 @@ export async function clinicRoutes(
         ).rows[0]
         if (!asset || asset.status !== 'pending')
           throw Object.assign(new Error('Media upload unavailable'), { statusCode: 409 })
-        const permission = asset.kind === 'clinic_logo' ? 'settings:manage' : 'professional:manage'
+        const permission =
+          asset.kind === 'professional_photo' ? 'professional:manage' : 'settings:manage'
         await connection.query(
           'SELECT * FROM luminix.authorize_staff_clinic($1::uuid, $2::uuid, $3::text)',
           [tenant.userId, tenant.clinicId, permission],
@@ -599,6 +670,14 @@ export async function clinicRoutes(
         ).rows[0]
         if (!asset || asset.status !== 'pending')
           throw Object.assign(new Error('Media upload unavailable'), { statusCode: 409 })
+        await connection.query(
+          'SELECT * FROM luminix.authorize_staff_clinic($1::uuid, $2::uuid, $3::text)',
+          [
+            tenant.userId,
+            tenant.clinicId,
+            asset.kind === 'professional_photo' ? 'professional:manage' : 'settings:manage',
+          ],
+        )
         const variants = await verifyMediaVariants({
           clinicId: tenant.clinicId,
           assetId: request.params.assetId,

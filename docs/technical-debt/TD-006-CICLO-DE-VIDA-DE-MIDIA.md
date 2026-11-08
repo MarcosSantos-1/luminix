@@ -21,3 +21,7 @@ manual de DNS.
 - avaliar Cloudflare Images/Worker para redecodificar entradas no servidor e upload direto assinado
   se volume, segurança ou custo justificarem;
 - testar substituição, abandono e recuperação com imagens representativas.
+
+Fotos da vitrine retiradas da configuração podem continuar como assets `ready` sem referências.
+A limpeza deverá identificar esses objetos, respeitar reuso entre galeria e serviço e prever
+invalidação do acesso direto quando necessário.

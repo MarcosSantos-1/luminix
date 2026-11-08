@@ -1,5 +1,5 @@
 import { PGlite } from '@electric-sql/pglite'
-import { beforeAll, afterAll, describe, expect, it } from 'vitest'
+import { beforeAll, afterAll, describe, expect, it, vi } from 'vitest'
 import { buildApp } from '../src/app.js'
 import { applyMigrations, type SqlConnection } from '../src/shared/database/migrations.js'
 
@@ -10,6 +10,7 @@ let clinicA: string
 let clinicB: string
 let slugA: string
 let slugB: string
+const showcaseFixtures = new Map<string, { service: string; photo: string }>()
 
 beforeAll(async () => {
   db = new PGlite()
@@ -53,10 +54,22 @@ beforeAll(async () => {
       `INSERT INTO luminix.locations (clinic_id, name, address_line, city, state, is_primary) VALUES ($1, 'Local', 'Rua privada', 'São Paulo', 'SP', true)`,
       [id],
     )
-    await connection.query(
-      `INSERT INTO luminix.services (clinic_id, name, category, price_cents, duration_minutes) VALUES ($1, $2, 'Facial', 15000, 60)`,
-      [id, `Service ${label}`],
-    )
+    const service = (
+      await connection.query(
+        `INSERT INTO luminix.services (clinic_id, name, category, price_cents, duration_minutes)
+       VALUES ($1, $2, 'Facial', 15000, 60) RETURNING id`,
+        [id, `Service ${label}`],
+      )
+    ).rows[0].id
+    const photo = (
+      await connection.query(
+        `INSERT INTO luminix.media_assets (clinic_id, kind, status, created_by_membership_id, small_object_key, large_object_key, ready_at)
+       SELECT $1, 'public_photo', 'ready', m.id, $2, $3, now()
+       FROM luminix.clinic_memberships m WHERE m.clinic_id = $1 RETURNING id`,
+        [id, `test-${label}-small.webp`, `test-${label}-large.webp`],
+      )
+    ).rows[0].id
+    showcaseFixtures.set(label, { service: String(service), photo: String(photo) })
     await connection.query(
       `INSERT INTO luminix.services (clinic_id, name, price_cents, duration_minutes, status) VALUES ($1, 'ARCHIVED', 100, 10, 'archived')`,
       [id],
@@ -86,6 +99,42 @@ const publish = (id: string, uid: string, enabled = true, address = false, conta
 const read = (slug: string) => app.inject({ method: 'GET', url: `/public/clinics/${slug}` })
 
 describe('public clinic boundary', () => {
+  it('publishes ordered showcase content and rejects cross-tenant references', async () => {
+    const a = showcaseFixtures.get('a')!
+    const b = showcaseFixtures.get('b')!
+    const update = (featured: { serviceId: string; assetId?: string }[], gallery: string[] = []) =>
+      app.inject({
+        method: 'PUT',
+        url: `/clinics/${clinicA}/showcase`,
+        headers: { authorization: 'Bearer public-a' },
+        payload: { style: 'hair-salon', subtitle: 'Estilo A', featured, gallery },
+      })
+    expect((await update([{ serviceId: b.service }])).statusCode).toBe(400)
+    expect((await update([{ serviceId: a.service, assetId: b.photo }])).statusCode).toBe(400)
+    expect((await update([], [b.photo])).statusCode).toBe(400)
+    expect((await update([{ serviceId: a.service, assetId: a.photo }], [a.photo])).statusCode).toBe(
+      200,
+    )
+    expect((await read(slugA)).statusCode).toBe(404)
+    expect((await publish(clinicA, 'public-a')).statusCode).toBe(200)
+    vi.stubEnv('R2_PUBLIC_BASE_URL', 'https://media.example.com')
+    try {
+      const clinic = (await read(slugA)).json().clinic
+      expect(clinic).toMatchObject({
+        style: 'hair-salon',
+        subtitle: 'Estilo A',
+        gallery: ['https://media.example.com/test-a-large.webp'],
+        featured: [
+          { serviceId: a.service, photoUrl: 'https://media.example.com/test-a-large.webp' },
+        ],
+      })
+      expect(clinic).not.toHaveProperty('galleryKeys')
+    } finally {
+      vi.unstubAllEnvs()
+    }
+    expect((await update([])).statusCode).toBe(200)
+    expect((await publish(clinicA, 'public-a', false)).statusCode).toBe(200)
+  })
   it('keeps every existing clinic private by default and requires authorization to publish', async () => {
     expect((await read(slugA)).statusCode).toBe(404)
     expect((await publish(clinicA, 'public-b')).statusCode).toBe(403)
