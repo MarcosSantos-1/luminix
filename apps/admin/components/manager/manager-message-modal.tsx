@@ -2,46 +2,10 @@
 
 import { Button, Modal } from '@heroui/react'
 import Image from 'next/image'
-import {
-  ArrowLeft,
-  ArrowRight,
-  Bell,
-  CalendarDays,
-  ExternalLink,
-  Globe,
-  Settings2,
-  Sparkles,
-  UsersRound,
-} from 'lucide-react'
+import { ArrowRight, Bell, ExternalLink, Globe, Sparkles } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { managerUpdates, welcomeMedia, type ManagerMessageMedia } from './manager-updates'
 import './manager-message-modal.css'
-
-const tour = [
-  {
-    section: 'agenda',
-    title: 'Veja sua agenda',
-    description:
-      'Consulte a semana, confira os horários da equipe e use Novo agendamento para marcar um atendimento.',
-    icon: CalendarDays,
-  },
-  {
-    section: 'clientes',
-    title: 'Organize seus clientes',
-    description:
-      'Busque quem já atende com você ou use Adicionar cliente para cadastrar alguém novo.',
-    icon: UsersRound,
-  },
-  {
-    section: 'configuracoes',
-    title: 'Deixe a vitrine com a sua cara',
-    description:
-      'Em Página pública do espaço, você pode revisar a publicação, editar a capa e o tema e incluir fotos na galeria.',
-    icon: Settings2,
-  },
-] as const
-
-type TourSection = (typeof tour)[number]['section']
 
 function MessageMedia({ src, still, alt }: ManagerMessageMedia) {
   return (
@@ -60,8 +24,6 @@ export function ManagerMessageModal({
   canManageSettings,
   onClose,
   onTour,
-  onSection,
-  onFinish,
   onShowcase,
 }: {
   view: 'welcome' | 'updates'
@@ -71,11 +33,8 @@ export function ManagerMessageModal({
   canManageSettings: boolean
   onClose: () => void
   onTour: () => void
-  onSection: (section: TourSection) => void
-  onFinish: () => void
   onShowcase: () => void
 }) {
-  const [step, setStep] = useState<number | null>(null)
   const [copied, setCopied] = useState('')
   const [publicUrl, setPublicUrl] = useState(demoPublicUrl ?? null)
   useEffect(() => {
@@ -90,15 +49,8 @@ export function ManagerMessageModal({
       })
     return () => controller.abort()
   }, [view, getPublicUrl])
-  const totalSteps = canManageSettings ? tour.length : tour.length - 1
-  const current = step === null ? null : tour[step]
-  const media = view === 'welcome' && !current ? welcomeMedia : undefined
-  const Icon = current?.icon ?? (view === 'welcome' ? Sparkles : Bell)
-
-  function showStep(index: number) {
-    setStep(index)
-    onSection(tour[index].section)
-  }
+  const media = view === 'welcome' ? welcomeMedia : undefined
+  const Icon = view === 'welcome' ? Sparkles : Bell
 
   async function copyLink() {
     if (!publicUrl) return
@@ -133,21 +85,14 @@ export function ManagerMessageModal({
               </div>
             )}
             <p className="manager-message-kicker">
-              {current && step !== null
-                ? `Tour guiado · ${step + 1} de ${totalSteps}`
-                : view === 'welcome'
-                  ? 'PRIMEIROS PASSOS'
-                  : 'ACOMPANHE O LUMINIX'}
+              {view === 'welcome' ? 'PRIMEIROS PASSOS' : 'ACOMPANHE O LUMINIX'}
             </p>
             <Modal.Heading>
-              {current?.title ??
-                (view === 'welcome' ? 'Boas-vindas ao Luminix!' : 'Novidades e avisos')}
+              {view === 'welcome' ? 'Boas-vindas ao Luminix!' : 'Novidades e avisos'}
             </Modal.Heading>
           </Modal.Header>
           <Modal.Body className="manager-message-body">
-            {current ? (
-              <p aria-live="polite">{current.description}</p>
-            ) : view === 'welcome' ? (
+            {view === 'welcome' ? (
               <>
                 <p>
                   <strong>{clinicName}</strong> já tem um painel para organizar a agenda, os
@@ -201,37 +146,17 @@ export function ManagerMessageModal({
             )}
           </Modal.Body>
           <Modal.Footer className="manager-message-footer">
-            {current && step !== null ? (
-              <>
-                <Button variant="ghost" onPress={onClose}>
-                  Pular tour
-                </Button>
-                {step > 0 && (
-                  <Button variant="secondary" onPress={() => showStep(step - 1)}>
-                    <ArrowLeft size={16} aria-hidden="true" /> Voltar
-                  </Button>
-                )}
-                <Button onPress={step + 1 === totalSteps ? onFinish : () => showStep(step + 1)}>
-                  {step + 1 === totalSteps ? 'Concluir tour' : 'Próximo'}
-                  <ArrowRight size={16} aria-hidden="true" />
-                </Button>
-              </>
-            ) : view === 'welcome' ? (
+            {view === 'welcome' ? (
               <>
                 <Button variant="ghost" onPress={onClose}>
                   Explorar por conta própria
                 </Button>
-                <Button onPress={() => showStep(0)}>
+                <Button onPress={onTour}>
                   Começar tour <ArrowRight size={16} aria-hidden="true" />
                 </Button>
               </>
             ) : (
-              <>
-                <Button variant="secondary" onPress={onTour}>
-                  Ver primeiros passos
-                </Button>
-                <Button onPress={onClose}>Entendi</Button>
-              </>
+              <Button onPress={onClose}>Entendi</Button>
             )}
           </Modal.Footer>
         </Modal.Dialog>

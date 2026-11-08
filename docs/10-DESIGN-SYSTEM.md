@@ -158,9 +158,11 @@ critérios de avaliação do experimento, não garantias já comprovadas.
 ### Boas-vindas e novidades
 
 Depois de concluir o onboarding, a gestora com acesso à Home entra no painel com as boas-vindas
-abertas. O fundo permanece visível e o tour percorre Agenda, Clientes e, conforme a permissão,
-Configurações. Pode ser pulado e reaberto no sino **Novidades e avisos**. Os atalhos de abrir e
-copiar a vitrine aparecem quando a leitura autenticada confirma que ela está publicada.
+abertas. Os atalhos de abrir e copiar a vitrine aparecem quando a leitura autenticada confirma
+que ela está publicada. Ao iniciar o tour, o modal dá lugar a um cartão recolhível no canto do
+painel, com navegação entre Início, Agenda, Clientes, Serviços, Estoque, Marketing e, conforme
+a permissão, Vitrine e Configurações. A interface continua disponível para explorar cada área.
+O rodapé oferece o atalho temporário **Debug · Abrir tour**. O sino abre **Novidades e avisos**.
 
 O modal usa HeroUI e o tema atual. O catálogo fica em
 `apps/admin/components/manager/manager-updates.ts`, em ordem do mais recente ao mais antigo.

@@ -4,6 +4,7 @@ import { Avatar, Button, Card, Dropdown, Modal, SearchField } from '@heroui/reac
 import {
   ArrowRight,
   Bell,
+  Bug,
   ChevronDown,
   LogOut,
   Plus,
@@ -11,7 +12,7 @@ import {
   Settings2,
   UserRound,
 } from 'lucide-react'
-import { useMemo, useState, type ReactNode } from 'react'
+import { useMemo, useRef, useState, type ReactNode } from 'react'
 import { useManagerMessages } from '@/hooks/use-manager-messages'
 import { useManagerLayout } from '@/hooks/use-manager-layout'
 import { useManagerSection } from '@/hooks/use-manager-section'
@@ -23,6 +24,7 @@ import {
 } from './demo-data'
 import { ManagerMessageModal } from './manager-message-modal'
 import { ManagerSidebar } from './manager-sidebar'
+import { ManagerTour } from './manager-tour'
 import { HomePanels } from './sections/home-panels'
 import { AgendaPanel } from './sections/agenda-panel'
 import { ClientsPanel } from './sections/clients-panel'
@@ -90,6 +92,8 @@ export function ManagerHome({
   const message = useManagerMessages(messages?.welcome ?? false, messages?.scope)
   const { collapsed, setCollapsed, searchOpen, changeSearch, query, setQuery, searchTrigger } =
     useManagerLayout(!message.view)
+  const [tourOpen, setTourOpen] = useState(false)
+  const sectionHeading = useRef<HTMLHeadingElement>(null)
   const [notice, setNotice] = useState<string | null>(null)
   const [announcement, setAnnouncement] = useState(true)
   const [forceGlass, setForceGlass] = useState(false)
@@ -99,6 +103,16 @@ export function ManagerHome({
   const realClinic = shareCode !== undefined
   const isHome = section.id === 'inicio'
   const showDemoLabel = section.id !== 'agenda' && !(payments && section.id === 'financeiro')
+
+  function startTour() {
+    select('inicio', 'replace')
+    setTourOpen(true)
+  }
+
+  function closeTour() {
+    setTourOpen(false)
+    requestAnimationFrame(() => sectionHeading.current?.focus({ preventScroll: true }))
+  }
 
   function closeNotice() {
     setNotice(null)
@@ -196,13 +210,17 @@ export function ManagerHome({
             {isHome ? (
               <>
                 <p>Seu espaço de cuidado ✦</p>
-                <h1>Olá, {firstName}!</h1>
+                <h1 ref={sectionHeading} tabIndex={-1}>
+                  Olá, {firstName}!
+                </h1>
                 <span>{clinicName}</span>
               </>
             ) : (
               <>
                 <p>{clinicName}</p>
-                <h1>{section.label}</h1>
+                <h1 ref={sectionHeading} tabIndex={-1}>
+                  {section.label}
+                </h1>
                 <span>{section.subtitle}</span>
               </>
             )}
@@ -229,9 +247,9 @@ export function ManagerHome({
             </Button>
             <Button
               isIconOnly
-              aria-label={messages ? 'Novidades e avisos' : 'Notificações'}
+              aria-label="Novidades e avisos"
               className="manager-icon-button"
-              onPress={messages ? message.openUpdates : () => navigate('Notificações')}
+              onPress={message.openUpdates}
             >
               <Bell size={20} />
             </Button>
@@ -340,14 +358,21 @@ export function ManagerHome({
           ))}
         <footer className="manager-footer">
           <span>Luminix · tempo para o que importa.</span>
-          <Button
-            variant="ghost"
-            size="sm"
-            aria-pressed={forceGlass}
-            onPress={() => setForceGlass((value) => !value)}
-          >
-            {forceGlass ? 'Respeitar transparência do sistema' : 'Testar transparência Glass'}
-          </Button>
+          <div className="manager-tour-footer-actions">
+            {messages && (
+              <Button variant="ghost" size="sm" isDisabled={tourOpen} onPress={startTour}>
+                <Bug size={15} aria-hidden="true" /> Debug · Abrir tour
+              </Button>
+            )}
+            <Button
+              variant="ghost"
+              size="sm"
+              aria-pressed={forceGlass}
+              onPress={() => setForceGlass((value) => !value)}
+            >
+              {forceGlass ? 'Respeitar transparência do sistema' : 'Testar transparência Glass'}
+            </Button>
+          </div>
         </footer>
       </main>
       <nav className="manager-bottom-nav" aria-label="Navegação móvel">
@@ -367,6 +392,13 @@ export function ManagerHome({
           <span>Buscar</span>
         </Button>
       </nav>
+      {tourOpen && (
+        <ManagerTour
+          canManageSettings={canManageSettings}
+          onSection={(section) => select(section, 'replace')}
+          onClose={closeTour}
+        />
+      )}
       {message.view && (
         <ManagerMessageModal
           key={message.view}
@@ -376,11 +408,9 @@ export function ManagerHome({
           demoPublicUrl={messages?.demoPublicUrl}
           getPublicUrl={messages?.getPublicUrl}
           onClose={message.close}
-          onTour={message.reopenWelcome}
-          onSection={(section) => select(section, 'replace')}
-          onFinish={() => {
-            select('inicio', 'replace')
+          onTour={() => {
             message.close()
+            startTour()
           }}
           onShowcase={() => {
             message.close()

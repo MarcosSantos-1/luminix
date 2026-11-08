@@ -1,0 +1,82 @@
+.manager-shell .manager-tour {
+  position: fixed;
+  z-index: 21;
+  inset-inline-end: max(16px, env(safe-area-inset-right));
+  bottom: max(16px, env(safe-area-inset-bottom));
+  width: min(348px, calc(100% - 32px));
+  max-height: min(440px, calc(100dvh - 32px));
+  overflow: auto;
+  padding: 12px;
+  border: 1px solid var(--manager-border);
+  border-radius: 18px;
+  background: var(--space-deep, #56203c);
+  box-shadow: 0 12px 38px #130a1a66;
+}
+
+.manager-tour-header,
+.manager-tour-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.manager-tour-header h2 {
+  flex: 1;
+  margin: 0;
+  padding-inline: 4px;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.manager-tour-header h2 span {
+  font-weight: 500;
+}
+
+.manager-tour-header .button {
+  min-width: 36px;
+  min-height: 36px;
+}
+
+.manager-tour-content:not([hidden]) {
+  display: grid;
+  gap: 10px;
+  padding: 6px 4px 2px;
+}
+
+.manager-tour-content h3 {
+  margin: 0 0 4px;
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.manager-tour-content p {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.manager-tour-actions {
+  justify-content: flex-end;
+}
+
+.manager-tour .button--ghost {
+  color: var(--manager-text);
+}
+
+.manager-tour .button--ghost:hover {
+  background: var(--manager-surface);
+}
+
+.manager-tour-footer-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 4px;
+}
+
+@media (max-width: 900px) {
+  .manager-shell .manager-tour {
+    bottom: calc(96px + env(safe-area-inset-bottom));
+    max-height: min(360px, calc(100dvh - 112px - env(safe-area-inset-bottom)));
+  }
+}

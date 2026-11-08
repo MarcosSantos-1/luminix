@@ -53,10 +53,5 @@ export function useManagerMessages(initialWelcome: boolean, scope?: string) {
     view,
     close,
     openUpdates: () => setManualView('updates'),
-    reopenWelcome: () => {
-      // An update opened manually has also been seen when leaving for the tour.
-      if (view === 'updates') close()
-      setManualView('welcome')
-    },
   }
 }
