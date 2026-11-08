@@ -212,6 +212,54 @@ const examples = {
       ],
     ],
   },
+  sobrancelhas: {
+    name: 'Ateliê do Olhar',
+    theme: 'rosa',
+    subtitle: 'Design e acabamento que valorizam a expressão do seu olhar.',
+    category: 'Sobrancelhas',
+    services: [
+      ['Design de sobrancelhas', 'Mapeamento e design para o seu formato de rosto.', 6500, 40],
+      ['Brow lamination', 'Modelagem e finalização dos fios.', 14000, 60],
+    ],
+  },
+  cilios: {
+    name: 'Studio Linha do Olhar',
+    theme: 'violeta',
+    subtitle: 'Cílios com acabamento pensado para o seu estilo.',
+    category: 'Cílios',
+    services: [
+      ['Lash lifting', 'Curvatura e finalização dos cílios naturais.', 15000, 60],
+      [
+        'Extensão de cílios',
+        'Aplicação personalizada conforme o efeito escolhido.',
+        19000,
+        90,
+        'from',
+      ],
+    ],
+  },
+  piercing: {
+    name: 'Ponto de Prata Piercing',
+    theme: 'grafite',
+    subtitle: 'Perfurações e curadoria de joias para compor o seu estilo.',
+    category: 'Piercing',
+    services: [
+      [
+        'Piercing de lóbulo',
+        'Escolha da posição e da joia para perfuração do lóbulo.',
+        9500,
+        30,
+        'from',
+      ],
+      [
+        'Piercing de nariz',
+        'Avaliação da anatomia e escolha da joia para a perfuração.',
+        12000,
+        35,
+        'from',
+      ],
+    ],
+  },
 } satisfies Partial<
   Record<
     ClinicCategory,

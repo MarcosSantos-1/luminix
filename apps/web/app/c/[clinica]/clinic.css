@@ -195,11 +195,26 @@
   align-items: center;
   gap: 9px;
 }
-.clinic-quick-contacts {
-  margin-top: 10px;
+.clinic-social-links {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 12px;
 }
-.clinic-quick-contacts a {
-  font-size: 12px;
+.clinic-social-links a {
+  flex: 0 0 44px;
+  height: 44px;
+  display: grid;
+  place-items: center;
+  border: 1px solid #ffffff65;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--clinic-deep) 75%, transparent);
+}
+.clinic-social-links a:hover {
+  background: var(--clinic-deep);
+}
+.clinic-social-links img {
+  object-fit: contain;
 }
 .clinic-actions a {
   padding: 11px 16px;
@@ -882,7 +897,7 @@
 .clinic-gallery {
   max-width: 1200px;
   margin: auto;
-  padding: 4px 32px 64px;
+  padding: 52px 32px 64px;
   scroll-margin-top: 20px;
 }
 .clinic-gallery-full {
@@ -949,7 +964,7 @@
     min-height: 330px;
   }
   .clinic-gallery {
-    padding: 4px 20px 48px;
+    padding: 36px 20px 48px;
   }
   .clinic-gallery-grid {
     columns: 2;

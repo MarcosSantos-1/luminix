@@ -17,9 +17,9 @@ export const clinicCategories = {
     label: 'Estética corporal',
     hero: '/clinic/heroes/estetica-corporal.webp',
   },
-  sobrancelhas: { label: 'Sobrancelhas', hero: null },
-  cilios: { label: 'Cílios', hero: null },
-  piercing: { label: 'Piercing', hero: null },
+  sobrancelhas: { label: 'Sobrancelhas', hero: '/clinic/heroes/sobrancelhas-cilios.webp' },
+  cilios: { label: 'Cílios', hero: '/clinic/heroes/sobrancelhas-cilios.webp' },
+  piercing: { label: 'Piercing', hero: '/clinic/heroes/piercing.webp' },
 } as const
 
 export type ClinicCategory = keyof typeof clinicCategories

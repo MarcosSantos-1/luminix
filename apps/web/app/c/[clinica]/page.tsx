@@ -6,10 +6,7 @@ import {
   ArrowUpRight,
   CalendarDays,
   Clock3,
-  Globe,
-  Camera,
   MapPin,
-  MessageCircle,
   Map as MapIcon,
   UserRound,
   Sparkles,
@@ -69,29 +66,16 @@ export default async function ClinicPage({
   const featured = showcaseServices(clinic)
   const servicePhotos = clinicServicePhotos(clinic)
   const contact = whatsappLink(clinic.whatsapp)
-  const socials = (['instagram', 'facebook', 'website'] as const).flatMap((kind) => {
+  const socials = (
+    [
+      ['instagram', 'Instagram'],
+      ['facebook', 'Facebook'],
+      ['website', 'Website'],
+    ] as const
+  ).flatMap(([kind, label]) => {
     const url = publicLink(clinic[kind], kind)
-    return url
-      ? [
-          {
-            url,
-            label:
-              kind === 'website'
-                ? 'Site do espaço'
-                : kind === 'instagram'
-                  ? 'Instagram'
-                  : 'Facebook',
-          },
-        ]
-      : []
+    return url ? [{ kind, label, url }] : []
   })
-  const channels = [
-    ...(contact ? [{ url: contact, label: 'WhatsApp', icon: MessageCircle }] : []),
-    ...socials.map((social) => ({
-      ...social,
-      icon: social.label === 'Instagram' ? Camera : Globe,
-    })),
-  ]
   const location = clinic.location
   const address = location
     ? [
@@ -151,8 +135,8 @@ export default async function ClinicPage({
             </a>
             <nav aria-label="Navegação do espaço">
               <a href="#servicos">Serviços</a>
-              {gallery.length > 0 && <a href="#galeria">Galeria</a>}
               <a href="#visita">Informações</a>
+              {gallery.length > 0 && <a href="#galeria">Galeria</a>}
             </nav>
           </header>
           <div className="clinic-hero">
@@ -214,20 +198,27 @@ export default async function ClinicPage({
                   <UserRound size={17} aria-hidden /> Acessar Meu Espaço
                 </Link>
               </div>
-              {channels.length > 0 && (
-                <div className="clinic-actions clinic-quick-contacts">
-                  {channels.map(({ url, label, icon: Icon }) => (
+              {socials.length > 0 && (
+                <nav className="clinic-social-links" aria-label="Redes sociais e site do espaço">
+                  {socials.map(({ kind, label, url }) => (
                     <a
-                      className="clinic-contact"
-                      key={label}
+                      key={kind}
                       href={url}
                       target="_blank"
                       rel="noopener noreferrer"
+                      aria-label={label}
+                      title={label}
                     >
-                      <Icon size={17} aria-hidden /> {label}
+                      <Image
+                        src={`/clinic/social/${kind}.webp`}
+                        alt=""
+                        width={26}
+                        height={26}
+                        unoptimized
+                      />
                     </a>
                   ))}
-                </div>
+                </nav>
               )}
             </div>
           </div>
@@ -271,28 +262,6 @@ export default async function ClinicPage({
             <p className="clinic-empty">O catálogo está sendo preparado.</p>
           )}
         </section>
-        {gallery.length > 0 && (
-          <section className="clinic-gallery" id="galeria" aria-labelledby="gallery-title">
-            <div className="clinic-showcase-heading">
-              <div className="clinic-section-heading">
-                <span className="clinic-kicker">PORTFÓLIO</span>
-                <h2 id="gallery-title">Galeria</h2>
-                <p>
-                  {demo
-                    ? 'Imagens ilustrativas da demonstração.'
-                    : 'Veja o espaço e conheça de perto o trabalho da equipe.'}
-                </p>
-              </div>
-              <Link
-                className="clinic-view-all"
-                href={`/c/${encodeURIComponent(clinic.slug)}/galeria${themeQuery}`}
-              >
-                Ver todas <ArrowUpRight size={16} aria-hidden />
-              </Link>
-            </div>
-            <ClinicGalleryGrid photos={gallery.slice(0, 4)} name={clinic.name} />
-          </section>
-        )}
         <section className="clinic-visit" id="visita" aria-labelledby="visit-title">
           <div className="clinic-location">
             {mapAddress && <ClinicMiniMap address={mapAddress} />}
@@ -337,6 +306,28 @@ export default async function ClinicPage({
             </section>
           )}
         </section>
+        {gallery.length > 0 && (
+          <section className="clinic-gallery" id="galeria" aria-labelledby="gallery-title">
+            <div className="clinic-showcase-heading">
+              <div className="clinic-section-heading">
+                <span className="clinic-kicker">PORTFÓLIO</span>
+                <h2 id="gallery-title">Galeria</h2>
+                <p>
+                  {demo
+                    ? 'Imagens ilustrativas da demonstração.'
+                    : 'Veja o espaço e conheça de perto o trabalho da equipe.'}
+                </p>
+              </div>
+              <Link
+                className="clinic-view-all"
+                href={`/c/${encodeURIComponent(clinic.slug)}/galeria${themeQuery}`}
+              >
+                Ver todas <ArrowUpRight size={16} aria-hidden />
+              </Link>
+            </div>
+            <ClinicGalleryGrid photos={gallery.slice(0, 4)} name={clinic.name} />
+          </section>
+        )}
         <aside className="clinic-app-card" aria-labelledby="clinic-app-title">
           <div className="clinic-app-phone" aria-hidden="true">
             <Image src="/brand/logo-letter.png" alt="" width={72} height={24} />
