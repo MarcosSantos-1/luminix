@@ -2,7 +2,16 @@ import type { Metadata } from 'next'
 import Image from 'next/image'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
-import { ArrowUpRight, Clock3, Heart, MapPin, MessageCircle, Sparkles } from 'lucide-react'
+import {
+  ArrowDown,
+  Clock3,
+  Flower2,
+  Globe,
+  Camera,
+  MapPin,
+  MessageCircle,
+  Sparkles,
+} from 'lucide-react'
 import { loadPublicClinic } from '../../../lib/load-public-clinic'
 import { groupServices, publicLink, whatsappLink } from '../../../lib/public-clinic'
 
@@ -50,6 +59,13 @@ export default async function ClinicPage({ params }: { params: Promise<{ clinica
         ]
       : []
   })
+  const channels = [
+    ...(contact ? [{ url: contact, label: 'WhatsApp', icon: MessageCircle }] : []),
+    ...socials.map((social) => ({
+      ...social,
+      icon: social.label === 'Instagram' ? Camera : Globe,
+    })),
+  ]
   const location = clinic.location
   const address = location
     ? [
@@ -82,84 +98,95 @@ export default async function ClinicPage({ params }: { params: Promise<{ clinica
           aqui.
         </div>
       )}
-      <header className="clinic-header">
-        <a className="clinic-wordmark" href="#topo">
-          {clinic.logoUrl ? (
-            <Image src={clinic.logoUrl} alt="" width={40} height={40} unoptimized />
-          ) : (
-            <Sparkles size={24} aria-hidden />
-          )}
-          <span>{clinic.name}</span>
-        </a>
-        <nav aria-label="Navegação do espaço">
-          <a href="#servicos">Serviços</a>
-          <a href="#visita">Seu espaço</a>
-        </nav>
-      </header>
       <main>
-        <section className="clinic-hero">
-          <div className="clinic-hero-copy">
-            <span className="clinic-kicker">
-              <Heart size={15} aria-hidden /> SEU MOMENTO DE CUIDADO
-            </span>
-            <h1>{clinic.name}</h1>
-            <p>
-              Um espaço para conhecer novos cuidados, encontrar o seu tempo e valorizar o que faz
-              você se sentir bem.
-            </p>
-            {city && (
-              <span className="clinic-city">
-                <MapPin size={16} aria-hidden />
-                {city}
-              </span>
-            )}
-            <div className="clinic-actions">
-              <a className="clinic-button" href="#servicos">
-                Conheça nossos serviços <ArrowUpRight size={18} aria-hidden />
-              </a>
-              {contact && (
-                <a
-                  className="clinic-contact"
-                  href={contact}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  Falar com o espaço <MessageCircle size={17} aria-hidden />
-                </a>
+        <section
+          className={`clinic-cover${demo ? ' clinic-cover-demo' : ''}`}
+          aria-labelledby="clinic-title"
+        >
+          <header className="clinic-header">
+            <a className="clinic-wordmark" href="#topo" aria-label="Voltar ao início">
+              <Sparkles size={20} aria-hidden />
+              <span>Luminix</span>
+            </a>
+            <nav aria-label="Navegação do espaço">
+              <a href="#servicos">Serviços</a>
+              <a href="#visita">Informações</a>
+            </nav>
+          </header>
+          <div className="clinic-hero">
+            <div className="clinic-hero-art" aria-hidden="true">
+              {demo ? (
+                <Image
+                  className="clinic-portrait"
+                  src="/clinic/demo-portrait.webp"
+                  alt=""
+                  fill
+                  sizes="(max-width: 700px) 66vw, 600px"
+                  preload
+                  unoptimized
+                />
+              ) : (
+                <div className="clinic-seal">
+                  {clinic.logoUrl ? (
+                    <Image src={clinic.logoUrl} alt="" width={144} height={144} unoptimized />
+                  ) : (
+                    <span className="clinic-monogram">
+                      {clinic.name.trim().slice(0, 1).toLocaleUpperCase('pt-BR')}
+                    </span>
+                  )}
+                  <Sparkles size={22} />
+                </div>
               )}
             </div>
-          </div>
-          <div className="clinic-brand-card">
-            {clinic.logoUrl ? (
-              <Image
-                src={clinic.logoUrl}
-                alt={`Marca de ${clinic.name}`}
-                width={160}
-                height={160}
-                unoptimized
-                priority
-              />
-            ) : (
-              <span className="clinic-monogram" aria-hidden>
-                {clinic.name.trim().slice(0, 1).toLocaleUpperCase('pt-BR')}
+            <div className="clinic-hero-copy">
+              <span className="clinic-kicker">
+                <Sparkles size={14} aria-hidden /> Seu espaço de beleza e bem-estar
               </span>
-            )}
-            <span className="clinic-kicker">CUIDADO COM IDENTIDADE</span>
-            <h2>
-              O seu bem-estar
-              <br />
-              tem lugar aqui.
-            </h2>
-            {clinic.foundedYear && <p>Desde {clinic.foundedYear}</p>}
-            <div className="clinic-brand-flower" aria-hidden>
-              ✳
+              <h1 id="clinic-title">{clinic.name}</h1>
+              <p>Cuidados para o seu estilo, no seu tempo.</p>
+              {(city || clinic.foundedYear) && (
+                <div className="clinic-cover-details">
+                  {city && (
+                    <span>
+                      <MapPin size={15} aria-hidden />
+                      {city}
+                    </span>
+                  )}
+                  {clinic.foundedYear && <span>Desde {clinic.foundedYear}</span>}
+                </div>
+              )}
+              <div className="clinic-actions">
+                <a className="clinic-button" href="#servicos">
+                  Ver serviços <ArrowDown size={16} aria-hidden />
+                </a>
+                {channels.map(({ url, label, icon: Icon }) => (
+                  <a
+                    className="clinic-contact"
+                    key={label}
+                    href={url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    <Icon size={17} aria-hidden /> {label}
+                  </a>
+                ))}
+              </div>
             </div>
           </div>
+          <svg
+            className="clinic-cover-wave"
+            viewBox="0 0 1440 120"
+            preserveAspectRatio="none"
+            aria-hidden="true"
+          >
+            <path d="M0 92C243 133 433 87 657 66C1007 33 1174 132 1440 20V120H0Z" />
+            <path d="M0 108C279 136 451 76 714 82C1035 90 1150 135 1440 49V120H0Z" />
+          </svg>
         </section>
         <section className="clinic-services" id="servicos" aria-labelledby="service-title">
           <div className="clinic-section-heading">
-            <span className="clinic-kicker">ESCOLHA SEU PRÓXIMO CUIDADO</span>
-            <h2 id="service-title">Serviços para você.</h2>
+            <span className="clinic-kicker">MENU DE SERVIÇOS</span>
+            <h2 id="service-title">Escolha seu próximo cuidado.</h2>
             <p>
               Explore as categorias e converse com a equipe para conhecer os detalhes do
               atendimento.
@@ -175,31 +202,39 @@ export default async function ClinicPage({ params }: { params: Promise<{ clinica
                   </a>
                 ))}
               </nav>
-              {groups.map((group) => (
+              {groups.map((group, index) => (
                 <section className="clinic-category" key={group.anchor} id={group.anchor}>
                   <div className="clinic-category-heading">
+                    <span className="clinic-category-number" aria-hidden>
+                      {String(index + 1).padStart(2, '0')}
+                    </span>
                     <h3>{group.name}</h3>
                     <p>{group.introduction}</p>
                   </div>
                   <div className="clinic-service-grid">
                     {group.items.map((service) => (
                       <article className="clinic-service" key={service.id}>
-                        <h4>{service.name}</h4>
-                        {service.description && <p>{service.description}</p>}
-                        <div className="clinic-service-meta">
-                          <span>
-                            <Clock3 size={14} aria-hidden />
-                            {service.durationMinutes} min
-                          </span>
-                          <strong>
-                            {service.priceType === 'quote'
-                              ? 'Sob consulta'
-                              : `${service.priceType === 'from' ? 'A partir de ' : ''}${money.format(service.priceCents / 100)}`}
-                          </strong>
+                        <div className="clinic-service-mark" aria-hidden>
+                          <Flower2 size={26} strokeWidth={1.35} />
                         </div>
-                        {service.bookingMode === 'manual_release' && (
-                          <small>Disponibilidade sob consulta com a equipe.</small>
-                        )}
+                        <div className="clinic-service-copy">
+                          <h4>{service.name}</h4>
+                          {service.description && <p>{service.description}</p>}
+                          <div className="clinic-service-meta">
+                            <span>
+                              <Clock3 size={14} aria-hidden />
+                              {service.durationMinutes} min
+                            </span>
+                            <strong>
+                              {service.priceType === 'quote'
+                                ? 'Sob consulta'
+                                : `${service.priceType === 'from' ? 'A partir de ' : ''}${money.format(service.priceCents / 100)}`}
+                            </strong>
+                          </div>
+                          {service.bookingMode === 'manual_release' && (
+                            <small>Disponibilidade sob consulta com a equipe.</small>
+                          )}
+                        </div>
                       </article>
                     ))}
                   </div>
