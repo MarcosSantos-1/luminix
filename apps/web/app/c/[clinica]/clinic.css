@@ -108,6 +108,16 @@
   font-size: 16px;
   font-weight: 600;
 }
+.clinic-wordmark .brand {
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  padding: 0;
+  box-shadow: none;
+}
+.clinic-wordmark .brand img {
+  width: 112px;
+}
 .clinic-header nav {
   display: flex;
   flex-wrap: wrap;
@@ -183,6 +193,12 @@
   flex-wrap: wrap;
   align-items: center;
   gap: 9px;
+}
+.clinic-quick-contacts {
+  margin-top: 10px;
+}
+.clinic-quick-contacts a {
+  font-size: 12px;
 }
 .clinic-actions a {
   padding: 11px 16px;
@@ -360,6 +376,7 @@
   grid-template-columns: 76px minmax(0, 1fr);
   gap: 16px;
   background: #fff;
+  border-inline-start: 3px solid var(--clinic-accent);
   box-shadow: 0 10px 30px color-mix(in srgb, var(--clinic-deep) 7%, transparent);
 }
 .clinic-service-mark {
@@ -454,6 +471,52 @@
   line-height: 1.6;
   color: var(--clinic-muted);
 }
+.clinic-location h3 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 0;
+}
+.clinic-location h3 svg {
+  color: var(--clinic-accent);
+}
+.clinic-map-preview,
+.clinic-map-frame {
+  width: 100%;
+  height: 210px;
+  margin: 14px 0 6px;
+  border: 1px solid var(--clinic-line);
+  border-radius: 16px;
+}
+.clinic-map-preview {
+  display: grid;
+  justify-items: center;
+  align-content: center;
+  gap: 10px;
+  color: var(--clinic-deep);
+  cursor: pointer;
+  font: inherit;
+  font-weight: 600;
+  background:
+    repeating-linear-gradient(132deg, transparent 0 34px, #fff9 35px 40px),
+    repeating-linear-gradient(26deg, transparent 0 43px, #fffb 44px 49px),
+    linear-gradient(140deg, var(--clinic-light), var(--clinic-line));
+}
+.clinic-map-preview svg {
+  color: var(--clinic-accent);
+}
+.clinic-map-preview span {
+  border-radius: 100px;
+  background: var(--clinic-paper);
+  padding: 8px 12px;
+}
+.clinic-map-link {
+  gap: 7px;
+  font-weight: 600;
+}
+#avaliacao {
+  scroll-margin-top: 20px;
+}
 .clinic-hours {
   margin: 0 0 10px;
 }
@@ -473,6 +536,98 @@
   flex-wrap: wrap;
   gap: 4px 15px;
   margin-top: 10px;
+}
+.clinic-app-card {
+  position: relative;
+  isolation: isolate;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 20px 30px;
+  margin: -20px auto 0;
+  width: min(calc(100% - 40px), 1136px);
+  padding: 24px 28px;
+  border-radius: 22px;
+  color: white;
+  background: linear-gradient(118deg, var(--clinic-deep) 18%, var(--clinic-accent));
+  box-shadow: 0 16px 32px var(--clinic-line);
+}
+.clinic-app-phone {
+  flex: 0 0 60px;
+  aspect-ratio: 0.55;
+  display: grid;
+  place-items: center;
+  padding: 6px;
+  border-radius: 12px;
+  border: 2px solid #fffa;
+  background: linear-gradient(150deg, var(--clinic-accent), var(--clinic-deep));
+  transform: rotate(-10deg);
+  box-shadow:
+    4px 5px 0 #0005,
+    0 10px 20px #0004;
+}
+.clinic-app-phone img {
+  width: 100%;
+  height: auto;
+}
+.clinic-app-copy {
+  flex: 1 1 200px;
+}
+.clinic-app-copy h2 {
+  font:
+    400 clamp(25px, 4vw, 39px) / 1.1 Georgia,
+    serif;
+}
+.clinic-app-copy p {
+  margin-top: 8px;
+  color: var(--clinic-light);
+  font-size: 14px;
+}
+.clinic-app-copy a {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 44px;
+  color: white;
+  font-size: 13px;
+  font-weight: 600;
+}
+.clinic-app-code {
+  min-width: 143px;
+  padding-left: 24px;
+  border-left: 1px solid #ffffff65;
+  font-size: 12px;
+}
+.clinic-app-code > div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 7px;
+  padding-left: 14px;
+  border-radius: 99px;
+  color: var(--clinic-deep);
+  background: var(--clinic-light);
+}
+.clinic-app-code code {
+  font-size: 16px;
+  font-weight: 700;
+}
+.clinic-app-code button {
+  display: grid;
+  place-items: center;
+  min-width: 44px;
+  min-height: 44px;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+}
+.clinic-app-code small {
+  display: block;
+  margin-top: 5px;
+  min-height: 1lh;
 }
 .clinic-footer {
   max-width: 1200px;
@@ -578,6 +733,21 @@
   .clinic-visit-grid {
     grid-template-columns: 1fr;
     gap: 32px;
+  }
+  .clinic-app-card {
+    display: grid;
+    grid-template-columns: 50px minmax(0, 1fr);
+    gap: 12px 18px;
+    padding: 20px;
+  }
+  .clinic-app-code {
+    grid-column: 1 / -1;
+    padding: 12px 0 0;
+    border-left: 0;
+    border-top: 1px solid #ffffff65;
+  }
+  .clinic-app-code > div {
+    width: fit-content;
   }
   .clinic-footer {
     padding: 30px 22px;

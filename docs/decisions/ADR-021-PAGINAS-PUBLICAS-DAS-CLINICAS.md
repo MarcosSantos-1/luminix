@@ -25,8 +25,8 @@ A função isolada é necessária porque o papel de runtime não possui leitura 
 API `GET /public/clinics/:slug` não aceita contexto tenant do navegador; usa consulta parametrizada,
 validação, limite de requisições e `no-store`. A web deduplica apenas dentro da requisição com
 React cache e não mantém cache entre acessos, para respeitar retirada de publicação.
-Erros de infraestrutura não viram demonstração. URLs externas são saneadas e mapas usam link,
-sem incorporar rastreamento de terceiros.
+Erros de infraestrutura não viram demonstração. URLs externas são saneadas. Com endereço publicado, o link direto abre o Google Maps.
+O minimapa incorpora o Google Maps somente quando a pessoa pede para carregá-lo.
 
 ## Experiência e limites
 

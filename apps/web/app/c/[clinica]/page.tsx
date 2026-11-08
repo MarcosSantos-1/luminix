@@ -3,15 +3,20 @@ import Image from 'next/image'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import {
-  ArrowDown,
+  ArrowUpRight,
+  CalendarDays,
   Clock3,
   Flower2,
   Globe,
   Camera,
   MapPin,
   MessageCircle,
+  Navigation,
+  UserRound,
   Sparkles,
 } from 'lucide-react'
+import { Brand } from '../../../components/brand'
+import { ClinicMiniMap, ClinicSpaceCode } from './clinic-interactions'
 import { loadPublicClinic } from '../../../lib/load-public-clinic'
 import { groupServices, publicLink, whatsappLink } from '../../../lib/public-clinic'
 
@@ -79,6 +84,17 @@ export default async function ClinicPage({ params }: { params: Promise<{ clinica
         .filter(Boolean)
         .join(', ')
     : ''
+  const mapAddress = demo ? 'Praça da Sé, São Paulo, SP' : address
+  const mapUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(mapAddress)}`
+  // Migration 0011 assigns the lowercased public code as the clinic's slug.
+  const spaceCode = demo
+    ? 'DEMO'
+    : /^[a-z]{2}-[0-9]{4}$/.test(clinic.slug)
+      ? clinic.slug.toUpperCase()
+      : null
+  const evaluationUrl = contact
+    ? `${contact}?text=${encodeURIComponent('Olá! Gostaria de agendar uma avaliação.')}`
+    : null
   const city = location ? [location.city, location.state].filter(Boolean).join(' · ') : ''
   const money = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' })
   const days = [
@@ -105,8 +121,7 @@ export default async function ClinicPage({ params }: { params: Promise<{ clinica
         >
           <header className="clinic-header">
             <a className="clinic-wordmark" href="#topo" aria-label="Voltar ao início">
-              <Sparkles size={20} aria-hidden />
-              <span>Luminix</span>
+              <Brand variant="white" />
             </a>
             <nav aria-label="Navegação do espaço">
               <a href="#servicos">Serviços</a>
@@ -156,21 +171,36 @@ export default async function ClinicPage({ params }: { params: Promise<{ clinica
                 </div>
               )}
               <div className="clinic-actions">
-                <a className="clinic-button" href="#servicos">
-                  Ver serviços <ArrowDown size={16} aria-hidden />
+                <a
+                  className="clinic-button"
+                  href={evaluationUrl ?? '#avaliacao'}
+                  target={evaluationUrl ? '_blank' : undefined}
+                  rel={evaluationUrl ? 'noopener noreferrer' : undefined}
+                >
+                  <CalendarDays size={17} aria-hidden /> Agendar avaliação
                 </a>
-                {channels.map(({ url, label, icon: Icon }) => (
-                  <a
-                    className="clinic-contact"
-                    key={label}
-                    href={url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                  >
-                    <Icon size={17} aria-hidden /> {label}
-                  </a>
-                ))}
+                <Link
+                  className="clinic-contact"
+                  href={`/c/${encodeURIComponent(clinic.slug)}/meu-plano`}
+                >
+                  <UserRound size={17} aria-hidden /> Acessar Meu Espaço
+                </Link>
               </div>
+              {channels.length > 0 && (
+                <div className="clinic-actions clinic-quick-contacts">
+                  {channels.map(({ url, label, icon: Icon }) => (
+                    <a
+                      className="clinic-contact"
+                      key={label}
+                      href={url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      <Icon size={17} aria-hidden /> {label}
+                    </a>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
           <svg
@@ -258,18 +288,21 @@ export default async function ClinicPage({ params }: { params: Promise<{ clinica
             <p>As informações para planejar seu próximo momento de cuidado.</p>
           </div>
           <div className="clinic-visit-grid">
-            <section>
-              <MapPin size={24} aria-hidden />
-              <h3>Onde estamos</h3>
-              {address ? (
+            <section className="clinic-location">
+              <h3>
+                <MapPin size={22} aria-hidden /> Localização
+              </h3>
+              {mapAddress ? (
                 <>
-                  <p>{address}</p>
+                  <p>{demo ? `Localização ilustrativa: ${mapAddress}` : address}</p>
+                  <ClinicMiniMap address={mapAddress} />
                   <a
-                    href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}`}
+                    className="clinic-map-link"
+                    href={mapUrl}
                     target="_blank"
                     rel="noopener noreferrer"
                   >
-                    Ver localização no mapa ↗
+                    <Navigation size={16} aria-hidden /> Ver no Google Maps
                   </a>
                 </>
               ) : (
@@ -295,32 +328,42 @@ export default async function ClinicPage({ params }: { params: Promise<{ clinica
                 <small>Horários especiais e disponibilidade devem ser confirmados.</small>
               </section>
             )}
-            {(contact || socials.length > 0) && (
-              <section>
-                <MessageCircle size={24} aria-hidden />
-                <h3>Vamos conversar?</h3>
-                <p>Tire dúvidas sobre serviços e horários diretamente com a equipe.</p>
-                <div className="clinic-socials">
-                  {contact && (
-                    <a href={contact} target="_blank" rel="noopener noreferrer">
-                      WhatsApp ↗
-                    </a>
-                  )}
-                  {socials.map((social) => (
-                    <a
-                      href={social.url}
-                      key={social.label}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                    >
-                      {social.label} ↗
-                    </a>
-                  ))}
-                </div>
-              </section>
-            )}
+            <section id="avaliacao">
+              <MessageCircle size={24} aria-hidden />
+              <h3>Agende sua avaliação</h3>
+              <p>
+                {demo
+                  ? 'Em uma clínica com contato publicado, você pode combinar a avaliação com a equipe.'
+                  : 'Combine a avaliação e confirme os horários diretamente com a equipe do espaço.'}
+              </p>
+              <div className="clinic-socials">
+                {evaluationUrl && (
+                  <a href={evaluationUrl} target="_blank" rel="noopener noreferrer">
+                    Solicitar pelo WhatsApp ↗
+                  </a>
+                )}
+                {socials.map((social) => (
+                  <a href={social.url} key={social.label} target="_blank" rel="noopener noreferrer">
+                    {social.label} ↗
+                  </a>
+                ))}
+              </div>
+            </section>
           </div>
         </section>
+        <aside className="clinic-app-card" aria-labelledby="clinic-app-title">
+          <div className="clinic-app-phone" aria-hidden="true">
+            <Image src="/brand/logo-letter.png" alt="" width={72} height={24} />
+          </div>
+          <div className="clinic-app-copy">
+            <h2 id="clinic-app-title">Baixe o app Luminix</h2>
+            <p>O app está em preparação. Conheça a prévia para clientes.</p>
+            <a href="https://luminix-client.vercel.app" target="_blank" rel="noopener noreferrer">
+              Abrir prévia web <ArrowUpRight size={15} aria-hidden />
+            </a>
+          </div>
+          {spaceCode && <ClinicSpaceCode code={spaceCode} />}
+        </aside>
       </main>
       <footer className="clinic-footer">
         <span>{clinic.name}</span>
