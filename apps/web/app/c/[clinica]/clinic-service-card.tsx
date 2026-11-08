@@ -1,5 +1,6 @@
 import Image from 'next/image'
 import { Clock3, Flower2 } from 'lucide-react'
+import { serviceCategoryArt } from '../../../lib/clinic-categories'
 import type { PublicService } from '../../../lib/public-clinic'
 
 const money = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' })
@@ -13,11 +14,15 @@ export function ClinicServiceCard({
   photoUrl?: string | null
   showCategory?: boolean
 }) {
+  const art = photoUrl || serviceCategoryArt(service)
   return (
     <article className="clinic-service">
-      <div className="clinic-service-mark" aria-hidden="true">
-        {photoUrl ? (
-          <Image src={photoUrl} alt="" width={112} height={112} unoptimized />
+      <div
+        className={`clinic-service-mark${photoUrl ? '' : ' clinic-service-illustration'}`}
+        aria-hidden="true"
+      >
+        {art ? (
+          <Image src={art} alt="" width={112} height={112} unoptimized />
         ) : (
           <Flower2 size={26} strokeWidth={1.35} />
         )}

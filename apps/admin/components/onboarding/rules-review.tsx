@@ -1011,7 +1011,7 @@ export function ReviewStep({
           items={[
             {
               title: 'O que acontece ao concluir?',
-              text: 'O cadastro, os serviços, a equipe e as preferências ficam salvos para sua clínica. Você será levada ao painel. Esta ação não cobra clientes nem ativa automaticamente o agendamento público.',
+              text: 'O cadastro, os serviços, a equipe e as preferências ficam salvos para sua clínica. Você poderá configurar a publicação da vitrine e adicionar fotos opcionais ou seguir para o painel.',
             },
           ]}
         />

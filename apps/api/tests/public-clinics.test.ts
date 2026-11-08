@@ -102,16 +102,26 @@ describe('public clinic boundary', () => {
   it('publishes ordered showcase content and rejects cross-tenant references', async () => {
     const a = showcaseFixtures.get('a')!
     const b = showcaseFixtures.get('b')!
-    const update = (featured: { serviceId: string; assetId?: string }[], gallery: string[] = []) =>
+    const update = (
+      featured: { serviceId: string; assetId?: string }[],
+      gallery: string[] = [],
+      servicePhotos?: { serviceId: string; assetId: string }[],
+    ) =>
       app.inject({
         method: 'PUT',
         url: `/clinics/${clinicA}/showcase`,
         headers: { authorization: 'Bearer public-a' },
-        payload: { style: 'hair-salon', subtitle: 'Estilo A', featured, gallery },
+        payload: { style: 'hair-salon', subtitle: 'Estilo A', featured, gallery, servicePhotos },
       })
     expect((await update([{ serviceId: b.service }])).statusCode).toBe(400)
     expect((await update([{ serviceId: a.service, assetId: b.photo }])).statusCode).toBe(400)
     expect((await update([], [b.photo])).statusCode).toBe(400)
+    expect((await update([], [], [{ serviceId: a.service, assetId: b.photo }])).statusCode).toBe(
+      400,
+    )
+    expect((await update([], [], [{ serviceId: b.service, assetId: a.photo }])).statusCode).toBe(
+      400,
+    )
     expect((await update([{ serviceId: a.service, assetId: a.photo }], [a.photo])).statusCode).toBe(
       200,
     )
@@ -129,6 +139,20 @@ describe('public clinic boundary', () => {
         ],
       })
       expect(clinic).not.toHaveProperty('galleryKeys')
+      expect((await update([], [], [{ serviceId: a.service, assetId: a.photo }])).statusCode).toBe(
+        200,
+      )
+      // A save from an older editor cannot erase the independent service photo.
+      expect((await update([])).statusCode).toBe(200)
+      const withPhoto = (await read(slugA)).json().clinic
+      expect(withPhoto).toMatchObject({
+        featured: [],
+        servicePhotos: [
+          { serviceId: a.service, photoUrl: 'https://media.example.com/test-a-large.webp' },
+        ],
+      })
+      expect((await update([], [], [])).statusCode).toBe(200)
+      expect((await read(slugA)).json().clinic.servicePhotos).toEqual([])
     } finally {
       vi.unstubAllEnvs()
     }

@@ -11,6 +11,7 @@ type Showcase = {
   subtitle: string
   featured: { serviceId: string; assetId?: string }[]
   gallery: string[]
+  servicePhotos: { serviceId: string; assetId: string }[]
 }
 
 type ShowcaseData = {
@@ -27,7 +28,9 @@ export function ClinicShowcaseEditor({ clinicId }: { clinicId: string }) {
     subtitle: '',
     featured: [],
     gallery: [],
+    servicePhotos: [],
   })
+  const [selectedServiceId, setSelectedServiceId] = useState('')
   const [busy, setBusy] = useState(false)
   const [message, setMessage] = useState('')
   const [error, setError] = useState('')
@@ -59,6 +62,13 @@ export function ClinicShowcaseEditor({ clinicId }: { clinicId: string }) {
       if (!response.ok) throw new Error('Não foi possível carregar a vitrine.')
       const result: ShowcaseData = await response.json()
       const activeIds = new Set(result.services.map(({ id }) => id))
+      const photoIds = new Map<string, string>()
+      for (const { serviceId, assetId } of [
+        ...(result.showcase.featured ?? []),
+        ...(result.showcase.servicePhotos ?? []),
+      ]) {
+        if (assetId && activeIds.has(serviceId)) photoIds.set(serviceId, assetId)
+      }
       setData(result)
       setValue({
         style: result.showcase.style ?? 'classic',
@@ -67,6 +77,7 @@ export function ClinicShowcaseEditor({ clinicId }: { clinicId: string }) {
           activeIds.has(serviceId),
         ),
         gallery: result.showcase.gallery ?? [],
+        servicePhotos: [...photoIds].map(([serviceId, assetId]) => ({ serviceId, assetId })),
       })
     })
   }
@@ -88,9 +99,10 @@ export function ClinicShowcaseEditor({ clinicId }: { clinicId: string }) {
           serviceId
             ? {
                 ...current,
-                featured: current.featured.map((item) =>
-                  item.serviceId === serviceId ? { ...item, assetId: asset.id } : item,
-                ),
+                servicePhotos: [
+                  ...current.servicePhotos.filter((item) => item.serviceId !== serviceId),
+                  { serviceId, assetId: asset.id },
+                ],
               }
             : { ...current, gallery: [...current.gallery, asset.id] },
         )
@@ -104,7 +116,11 @@ export function ClinicShowcaseEditor({ clinicId }: { clinicId: string }) {
       const response = await fetch(endpoint, {
         method: 'PUT',
         headers: { authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...value, subtitle: value.subtitle.trim() }),
+        body: JSON.stringify({
+          ...value,
+          subtitle: value.subtitle.trim(),
+          featured: value.featured.map(({ serviceId }) => ({ serviceId })),
+        }),
         signal: AbortSignal.timeout(15_000),
       })
       if (!response.ok)
@@ -127,6 +143,9 @@ export function ClinicShowcaseEditor({ clinicId }: { clinicId: string }) {
     ) : null
   }
 
+  const selectedService = data?.services.find(({ id }) => id === selectedServiceId)
+  const selectedPhoto = value.servicePhotos.find(({ serviceId }) => serviceId === selectedServiceId)
+
   return (
     <section
       aria-label="Personalização da vitrine"
@@ -147,7 +166,7 @@ export function ClinicShowcaseEditor({ clinicId }: { clinicId: string }) {
                 setValue({ ...value, style: event.target.value as Showcase['style'] })
               }
             >
-              <option value="classic">Padrão do espaço</option>
+              <option value="classic">Automático pela categoria dos serviços</option>
               <option value="hair-salon">Salão de cabeleireiro feminino</option>
             </select>
           </label>
@@ -161,10 +180,7 @@ export function ClinicShowcaseEditor({ clinicId }: { clinicId: string }) {
             />
           </label>
           <h4>Serviços em destaque ({value.featured.length}/4)</h4>
-          <p>
-            Escolha a ordem dos destaques e adicione uma foto para cada serviço. Os espaços
-            restantes são preenchidos pelo catálogo.
-          </p>
+          <p>Escolha a ordem dos destaques. Os espaços restantes são preenchidos pelo catálogo.</p>
           {value.featured.map((item, index) => {
             const service = data.services.find(({ id }) => id === item.serviceId)
             return (
@@ -172,36 +188,6 @@ export function ClinicShowcaseEditor({ clinicId }: { clinicId: string }) {
                 <strong>
                   {index + 1}. {service?.name}
                 </strong>
-                {photo(item.assetId, `Foto de ${service?.name ?? 'serviço'}`)}
-                <label className="manager-field">
-                  Foto de {service?.name}
-                  <input
-                    type="file"
-                    accept="image/jpeg,image/png,image/webp"
-                    onChange={(event) => {
-                      const files = Array.from(event.target.files ?? [])
-                      event.target.value = ''
-                      if (files.length) void upload(files, item.serviceId)
-                    }}
-                  />
-                </label>
-                {item.assetId && (
-                  <button
-                    type="button"
-                    onClick={() =>
-                      setValue({
-                        ...value,
-                        featured: value.featured.map((entry) =>
-                          entry.serviceId === item.serviceId
-                            ? { serviceId: entry.serviceId }
-                            : entry,
-                        ),
-                      })
-                    }
-                  >
-                    Remover foto
-                  </button>
-                )}
                 <button
                   type="button"
                   onClick={() =>
@@ -242,6 +228,55 @@ export function ClinicShowcaseEditor({ clinicId }: { clinicId: string }) {
                   ))}
               </select>
             </label>
+          )}
+          <h4>Fotos dos serviços (opcionais)</h4>
+          <p>Sem foto própria, cada serviço usa a ilustração da sua categoria.</p>
+          <label className="manager-field">
+            Serviço para editar foto
+            <select
+              value={selectedServiceId}
+              onChange={(event) => setSelectedServiceId(event.target.value)}
+            >
+              <option value="">Selecione um serviço</option>
+              {data.services.map(({ id, name, category }) => (
+                <option key={id} value={id}>
+                  {name}
+                  {category ? ` · ${category}` : ''}
+                </option>
+              ))}
+            </select>
+          </label>
+          {selectedService && (
+            <div>
+              {photo(selectedPhoto?.assetId, `Foto de ${selectedService.name}`)}
+              <label className="manager-field">
+                Foto de {selectedService.name}
+                <input
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp"
+                  onChange={(event) => {
+                    const file = event.target.files?.[0]
+                    event.target.value = ''
+                    if (file) void upload([file], selectedService.id)
+                  }}
+                />
+              </label>
+              {selectedPhoto && (
+                <button
+                  type="button"
+                  onClick={() =>
+                    setValue({
+                      ...value,
+                      servicePhotos: value.servicePhotos.filter(
+                        ({ serviceId }) => serviceId !== selectedServiceId,
+                      ),
+                    })
+                  }
+                >
+                  Remover foto
+                </button>
+              )}
+            </div>
           )}
           <h4>Galeria opcional ({value.gallery.length}/24)</h4>
           <p>

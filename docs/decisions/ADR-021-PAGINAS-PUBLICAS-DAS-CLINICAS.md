@@ -69,3 +69,12 @@ A migration 0021 amplia a projeção pública e reutiliza o upload WebP no R2 pa
 à publicação. A escrita valida serviços ativos e fotos prontas do mesmo estabelecimento. Remover
 uma foto da vitrine ou despublicar a página remove a referência pública, mas não invalida URLs
 de mídia já conhecidas nem elimina objetos do R2. A interface orienta o envio de fotos autorizadas.
+
+A conclusão do onboarding leva às opções de configurar a publicação e as fotos ou seguir ao painel.
+A vitrine usa os dados persistidos e escolhe a capa pela categoria mais representada nos serviços
+ativos, com desempate estável e respeito ao estilo de salão escolhido explicitamente. Tema e
+categoria podem ser alternados nas demonstrações, enquanto as vitrines reais usam o tema salvo.
+
+A migration 0022 permite vincular uma foto opcional a qualquer serviço ativo, inclusive fora dos
+destaques. A projeção preserva fotos legadas e a escrita verifica que o serviço e a mídia pronta
+pertencem ao espaço. Sem foto própria, a vitrine e o catálogo exibem a ilustração da categoria.

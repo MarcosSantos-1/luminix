@@ -239,7 +239,7 @@
   object-position: right bottom;
   mask-image: linear-gradient(90deg, transparent, #000 20%);
 }
-.clinic-cover-demo .clinic-hero::after {
+.clinic-cover-has-portrait .clinic-hero::after {
   content: '';
   position: absolute;
   inset: 0;
@@ -724,10 +724,10 @@
   .clinic-hero-copy {
     width: 100%;
   }
-  .clinic-cover-demo .clinic-hero {
+  .clinic-cover-has-portrait .clinic-hero {
     min-height: 370px;
   }
-  .clinic-cover-demo .clinic-hero-copy {
+  .clinic-cover-has-portrait .clinic-hero-copy {
     width: min(68%, 310px);
   }
   .clinic-hero h1 {
@@ -742,7 +742,7 @@
     padding-bottom: 0;
     margin: 10px 0 19px;
   }
-  .clinic-cover-demo .clinic-hero-art {
+  .clinic-cover-has-portrait .clinic-hero-art {
     position: absolute;
     width: 69%;
     height: auto;
@@ -750,7 +750,7 @@
     top: 8px;
     bottom: 14px;
   }
-  .clinic-cover-demo .clinic-hero::after {
+  .clinic-cover-has-portrait .clinic-hero::after {
     opacity: 0.7;
     background: linear-gradient(90deg, var(--clinic-deep) 20%, transparent 95%);
   }
@@ -846,7 +846,7 @@
 .clinic-site[data-style='hair-salon'] .clinic-hero-identity {
   border-radius: 50%;
 }
-.clinic-site[data-style='classic'] .clinic-hero {
+.clinic-site[data-style='classic'] .clinic-cover:not(.clinic-cover-has-portrait) .clinic-hero {
   min-height: 440px;
 }
 .clinic-showcase-heading {
@@ -942,10 +942,10 @@
     width: 54px;
     height: 54px;
   }
-  .clinic-hero-art:not(.clinic-cover-demo .clinic-hero-art) {
+  .clinic-hero-art:not(.clinic-cover-has-portrait .clinic-hero-art) {
     display: none;
   }
-  .clinic-site[data-style='classic'] .clinic-hero {
+  .clinic-site[data-style='classic'] .clinic-cover:not(.clinic-cover-has-portrait) .clinic-hero {
     min-height: 330px;
   }
   .clinic-gallery {
@@ -960,5 +960,65 @@
   }
   .clinic-catalog-header {
     padding-inline: 20px;
+  }
+}
+
+.clinic-site[data-category='tatuagem'] .clinic-hero-art {
+  background: radial-gradient(ellipse at 68% 45%, #fff3, transparent 66%);
+}
+.clinic-site[data-category='tatuagem'] .clinic-hero h1 {
+  font-weight: 750;
+  letter-spacing: -0.06em;
+}
+.clinic-service-illustration img {
+  height: auto;
+  max-width: 80%;
+  max-height: 84px;
+  object-fit: contain;
+}
+.clinic-demo-debugger {
+  position: fixed;
+  right: max(14px, env(safe-area-inset-right));
+  bottom: max(14px, env(safe-area-inset-bottom));
+  z-index: 20;
+  color: var(--clinic-deep);
+  background: var(--clinic-paper);
+  border: 1px solid var(--clinic-line);
+  border-radius: 14px;
+  box-shadow: 0 8px 30px #0003;
+  max-width: min(270px, calc(100vw - 28px));
+}
+.clinic-demo-debugger summary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 15px;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.clinic-demo-debugger > div {
+  display: grid;
+  gap: 10px;
+  padding: 0 14px 14px;
+}
+.clinic-demo-debugger label {
+  display: grid;
+  gap: 3px;
+  font-size: 12px;
+  font-weight: 600;
+}
+.clinic-demo-debugger select {
+  min-height: 40px;
+  border: 1px solid var(--clinic-line);
+  border-radius: 8px;
+  padding: 4px 8px;
+  color: inherit;
+  background: var(--clinic-light);
+}
+@media (max-width: 700px) {
+  .clinic-site[data-category='tatuagem'] .clinic-portrait {
+    object-fit: contain;
+    object-position: right bottom;
   }
 }

@@ -15,11 +15,20 @@ import {
   Sparkles,
 } from 'lucide-react'
 import { Brand } from '../../../components/brand'
+import { clinicCategories, dominantClinicCategory } from '../../../lib/clinic-categories'
+import { demoOptions, getPreviewClinic, previewThemeOverride } from '../../../lib/preview-clinic'
+import { ClinicDemoDebugger } from './clinic-demo-debugger'
 import { ClinicMiniMap, ClinicSpaceCode } from './clinic-interactions'
 import { ClinicGalleryGrid } from './clinic-gallery-grid'
 import { ClinicServiceCard } from './clinic-service-card'
 import { loadPublicClinic } from '../../../lib/load-public-clinic'
-import { clinicTheme, publicLink, showcaseServices, whatsappLink } from '../../../lib/public-clinic'
+import {
+  clinicServicePhotos,
+  clinicTheme,
+  publicLink,
+  showcaseServices,
+  whatsappLink,
+} from '../../../lib/public-clinic'
 
 export async function generateMetadata({
   params,
@@ -37,18 +46,28 @@ export async function generateMetadata({
   }
 }
 
-export default async function ClinicPage({ params }: { params: Promise<{ clinica: string }> }) {
+export default async function ClinicPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ clinica: string }>
+  searchParams: Promise<{ tema?: string | string[] }>
+}) {
   const { clinica } = await params
   const clinic = await loadPublicClinic(clinica)
   if (!clinic) notFound()
-  const demo = clinica === 'demonstracao'
-  const theme = clinicTheme(clinic.theme)
-  const style = clinic.style === 'hair-salon' ? 'hair-salon' : 'classic'
+  const demo = Boolean(getPreviewClinic(clinica))
+  const { tema } = await searchParams
+  const previewTheme = previewThemeOverride(clinica, tema)
+  const theme = previewTheme ?? clinicTheme(clinic.theme)
+  const themeQuery = previewTheme ? `?tema=${previewTheme}` : ''
+  const category =
+    clinic.style === 'hair-salon' ? 'cabelo' : dominantClinicCategory(clinic.services)
+  const hero = category ? clinicCategories[category].hero : null
+  const style = category === 'cabelo' ? 'hair-salon' : 'classic'
   const gallery = clinic.gallery ?? []
   const featured = showcaseServices(clinic)
-  const servicePhotos = new Map(
-    clinic.featured?.map(({ serviceId, photoUrl }) => [serviceId, photoUrl]),
-  )
+  const servicePhotos = clinicServicePhotos(clinic)
   const contact = whatsappLink(clinic.whatsapp)
   const socials = (['instagram', 'facebook', 'website'] as const).flatMap((kind) => {
     const url = publicLink(clinic[kind], kind)
@@ -108,7 +127,13 @@ export default async function ClinicPage({ params }: { params: Promise<{ clinica
     'Sábado',
   ]
   return (
-    <div className="clinic-site" data-theme={theme} data-style={style} id="topo">
+    <div
+      className="clinic-site"
+      data-theme={theme}
+      data-style={style}
+      data-category={category ?? undefined}
+      id="topo"
+    >
       {demo && (
         <div className="clinic-demo">
           Página demonstrativa · Serviços e valores ilustrativos. Nenhum agendamento é realizado
@@ -117,7 +142,7 @@ export default async function ClinicPage({ params }: { params: Promise<{ clinica
       )}
       <main>
         <section
-          className={`clinic-cover${demo ? ' clinic-cover-demo' : ''}`}
+          className={`clinic-cover${hero ? ' clinic-cover-has-portrait' : ''}`}
           aria-labelledby="clinic-title"
         >
           <header className="clinic-header">
@@ -132,10 +157,10 @@ export default async function ClinicPage({ params }: { params: Promise<{ clinica
           </header>
           <div className="clinic-hero">
             <div className="clinic-hero-art" aria-hidden="true">
-              {demo ? (
+              {hero ? (
                 <Image
                   className="clinic-portrait"
-                  src="/clinic/demo-portrait.webp"
+                  src={hero}
                   alt=""
                   fill
                   sizes="(max-width: 700px) 66vw, 600px"
@@ -225,7 +250,7 @@ export default async function ClinicPage({ params }: { params: Promise<{ clinica
             {featured.length > 0 && (
               <Link
                 className="clinic-view-all"
-                href={`/c/${encodeURIComponent(clinic.slug)}/servicos`}
+                href={`/c/${encodeURIComponent(clinic.slug)}/servicos${themeQuery}`}
               >
                 Ver todos <ArrowUpRight size={16} aria-hidden />
               </Link>
@@ -254,13 +279,13 @@ export default async function ClinicPage({ params }: { params: Promise<{ clinica
                 <h2 id="gallery-title">Galeria</h2>
                 <p>
                   {demo
-                    ? 'Imagens ilustrativas do estilo do salão.'
+                    ? 'Imagens ilustrativas da demonstração.'
                     : 'Veja o espaço e conheça de perto o trabalho da equipe.'}
                 </p>
               </div>
               <Link
                 className="clinic-view-all"
-                href={`/c/${encodeURIComponent(clinic.slug)}/galeria`}
+                href={`/c/${encodeURIComponent(clinic.slug)}/galeria${themeQuery}`}
               >
                 Ver todas <ArrowUpRight size={16} aria-hidden />
               </Link>
@@ -345,6 +370,7 @@ export default async function ClinicPage({ params }: { params: Promise<{ clinica
           {spaceCode && <ClinicSpaceCode code={spaceCode} />}
         </aside>
       </main>
+      {demo && <ClinicDemoDebugger slug={clinic.slug} theme={theme} options={demoOptions} />}
       <footer className="clinic-footer">
         <span>{clinic.name}</span>
         <p>

@@ -88,7 +88,8 @@ function PublicationForm({ clinicId }: { clinicId: string }) {
       </Card.Header>
       <Card.Content>
         <p>
-          Use a marca, o tema e os serviços salvos no onboarding em uma página para suas clientes.
+          A vitrine usa o tema, a marca e os serviços salvos no onboarding. Você pode publicar agora
+          e adicionar fotos depois.
         </p>
         {!publication && !error && <Spinner aria-label="Consultando publicação" />}
         {publication && publication.status !== 'active' && (

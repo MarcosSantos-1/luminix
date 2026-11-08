@@ -2,8 +2,9 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { ArrowLeft } from 'lucide-react'
+import { previewThemeOverride } from '../../../../lib/preview-clinic'
 import { loadPublicClinic } from '../../../../lib/load-public-clinic'
-import { clinicTheme, groupServices } from '../../../../lib/public-clinic'
+import { clinicServicePhotos, clinicTheme, groupServices } from '../../../../lib/public-clinic'
 import { ClinicServiceCard } from '../clinic-service-card'
 
 export const metadata: Metadata = {
@@ -11,16 +12,24 @@ export const metadata: Metadata = {
   robots: { index: false, follow: false },
 }
 
-export default async function ServiceCatalog({ params }: { params: Promise<{ clinica: string }> }) {
+export default async function ServiceCatalog({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ clinica: string }>
+  searchParams: Promise<{ tema?: string | string[] }>
+}) {
   const { clinica } = await params
   const clinic = await loadPublicClinic(clinica)
+  const theme = previewThemeOverride(clinica, (await searchParams).tema)
+  const themeQuery = theme ? `?tema=${theme}` : ''
   if (!clinic) notFound()
   const groups = groupServices(clinic.services)
-  const photos = new Map(clinic.featured?.map(({ serviceId, photoUrl }) => [serviceId, photoUrl]))
+  const photos = clinicServicePhotos(clinic)
   return (
-    <main className="clinic-site clinic-catalog" data-theme={clinicTheme(clinic.theme)}>
+    <main className="clinic-site clinic-catalog" data-theme={theme ?? clinicTheme(clinic.theme)}>
       <header className="clinic-catalog-header">
-        <Link href={`/c/${encodeURIComponent(clinica)}#servicos`}>
+        <Link href={`/c/${encodeURIComponent(clinica)}${themeQuery}#servicos`}>
           <ArrowLeft size={16} aria-hidden /> Voltar à vitrine
         </Link>
         <p>{clinic.name}</p>

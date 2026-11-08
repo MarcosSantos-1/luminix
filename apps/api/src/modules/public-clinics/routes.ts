@@ -42,12 +42,16 @@ export async function publicClinicRoutes(app: FastifyInstance, database: SqlConn
         )
         const clinic = result.rows[0]?.clinic as Record<string, unknown> | null
         if (!clinic) return reply.code(404).send({ error: 'Clinic not found' })
-        const { logoKey, galleryKeys, featured, ...publicFields } = clinic
+        const { logoKey, galleryKeys, featured, servicePhotos, ...publicFields } = clinic
         return {
           clinic: {
             ...publicFields,
             logoUrl: typeof logoKey === 'string' ? publicMediaUrl(logoKey) : null,
             gallery: (galleryKeys as string[] | undefined)?.map(publicMediaUrl) ?? [],
+            servicePhotos:
+              (servicePhotos as { serviceId: string; photoKey: string }[] | undefined)?.map(
+                ({ serviceId, photoKey }) => ({ serviceId, photoUrl: publicMediaUrl(photoKey) }),
+              ) ?? [],
             featured:
               (featured as { serviceId: string; photoKey: string | null }[] | undefined)?.map(
                 ({ serviceId, photoKey }) => ({

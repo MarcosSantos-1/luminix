@@ -16,6 +16,7 @@ export type PublicClinic = {
   subtitle?: string | null
   featured?: { serviceId: string; photoUrl: string | null }[]
   gallery?: string[]
+  servicePhotos?: { serviceId: string; photoUrl: string }[]
   foundedYear: number | null
   logoUrl: string | null
   whatsapp: string | null
@@ -128,4 +129,13 @@ export function showcaseServices(clinic: PublicClinic) {
     if (result.length === 4) return result
   }
   return [...result, ...clinic.services.filter(({ id }) => !used.has(id))].slice(0, 4)
+}
+
+export function clinicServicePhotos(clinic: PublicClinic) {
+  return new Map(
+    [...(clinic.featured ?? []), ...(clinic.servicePhotos ?? [])].map(({ serviceId, photoUrl }) => [
+      serviceId,
+      photoUrl,
+    ]),
+  )
 }

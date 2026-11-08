@@ -323,6 +323,7 @@ export default function OnboardingPage() {
   const [stripeChecked, setStripeChecked] = useState(false)
   const [stripeSettled, setStripeSettled] = useState(false)
   const [busy, setBusy] = useState(false)
+  const [completed, setCompleted] = useState(false)
   const [uploadingMedia, setUploadingMedia] = useState(false)
   const [loadError, setLoadError] = useState('')
   const [retry, setRetry] = useState(0)
@@ -663,8 +664,8 @@ export default function OnboardingPage() {
         notifyError(message)
         return
       }
+      setCompleted(true)
       staff.refresh()
-      router.push(`/c/${clinic.share_code || clinic.id}`)
     } catch {
       const message =
         'A resposta não chegou. Pode tentar novamente sem risco de duplicar a clínica.'
@@ -678,21 +679,29 @@ export default function OnboardingPage() {
 
   if (!permissions.includes('onboarding:manage'))
     return <AppStatus alert>Você não tem acesso ao onboarding.</AppStatus>
-  if (clinic.status === 'active')
+  if (completed || clinic.status === 'active') {
+    const clinicPath = `/c/${encodeURIComponent(clinic.share_code || clinic.id)}`
     return (
       <AppStatus
         action={
-          <Button
-            className="ob2-cta"
-            onPress={() => router.push(`/c/${clinic.share_code || clinic.id}`)}
-          >
-            Ir para a clínica
-          </Button>
+          <div className="flex flex-wrap justify-center gap-3">
+            {permissions.includes('settings:manage') && (
+              <Button className="ob2-cta" onPress={() => router.push(`${clinicPath}/settings`)}>
+                Configurar página e fotos
+              </Button>
+            )}
+            <Button variant="secondary" onPress={() => router.push(clinicPath)}>
+              Ir para a clínica
+            </Button>
+          </div>
         }
       >
-        Onboarding concluído.
+        <strong>Onboarding concluído.</strong>{' '}
+        {permissions.includes('settings:manage') &&
+          'Sua vitrine está pronta para configurar a publicação. Você pode adicionar fotos aos serviços e à galeria agora ou depois.'}
       </AppStatus>
     )
+  }
   if (!payload || !draft)
     return loadError ? (
       <AppStatus

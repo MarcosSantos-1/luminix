@@ -464,7 +464,9 @@ export async function clinicRoutes(
             FROM luminix.media_assets m JOIN luminix.clinic_profiles p ON p.clinic_id = m.clinic_id
             WHERE m.clinic_id = $1 AND m.kind = 'public_photo' AND m.status = 'ready'
               AND (p.public_showcase->'gallery' ? m.id::text OR EXISTS (
-                SELECT 1 FROM jsonb_array_elements(p.public_showcase->'featured') f
+                SELECT 1 FROM jsonb_array_elements(
+                  coalesce(p.public_showcase->'featured', '[]'::jsonb)
+                  || coalesce(p.public_showcase->'servicePhotos', '[]'::jsonb)) f
                 WHERE f->>'assetId' = m.id::text))`,
             [tenant.clinicId],
           ),
@@ -489,6 +491,19 @@ export async function clinicRoutes(
             style: { type: 'string', enum: ['classic', 'hair-salon'] },
             subtitle: { type: 'string', maxLength: 120 },
             gallery: { type: 'array', maxItems: 24, items: { type: 'string', format: 'uuid' } },
+            servicePhotos: {
+              type: 'array',
+              maxItems: 80,
+              items: {
+                type: 'object',
+                additionalProperties: false,
+                required: ['serviceId', 'assetId'],
+                properties: {
+                  serviceId: { type: 'string', format: 'uuid' },
+                  assetId: { type: 'string', format: 'uuid' },
+                },
+              },
+            },
             featured: {
               type: 'array',
               maxItems: 4,
