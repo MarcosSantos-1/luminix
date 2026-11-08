@@ -79,8 +79,8 @@ A migration 0021 amplia a projeção pública e reutiliza o upload WebP no R2 pa
 uma foto da vitrine ou despublicar a página remove a referência pública, mas não invalida URLs
 de mídia já conhecidas nem elimina objetos do R2. A interface orienta o envio de fotos autorizadas.
 
-A conclusão do onboarding oferece acesso ao link publicado, cópia do endereço e atalhos para
-personalização e painel. Título público, subtítulo, composição, ilustração e tema podem ser
+A conclusão do onboarding abre o painel com um modal de boas-vindas. O modal oferece acesso ao
+link publicado, cópia do endereço e um atalho para personalizar a página. Título público, subtítulo, composição, ilustração e tema podem ser
 alterados em Página pública do espaço. Nome interno e tema da gestão são independentes.
 
 ### Sugestão inicial da capa

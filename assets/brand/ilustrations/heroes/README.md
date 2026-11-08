@@ -6,4 +6,4 @@ A capa de cabeleireiro feminino continua no [inventário da Demonstração 02](.
 
 Massoterapia e quiropraxia compartilham uma capa, assim como sobrancelhas e cílios. Piercing tem capa própria.
 
-Os originais substituídos de estética corporal e sobrancelhas/cílios ficam em [anteriores](anteriores).
+Os originais substituídos de estética corporal e as duas versões anteriores de sobrancelhas/cílios ficam em [anteriores](anteriores).

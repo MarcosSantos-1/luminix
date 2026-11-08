@@ -4,7 +4,7 @@ import { Button, Card } from '@heroui/react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { signOut } from 'firebase/auth'
-import { useState } from 'react'
+import { useCallback, useState } from 'react'
 import { useClinic } from '@/components/clinic-workspace'
 import { useStaff } from '@/components/staff-provider'
 import { ManagerHome } from '@/components/manager/manager-home'
@@ -13,12 +13,37 @@ import { ClinicSettings } from '@/components/manager/sections/clinic-settings'
 import { getFirebaseAuth } from '@/lib/firebase'
 import '@/app/dashboard/manager.css'
 
-export function ClinicHome({ initialSection }: { initialSection: string }) {
+export function ClinicHome({
+  initialSection,
+  welcome,
+}: {
+  initialSection: string
+  welcome: boolean
+}) {
   const { clinic, permissions } = useClinic()
   const staff = useStaff()
   const router = useRouter()
   const [logoutError, setLogoutError] = useState('')
   const [signingOut, setSigningOut] = useState(false)
+  const canManageSettings = permissions.includes('settings:manage')
+  const user = staff.user
+  const getPublicUrl = useCallback(
+    async (signal: AbortSignal) => {
+      if (!user || !canManageSettings) return null
+      const response = await fetch(`/api/clinics/${clinic.id}/publication`, {
+        headers: { authorization: `Bearer ${await user.getIdToken()}` },
+        cache: 'no-store',
+        signal: AbortSignal.any([signal, AbortSignal.timeout(10_000)]),
+      })
+      if (!response.ok) return null
+      const data: { publication: { status: string; slug: string; enabled: boolean } } =
+        await response.json()
+      return data.publication.status === 'active' && data.publication.enabled
+        ? `https://luminix.beauty/c/${encodeURIComponent(data.publication.slug)}`
+        : null
+    },
+    [clinic.id, canManageSettings, user],
+  )
   async function logout() {
     setSigningOut(true)
     setLogoutError('')
@@ -45,12 +70,21 @@ export function ClinicHome({ initialSection }: { initialSection: string }) {
       onLogout={() => void logout()}
       signingOut={signingOut}
       logoutError={logoutError}
-      canManageSettings={permissions.includes('settings:manage')}
+      canManageSettings={canManageSettings}
+      messages={
+        clinic.status === 'active' && user
+          ? {
+              welcome,
+              scope: `${user.uid}/${clinic.id}`,
+              getPublicUrl: canManageSettings ? getPublicUrl : undefined,
+            }
+          : undefined
+      }
       shareCode={clinic.share_code ?? null}
       initialSection={initialSection}
       payments={<ConnectPanel dashboard />}
       settings={
-        permissions.includes('settings:manage') ? (
+        canManageSettings ? (
           <ClinicSettings
             clinic={clinic}
             shareCode={clinic.share_code ?? null}

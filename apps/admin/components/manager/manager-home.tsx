@@ -12,6 +12,7 @@ import {
   UserRound,
 } from 'lucide-react'
 import { useMemo, useState, type ReactNode } from 'react'
+import { useManagerMessages } from '@/hooks/use-manager-messages'
 import { useManagerLayout } from '@/hooks/use-manager-layout'
 import { useManagerSection } from '@/hooks/use-manager-section'
 import {
@@ -20,6 +21,7 @@ import {
   sectionSketches,
   type ManagerSectionId,
 } from './demo-data'
+import { ManagerMessageModal } from './manager-message-modal'
 import { ManagerSidebar } from './manager-sidebar'
 import { HomePanels } from './sections/home-panels'
 import { AgendaPanel } from './sections/agenda-panel'
@@ -43,6 +45,7 @@ export function ManagerHome({
   shareCode,
   banner,
   initialSection = 'inicio',
+  messages,
   userEmail,
   onLogout,
   signingOut = false,
@@ -57,6 +60,12 @@ export function ManagerHome({
   shareCode?: string | null
   banner?: ReactNode
   initialSection?: string
+  messages?: {
+    welcome: boolean
+    scope?: string
+    demoPublicUrl?: string
+    getPublicUrl?: (signal: AbortSignal) => Promise<string | null>
+  }
   userEmail?: string
   onLogout?: () => void
   signingOut?: boolean
@@ -78,8 +87,9 @@ export function ManagerHome({
       .map((part) => part[0])
       .join('')
       .toUpperCase() || 'G'
+  const message = useManagerMessages(messages?.welcome ?? false, messages?.scope)
   const { collapsed, setCollapsed, searchOpen, changeSearch, query, setQuery, searchTrigger } =
-    useManagerLayout()
+    useManagerLayout(!message.view)
   const [notice, setNotice] = useState<string | null>(null)
   const [announcement, setAnnouncement] = useState(true)
   const [forceGlass, setForceGlass] = useState(false)
@@ -219,9 +229,9 @@ export function ManagerHome({
             </Button>
             <Button
               isIconOnly
-              aria-label="Notificações"
+              aria-label={messages ? 'Novidades e avisos' : 'Notificações'}
               className="manager-icon-button"
-              onPress={() => navigate('Notificações')}
+              onPress={messages ? message.openUpdates : () => navigate('Notificações')}
             >
               <Bell size={20} />
             </Button>
@@ -357,7 +367,28 @@ export function ManagerHome({
           <span>Buscar</span>
         </Button>
       </nav>
-      <Modal.Backdrop isOpen={searchOpen} onOpenChange={changeSearch}>
+      {message.view && (
+        <ManagerMessageModal
+          key={message.view}
+          view={message.view}
+          clinicName={clinicName}
+          canManageSettings={canManageSettings}
+          demoPublicUrl={messages?.demoPublicUrl}
+          getPublicUrl={messages?.getPublicUrl}
+          onClose={message.close}
+          onTour={message.reopenWelcome}
+          onSection={(section) => select(section, 'replace')}
+          onFinish={() => {
+            select('inicio', 'replace')
+            message.close()
+          }}
+          onShowcase={() => {
+            message.close()
+            select('configuracoes')
+          }}
+        />
+      )}
+      <Modal.Backdrop isOpen={searchOpen && !message.view} onOpenChange={changeSearch}>
         <Modal.Container>
           <Modal.Dialog className="manager-dialog">
             <Modal.CloseTrigger aria-label="Fechar" />

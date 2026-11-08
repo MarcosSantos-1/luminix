@@ -155,6 +155,23 @@ Validação inicial: conferir desktop/mobile, sidebar, busca por teclado, foco/E
 de overflow. Contraste formal, fadiga visual e performance em dispositivos modestos continuam
 critérios de avaliação do experimento, não garantias já comprovadas.
 
+### Boas-vindas e novidades
+
+Depois de concluir o onboarding, a gestora com acesso à Home entra no painel com as boas-vindas
+abertas. O fundo permanece visível e o tour percorre Agenda, Clientes e, conforme a permissão,
+Configurações. Pode ser pulado e reaberto no sino **Novidades e avisos**. Os atalhos de abrir e
+copiar a vitrine aparecem quando a leitura autenticada confirma que ela está publicada.
+
+O modal usa HeroUI e o tema atual. O catálogo fica em
+`apps/admin/components/manager/manager-updates.ts`, em ordem do mais recente ao mais antigo.
+Use um ID novo por versão ou aviso. A primeira entrada com `autoOpen: true` abre uma vez por
+usuária e clínica no navegador. A leitura fica no armazenamento local. As boas-vindas têm
+prioridade na chegada do onboarding. Para incluir um GIF ou WebP animado em boas-vindas ou em
+uma atualização, adicione o arquivo e um quadro estático em `apps/admin/public` e configure
+`src`, `still` e `alt`. O quadro estático atende a preferência por movimento reduzido.
+
+A prévia pública do painel em `/dashboard?boas-vindas=1` usa somente dados de demonstração.
+
 ### Paletas do espaço — 2026-10-20
 
 A escolha de paleta agora é funcional na etapa Clínica do onboarding e nas Configurações do

@@ -48,9 +48,9 @@ export function useManagerSection(allowedIds: readonly string[], initialSection:
   }, [allowedIds, raw])
 
   const select = useCallback(
-    (id: string) => {
+    (id: string, mode: 'push' | 'replace' = 'push') => {
       if (!allowedIds.includes(id)) return
-      writeSection(id, 'push')
+      writeSection(id, mode)
       window.scrollTo({ top: 0, behavior: 'instant' })
     },
     [allowedIds],

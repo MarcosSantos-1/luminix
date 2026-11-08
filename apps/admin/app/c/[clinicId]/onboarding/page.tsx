@@ -323,37 +323,17 @@ export default function OnboardingPage() {
   const [stripeChecked, setStripeChecked] = useState(false)
   const [stripeSettled, setStripeSettled] = useState(false)
   const [busy, setBusy] = useState(false)
-  const [completion, setCompletion] = useState<{ publicSlug: string | null } | null>(null)
-  const [publishedSlug, setPublishedSlug] = useState<string | null>(null)
+  const [completed, setCompleted] = useState(false)
   const [publishPage, setPublishPage] = useState(true)
   const [publishAddress, setPublishAddress] = useState(false)
   const [publishContacts, setPublishContacts] = useState(false)
-  const [shareMessage, setShareMessage] = useState('')
   const canPublish = permissions.includes('settings:manage')
+  const canOpenDashboard = permissions.includes('clinic:manage')
+  const clinicPath = `/c/${encodeURIComponent(clinic.share_code || clinic.id)}`
   const willPublish = canPublish && publishPage
   const [uploadingMedia, setUploadingMedia] = useState(false)
   const [loadError, setLoadError] = useState('')
   const [retry, setRetry] = useState(0)
-
-  useEffect(() => {
-    const user = staff.user
-    if (!user || !canPublish || clinic.status !== 'active' || completion) return
-    const controller = new AbortController()
-    void (async () => {
-      const response = await fetch(`/api/clinics/${clinic.id}/publication`, {
-        headers: { authorization: `Bearer ${await user.getIdToken()}` },
-        cache: 'no-store',
-        signal: AbortSignal.any([controller.signal, AbortSignal.timeout(15_000)]),
-      })
-      if (!response.ok) return
-      const data: { publication: { enabled: boolean; slug: string } } = await response.json()
-      if (!controller.signal.aborted && data.publication.enabled)
-        setPublishedSlug(data.publication.slug)
-    })().catch(() => {
-      // Configurações remains available if the optional shortcut cannot be loaded.
-    })
-    return () => controller.abort()
-  }, [staff.user, canPublish, clinic.id, clinic.status, completion])
 
   useEffect(() => {
     const user = staff.user
@@ -705,8 +685,8 @@ export default function OnboardingPage() {
         notifyError(message)
         return
       }
-      const result: { publicSlug: string | null } = await response.json()
-      setCompletion({ publicSlug: result.publicSlug })
+      setCompleted(true)
+      if (canOpenDashboard) router.replace(`${clinicPath}?boas-vindas=1`)
       staff.refresh()
     } catch {
       const message =
@@ -721,50 +701,20 @@ export default function OnboardingPage() {
 
   if (!permissions.includes('onboarding:manage'))
     return <AppStatus alert>Você não tem acesso ao onboarding.</AppStatus>
-  if (completion || clinic.status === 'active') {
-    const clinicPath = `/c/${encodeURIComponent(clinic.share_code || clinic.id)}`
-    const slug = completion ? completion.publicSlug : publishedSlug
-    const publicUrl = slug ? `https://luminix.beauty/c/${encodeURIComponent(slug)}` : null
+  if (completed && canOpenDashboard) return <AppStatus />
+  if (completed || clinic.status === 'active') {
     return (
       <AppStatus
         action={
-          <div className="flex flex-wrap justify-center gap-3">
-            {publicUrl && (
-              <>
-                <a href={publicUrl} target="_blank" rel="noopener noreferrer">
-                  Abrir vitrine ↗
-                </a>
-                <Button
-                  variant="secondary"
-                  onPress={() => {
-                    void navigator.clipboard.writeText(publicUrl).then(
-                      () => setShareMessage('Link copiado.'),
-                      () =>
-                        setShareMessage('Abra a vitrine para copiar o endereço pelo navegador.'),
-                    )
-                  }}
-                >
-                  Copiar link
-                </Button>
-                {shareMessage && <span role="status">{shareMessage}</span>}
-              </>
-            )}
-            {canPublish && (
-              <Button className="ob2-cta" onPress={() => router.push(`${clinicPath}/settings`)}>
-                Configurar página e fotos
-              </Button>
-            )}
-            <Button variant="secondary" onPress={() => router.push(clinicPath)}>
-              Ir para a clínica
-            </Button>
-          </div>
+          <Button
+            variant="secondary"
+            onPress={() => router.push(canOpenDashboard ? clinicPath : '/c')}
+          >
+            {canOpenDashboard ? 'Ir para o painel' : 'Voltar aos meus espaços'}
+          </Button>
         }
       >
-        <strong>Onboarding concluído.</strong>{' '}
-        {canPublish &&
-          (publicUrl
-            ? 'Sua vitrine está publicada e pronta para compartilhar. Você pode personalizá-la e adicionar fotos quando quiser.'
-            : 'Sua vitrine está pronta. Em Configurações, você pode publicá-la, personalizar e adicionar fotos opcionais.')}
+        <strong>Onboarding concluído.</strong>
       </AppStatus>
     )
   }

@@ -1,0 +1,210 @@
+.modal__backdrop.manager-message-backdrop {
+  background: #170b1c73;
+  backdrop-filter: blur(3px);
+}
+
+.manager-dialog.manager-message {
+  --message-line: color-mix(in srgb, var(--space-highlight, #ffd9ea) 24%, transparent);
+  --message-glow: color-mix(in srgb, var(--space-accent, #ec287a) 36%, transparent);
+  background:
+    radial-gradient(ellipse at 50% 0%, var(--message-glow), transparent 62%),
+    var(--space-deep, #56203c);
+  border-color: var(--message-line);
+  box-shadow: 0 24px 80px #16091b66;
+}
+
+.manager-message .button--ghost,
+.manager-message [data-slot='modal-close-trigger'] {
+  color: var(--space-highlight, #fff7fb);
+}
+
+.manager-message [data-slot='modal-close-trigger'] {
+  width: 32px;
+  height: 32px;
+  border: 1px solid var(--message-line);
+  background: #ffffff12;
+}
+
+.manager-message .button--ghost:hover,
+.manager-message [data-slot='modal-close-trigger']:hover {
+  background: #ffffff20;
+}
+
+.manager-message-header {
+  text-align: center;
+  align-items: center;
+}
+
+.manager-message-header .modal__heading {
+  font-size: clamp(1.5rem, 4vw, 2.15rem);
+  line-height: 1.1;
+  text-wrap: balance;
+}
+
+.manager-message-art {
+  display: grid;
+  width: 106px;
+  height: 88px;
+  margin: 0 auto 8px;
+  place-items: center;
+  position: relative;
+  color: var(--space-highlight, #ffd9ea);
+}
+
+.manager-message-art::before,
+.manager-message-art::after {
+  content: '';
+  position: absolute;
+  width: 94px;
+  height: 53px;
+  border: 1px solid var(--message-line);
+  border-radius: 50%;
+  transform: rotate(-28deg);
+}
+
+.manager-message-art::after {
+  transform: rotate(28deg);
+}
+
+.manager-message-art span {
+  z-index: 1;
+  display: grid;
+  place-items: center;
+  width: 64px;
+  aspect-ratio: 1;
+  border: 1px solid var(--message-line);
+  border-radius: 22px;
+  background: color-mix(in srgb, var(--space-accent, #ec287a) 30%, var(--space-deep, #56203c));
+  box-shadow: 0 0 26px var(--message-glow);
+  animation: manager-message-appear 450ms ease-out both;
+}
+
+@keyframes manager-message-appear {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.92);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.manager-message-media {
+  display: block;
+  max-width: 100%;
+  margin-bottom: 12px;
+}
+
+.manager-message-media img {
+  width: 100%;
+  max-height: 155px;
+  object-fit: contain;
+  border-radius: 16px;
+}
+
+.manager-message-kicker,
+.manager-update-list > li > span {
+  color: var(--space-highlight, #ffd9ea);
+  font-size: 11px;
+  font-weight: 750;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.manager-message-body {
+  display: grid;
+  gap: 14px;
+}
+
+.manager-message-next {
+  display: flex;
+  gap: 12px;
+  padding: 13px;
+  border: 1px solid var(--message-line);
+  border-radius: 15px;
+  background: #ffffff0b;
+}
+
+.manager-message-next > svg {
+  flex: none;
+  margin-top: 3px;
+}
+
+.manager-message-next p {
+  font-size: 13px;
+}
+
+.manager-message-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 8px;
+  margin-top: 6px;
+  align-items: center;
+}
+
+.manager-message-links .button {
+  min-height: 40px;
+  padding-inline: 8px;
+}
+
+.manager-message-links a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 40px;
+  gap: 5px;
+  padding: 0 6px;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.manager-message-footer {
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.manager-update-list {
+  display: grid;
+  gap: 12px;
+  padding: 0;
+  list-style: none;
+}
+
+.manager-update-list > li {
+  padding: 12px 14px;
+  border: 1px solid var(--message-line);
+  border-radius: 14px;
+  background: #ffffff0b;
+}
+
+.manager-update-list h3 {
+  color: white;
+  font-size: 16px;
+  font-weight: 650;
+}
+
+.manager-update-list ul {
+  padding-inline-start: 1.2em;
+  list-style: disc;
+}
+
+@media (max-width: 480px) {
+  .manager-message-footer .button:last-child {
+    flex: 1;
+  }
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  .modal__backdrop.manager-message-backdrop {
+    background: #170b1cd9;
+    backdrop-filter: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .manager-message-backdrop,
+  .manager-message-backdrop * {
+    animation: none !important;
+    transition: none !important;
+  }
+}
