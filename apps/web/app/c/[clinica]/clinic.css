@@ -3,7 +3,9 @@
   --clinic-accent: #b31b58;
   --clinic-light: #fbeaf1;
   --clinic-muted: #745d69;
-  --clinic-paper: color-mix(in srgb, var(--clinic-light) 35%, #fff);
+  --clinic-paper: #fffafa;
+  --clinic-font: Inter, ui-sans-serif, system-ui, sans-serif;
+  font-family: var(--clinic-font);
   --clinic-line: color-mix(in srgb, var(--clinic-accent) 17%, transparent);
   background: var(--clinic-paper);
   color: var(--clinic-deep);
@@ -160,7 +162,6 @@
   text-transform: uppercase;
 }
 .clinic-hero h1 {
-  font-family: Georgia, serif;
   font-size: clamp(48px, 6.1vw, 88px);
   line-height: 0.99;
   letter-spacing: -0.055em;
@@ -276,9 +277,7 @@
 }
 .clinic-monogram {
   color: var(--clinic-light);
-  font:
-    400 clamp(60px, 11vw, 156px) / 1 Georgia,
-    serif;
+  font: 400 clamp(60px, 11vw, 156px) / 1 var(--clinic-font);
 }
 .clinic-cover-wave {
   position: absolute;
@@ -300,7 +299,6 @@
   scroll-margin-top: 16px;
 }
 .clinic-section-heading h2 {
-  font-family: Georgia, serif;
   font-size: clamp(34px, 5vw, 56px);
   font-weight: 400;
   letter-spacing: -0.045em;
@@ -346,9 +344,7 @@
 .clinic-category-number {
   grid-row: span 2;
   color: var(--clinic-accent);
-  font:
-    400 25px / 1 Georgia,
-    serif;
+  font: 400 25px / 1 var(--clinic-font);
 }
 .clinic-category-heading p {
   grid-column: 2;
@@ -439,83 +435,90 @@
   color: var(--clinic-muted);
 }
 .clinic-visit {
-  background: var(--clinic-light);
-  padding: 65px max(32px, calc((100vw - 1136px) / 2));
+  background: var(--clinic-deep);
+  color: white;
+  padding: 34px max(32px, calc((100vw - 1136px) / 2)) 48px;
 }
-.clinic-visit-grid {
+.clinic-location {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-  gap: 36px;
-  margin-top: 40px;
-}
-.clinic-visit-grid section > svg {
-  color: var(--clinic-accent);
-}
-.clinic-visit-grid h3 {
-  font-size: 20px;
-  font-weight: 500;
-  margin: 17px 0 12px;
-}
-.clinic-visit-grid p {
-  font-size: 14px;
-  color: var(--clinic-muted);
-}
-.clinic-visit-grid a {
-  display: inline-flex;
-  min-height: 44px;
+  grid-template-columns: minmax(0, 260px) minmax(0, 1fr) auto;
   align-items: center;
-  font-size: 13px;
+  gap: 26px;
 }
-.clinic-visit-grid small {
-  font-size: 11px;
-  line-height: 1.6;
-  color: var(--clinic-muted);
+.clinic-location-details:only-child {
+  grid-column: 1 / -1;
 }
-.clinic-location h3 {
+.clinic-location h2,
+.clinic-opening-hours h2 {
   display: flex;
   align-items: center;
   gap: 8px;
-  margin-top: 0;
+  font-size: 19px;
+  font-weight: 650;
+  margin: 0 0 6px;
 }
-.clinic-location h3 svg {
-  color: var(--clinic-accent);
+.clinic-location address,
+.clinic-location p {
+  color: var(--clinic-light);
+  font-size: 14px;
+  font-style: normal;
+  line-height: 1.55;
+  overflow-wrap: anywhere;
 }
 .clinic-map-preview,
 .clinic-map-frame {
+  display: block;
   width: 100%;
-  height: 210px;
-  margin: 14px 0 6px;
-  border: 1px solid var(--clinic-line);
+  height: 124px;
+  border: 1px solid #ffffff42;
   border-radius: 16px;
+}
+.clinic-map-frame {
+  height: 200px;
 }
 .clinic-map-preview {
   display: grid;
   justify-items: center;
   align-content: center;
-  gap: 10px;
-  color: var(--clinic-deep);
+  gap: 7px;
+  color: white;
   cursor: pointer;
   font: inherit;
   font-weight: 600;
   background:
-    repeating-linear-gradient(132deg, transparent 0 34px, #fff9 35px 40px),
-    repeating-linear-gradient(26deg, transparent 0 43px, #fffb 44px 49px),
-    linear-gradient(140deg, var(--clinic-light), var(--clinic-line));
-}
-.clinic-map-preview svg {
-  color: var(--clinic-accent);
+    repeating-linear-gradient(132deg, transparent 0 34px, #ffffff20 35px 38px),
+    repeating-linear-gradient(26deg, transparent 0 43px, #ffffff25 44px 48px),
+    linear-gradient(140deg, var(--clinic-accent), var(--clinic-deep));
 }
 .clinic-map-preview span {
-  border-radius: 100px;
-  background: var(--clinic-paper);
-  padding: 8px 12px;
+  background: var(--clinic-deep);
+  border-radius: 99px;
+  padding: 5px 10px;
+  font-size: 12px;
 }
-.clinic-map-link {
-  gap: 7px;
+.clinic-visit .clinic-map-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 15px;
+  min-height: 44px;
+  border: 1px solid #ffffffa0;
+  border-radius: 99px;
+  color: white;
+  text-decoration: none;
+  font-size: 13px;
   font-weight: 600;
 }
-#avaliacao {
-  scroll-margin-top: 20px;
+.clinic-map-link:hover {
+  background: #ffffff22;
+}
+.clinic-visit :is(a, button):focus-visible {
+  outline-color: white;
+}
+.clinic-opening-hours {
+  max-width: 420px;
+  margin-top: 30px;
 }
 .clinic-hours {
   margin: 0 0 10px;
@@ -530,12 +533,6 @@
 .clinic-hours dd {
   text-align: right;
   margin: 0;
-}
-.clinic-socials {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px 15px;
-  margin-top: 10px;
 }
 .clinic-app-card {
   position: relative;
@@ -574,9 +571,7 @@
   flex: 1 1 200px;
 }
 .clinic-app-copy h2 {
-  font:
-    400 clamp(25px, 4vw, 39px) / 1.1 Georgia,
-    serif;
+  font: 400 clamp(25px, 4vw, 39px) / 1.1 var(--clinic-font);
 }
 .clinic-app-copy p {
   margin-top: 8px;
@@ -728,11 +723,14 @@
     padding: 10px;
   }
   .clinic-visit {
-    padding: 45px 22px;
+    padding: 26px 22px 42px;
   }
-  .clinic-visit-grid {
+  .clinic-location {
     grid-template-columns: 1fr;
-    gap: 32px;
+    gap: 14px;
+  }
+  .clinic-visit .clinic-map-link {
+    justify-self: start;
   }
   .clinic-app-card {
     display: grid;
@@ -776,9 +774,7 @@
   border: 1px solid #ffffff7a;
   background: #ffffff20;
   color: white;
-  font:
-    34px / 1 Georgia,
-    serif;
+  font: 34px / 1 var(--clinic-font);
 }
 .clinic-hero-identity img {
   width: 100%;
@@ -828,6 +824,9 @@
   padding: 4px 32px 64px;
   scroll-margin-top: 20px;
 }
+.clinic-gallery-full {
+  padding-top: 28px;
+}
 .clinic-gallery-grid {
   columns: 240px 4;
   column-gap: 14px;
@@ -865,9 +864,7 @@
 }
 .clinic-catalog-header h1 {
   margin-top: 8px;
-  font:
-    400 clamp(34px, 6vw, 66px) / 1.06 Georgia,
-    serif;
+  font: 400 clamp(34px, 6vw, 66px) / 1.06 var(--clinic-font);
 }
 @media (max-width: 700px) {
   .clinic-header nav {

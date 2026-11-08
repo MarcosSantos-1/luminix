@@ -10,12 +10,13 @@ import {
   Camera,
   MapPin,
   MessageCircle,
-  Navigation,
+  Map as MapIcon,
   UserRound,
   Sparkles,
 } from 'lucide-react'
 import { Brand } from '../../../components/brand'
 import { ClinicMiniMap, ClinicSpaceCode } from './clinic-interactions'
+import { ClinicGalleryGrid } from './clinic-gallery-grid'
 import { ClinicServiceCard } from './clinic-service-card'
 import { loadPublicClinic } from '../../../lib/load-public-clinic'
 import { clinicTheme, publicLink, showcaseServices, whatsappLink } from '../../../lib/public-clinic'
@@ -174,11 +175,12 @@ export default async function ClinicPage({ params }: { params: Promise<{ clinica
               <div className="clinic-actions">
                 <a
                   className="clinic-button"
-                  href={evaluationUrl ?? '#avaliacao'}
+                  href={evaluationUrl ?? '#visita'}
                   target={evaluationUrl ? '_blank' : undefined}
                   rel={evaluationUrl ? 'noopener noreferrer' : undefined}
                 >
-                  <CalendarDays size={17} aria-hidden /> Agendar avaliação
+                  <CalendarDays size={17} aria-hidden />
+                  {evaluationUrl ? 'Agendar avaliação' : 'Consultar atendimento'}
                 </a>
                 <Link
                   className="clinic-contact"
@@ -246,99 +248,69 @@ export default async function ClinicPage({ params }: { params: Promise<{ clinica
         </section>
         {gallery.length > 0 && (
           <section className="clinic-gallery" id="galeria" aria-labelledby="gallery-title">
-            <div className="clinic-section-heading">
-              <span className="clinic-kicker">PORTFÓLIO</span>
-              <h2 id="gallery-title">Galeria</h2>
-              <p>
-                {demo
-                  ? 'Imagens ilustrativas do estilo do salão.'
-                  : 'Veja o espaço e conheça de perto o trabalho da equipe.'}
-              </p>
+            <div className="clinic-showcase-heading">
+              <div className="clinic-section-heading">
+                <span className="clinic-kicker">PORTFÓLIO</span>
+                <h2 id="gallery-title">Galeria</h2>
+                <p>
+                  {demo
+                    ? 'Imagens ilustrativas do estilo do salão.'
+                    : 'Veja o espaço e conheça de perto o trabalho da equipe.'}
+                </p>
+              </div>
+              <Link
+                className="clinic-view-all"
+                href={`/c/${encodeURIComponent(clinic.slug)}/galeria`}
+              >
+                Ver todas <ArrowUpRight size={16} aria-hidden />
+              </Link>
             </div>
-            <div className="clinic-gallery-grid">
-              {gallery.map((url, index) => (
-                <a href={url} key={url} target="_blank" rel="noopener noreferrer">
-                  <Image
-                    src={url}
-                    alt={`Foto ${index + 1} da galeria de ${clinic.name}`}
-                    width={512}
-                    height={512}
-                    unoptimized
-                  />
-                </a>
-              ))}
-            </div>
+            <ClinicGalleryGrid photos={gallery.slice(0, 4)} name={clinic.name} />
           </section>
         )}
         <section className="clinic-visit" id="visita" aria-labelledby="visit-title">
-          <div className="clinic-section-heading">
-            <span className="clinic-kicker">VAMOS NOS ENCONTRAR</span>
-            <h2 id="visit-title">Conheça nosso espaço.</h2>
-            <p>As informações para planejar seu próximo momento de cuidado.</p>
-          </div>
-          <div className="clinic-visit-grid">
-            <section className="clinic-location">
-              <h3>
-                <MapPin size={22} aria-hidden /> Localização
-              </h3>
+          <div className="clinic-location">
+            {mapAddress && <ClinicMiniMap address={mapAddress} />}
+            <div className="clinic-location-details">
+              <h2 id="visit-title">
+                <MapPin size={21} aria-hidden /> Localização
+              </h2>
               {mapAddress ? (
-                <>
-                  <p>{demo ? `Localização ilustrativa: ${mapAddress}` : address}</p>
-                  <ClinicMiniMap address={mapAddress} />
-                  <a
-                    className="clinic-map-link"
-                    href={mapUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                  >
-                    <Navigation size={16} aria-hidden /> Ver no Google Maps
-                  </a>
-                </>
+                <address>{demo ? `Localização ilustrativa: ${mapAddress}` : address}</address>
               ) : (
-                <p>Entre em contato com o espaço para combinar a localização do atendimento.</p>
+                <p>Consulte o espaço para confirmar o endereço do atendimento.</p>
               )}
-            </section>
-            {clinic.hours.length > 0 && (
-              <section>
-                <Clock3 size={24} aria-hidden />
-                <h3>Horários do espaço</h3>
-                <dl className="clinic-hours">
-                  {clinic.hours.map((day) => (
-                    <div key={day.weekday}>
-                      <dt>{days[day.weekday]}</dt>
-                      <dd>
-                        {day.available && day.periods.length
-                          ? day.periods.map((period) => `${period.start}–${period.end}`).join(' / ')
-                          : 'Fechado'}
-                      </dd>
-                    </div>
-                  ))}
-                </dl>
-                <small>Horários especiais e disponibilidade devem ser confirmados.</small>
-              </section>
+            </div>
+            {mapAddress && (
+              <a
+                className="clinic-map-link"
+                href={mapUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                <MapIcon size={17} aria-hidden /> Ver no Google Maps
+              </a>
             )}
-            <section id="avaliacao">
-              <MessageCircle size={24} aria-hidden />
-              <h3>Agende sua avaliação</h3>
-              <p>
-                {demo
-                  ? 'Em uma clínica com contato publicado, você pode combinar a avaliação com a equipe.'
-                  : 'Combine a avaliação e confirme os horários diretamente com a equipe do espaço.'}
-              </p>
-              <div className="clinic-socials">
-                {evaluationUrl && (
-                  <a href={evaluationUrl} target="_blank" rel="noopener noreferrer">
-                    Solicitar pelo WhatsApp ↗
-                  </a>
-                )}
-                {socials.map((social) => (
-                  <a href={social.url} key={social.label} target="_blank" rel="noopener noreferrer">
-                    {social.label} ↗
-                  </a>
-                ))}
-              </div>
-            </section>
           </div>
+          {clinic.hours.length > 0 && (
+            <section className="clinic-opening-hours" aria-labelledby="hours-title">
+              <h2 id="hours-title">
+                <Clock3 size={20} aria-hidden /> Horários do espaço
+              </h2>
+              <dl className="clinic-hours">
+                {clinic.hours.map((day) => (
+                  <div key={day.weekday}>
+                    <dt>{days[day.weekday]}</dt>
+                    <dd>
+                      {day.available && day.periods.length
+                        ? day.periods.map((period) => `${period.start}–${period.end}`).join(' / ')
+                        : 'Fechado'}
+                    </dd>
+                  </div>
+                ))}
+              </dl>
+            </section>
+          )}
         </section>
         <aside className="clinic-app-card" aria-labelledby="clinic-app-title">
           <div className="clinic-app-phone" aria-hidden="true">
