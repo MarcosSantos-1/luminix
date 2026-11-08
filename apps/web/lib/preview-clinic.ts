@@ -16,9 +16,9 @@ const demoClinic: PublicClinic = {
   foundedYear: null,
   logoUrl: null,
   whatsapp: null,
-  instagram: null,
-  facebook: null,
-  website: null,
+  instagram: 'https://www.instagram.com/',
+  facebook: 'https://www.facebook.com/',
+  website: 'https://luminix.beauty/',
   location: null,
   hours: [],
   services: [
@@ -269,6 +269,9 @@ const examples = {
 
 const demoVariants = Object.entries(examples).map(([key, entry]): PublicClinic => ({
   ...demoClinic,
+  instagram: null,
+  facebook: null,
+  website: null,
   slug: `demonstracao-${key}`,
   name: entry.name,
   subtitle: entry.subtitle,

@@ -121,7 +121,7 @@ export default async function ClinicPage({
       {demo && (
         <div className="clinic-demo">
           Página demonstrativa · Serviços e valores ilustrativos. Nenhum agendamento é realizado
-          aqui.
+          aqui.{socials.length > 0 && ' Links sociais de exemplo.'}
         </div>
       )}
       <main>
