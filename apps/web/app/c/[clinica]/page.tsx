@@ -318,7 +318,26 @@ export default async function ClinicPage({ params }: { params: Promise<{ clinica
           </div>
           <div className="clinic-app-copy">
             <h2 id="clinic-app-title">Baixe o app Luminix</h2>
-            <p>O app está em preparação. Conheça a prévia para clientes.</p>
+            <p>
+              Agende horários, acompanhe seus atendimentos, receba lembretes e gerencie seus
+              pagamentos. Tudo no mesmo app.
+            </p>
+            <div className="clinic-app-stores" aria-label="Lojas de aplicativos">
+              <button className="clinic-app-store" type="button" disabled>
+                <Image src="/clinic/google-play.webp" alt="" width={26} height={26} unoptimized />
+                <span>
+                  <small>Em breve no</small>
+                  <strong>Google Play</strong>
+                </span>
+              </button>
+              <button className="clinic-app-store" type="button" disabled>
+                <Image src="/clinic/app-store.webp" alt="" width={26} height={26} unoptimized />
+                <span>
+                  <small>Em breve na</small>
+                  <strong>App Store</strong>
+                </span>
+              </button>
+            </div>
             <a href="https://luminix-client.vercel.app" target="_blank" rel="noopener noreferrer">
               Abrir prévia web <ArrowUpRight size={15} aria-hidden />
             </a>

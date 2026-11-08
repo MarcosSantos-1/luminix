@@ -544,10 +544,34 @@
   margin: -20px auto 0;
   width: min(calc(100% - 40px), 1136px);
   padding: 24px 28px;
+  border: 1px solid color-mix(in srgb, var(--clinic-accent) 28%, #fff);
   border-radius: 22px;
-  color: white;
-  background: linear-gradient(118deg, var(--clinic-deep) 18%, var(--clinic-accent));
-  box-shadow: 0 16px 32px var(--clinic-line);
+  color: var(--clinic-deep);
+  background:
+    radial-gradient(ellipse at 18% 0%, #fff 0%, transparent 65%),
+    linear-gradient(
+      118deg,
+      var(--clinic-paper) 8%,
+      var(--clinic-light) 60%,
+      color-mix(in srgb, var(--clinic-light) 72%, var(--clinic-accent))
+    );
+  box-shadow:
+    inset 0 0 0 1px #ffffffb8,
+    0 0 0 3px color-mix(in srgb, var(--clinic-light) 50%, transparent),
+    0 0 26px color-mix(in srgb, var(--clinic-light) 38%, transparent),
+    0 18px 42px var(--clinic-line);
+}
+.clinic-app-card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: inherit;
+  pointer-events: none;
+  background: url('/clinic/ribbon-texture.webp') center 60% / cover no-repeat;
+  filter: grayscale(1);
+  mix-blend-mode: multiply;
+  opacity: 0.1;
 }
 .clinic-app-phone {
   flex: 0 0 60px;
@@ -575,22 +599,58 @@
 }
 .clinic-app-copy p {
   margin-top: 8px;
-  color: var(--clinic-light);
+  color: var(--clinic-deep);
   font-size: 14px;
+}
+.clinic-app-stores {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 9px;
+  margin-top: 14px;
+}
+.clinic-app-store {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 7px 12px;
+  border: 1px solid var(--clinic-line);
+  border-radius: 12px;
+  background: #ffffffe0;
+  color: var(--clinic-deep);
+  font: inherit;
+  text-align: left;
+  cursor: default;
+  opacity: 1;
+}
+.clinic-app-store img {
+  flex-shrink: 0;
+}
+.clinic-app-store small,
+.clinic-app-store strong {
+  display: block;
+  line-height: 1.2;
+}
+.clinic-app-store small {
+  font-size: 10px;
+}
+.clinic-app-store strong {
+  font-size: 13px;
+  margin-top: 2px;
 }
 .clinic-app-copy a {
   display: inline-flex;
   align-items: center;
   gap: 6px;
   min-height: 44px;
-  color: white;
+  color: var(--clinic-deep);
   font-size: 13px;
   font-weight: 600;
 }
 .clinic-app-code {
   min-width: 143px;
   padding-left: 24px;
-  border-left: 1px solid #ffffff65;
+  border-left: 1px solid var(--clinic-line);
   font-size: 12px;
 }
 .clinic-app-code > div {
@@ -602,7 +662,8 @@
   padding-left: 14px;
   border-radius: 99px;
   color: var(--clinic-deep);
-  background: var(--clinic-light);
+  background: #ffffffe0;
+  border: 1px solid var(--clinic-line);
 }
 .clinic-app-code code {
   font-size: 16px;
@@ -742,7 +803,7 @@
     grid-column: 1 / -1;
     padding: 12px 0 0;
     border-left: 0;
-    border-top: 1px solid #ffffff65;
+    border-top: 1px solid var(--clinic-line);
   }
   .clinic-app-code > div {
     width: fit-content;
