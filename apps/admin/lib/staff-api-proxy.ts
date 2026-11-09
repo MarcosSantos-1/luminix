@@ -4,6 +4,10 @@ export async function staffApiGet(
   path:
     | `/clinics/${string}/publication`
     | `/clinics/${string}/showcase`
+    | `/clinics/${string}/showcase/preview`
+    | `/clinics/${string}/profile`
+    | `/clinics/${string}/booking-rules`
+    | `/clinics/${string}/slug`
     | `/clinics/${string}/payments/connect`
     | '/auth/clinics'
     | '/address/geocode'
@@ -45,6 +49,12 @@ export async function staffApiGet(
         const value = source.get(key)
         if (value) url.searchParams.set(key, value)
       }
+    } else if (path.endsWith('/slug')) {
+      const source = new URL(request.url).searchParams
+      const check = source.get('check')
+      const from = source.get('from')
+      if (check) url.searchParams.set('check', check.slice(0, 40))
+      if (from) url.searchParams.set('from', from.slice(0, 160))
     } else if (path.endsWith('/agenda')) {
       const source = new URL(request.url).searchParams
       for (const key of ['from', 'to']) {
@@ -85,6 +95,9 @@ export async function staffApiWrite(
     | `/clinics/${string}/appointments`
     | `/clinics/${string}/availability`
     | `/clinics/${string}/theme`
+    | `/clinics/${string}/profile`
+    | `/clinics/${string}/booking-rules`
+    | `/clinics/${string}/slug`
     | `/clinics/${string}/media`
     | `/clinics/${string}/media/${string}/finalize`,
 ) {

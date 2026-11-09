@@ -51,12 +51,14 @@ membership, papéis, clientes locais, profissionais, serviços, RLS e auditoria.
 e verificada no Neon principal na fase inicial autorizada; sessão, bootstrap e autorização HTTP
 da equipe implementados. Onboarding inicial persistido e conclusão transacional definidos na
 [ADR-011](decisions/ADR-011-ONBOARDING-INICIAL.md), evoluídos para configuração completa na
-[ADR-013](decisions/ADR-013-ONBOARDING-COMPLETO-DA-CLINICA.md). CRUD pós-conclusão pendente.
+[ADR-013](decisions/ADR-013-ONBOARDING-COMPLETO-DA-CLINICA.md). Edição pós-conclusão de perfil,
+endereço e regras na ADR-022; equipe e catálogo ainda pendentes.
 
 Domínios e portal web: [ADR-008](decisions/ADR-008-DOMINIOS-E-PORTAL-WEB.md) e
 [16 — Operação e roadmap](16-DOMINIOS-E-PORTAL-WEB.md). Consultar ao trabalhar com site,
 rotas `/c/`, portal do cliente, DNS ou domínios personalizados.
 Publicação opt-in e projeção pública: [ADR-021](decisions/ADR-021-PAGINAS-PUBLICAS-DAS-CLINICAS.md).
+Configurações editáveis, editor do site e endereços amigáveis: [ADR-022](decisions/ADR-022-CONFIGURACOES-EDITAVEIS-E-ENDERECOS-PUBLICOS.md).
 
 ### `/decisions`
 

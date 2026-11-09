@@ -340,7 +340,8 @@ describe('versioned clinic onboarding', () => {
     expect(completed.statusCode).toBe(200)
     expect(completed.json().replayed).toBe(false)
     expect(completed.json().clinic.shareCode).toMatch(/^(?!CU|KU|FU|SH)[A-Z]{2}-[0-9]{4}$/)
-    const publicSlug = completed.json().clinic.shareCode.toLowerCase()
+    // Activation derives a friendly slug from the clinic name (migration 0024).
+    const publicSlug = 'clinica-a-final'
     expect(completed.json().publicSlug).toBe(publicSlug)
     const replay = await call('onboarding-a', 'POST', clinicA, 'onboarding/complete', {
       version: 4,

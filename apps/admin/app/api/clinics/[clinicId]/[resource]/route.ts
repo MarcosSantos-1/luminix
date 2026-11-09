@@ -1,50 +1,46 @@
 import { isClinicRef } from '@/lib/clinic-ref'
 import { staffApiGet, staffApiWrite } from '@/lib/staff-api-proxy'
+
+const notFound = () =>
+  Response.json({ error: 'Not found' }, { status: 404, headers: { 'Cache-Control': 'no-store' } })
+
+const readable = [
+  'context',
+  'settings',
+  'onboarding',
+  'overview',
+  'clients',
+  'agenda',
+  'profile',
+  'booking-rules',
+  'slug',
+] as const
+const writable = [
+  'onboarding',
+  'availability',
+  'theme',
+  'profile',
+  'booking-rules',
+  'slug',
+] as const
+
 export async function GET(
   request: Request,
   { params }: { params: Promise<{ clinicId: string; resource: string }> },
 ) {
   const { clinicId, resource } = await params
-  if (
-    !isClinicRef(clinicId) ||
-    !['context', 'settings', 'onboarding', 'overview', 'clients', 'agenda'].includes(resource)
-  )
-    return Response.json(
-      { error: 'Not found' },
-      { status: 404, headers: { 'Cache-Control': 'no-store' } },
-    )
-  const path =
-    resource === 'context'
-      ? (`/clinics/${clinicId}/context` as const)
-      : resource === 'settings'
-        ? (`/clinics/${clinicId}/settings` as const)
-        : resource === 'overview'
-          ? (`/clinics/${clinicId}/overview` as const)
-          : resource === 'clients'
-            ? (`/clinics/${clinicId}/clients` as const)
-            : resource === 'agenda'
-              ? (`/clinics/${clinicId}/agenda` as const)
-              : (`/clinics/${clinicId}/onboarding` as const)
-  return staffApiGet(request, path)
+  const match = readable.find((item) => item === resource)
+  if (!isClinicRef(clinicId) || !match) return notFound()
+  return staffApiGet(request, `/clinics/${clinicId}/${match}`)
 }
 export async function PUT(
   request: Request,
   { params }: { params: Promise<{ clinicId: string; resource: string }> },
 ) {
   const { clinicId, resource } = await params
-  if (!isClinicRef(clinicId) || !['onboarding', 'availability', 'theme'].includes(resource))
-    return Response.json(
-      { error: 'Not found' },
-      { status: 404, headers: { 'Cache-Control': 'no-store' } },
-    )
-  return staffApiWrite(
-    request,
-    resource === 'theme'
-      ? `/clinics/${clinicId}/theme`
-      : resource === 'availability'
-        ? `/clinics/${clinicId}/availability`
-        : `/clinics/${clinicId}/onboarding`,
-  )
+  const match = writable.find((item) => item === resource)
+  if (!isClinicRef(clinicId) || !match) return notFound()
+  return staffApiWrite(request, `/clinics/${clinicId}/${match}`)
 }
 
 export async function POST(
@@ -52,11 +48,7 @@ export async function POST(
   { params }: { params: Promise<{ clinicId: string; resource: string }> },
 ) {
   const { clinicId, resource } = await params
-  if (!isClinicRef(clinicId) || !['clients', 'appointments'].includes(resource))
-    return Response.json(
-      { error: 'Not found' },
-      { status: 404, headers: { 'Cache-Control': 'no-store' } },
-    )
+  if (!isClinicRef(clinicId) || !['clients', 'appointments'].includes(resource)) return notFound()
   return staffApiWrite(
     request,
     resource === 'clients' ? `/clinics/${clinicId}/clients` : `/clinics/${clinicId}/appointments`,

@@ -1,11 +1,18 @@
 import { cache } from 'react'
 import { unstable_cache } from 'next/cache'
 import { connection } from 'next/server'
+import { permanentRedirect } from 'next/navigation'
 import { isPublicClinicSlug, publicClinicTag } from './public-clinic-cache'
 import type { PublicClinic } from './public-clinic'
 import { getPreviewClinic } from './preview-clinic'
 
 class ClinicNotPublished extends Error {}
+/** The clinic changed its address; the API returns the current slug for published pages. */
+class ClinicMoved extends Error {
+  constructor(readonly slug: string) {
+    super('Clinic moved')
+  }
+}
 
 async function fetchPublicClinic(slug: string): Promise<PublicClinic> {
   const base = new URL(process.env.API_URL ?? 'https://luminix-api.fly.dev')
@@ -25,7 +32,12 @@ async function fetchPublicClinic(slug: string): Promise<PublicClinic> {
   })
   if (response.status === 404) throw new ClinicNotPublished()
   if (!response.ok) throw new Error('Public clinic unavailable')
-  const data = (await response.json()) as { clinic: PublicClinic }
+  const data = (await response.json()) as { clinic: PublicClinic; redirectTo?: string }
+  if (typeof data.redirectTo === 'string') {
+    if (!isPublicClinicSlug(data.redirectTo) || data.redirectTo === slug)
+      throw new Error('Invalid public clinic')
+    throw new ClinicMoved(data.redirectTo)
+  }
   if (data.clinic?.slug !== slug || !Array.isArray(data.clinic.services))
     throw new Error('Invalid public clinic')
   return data.clinic
@@ -47,6 +59,7 @@ export const loadPublicClinic = cache(async (slug: string): Promise<PublicClinic
     })(slug)
   } catch (error) {
     if (error instanceof ClinicNotPublished) return null
+    if (error instanceof ClinicMoved) permanentRedirect(`/c/${encodeURIComponent(error.slug)}`)
     throw error
   }
 })

@@ -139,7 +139,12 @@ export function ClinicWorkspace({ children }: { children: ReactNode }) {
       </AppStatus>
     )
   }
-  if (onboarding || pathname === `/c/${clinicId}` || pathname.endsWith('/settings'))
+  if (
+    onboarding ||
+    pathname === `/c/${clinicId}` ||
+    pathname.endsWith('/settings') ||
+    pathname.endsWith('/vitrine')
+  )
     return (
       <Context.Provider value={visible}>
         <SpaceThemeProvider

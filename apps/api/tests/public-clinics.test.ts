@@ -70,6 +70,12 @@ beforeAll(async () => {
     ).rows[0].id
     showcaseFixtures.set(label, { service: String(service), photo: String(photo) })
     await connection.query("UPDATE luminix.clinics SET status = 'active' WHERE id = $1", [id])
+    // Activation replaces the code-shaped slug with one derived from the name (migration 0024).
+    const activeSlug = String(
+      (await connection.query('SELECT slug FROM luminix.clinics WHERE id = $1', [id])).rows[0].slug,
+    )
+    if (label === 'a') slugA = activeSlug
+    else slugB = activeSlug
     await connection.query(
       `INSERT INTO luminix.services (clinic_id, name, price_cents, duration_minutes, status) VALUES ($1, 'ARCHIVED', 100, 10, 'archived')`,
       [id],

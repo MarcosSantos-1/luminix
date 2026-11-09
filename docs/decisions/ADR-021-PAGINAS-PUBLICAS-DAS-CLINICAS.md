@@ -14,7 +14,8 @@ oferece “Concluir e publicar vitrine” e permite concluir em privado. Endere�
 têm opções independentes, desmarcadas por padrão. O banco mantém os três indicadores falsos até
 a confirmação. A conclusão e a publicação ocorrem na mesma transação, com `settings:manage`
 para publicar. Uma repetição da conclusão devolve o estado atual e preserva decisões posteriores.
-O slug é estável. Edição de slug, agendamento, pagamento e área privada seguem em frentes próprias.
+Edição de slug: ver ADR-022 (endereços amigáveis com redirecionamento). Agendamento, pagamento
+e área privada seguem em frentes próprias.
 
 A migration 0020 acrescenta os indicadores a `clinic_profiles` e duas funções com `search_path`
 fixo e EXECUTE revogado de PUBLIC. A escrita exige identidade verificada, contexto tenant e

@@ -1,13 +1,23 @@
 'use client'
 
 import { Button } from '@heroui/react'
-import { Building2, CalendarDays, Globe, Mail, Palette, Scissors, UsersRound } from 'lucide-react'
+import {
+  Building2,
+  CalendarDays,
+  Globe,
+  Mail,
+  Palette,
+  Scissors,
+  ShieldCheck,
+  UsersRound,
+} from 'lucide-react'
 
 export const managerSettingsSections = [
   { id: 'espaco', label: 'Dados do espaço', icon: Building2 },
-  { id: 'vitrine', label: 'Vitrine e site', icon: Globe },
-  { id: 'personalizacao', label: 'Personalização', icon: Palette },
   { id: 'contato', label: 'Contato', icon: Mail },
+  { id: 'vitrine', label: 'Vitrine e site', icon: Globe },
+  { id: 'regras', label: 'Regras e combinados', icon: ShieldCheck },
+  { id: 'personalizacao', label: 'Personalização e idioma', icon: Palette },
   { id: 'equipe', label: 'Equipe', icon: UsersRound },
   { id: 'servicos', label: 'Serviços', icon: Scissors },
   { id: 'rotina', label: 'Rotina', icon: CalendarDays },

@@ -10,6 +10,8 @@ export type PublicService = {
 }
 export type PublicClinic = {
   slug: string
+  /** Space code used by clients in the app (e.g. KW-4374). */
+  code?: string | null
   name: string
   theme: string
   heroCategory?: string | null
@@ -18,6 +20,8 @@ export type PublicClinic = {
   featured?: { serviceId: string; photoUrl: string | null }[]
   gallery?: string[]
   servicePhotos?: { serviceId: string; photoUrl: string }[]
+  /** Optional blocks hidden by the clinic: hours, foundedYear, app, socials. */
+  hidden?: string[]
   foundedYear: number | null
   logoUrl: string | null
   whatsapp: string | null

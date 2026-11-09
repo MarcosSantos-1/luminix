@@ -9,6 +9,7 @@ import { withClinicTransaction, type TenantPool } from '../../shared/tenant/clin
 import type { TenantContext } from '../../shared/tenant/tenant-context.js'
 import { saveOnboardingDraft } from './onboarding-persist.js'
 import { invalidatePublicClinic } from './public-cache.js'
+import { clinicSettingsRoutes } from './settings-routes.js'
 import { isValidBrazilianTaxId } from './tax-id.js'
 import {
   publicMediaUrl,
@@ -411,6 +412,7 @@ export async function clinicRoutes(
       throw Object.assign(new Error('Stripe verification unavailable'), { statusCode: 503 })
     }
   }
+  clinicSettingsRoutes(app, authorized, params)
   app.get<{ Params: { clinicId: string } }>(
     '/clinics/:clinicId/publication',
     { schema: { params } },
@@ -535,6 +537,12 @@ export async function clinicRoutes(
               ],
             },
             subtitle: { type: 'string', maxLength: 120 },
+            hidden: {
+              type: 'array',
+              maxItems: 4,
+              uniqueItems: true,
+              items: { type: 'string', enum: ['hours', 'foundedYear', 'app', 'socials'] },
+            },
             gallery: { type: 'array', maxItems: 24, items: { type: 'string', format: 'uuid' } },
             servicePhotos: {
               type: 'array',

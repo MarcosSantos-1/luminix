@@ -1051,3 +1051,69 @@
     object-position: right bottom;
   }
 }
+
+/* Editor preview (rendered inside the admin editor) */
+.clinic-preview-loading {
+  display: grid;
+  place-items: center;
+  align-content: center;
+  gap: 14px;
+  min-height: 100vh;
+  color: #5b4252;
+  font:
+    600 15px/1.4 system-ui,
+    sans-serif;
+  background: linear-gradient(180deg, #fbf3f7, #f5e9ef);
+}
+.clinic-preview-spinner {
+  width: 34px;
+  height: 34px;
+  border: 3px solid #e7287533;
+  border-top-color: #e72875;
+  border-radius: 50%;
+  animation: clinic-preview-spin 0.9s linear infinite;
+}
+@keyframes clinic-preview-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+.clinic-editing [data-edit] {
+  position: relative;
+  cursor: pointer;
+  outline: 2px dashed transparent;
+  outline-offset: -6px;
+  transition: outline-color 0.15s ease;
+}
+.clinic-editing [data-edit]:hover {
+  outline-color: #e72875aa;
+}
+.clinic-editing [data-edit]:hover::after {
+  content: '✎ Clique para editar';
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  z-index: 5;
+  padding: 6px 12px;
+  border-radius: 999px;
+  color: #fff;
+  background: #e72875;
+  font:
+    700 12px/1.2 system-ui,
+    sans-serif;
+  box-shadow: 0 6px 18px #0003;
+  pointer-events: none;
+}
+.clinic-edit-placeholder {
+  display: block;
+  width: min(1120px, calc(100% - 32px));
+  margin: 24px auto;
+  padding: 36px 16px;
+  border: 2px dashed var(--clinic-line, #e3c9d6);
+  border-radius: 18px;
+  color: var(--clinic-deep, #5b2440);
+  background: transparent;
+  font-weight: 700;
+  font-size: 15px;
+  cursor: pointer;
+}

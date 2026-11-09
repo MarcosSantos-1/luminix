@@ -1,25 +1,31 @@
 'use client'
 
-import { ClinicPublication } from './clinic-publication'
-
 import Link from 'next/link'
 import Image from 'next/image'
-import { useEffect, useState } from 'react'
-import { Button, Card, Chip, Spinner } from '@heroui/react'
-import { useStaff } from '@/components/staff-provider'
-import { ThemePicker, useSpaceTheme } from '@/components/space-theme'
-import type { SpaceTheme } from '@/lib/space-theme'
-import { formatBrPhone } from '@/lib/phone'
+import { Button, Chip } from '@heroui/react'
+import {
+  ArrowRight,
+  CalendarDays,
+  Clock3,
+  Rocket,
+  Scissors,
+  UserRound,
+  UsersRound,
+  Wallet,
+} from 'lucide-react'
+import { useClinicApi, useClinicResource } from '../settings/clinic-api'
+import { PersonalizationSettings } from '../settings/personalization-settings'
+import { ProfileSettings } from '../settings/profile-settings'
+import { RulesSettings } from '../settings/rules-settings'
+import { SettingsCard, SettingsSkeleton, LoadError, Empty } from '../settings/settings-kit'
+import { SiteSettings } from '../settings/site-settings'
 import type { ManagerSectionId } from '../demo-data'
 import type { ManagerSettingsSection } from '../manager-settings-nav'
 
-type Settings = { timezone: string; locale: string; currency: string }
 type Overview = {
-  occupations: { name: string }[]
   services: { name: string; price_cents: number; duration_minutes: number }[]
   professionals: { display_name: string; photo_url: string | null }[]
 }
-type Contact = { ownerName: string; email: string; phone: string; logoUrl?: string | null }
 
 export function ClinicSettings({
   tab,
@@ -27,367 +33,154 @@ export function ClinicSettings({
   clinic,
   shareCode,
   canContinueOnboarding,
-  canReadOnboarding,
 }: {
   tab: ManagerSettingsSection
   onOpen: (section: ManagerSectionId) => void
   clinic: { id: string; name: string; slug: string; status: string }
   shareCode: string | null
   canContinueOnboarding: boolean
-  canReadOnboarding: boolean
+  canReadOnboarding?: boolean
 }) {
-  const { theme, setTheme } = useSpaceTheme()
-  const [savingTheme, setSavingTheme] = useState(false)
-  const [themeMessage, setThemeMessage] = useState('')
-  const staff = useStaff()
-  async function changeTheme(next: SpaceTheme) {
-    if (!staff.user || savingTheme) return
-    setSavingTheme(true)
-    setThemeMessage('')
-    try {
-      const response = await fetch(`/api/clinics/${clinic.id}/theme`, {
-        method: 'PUT',
-        headers: {
-          authorization: `Bearer ${await staff.user.getIdToken()}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ theme: next }),
-        signal: AbortSignal.timeout(20_000),
-      })
-      if (!response.ok) throw new Error()
-      setTheme(next)
-      setThemeMessage('Tema salvo.')
-      staff.refresh()
-    } catch {
-      setThemeMessage('Não foi possível salvar o tema. Tente novamente.')
-    } finally {
-      setSavingTheme(false)
-    }
-  }
-  const key = `${staff.user?.uid}/${clinic.id}/${staff.revision}`
-  const [state, setState] = useState<{
-    key: string
-    settings?: Settings
-    overview?: Overview
-    contact?: Contact | null
-    contactError?: string
-    error?: string
-  } | null>(null)
-  const [retry, setRetry] = useState(0)
-
-  useEffect(() => {
-    const user = staff.user
-    if (!user) return
-    let active = true
-    const abort = new AbortController()
-    void (async () => {
-      try {
-        const headers = { authorization: `Bearer ${await user.getIdToken()}` }
-        const signal = AbortSignal.any([abort.signal, AbortSignal.timeout(20_000)])
-        const [settingsResponse, overviewResponse, onboardingResponse] = await Promise.all([
-          fetch(`/api/clinics/${clinic.id}/settings`, { headers, cache: 'no-store', signal }),
-          fetch(`/api/clinics/${clinic.id}/overview`, { headers, cache: 'no-store', signal }),
-          canReadOnboarding && clinic.status === 'draft'
-            ? fetch(`/api/clinics/${clinic.id}/onboarding`, { headers, cache: 'no-store', signal })
-            : Promise.resolve(null),
-        ])
-        if (!settingsResponse.ok || !overviewResponse.ok) throw new Error('Unavailable')
-        const settingsBody: { settings: Settings; profile: Contact | null } =
-          await settingsResponse.json()
-        const overviewBody: Overview = await overviewResponse.json()
-        let contact: Contact | null = settingsBody.profile
-        let contactError: string | undefined
-        if (onboardingResponse) {
-          if (!onboardingResponse.ok) {
-            contactError = 'Não foi possível carregar o contato salvo no cadastro.'
-          } else {
-            const body: { draft?: { payload?: Partial<Contact> } } = await onboardingResponse.json()
-            const payload = body.draft?.payload
-            contact = {
-              ownerName: payload?.ownerName?.trim() ?? '',
-              email: payload?.email?.trim() ?? '',
-              phone: payload?.phone?.trim() ?? '',
-            }
-          }
-        }
-        if (active)
-          setState({
-            key,
-            settings: settingsBody.settings,
-            overview: overviewBody,
-            contact,
-            contactError,
-          })
-      } catch {
-        if (active)
-          setState((current) =>
-            current?.key === key && current.settings && current.overview
-              ? current
-              : {
-                  key,
-                  error: 'Não foi possível carregar os dados da clínica. Atualize seu acesso.',
-                },
-          )
-      }
-    })()
-    return () => {
-      active = false
-      abort.abort()
-    }
-  }, [staff.user, clinic.id, clinic.status, key, retry, canReadOnboarding])
-
-  if (state?.key !== key || !state.settings || !state.overview) {
-    if (state?.key === key && state.error)
-      return (
-        <Card className="manager-panel">
-          <Card.Content>
-            <p role="alert">{state.error}</p>
-            <Button onPress={() => setRetry((value) => value + 1)}>Tentar novamente</Button>
-          </Card.Content>
-        </Card>
-      )
-    return (
-      <div className="manager-section-status" role="status">
-        <Spinner aria-label="Carregando dados da clínica" />
-        Carregando dados da clínica…
-      </div>
-    )
-  }
-
-  const { settings, overview, contact, contactError } = state
-  const active = clinic.status !== 'draft'
-  const phone = contact?.phone ? formatBrPhone(contact.phone) || contact.phone : ''
+  const ref = shareCode || clinic.id
   return (
     <div className="manager-section">
       {clinic.status === 'draft' && (
-        <Card className="manager-panel manager-onboarding-banner">
-          <Card.Title>Conclua a configuração da sua clínica</Card.Title>
-          <p>Seu rascunho está salvo. Continue de onde parou.</p>
+        <SettingsCard
+          icon={<Rocket size={20} />}
+          title="Conclua a configuração do seu espaço"
+          description="Seu rascunho está salvo. Continue de onde parou para liberar todas as configurações."
+        >
           {canContinueOnboarding && (
-            <Link href={`/c/${shareCode || clinic.id}/onboarding`}>Continuar onboarding →</Link>
+            <Link className="settings-link-button" href={`/c/${ref}/onboarding`}>
+              Continuar cadastro <ArrowRight size={16} aria-hidden />
+            </Link>
           )}
-        </Card>
+        </SettingsCard>
       )}
-
-      <div hidden={tab !== 'vitrine'}>
-        <ClinicPublication clinicId={clinic.id} />
-      </div>
-      {tab === 'personalizacao' && (
-        <Card className="manager-panel space-theme-section">
-          <Card.Title>Tema do espaço</Card.Title>
-          <p>Personalize as cores e o fundo do painel da sua clínica.</p>
-          <ThemePicker
-            value={theme}
-            disabled={savingTheme}
-            onChange={(next) => void changeTheme(next)}
-          />
-          <p role="status">{savingTheme ? 'Salvando tema…' : themeMessage}</p>
-        </Card>
+      {(tab === 'espaco' || tab === 'contato') && (
+        <ProfileSettings clinicId={clinic.id} tab={tab} />
       )}
-      {tab === 'espaco' && (
-        <div className="manager-settings-grid">
-          <Card className="manager-panel">
-            <Card.Header className="manager-panel-heading">
-              <Card.Title>Clínica</Card.Title>
-              <Chip size="sm" variant="soft">
-                {active ? 'Ativa' : 'Em configuração'}
-              </Chip>
-            </Card.Header>
-            <Card.Content>
-              {contact?.logoUrl ? (
-                <Image
-                  src={contact.logoUrl}
-                  alt={`Logo de ${clinic.name}`}
-                  width={72}
-                  height={72}
-                />
-              ) : null}
-              <dl className="manager-definition">
-                <Field label="Nome" value={clinic.name} />
-                <Field label="Identificador" value={clinic.slug} />
-                <Field label="Situação" value={active ? 'Ativa' : 'Em configuração'} />
-                <Field
-                  label="Código de acesso"
-                  value={shareCode || 'Surge ao concluir o cadastro'}
-                />
-              </dl>
-            </Card.Content>
-          </Card>
-          <Card className="manager-panel">
-            <Card.Header>
-              <Card.Title>Região</Card.Title>
-            </Card.Header>
-            <Card.Content>
-              <dl className="manager-definition">
-                <Field label="Fuso horário" value={settings.timezone} />
-                <Field label="Idioma" value={settings.locale} />
-                <Field label="Moeda" value={settings.currency} />
-              </dl>
-            </Card.Content>
-          </Card>
-
-          <Summary title="Ocupações" items={overview.occupations.map((item) => item.name)} />
-        </div>
+      {tab === 'vitrine' && (
+        <SiteSettings
+          clinicId={clinic.id}
+          clinicName={clinic.name}
+          editorHref={`/c/${ref}/vitrine`}
+        />
       )}
-      {tab === 'contato' && (
-        <div className="manager-settings-grid">
-          <Card className="manager-panel">
-            <Card.Header className="manager-panel-heading">
-              <Card.Title>Contato</Card.Title>
-              <Chip size="sm" variant="soft">
-                Salvo
-              </Chip>
-            </Card.Header>
-            <Card.Content>
-              {contactError ? (
-                <div>
-                  <p role="alert">{contactError}</p>
-                  <Button onPress={() => setRetry((value) => value + 1)}>Tentar novamente</Button>
-                </div>
-              ) : contact ? (
-                <dl className="manager-definition">
-                  <Field label="Responsável" value={contact?.ownerName || 'Ainda não informado'} />
-                  <Field label="E-mail" value={contact?.email || 'Ainda não informado'} />
-                  <Field label="WhatsApp" value={phone || 'Ainda não informado'} />
-                </dl>
-              ) : (
-                <p className="manager-real-muted">O espaço ainda não tem um contato salvo.</p>
-              )}
-            </Card.Content>
-          </Card>
-
-          <Card className="manager-panel">
-            <Card.Header>
-              <Card.Title>Contato da página pública</Card.Title>
-            </Card.Header>
-            <Card.Content>
-              <p>Em Vitrine e site você escolhe quais dados de contato aparecem para clientes.</p>
-            </Card.Content>
-          </Card>
-        </div>
+      {tab === 'regras' && (
+        <RulesSettings
+          clinicId={clinic.id}
+          clinicName={clinic.name}
+          onOpenFinance={() => onOpen('financeiro')}
+        />
       )}
-      {tab === 'equipe' && (
-        <>
-          <TeamSummary professionals={overview.professionals} />
-          <p className="manager-real-muted">
-            O cadastro e a edição de acessos da equipe estão em preparação.
-          </p>
-        </>
-      )}
-      {tab === 'servicos' && (
-        <>
-          <Summary
-            title="Serviços"
-            items={overview.services.map(
-              (item) =>
-                `${item.name} · ${(item.price_cents / 100).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })} · ${item.duration_minutes} min`,
-            )}
-          />
-
-          <p className="manager-real-muted">
-            Confira os serviços cadastrados. A edição de preços e duração está em preparação.
-          </p>
-        </>
-      )}
+      {tab === 'personalizacao' && <PersonalizationSettings clinicId={clinic.id} />}
+      {(tab === 'equipe' || tab === 'servicos') && <OverviewTab clinicId={clinic.id} tab={tab} />}
       {tab === 'rotina' && (
-        <div className="manager-settings-grid">
-          <Card className="manager-panel">
-            <Card.Header>
-              <Card.Title>Agenda e expediente</Card.Title>
-            </Card.Header>
-            <Card.Content>
-              <p>
-                Abra Agenda e escolha Horários para configurar o expediente, as pausas e os dias
-                especiais.
-              </p>
-              <div className="manager-settings-links">
-                <Button variant="secondary" onPress={() => onOpen('agenda')}>
-                  Abrir Agenda
-                </Button>
-              </div>
-            </Card.Content>
-          </Card>
-          <Card className="manager-panel">
-            <Card.Header>
-              <Card.Title>Pagamentos</Card.Title>
-            </Card.Header>
-            <Card.Content>
-              <p>Consulte a configuração dos pagamentos na área Financeiro.</p>
-              <div className="manager-settings-links">
-                <Button variant="secondary" onPress={() => onOpen('financeiro')}>
-                  Abrir Financeiro
-                </Button>
-              </div>
-            </Card.Content>
-          </Card>
+        <div className="settings-stack">
+          <SettingsCard
+            icon={<CalendarDays size={20} />}
+            title="Agenda e expediente"
+            description="Os horários de atendimento, pausas e dias especiais ficam na Agenda."
+          >
+            <Button variant="secondary" onPress={() => onOpen('agenda')}>
+              <Clock3 size={16} aria-hidden /> Abrir Agenda
+            </Button>
+          </SettingsCard>
+          <SettingsCard
+            icon={<Wallet size={20} />}
+            title="Pagamentos"
+            description="Receber pelo app e dados bancários ficam na área Financeiro."
+          >
+            <Button variant="secondary" onPress={() => onOpen('financeiro')}>
+              <Wallet size={16} aria-hidden /> Abrir Financeiro
+            </Button>
+          </SettingsCard>
         </div>
       )}
     </div>
   )
 }
 
-function TeamSummary({
-  professionals,
-}: {
-  professionals: { display_name: string; photo_url: string | null }[]
-}) {
-  return (
-    <Card className="manager-panel">
-      <Card.Header className="manager-panel-heading">
-        <Card.Title>Equipe</Card.Title>
-        <Chip size="sm" variant="soft">
-          {professionals.length}
-        </Chip>
-      </Card.Header>
-      <Card.Content>
-        {professionals.length ? (
-          <ul className="manager-settings-list">
-            {professionals.map((professional) => (
-              <li key={professional.display_name}>
-                {professional.photo_url ? (
-                  <Image src={professional.photo_url} alt="" width={40} height={40} />
-                ) : null}
-                {professional.display_name}
+function OverviewTab({ clinicId, tab }: { clinicId: string; tab: 'equipe' | 'servicos' }) {
+  const api = useClinicApi(clinicId)
+  const overview = useClinicResource<Overview>(api, 'overview')
+  if (overview.error && !overview.data)
+    return <LoadError message={overview.error} onRetry={overview.reload} />
+  if (!overview.data) return <SettingsSkeleton cards={1} />
+  if (tab === 'equipe') {
+    const people = overview.data.professionals
+    return (
+      <SettingsCard
+        icon={<UsersRound size={20} />}
+        title="Equipe"
+        description="Profissionais que atendem no seu espaço."
+        badge={
+          <Chip size="sm" variant="soft">
+            {people.length}
+          </Chip>
+        }
+        help={{
+          title: 'Como adiciono ou edito profissionais?',
+          text: 'A edição da equipe pelo painel está em preparação. Por enquanto, a equipe é a que foi cadastrada no início.',
+        }}
+      >
+        {people.length ? (
+          <ul className="settings-people">
+            {people.map((person) => (
+              <li key={person.display_name}>
+                {person.photo_url ? (
+                  <Image src={person.photo_url} alt="" width={44} height={44} unoptimized />
+                ) : (
+                  <span className="settings-avatar" aria-hidden>
+                    <UserRound size={20} />
+                  </span>
+                )}
+                {person.display_name}
               </li>
             ))}
           </ul>
         ) : (
-          <p className="manager-real-muted">Nenhum cadastro ainda.</p>
+          <Empty>Nenhum profissional cadastrado ainda.</Empty>
         )}
-      </Card.Content>
-    </Card>
-  )
-}
-
-function Field({ label, value }: { label: string; value: string }) {
+        <p className="settings-footnote">Adicionar e editar profissionais: em breve.</p>
+      </SettingsCard>
+    )
+  }
+  const services = overview.data.services
   return (
-    <div>
-      <dt>{label}</dt>
-      <dd>{value}</dd>
-    </div>
-  )
-}
-
-function Summary({ title, items }: { title: string; items: string[] }) {
-  return (
-    <Card className="manager-panel">
-      <Card.Header className="manager-panel-heading">
-        <Card.Title>{title}</Card.Title>
+    <SettingsCard
+      icon={<Scissors size={20} />}
+      title="Serviços"
+      description="Seu catálogo, com preço e duração."
+      badge={
         <Chip size="sm" variant="soft">
-          {items.length}
+          {services.length}
         </Chip>
-      </Card.Header>
-      <Card.Content>
-        {items.length ? (
-          <ul className="manager-settings-list">
-            {items.map((item, index) => (
-              <li key={`${item}-${index}`}>{item}</li>
-            ))}
-          </ul>
-        ) : (
-          <p className="manager-real-muted">Nenhum cadastro ainda.</p>
-        )}
-      </Card.Content>
-    </Card>
+      }
+      help={{
+        title: 'Como mudo preços e serviços?',
+        text: 'A edição do catálogo pelo painel está em preparação. As fotos de cada serviço já podem ser trocadas em Vitrine e site → Editar site público.',
+      }}
+    >
+      {services.length ? (
+        <ul className="settings-services">
+          {services.map((service, index) => (
+            <li key={`${service.name}-${index}`}>
+              <strong>{service.name}</strong>
+              <span>
+                {(service.price_cents / 100).toLocaleString('pt-BR', {
+                  style: 'currency',
+                  currency: 'BRL',
+                })}{' '}
+                · {service.duration_minutes} min
+              </span>
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <Empty>Nenhum serviço cadastrado ainda.</Empty>
+      )}
+    </SettingsCard>
   )
 }

@@ -15,9 +15,11 @@ import '@/app/dashboard/manager.css'
 
 export function ClinicHome({
   initialSection,
+  initialSettingsTab,
   welcome,
 }: {
   initialSection: string
+  initialSettingsTab?: string
   welcome: boolean
 }) {
   const { clinic, permissions } = useClinic()
@@ -82,6 +84,7 @@ export function ClinicHome({
       }
       shareCode={clinic.share_code ?? null}
       initialSection={initialSection}
+      initialSettingsTab={initialSettingsTab}
       payments={<ConnectPanel dashboard />}
       settings={
         canManageSettings

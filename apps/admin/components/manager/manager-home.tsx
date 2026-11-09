@@ -54,6 +54,7 @@ export function ManagerHome({
   shareCode,
   banner,
   initialSection = 'inicio',
+  initialSettingsTab,
   messages,
   userEmail,
   onLogout,
@@ -69,6 +70,7 @@ export function ManagerHome({
   shareCode?: string | null
   banner?: ReactNode
   initialSection?: string
+  initialSettingsTab?: string
   messages?: {
     welcome: boolean
     scope?: string
@@ -99,7 +101,9 @@ export function ManagerHome({
   const message = useManagerMessages(messages?.welcome ?? false, messages?.scope)
   const [tourOpen, setTourOpen] = useState(false)
   const [spotlight, setSpotlight] = useState<string>()
-  const [settingsTab, setSettingsTab] = useState<ManagerSettingsSection>('espaco')
+  const [settingsTab, setSettingsTab] = useState<ManagerSettingsSection>(
+    () => managerSettingsSections.find(({ id }) => id === initialSettingsTab)?.id ?? 'espaco',
+  )
   const shell = useRef<HTMLDivElement>(null)
   useManagerSpotlight(shell, spotlight)
   const { collapsed, setCollapsed, searchOpen, changeSearch, query, setQuery, searchTrigger } =

@@ -56,7 +56,7 @@ const steps: readonly ManagerTourStep[] = [
     settings: 'vitrine',
     title: 'Personalize sua vitrine',
     description:
-      'Em Vitrine e site, revise a publicação, abra a página pública e use Editar vitrine para trocar a capa, destacar serviços ou incluir fotos.',
+      'Em Vitrine e site, coloque o site no ar, escolha o endereço e use Editar site público para trocar cores, capa e fotos vendo o resultado na hora.',
   },
   {
     section: 'estoque',
