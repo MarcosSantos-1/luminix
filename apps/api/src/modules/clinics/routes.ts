@@ -10,6 +10,7 @@ import { saveOnboardingDraft } from './onboarding-persist.js'
 import { clinicSettingsRoutes } from './settings-routes.js'
 import { isValidBrazilianTaxId } from './tax-id.js'
 import {
+  privateMediaUrl,
   publicMediaUrl,
   uploadMediaVariant,
   verifyMediaVariants,
@@ -145,6 +146,15 @@ type OnboardingPayload = {
     acceptInApp: boolean
     packagePaymentMode: 'clinic_only' | 'in_app' | 'both'
   }
+}
+
+/** Same mapping as begin/complete_media_upload in SQL. */
+function mediaPermission(kind: MediaKind) {
+  return kind === 'professional_photo'
+    ? 'professional:manage'
+    : kind === 'library_photo'
+      ? 'media:manage'
+      : 'settings:manage'
 }
 
 function validPayload(payload: OnboardingPayload): boolean {
@@ -602,27 +612,25 @@ export async function clinicRoutes(
           additionalProperties: false,
           required: ['kind'],
           properties: {
-            kind: { type: 'string', enum: ['clinic_logo', 'professional_photo', 'public_photo'] },
+            kind: {
+              type: 'string',
+              enum: ['clinic_logo', 'professional_photo', 'public_photo', 'library_photo'],
+            },
             subjectRef: { type: 'string', format: 'uuid' },
           },
         },
       },
     },
     async (request, reply) =>
-      authorized(
-        request,
-        reply,
-        request.body.kind === 'professional_photo' ? 'professional:manage' : 'settings:manage',
-        async (connection, tenant) => {
-          const row = (
-            await connection.query(
-              'SELECT * FROM luminix.begin_media_upload($1::uuid, $2::text, $3::uuid)',
-              [tenant.clinicId, request.body.kind, request.body.subjectRef ?? null],
-            )
-          ).rows[0]
-          return { asset: { id: String(row.asset_id), status: String(row.asset_status) } }
-        },
-      ),
+      authorized(request, reply, mediaPermission(request.body.kind), async (connection, tenant) => {
+        const row = (
+          await connection.query(
+            'SELECT * FROM luminix.begin_media_upload($1::uuid, $2::text, $3::uuid)',
+            [tenant.clinicId, request.body.kind, request.body.subjectRef ?? null],
+          )
+        ).rows[0]
+        return { asset: { id: String(row.asset_id), status: String(row.asset_status) } }
+      }),
   )
   app.put<{
     Params: { clinicId: string; assetId: string; action: MediaVariant }
@@ -644,8 +652,7 @@ export async function clinicRoutes(
         ).rows[0]
         if (!asset || asset.status !== 'pending')
           throw Object.assign(new Error('Media upload unavailable'), { statusCode: 409 })
-        const permission =
-          asset.kind === 'professional_photo' ? 'professional:manage' : 'settings:manage'
+        const permission = mediaPermission(asset.kind as MediaKind)
         await connection.query(
           'SELECT * FROM luminix.authorize_staff_clinic($1::uuid, $2::uuid, $3::text)',
           [tenant.userId, tenant.clinicId, permission],
@@ -686,11 +693,7 @@ export async function clinicRoutes(
           throw Object.assign(new Error('Media upload unavailable'), { statusCode: 409 })
         await connection.query(
           'SELECT * FROM luminix.authorize_staff_clinic($1::uuid, $2::uuid, $3::text)',
-          [
-            tenant.userId,
-            tenant.clinicId,
-            asset.kind === 'professional_photo' ? 'professional:manage' : 'settings:manage',
-          ],
+          [tenant.userId, tenant.clinicId, mediaPermission(asset.kind as MediaKind)],
         )
         const variants = await verifyMediaVariants({
           clinicId: tenant.clinicId,
@@ -708,8 +711,15 @@ export async function clinicRoutes(
           asset: {
             id: String(ready.asset_id),
             status: String(ready.asset_status),
-            smallUrl: publicMediaUrl(String(ready.small_object_key)),
-            largeUrl: publicMediaUrl(String(ready.large_object_key)),
+            ...(asset.kind === 'library_photo'
+              ? {
+                  smallUrl: await privateMediaUrl(String(ready.small_object_key)),
+                  largeUrl: await privateMediaUrl(String(ready.large_object_key)),
+                }
+              : {
+                  smallUrl: publicMediaUrl(String(ready.small_object_key)),
+                  largeUrl: publicMediaUrl(String(ready.large_object_key)),
+                }),
           },
         }
       })

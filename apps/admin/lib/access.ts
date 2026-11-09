@@ -57,6 +57,7 @@ const sectionPermissions: Record<ManagerSectionId, string[]> = {
   estoque: ['clinic:manage'],
   marketing: ['clinic:manage'],
   relatorios: ['clinic:manage'],
+  midia: ['media:read'],
   configuracoes: ['settings:manage', 'team:manage', 'professional:manage'],
 }
 

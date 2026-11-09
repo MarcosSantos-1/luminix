@@ -53,6 +53,7 @@ export function ManagerHome({
   profile,
   settings,
   payments,
+  media,
   shareCode,
   banner,
   initialSection = 'inicio',
@@ -71,6 +72,8 @@ export function ManagerHome({
   settingsTabs?: ManagerSettingsSection[]
   profile?: ReactNode
   payments?: ReactNode
+  /** Media library (Mídia); a placeholder explains it in the demo. */
+  media?: ReactNode
   settings?: (tab: ManagerSettingsSection, open: (section: ManagerSectionId) => void) => ReactNode
   shareCode?: string | null
   banner?: ReactNode
@@ -206,22 +209,27 @@ export function ManagerHome({
   const demoLabel = realClinic
     ? section.id === 'configuracoes'
       ? 'CONFIGURAÇÕES'
-      : isHome
-        ? 'HOME DO GESTOR'
-        : 'ESBOÇO'
+      : section.id === 'midia'
+        ? 'ACERVO PRIVADO'
+        : isHome
+          ? 'HOME DO GESTOR'
+          : 'ESBOÇO'
     : 'PRÉVIA DO GESTOR'
   const demoDetail =
-    section.id === 'configuracoes'
-      ? realClinic
-        ? 'Dados reais da clínica'
-        : 'Dados reais após o login'
-      : isHome
-        ? 'Agenda e indicadores demonstrativos'
-        : 'Exemplos ilustrativos desta seção'
+    section.id === 'midia'
+      ? 'Só a sua equipe vê estas fotos'
+      : section.id === 'configuracoes'
+        ? realClinic
+          ? 'Dados reais da clínica'
+          : 'Dados reais após o login'
+        : isHome
+          ? 'Agenda e indicadores demonstrativos'
+          : 'Exemplos ilustrativos desta seção'
   const sketch =
     (payments && section.id === 'financeiro') ||
     section.id === 'inicio' ||
     section.id === 'configuracoes' ||
+    section.id === 'midia' ||
     (realClinic && (section.id === 'agenda' || section.id === 'clientes'))
       ? null
       : sectionSketches[section.id]
@@ -374,6 +382,7 @@ export function ManagerHome({
         {realClinic && section.id === 'agenda' && <AgendaPanel createSignal={createSignal} />}
         {realClinic && section.id === 'clientes' && <ClientsPanel createSignal={createSignal} />}
         {section.id === 'financeiro' && payments}
+        {section.id === 'midia' && media}
         {sketch && (
           <SectionSketchView
             sketch={sketch}

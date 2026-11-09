@@ -1,10 +1,48 @@
 import { GetObjectCommand, HeadObjectCommand, PutObjectCommand } from '@aws-sdk/client-s3'
-import { createR2Client, readR2Config } from '../../shared/integrations/r2/client.js'
+import { getSignedUrl } from '@aws-sdk/s3-request-presigner'
+import {
+  createR2ClientFor,
+  readPrivateR2Config,
+  readR2Config,
+  type R2Config,
+} from '../../shared/integrations/r2/client.js'
 
-export type MediaKind = 'clinic_logo' | 'professional_photo' | 'public_photo'
+export type MediaKind = 'clinic_logo' | 'professional_photo' | 'public_photo' | 'library_photo'
 export type MediaVariant = 'small' | 'large'
 
 const dimensions: Record<MediaVariant, number> = { small: 128, large: 512 }
+// Library photos are kept for records (before/after, marketing), so they are larger.
+const libraryDimensions: Record<MediaVariant, number> = { small: 480, large: 1600 }
+
+function sizeFor(kind: MediaKind, variant: MediaVariant) {
+  return (kind === 'library_photo' ? libraryDimensions : dimensions)[variant]
+}
+
+/** Public kinds use the public bucket; library photos only the private one (never a fallback). */
+function storageFor(kind: MediaKind): R2Config {
+  if (kind !== 'library_photo') return readR2Config()
+  const config = readPrivateR2Config()
+  if (!config) throw Object.assign(new Error('Private storage unavailable'), { statusCode: 503 })
+  return config
+}
+
+export function privateStorageReady() {
+  try {
+    return readPrivateR2Config() !== null
+  } catch {
+    return false
+  }
+}
+
+/** Signed, expiring read URL for a private library object. */
+export async function privateMediaUrl(key: string, seconds = 900) {
+  const config = storageFor('library_photo')
+  return getSignedUrl(
+    createR2ClientFor(config),
+    new GetObjectCommand({ Bucket: config.bucket, Key: key }),
+    { expiresIn: seconds },
+  )
+}
 
 export function mediaObjectKey(
   clinicId: string,
@@ -13,6 +51,8 @@ export function mediaObjectKey(
   subjectRef: string | null,
   variant: MediaVariant,
 ) {
+  if (kind === 'library_photo')
+    return `${clinicId}/library/${assetId}/${variant}-${sizeFor(kind, variant)}.webp`
   const module =
     kind === 'clinic_logo'
       ? 'branding/logo'
@@ -49,7 +89,7 @@ export function readWebpDimensions(buffer: Buffer): { width: number; height: num
 }
 
 function validVariant(size: { width: number; height: number }, expected: number, kind: MediaKind) {
-  if (kind === 'public_photo')
+  if (kind === 'public_photo' || kind === 'library_photo')
     return Math.min(size.width, size.height) > 0 && Math.max(size.width, size.height) === expected
   return size.width === expected && size.height === expected
 }
@@ -62,11 +102,11 @@ export async function uploadMediaVariant(options: {
   variant: MediaVariant
   body: Buffer
 }) {
-  const expected = dimensions[options.variant]
+  const expected = sizeFor(options.kind, options.variant)
   const detected = readWebpDimensions(options.body.subarray(0, 64))
   if (!detected || !validVariant(detected, expected, options.kind))
     throw Object.assign(new Error('Invalid WebP variant'), { statusCode: 400 })
-  const config = readR2Config()
+  const config = storageFor(options.kind)
   const key = mediaObjectKey(
     options.clinicId,
     options.assetId,
@@ -74,13 +114,16 @@ export async function uploadMediaVariant(options: {
     options.subjectRef,
     options.variant,
   )
-  await createR2Client().send(
+  await createR2ClientFor(config).send(
     new PutObjectCommand({
       Bucket: config.bucket,
       Key: key,
       Body: options.body,
       ContentType: 'image/webp',
-      CacheControl: 'public, max-age=31536000, immutable',
+      CacheControl:
+        options.kind === 'library_photo'
+          ? 'private, max-age=900'
+          : 'public, max-age=31536000, immutable',
       Metadata: { asset: options.assetId, variant: options.variant },
     }),
   )
@@ -93,8 +136,8 @@ export async function verifyMediaVariants(options: {
   kind: MediaKind
   subjectRef: string | null
 }) {
-  const config = readR2Config()
-  const client = createR2Client()
+  const config = storageFor(options.kind)
+  const client = createR2ClientFor(config)
   const result = {} as Record<MediaVariant, { key: string; bytes: number }>
   for (const variant of ['small', 'large'] as const) {
     const key = mediaObjectKey(
@@ -112,7 +155,7 @@ export async function verifyMediaVariants(options: {
     )
     const bytes = Buffer.from(await object.Body!.transformToByteArray())
     const detected = readWebpDimensions(bytes)
-    if (!detected || !validVariant(detected, dimensions[variant], options.kind))
+    if (!detected || !validVariant(detected, sizeFor(options.kind, variant), options.kind))
       throw Object.assign(new Error('Invalid media upload'), { statusCode: 400 })
     result[variant] = { key, bytes: Number(head.ContentLength) }
   }

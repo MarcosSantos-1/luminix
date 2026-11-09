@@ -9,6 +9,7 @@ import { useClinic } from '@/components/clinic-workspace'
 import { useStaff } from '@/components/staff-provider'
 import { ManagerHome } from '@/components/manager/manager-home'
 import { ConnectPanel } from '@/components/payments/connect-panel'
+import { MediaLibrary } from '@/components/manager/media/media-library'
 import { ClinicSettings } from '@/components/manager/sections/clinic-settings'
 import { allowedSections, allowedSettings } from '@/lib/access'
 import { getFirebaseAuth } from '@/lib/firebase'
@@ -86,6 +87,7 @@ export function ClinicHome({
       initialSection={initialSection}
       initialSettingsTab={initialSettingsTab}
       payments={<ConnectPanel dashboard />}
+      media={permissions.includes('media:read') ? <MediaLibrary clinicId={clinic.id} /> : undefined}
       settings={
         canOpenSettings
           ? (tab, open) => (

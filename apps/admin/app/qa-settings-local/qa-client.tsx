@@ -3,6 +3,7 @@
 import { useMemo } from 'react'
 import { ManagerHome } from '@/components/manager/manager-home'
 import { ClinicSettings } from '@/components/manager/sections/clinic-settings'
+import { MediaLibrary } from '@/components/manager/media/media-library'
 import { ClinicApiProvider, type ClinicApi } from '@/components/manager/settings/clinic-api'
 import { SiteEditor } from '@/components/site-editor/site-editor'
 import { SpaceThemeProvider } from '@/components/space-theme'
@@ -189,6 +190,30 @@ const fixtures: Record<string, unknown> = {
       },
     ],
   },
+  library: {
+    storageReady: true,
+    canManage: true,
+    usage: { libraryBytes: 48_500_000, otherBytes: 1_200_000, items: 3, trashed: 0 },
+    folders: [
+      { id: 'f-clients', name: 'Clientes', systemKey: 'clients', count: 0 },
+      { id: 'f-ba', name: 'Antes e depois', systemKey: 'before_after', count: 0 },
+      { id: 'f-mkt', name: 'Marketing', systemKey: 'marketing', count: 3 },
+      { id: 'f-space', name: 'Espaço', systemKey: 'space', count: 0 },
+      { id: 'f-team', name: 'Equipe', systemKey: 'team', count: 0 },
+      { id: 'f-brides', name: 'Noivas 2026', systemKey: null, count: 0 },
+    ],
+  },
+  'library/items?folder=f-mkt': {
+    items: ['demo-hair', 'demo-studio', 'demo-portrait'].map((name, index) => ({
+      id: `i-${index}`,
+      folderId: 'f-mkt',
+      title: ['Coloração cobre', 'Recepção nova', 'Ensaio de penteado'][index],
+      createdAt: '2026-11-08T12:00:00.000Z',
+      bytes: 420_000,
+      thumbUrl: `${web}/clinic/${name}.webp`,
+      fullUrl: `${web}/clinic/${name}.webp`,
+    })),
+  },
   overview: {
     services: services.map(([, name, , price]) => ({
       name,
@@ -277,6 +302,7 @@ export default function QASettings({ view, tab }: { view: 'settings' | 'editor';
             suggestion: taken ? `${query.check}-sp` : null,
           } as T
         }
+        if (path.startsWith('library/items') && !fixtures[path]) return { items: [] } as T
         return structuredClone(fixtures[path]) as T
       },
       async put<T>() {
@@ -326,6 +352,7 @@ export default function QASettings({ view, tab }: { view: 'settings' | 'editor';
             canManageSettings
             initialSection="configuracoes"
             initialSettingsTab={tab}
+            media={<MediaLibrary clinicId={clinic.id} />}
             shareCode="KW-4374"
             settings={(current, open) => (
               <ClinicSettings

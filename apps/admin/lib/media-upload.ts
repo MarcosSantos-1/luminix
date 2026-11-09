@@ -1,4 +1,12 @@
-type ImageKind = 'clinic_logo' | 'professional_photo' | 'public_photo'
+type ImageKind = 'clinic_logo' | 'professional_photo' | 'public_photo' | 'library_photo'
+
+// Must match the API (media-storage.ts): the library keeps larger copies for records.
+const sizes: Record<ImageKind, { small: number; large: number }> = {
+  clinic_logo: { small: 128, large: 512 },
+  professional_photo: { small: 128, large: 512 },
+  public_photo: { small: 128, large: 512 },
+  library_photo: { small: 480, large: 1600 },
+}
 
 const allowedTypes = new Set(['image/png', 'image/jpeg', 'image/webp'])
 
@@ -14,7 +22,7 @@ async function canvasBlob(bitmap: ImageBitmap, size: number, kind: ImageKind): P
       : Math.max(size / bitmap.width, size / bitmap.height)
   const width = bitmap.width * scale
   const height = bitmap.height * scale
-  if (kind === 'public_photo') {
+  if (kind === 'public_photo' || kind === 'library_photo') {
     canvas.width = Math.max(1, Math.round(width))
     canvas.height = Math.max(1, Math.round(height))
     context.drawImage(bitmap, 0, 0, canvas.width, canvas.height)
@@ -36,8 +44,8 @@ async function prepareVariants(file: File, kind: ImageKind) {
     if (!bitmap.width || !bitmap.height || bitmap.width > 12_000 || bitmap.height > 12_000)
       throw new Error('A imagem possui dimensões inválidas ou muito grandes.')
     return {
-      small: await canvasBlob(bitmap, 128, kind),
-      large: await canvasBlob(bitmap, 512, kind),
+      small: await canvasBlob(bitmap, sizes[kind].small, kind),
+      large: await canvasBlob(bitmap, sizes[kind].large, kind),
     }
   } finally {
     bitmap.close()

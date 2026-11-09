@@ -10,6 +10,8 @@ export async function staffApiGet(
     | `/clinics/${string}/slug`
     | `/clinics/${string}/team`
     | `/clinics/${string}/staff`
+    | `/clinics/${string}/library`
+    | `/clinics/${string}/library/items`
     | `/clinics/${string}/payments/connect`
     | '/auth/clinics'
     | '/address/geocode'
@@ -51,6 +53,11 @@ export async function staffApiGet(
         const value = source.get(key)
         if (value) url.searchParams.set(key, value)
       }
+    } else if (path.endsWith('/library/items')) {
+      const source = new URL(request.url).searchParams
+      const folder = source.get('folder')
+      if (folder && /^[0-9a-f-]{36}$/i.test(folder)) url.searchParams.set('folder', folder)
+      if (source.get('trash') === '1') url.searchParams.set('trash', '1')
     } else if (path.endsWith('/slug')) {
       const source = new URL(request.url).searchParams
       const check = source.get('check')
@@ -104,6 +111,10 @@ export async function staffApiWrite(
     | `/clinics/${string}/staff/${string}`
     | `/clinics/${string}/team/${string}`
     | `/clinics/${string}/team/${string}/archive`
+    | `/clinics/${string}/library/folders`
+    | `/clinics/${string}/library/folders/${string}`
+    | `/clinics/${string}/library/items`
+    | `/clinics/${string}/library/items/${string}`
     | `/clinics/${string}/media`
     | `/clinics/${string}/media/${string}/finalize`,
 ) {

@@ -40,3 +40,30 @@ export function createR2Client(environment: NodeJS.ProcessEnv = process.env): S3
     region: 'auto',
   })
 }
+
+/**
+ * Private bucket for the media library (client photos, before/after). It must NOT have public
+ * access enabled; files are read only through short-lived signed URLs. Credentials default to
+ * the main token, which then needs Object Read & Write on this bucket too.
+ */
+export function readPrivateR2Config(environment: NodeJS.ProcessEnv = process.env): R2Config | null {
+  const bucket = environment.R2_PRIVATE_BUCKET
+  if (!bucket) return null
+  const base = readR2Config(environment)
+  if (bucket === base.bucket)
+    throw new Error('R2_PRIVATE_BUCKET must differ from the public bucket')
+  return {
+    ...base,
+    bucket,
+    accessKeyId: environment.R2_PRIVATE_ACCESS_KEY_ID ?? base.accessKeyId,
+    secretAccessKey: environment.R2_PRIVATE_SECRET_ACCESS_KEY ?? base.secretAccessKey,
+  }
+}
+
+export function createR2ClientFor(config: R2Config): S3Client {
+  return new S3Client({
+    credentials: { accessKeyId: config.accessKeyId, secretAccessKey: config.secretAccessKey },
+    endpoint: config.endpoint,
+    region: 'auto',
+  })
+}

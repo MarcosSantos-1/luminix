@@ -6,6 +6,7 @@ import {
   Megaphone,
   Package,
   Settings2,
+  Images,
   ShoppingBag,
   Users,
   Wallet,
@@ -21,6 +22,7 @@ export type ManagerSectionId =
   | 'estoque'
   | 'marketing'
   | 'relatorios'
+  | 'midia'
   | 'configuracoes'
 
 export type ManagerNavItem = {
@@ -107,6 +109,15 @@ export const managerNavigation: ManagerNavItem[] = [
     createLabel: 'Exportar relatório',
   },
   {
+    id: 'midia',
+    label: 'Mídia',
+    icon: Images,
+    subtitle: 'Fotos do espaço, das clientes e do seu trabalho',
+    searchPlaceholder: 'Buscar páginas...',
+    searchHint: 'Páginas do gestor. As fotos não entram nesta busca.',
+    createLabel: 'Enviar fotos',
+  },
+  {
     id: 'configuracoes',
     label: 'Configurações',
     icon: Settings2,
@@ -165,7 +176,7 @@ export const demoAppointments = [
   },
 ]
 
-export type SketchId = Exclude<ManagerSectionId, 'inicio' | 'configuracoes'>
+export type SketchId = Exclude<ManagerSectionId, 'inicio' | 'configuracoes' | 'midia'>
 
 export type SketchRow = {
   id: string
@@ -484,7 +495,7 @@ export function sectionSearchExamples(id: ManagerSectionId): { title: string; de
       detail: `${item.time} · ${item.service}`,
     }))
   }
-  if (id === 'configuracoes') return []
+  if (id === 'configuracoes' || id === 'midia') return []
   return sectionSketches[id].rows.map((row) => ({
     title: row.primary,
     detail: `${row.secondary} · ${row.meta}`,

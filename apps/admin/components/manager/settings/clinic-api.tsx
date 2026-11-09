@@ -22,7 +22,7 @@ export type ClinicApi = {
   put<T>(path: string, body: unknown): Promise<T>
   post<T>(path: string, body: unknown): Promise<T>
   upload(
-    kind: 'clinic_logo' | 'public_photo' | 'professional_photo',
+    kind: 'clinic_logo' | 'public_photo' | 'professional_photo' | 'library_photo',
     file: File,
     subjectRef?: string,
   ): Promise<{ id: string; url: string }>
