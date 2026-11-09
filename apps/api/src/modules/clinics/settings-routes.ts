@@ -1,17 +1,9 @@
-import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify'
-import type { SqlConnection } from '../../shared/database/migrations.js'
-import type { TenantContext } from '../../shared/tenant/tenant-context.js'
+import type { FastifyInstance } from 'fastify'
+import type { AuthorizedRoute } from '../../shared/tenant/authorized-route.js'
 import { publicMediaUrl } from './media-storage.js'
 import { invalidatePublicClinic } from './public-cache.js'
 
-type Authorized = (
-  request: FastifyRequest<{ Params: { clinicId: string } }>,
-  reply: FastifyReply,
-  permission: string | null,
-  work: (connection: SqlConnection, tenant: TenantContext) => Promise<unknown>,
-  beforeWrite?: (identityId: string) => Promise<void>,
-  affectsPublicPage?: boolean,
-) => Promise<unknown>
+type Authorized = AuthorizedRoute
 
 const slugPattern = '^[a-z0-9]+(-[a-z0-9]+)*$'
 const phone = { type: 'string', maxLength: 16, pattern: '^\\+[1-9][0-9]{7,14}$' }

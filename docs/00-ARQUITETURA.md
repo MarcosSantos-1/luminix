@@ -7,11 +7,11 @@ aplicativos Expo ainda são shells. A árvore de domínios ao fim deste document
 evolução, não um inventário de funcionalidades prontas. Criar módulos apenas quando houver uma
 responsabilidade real. O legado continua referência, sem importação automática.
 
-## Mapa implementado e sequência de evolução — revisão 2026-11-02
+## Mapa implementado e sequência de evolução — revisão 2026-11-08
 
 | Frente                       | Implementado / localização                                                                     | Próximo trabalho e limite atual                                                                                                                                                         |
 | ---------------------------- | ---------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Identidade da equipe         | `apps/admin/components/staff-provider.tsx`, `hooks/use-staff-auth.ts`, API `modules/auth`      | Convites, delegação e proteção do último owner; cliente final usa outra jornada                                                                                                         |
+| Identidade e acessos         | `staff-provider.tsx`, `hooks/use-staff-auth.ts`, API `modules/auth` e `modules/team`           | Convites por e-mail, 4 níveis prontos, inativação (ADR-023). Pendente: matriz customizada, agenda filtrada por profissional                                                             |
 | Contexto clínico             | `shared/auth`, `shared/tenant`, `shared/database`, migrations SQL versionadas                  | Reusar autorização por operação, role restrita, RLS, FKs compostas e auditoria em cada novo domínio                                                                                     |
 | Entrada e cadastro           | `apps/admin/components/auth`, rotas `/login` e `/cadastro`                                     | Termos publicados, consentimentos persistidos e validação autenticada hospedada; TD-005                                                                                                 |
 | Onboarding                   | `components/onboarding`, API `modules/clinics`, `onboarding-persist.ts`                        | Configuração, retomada e conclusão transacional existem; não equivalem à operação de todas as regras                                                                                    |
@@ -19,13 +19,15 @@ responsabilidade real. O legado continua referência, sem importação automáti
 | Clientes e agenda da gestora | API `modules/operations`, admin `components/manager/sections/{clients-panel,agenda-panel}.tsx` | Listar/criar clientes, agenda, criar atendimento com avisos e disponibilidade existem; cadastro completo, edição/cancelamento e capacidade operacional ainda precisam evoluir (ADR-012) |
 | Pagamentos                   | `modules/payments`, `components/payments`, Stripe Connect em teste                             | Cadastro incorporado e preferências existem; checkout, webhooks, conciliação, pacotes e billing SaaS pendentes (TD-008)                                                                 |
 | Regras de reserva            | Configuração no onboarding, migrations e ADR-017–020                                           | Motor público, concorrência, preços/política congelados e efeitos financeiros ainda pendentes (TD-009)                                                                                  |
-| Site e portal                | `apps/web/app`, fixture de demonstração                                                        | API pública de clínicas, publicação real, autenticação do cliente e portal privado pendentes                                                                                            |
+| Site e portal                | `apps/web/app/c`, `ClinicSiteView`, `/c/previa`; editor em `admin/components/site-editor`      | Publicação, slugs amigáveis com redirect e editor ao vivo (ADR-021/022). Autenticação do cliente e portal privado pendentes                                                             |
+| Configurações do espaço      | `admin/components/manager/settings/*`, API `modules/clinics/settings-routes.ts`                | Perfil, contato, regras, site, idioma (só pt-BR), equipe e acessos editáveis. Catálogo de serviços pendente (seção Serviços)                                                            |
 | Mobile                       | `apps/mobile-admin/App.tsx`, `apps/mobile-client/App.tsx`                                      | Shells Expo; `legacy-source` não participa do app ativo. Implementar por jornada sobre os contratos da API                                                                              |
 | Packages                     | Diretórios reservados                                                                          | Ainda sem package compartilhado implementado; extrair contratos quando houver consumidores reais, sem importar internals da API nos apps                                                |
 
 Sequência sugerida para as próximas entregas:
 
-1. Fechar edição pós-onboarding de clínica, catálogo, equipe e recursos; especificar convites e permissões.
+1. Edição pós-onboarding de clínica, equipe e acessos: feita (ADR-022/023). Falta o catálogo de
+   serviços (seção Serviços) e recursos/salas; depois, agenda filtrada por profissional e folgas.
 2. Consolidar clientes e agenda administrativa sobre a base existente, com capacidade, estados,
    alterações/cancelamentos, fuso e concorrência testados. Não reutilizar override da gestora no cliente.
 3. Especificar e implementar checkout, ledger/conciliação e eventos idempotentes; depois ligar
@@ -38,6 +40,43 @@ Sequência sugerida para as próximas entregas:
 Antes de clientes reais: resolver os critérios de ativação TD-003/005/006/008/009, separar ambientes,
 validar jornadas hospedadas, conteúdo comercial e políticas de dados. Esses critérios não impedem
 continuar desenvolvimento autorizado em `master`. `docs/tests` contém cenários, não prova de execução.
+
+## Onde fica cada coisa (guia rápido para novas mudanças)
+
+| Quero mudar…                         | Arquivos                                                                                      |
+| ------------------------------------ | --------------------------------------------------------------------------------------------- |
+| Uma aba de Configurações             | `apps/admin/components/manager/settings/<aba>-settings.tsx` (+ `settings.css`)                |
+| Componentes comuns das Configurações | `settings-kit.tsx` (card, campo, ajuda “?”, barra de salvar, skeleton) e `clinic-api.tsx`     |
+| Quem vê qual página/aba              | `apps/admin/lib/access.ts` (UI) e `role_preset_permissions` na migration 0025 (API)           |
+| Uma nova rota da API do espaço       | `apps/api/src/modules/<dominio>/routes.ts` usando `createAuthorizedRoute` (`shared/tenant`)   |
+| Liberar a rota no admin              | `apps/admin/lib/staff-api-proxy.ts` + `app/api/clinics/[clinicId]/…` (lista fechada de rotas) |
+| Escrita no banco                     | Função SQL `SECURITY DEFINER` em nova migration, com `authorize_staff_clinic` e teste PGlite  |
+| Visual da vitrine pública            | `apps/web/app/c/[clinica]/clinic-site-view.tsx` (vale para o site e para a prévia do editor)  |
+| Editor do site                       | `apps/admin/components/site-editor/` e `apps/web/app/c/previa/`                               |
+| Testar telas sem login               | `localhost:3000/qa-settings-local` (dados simulados, só em desenvolvimento)                   |
+
+Padrão de uma tela de configuração: carregador (`useClinicResource`) → skeleton/erro → editor
+com estado inicial vindo dos dados (sem `setState` em efeito) → `SaveBar`. Textos curtos, ajuda
+com `HelpTip` (abre no clique) e mensagens de sucesso/erro em linguagem simples.
+
+### Dicas e cuidados para as próximas frentes
+
+- **Uma regra, dois lugares:** permissão nova = preset SQL + `lib/access.ts` + teste. A UI só
+  esconde; quem bloqueia é a API.
+- **Migrations são imutáveis depois de aplicadas** (checksum). Corrija com uma nova migration.
+- **Cache do site:** toda escrita que muda o site deve passar `affectsPublicPage` no
+  `createAuthorizedRoute` para expirar a página.
+- **Catálogo de serviços:** ao editar/arquivar serviço, revisar destaques/fotos da vitrine,
+  vínculos `professional_services`, sinal por serviço e atendimentos futuros.
+- **Agenda por profissional:** o vínculo `professionals.membership_id` já permite filtrar a agenda
+  da profissional logada; falta aplicar no GET da agenda para o nível Profissional.
+- **Tipos duplicados:** `PublicClinic` existe na web e no admin (editor). É o primeiro bom
+  candidato para `packages/contracts` quando houver build de packages (ver abaixo).
+- **Packages:** as pastas em `packages/` estão vazias e fora do Git. Com `injectWorkspacePackages`,
+  um package precisa de build próprio e ajuste no deploy da Vercel; extrair só com dois ou mais
+  consumidores reais.
+- **`modules/operations`** ainda tem um `authorized` próprio (mapeia FKs como 400). Migrar para
+  `createAuthorizedRoute` junto com a próxima mudança da agenda, com os testes de operações.
 
 ## Responsabilidades adotadas
 

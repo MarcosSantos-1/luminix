@@ -3,6 +3,8 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
 import type { ReactNode } from 'react'
 import { useStaff } from '@/components/staff-provider'
+import { sendPasswordResetEmail } from 'firebase/auth'
+import { getFirebaseAuth } from '@/lib/firebase'
 import { uploadClinicMedia } from '@/lib/media-upload'
 
 export class ClinicApiError extends Error {
@@ -18,7 +20,17 @@ export type ClinicApi = {
   ready: boolean
   get<T>(path: string, query?: Record<string, string>): Promise<T>
   put<T>(path: string, body: unknown): Promise<T>
-  upload(kind: 'clinic_logo' | 'public_photo', file: File): Promise<{ id: string; url: string }>
+  post<T>(path: string, body: unknown): Promise<T>
+  upload(
+    kind: 'clinic_logo' | 'public_photo' | 'professional_photo',
+    file: File,
+    subjectRef?: string,
+  ): Promise<{ id: string; url: string }>
+  /**
+   * Firebase sends its "set your password" e-mail (template configured in the Firebase console).
+   * Used for new staff invitations, resending and password resets.
+   */
+  sendAccessEmail(email: string): Promise<void>
   postalCode(
     cep: string,
   ): Promise<{ street: string; district: string; city: string; state: string } | null>
@@ -37,7 +49,7 @@ export function useClinicApi(clinicId: string): ClinicApi {
   return useMemo<ClinicApi>(() => {
     if (override) return override
     async function call<T>(
-      method: 'GET' | 'PUT',
+      method: 'GET' | 'PUT' | 'POST',
       path: string,
       body?: unknown,
       query?: Record<string, string>,
@@ -63,12 +75,19 @@ export function useClinicApi(clinicId: string): ClinicApi {
       ready: Boolean(user),
       get: (path, query) => call('GET', path, undefined, query),
       put: (path, body) => call('PUT', path, body),
-      async upload(kind, file) {
+      post: (path, body) => call('POST', path, body),
+      async sendAccessEmail(email) {
+        await sendPasswordResetEmail(getFirebaseAuth(), email, {
+          url: `${window.location.origin}/login`,
+        })
+      },
+      async upload(kind, file, subjectRef) {
         if (!user) throw new ClinicApiError(401, null)
         const { asset } = await uploadClinicMedia({
           clinicId,
           token: await user.getIdToken(),
           kind,
+          subjectRef,
           file,
         })
         return { id: asset.id, url: asset.largeUrl }

@@ -251,7 +251,7 @@ export async function operationRoutes(
       },
     },
     async (request, reply) =>
-      authorized(request, reply, 'clinic:manage', async (connection, tenant) => {
+      authorized(request, reply, 'agenda:read', async (connection, tenant) => {
         const from = new Date(request.query.from)
         const to = new Date(request.query.to)
         if (!(to > from) || to.getTime() - from.getTime() > 63 * 86400000)
@@ -352,7 +352,7 @@ export async function operationRoutes(
       },
     },
     async (request, reply) =>
-      authorized(request, reply, 'clinic:manage', async (connection, tenant) => {
+      authorized(request, reply, 'agenda:manage', async (connection, tenant) => {
         const service = (
           await connection.query(
             `SELECT id, name, duration_minutes FROM luminix.services

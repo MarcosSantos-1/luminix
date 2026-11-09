@@ -4,9 +4,12 @@ import type { SqlConnection } from '../database/migrations.js'
 import type { TenantPool } from '../tenant/clinic-transaction.js'
 
 import type { ConnectProvider } from '../../modules/payments/stripe-connect.js'
+import type { StaffDirectory } from '../integrations/firebase/staff-directory.js'
 
 export type AuthDependencies = {
   connectProvider?: ConnectProvider
+  /** Firebase accounts for staff invitations; created lazily in production. */
+  staffDirectory?: StaffDirectory
   verifyToken(token: string): Promise<{ uid: string }>
   database: SqlConnection
   tenantPool?: TenantPool

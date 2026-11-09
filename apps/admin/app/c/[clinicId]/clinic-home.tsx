@@ -10,6 +10,7 @@ import { useStaff } from '@/components/staff-provider'
 import { ManagerHome } from '@/components/manager/manager-home'
 import { ConnectPanel } from '@/components/payments/connect-panel'
 import { ClinicSettings } from '@/components/manager/sections/clinic-settings'
+import { allowedSections, allowedSettings } from '@/lib/access'
 import { getFirebaseAuth } from '@/lib/firebase'
 import '@/app/dashboard/manager.css'
 
@@ -57,12 +58,9 @@ export function ClinicHome({
       setSigningOut(false)
     }
   }
-  if (!permissions.includes('clinic:manage'))
-    return (
-      <div className="p-6" role="alert">
-        Seu acesso não inclui a visão geral desta clínica.
-      </div>
-    )
+  const sections = allowedSections(permissions)
+  const settingsTabs = allowedSettings(permissions)
+  const canOpenSettings = settingsTabs.length > 0
   return (
     <ManagerHome
       key={`${staff.user?.uid}/${clinic.id}`}
@@ -72,7 +70,9 @@ export function ClinicHome({
       onLogout={() => void logout()}
       signingOut={signingOut}
       logoutError={logoutError}
-      canManageSettings={canManageSettings}
+      canManageSettings={canOpenSettings}
+      sections={sections}
+      settingsTabs={settingsTabs}
       messages={
         clinic.status === 'active' && user
           ? {
@@ -87,7 +87,7 @@ export function ClinicHome({
       initialSettingsTab={initialSettingsTab}
       payments={<ConnectPanel dashboard />}
       settings={
-        canManageSettings
+        canOpenSettings
           ? (tab, open) => (
               <ClinicSettings
                 tab={tab}
@@ -96,6 +96,8 @@ export function ClinicHome({
                 shareCode={clinic.share_code ?? null}
                 canContinueOnboarding={permissions.includes('onboarding:manage')}
                 canReadOnboarding={permissions.includes('onboarding:manage')}
+                permissions={permissions}
+                ownName={staff.user?.displayName ?? ''}
               />
             )
           : undefined

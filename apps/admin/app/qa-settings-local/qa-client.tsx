@@ -103,6 +103,92 @@ const fixtures: Record<string, unknown> = {
     },
   },
   slug: { slug: 'studio-lumiere', previous: ['kw-4374'], suggestion: null },
+  team: {
+    selfMembershipId: 'm-owner',
+    clinicHours: [0, 1, 2, 3, 4, 5, 6].map((weekday) => ({
+      weekday,
+      enabled: weekday > 0,
+      start: '08:00',
+      end: weekday === 6 ? '14:00' : '19:00',
+      breaks: [],
+    })),
+    services: services.map(([id, name, category]) => ({
+      id,
+      name,
+      category,
+      sensitive: false,
+      audience: 'all',
+    })),
+    professionals: [
+      {
+        id: 'b1b2c3d4-0000-4000-8000-000000000001',
+        name: 'Joana Lima',
+        role: 'Cabeleireira',
+        gender: 'female',
+        audience: 'all',
+        membershipId: 'm-joana',
+        photoAssetId: '',
+        photoUrl: null,
+        serviceIds: [services[0][0], services[1][0]],
+        serviceAudiences: {},
+        days: [0, 1, 2, 3, 4, 5, 6].map((weekday) => ({
+          weekday,
+          enabled: weekday >= 2 && weekday <= 6,
+          start: '09:00',
+          end: weekday === 6 ? '14:00' : '18:00',
+          breaks: weekday === 6 ? [] : [{ start: '12:00', end: '13:00' }],
+        })),
+      },
+    ],
+  },
+  staff: {
+    members: [
+      {
+        id: 'm-owner',
+        name: 'Maria Aparecida',
+        email: 'maria@example.com',
+        role: 'owner',
+        status: 'active',
+        isSelf: true,
+        professionalId: null,
+        invitedAt: null,
+        lastSignInAt: '2026-11-08T12:00:00.000Z',
+      },
+      {
+        id: 'm-joana',
+        name: 'Joana Lima',
+        email: 'joana@example.com',
+        role: 'professional',
+        status: 'active',
+        isSelf: false,
+        professionalId: 'b1b2c3d4-0000-4000-8000-000000000001',
+        invitedAt: '2026-11-01T12:00:00.000Z',
+        lastSignInAt: '2026-11-07T12:00:00.000Z',
+      },
+      {
+        id: 'm-ana',
+        name: 'Ana Recepção',
+        email: 'ana@example.com',
+        role: 'reception',
+        status: 'active',
+        isSelf: false,
+        professionalId: null,
+        invitedAt: '2026-11-08T12:00:00.000Z',
+        lastSignInAt: null,
+      },
+      {
+        id: 'm-bia',
+        name: 'Bia',
+        email: 'bia@example.com',
+        role: 'reception',
+        status: 'revoked',
+        isSelf: false,
+        professionalId: null,
+        invitedAt: '2026-10-01T12:00:00.000Z',
+        lastSignInAt: '2026-10-05T12:00:00.000Z',
+      },
+    ],
+  },
   overview: {
     services: services.map(([, name, , price]) => ({
       name,
@@ -197,6 +283,15 @@ export default function QASettings({ view, tab }: { view: 'settings' | 'editor';
         await wait(600)
         return { saved: true } as T
       },
+      async post<T>(path: string) {
+        await wait(600)
+        return (
+          path === 'staff' ? { accountCreated: true, member: { id: 'x' } } : { archived: true }
+        ) as T
+      },
+      async sendAccessEmail() {
+        await wait(400)
+      },
       async upload(_kind, file) {
         await wait(500)
         return { id: crypto.randomUUID(), url: URL.createObjectURL(file) }
@@ -239,6 +334,13 @@ export default function QASettings({ view, tab }: { view: 'settings' | 'editor';
                 clinic={clinic}
                 shareCode="KW-4374"
                 canContinueOnboarding
+                permissions={[
+                  'settings:manage',
+                  'team:manage',
+                  'professional:manage',
+                  'clinic:manage',
+                ]}
+                ownName="Maria Aparecida"
               />
             )}
           />

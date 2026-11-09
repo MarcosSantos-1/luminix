@@ -134,6 +134,7 @@ describe('versioned core migration', () => {
       { name: '0022_public_service_photos.sql' },
       { name: '0023_initial_public_showcase.sql' },
       { name: '0024_settings_editing_and_public_slugs.sql' },
+      { name: '0025_team_and_access.sql' },
     ])
   })
 

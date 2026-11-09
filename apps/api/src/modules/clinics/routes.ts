@@ -4,11 +4,9 @@ import {
   createConnectProvider,
   type ConnectProvider,
 } from '../payments/stripe-connect.js'
-import type { SqlConnection } from '../../shared/database/migrations.js'
 import { withClinicTransaction, type TenantPool } from '../../shared/tenant/clinic-transaction.js'
-import type { TenantContext } from '../../shared/tenant/tenant-context.js'
+import { clinicRefParams, createAuthorizedRoute } from '../../shared/tenant/authorized-route.js'
 import { saveOnboardingDraft } from './onboarding-persist.js'
-import { invalidatePublicClinic } from './public-cache.js'
 import { clinicSettingsRoutes } from './settings-routes.js'
 import { isValidBrazilianTaxId } from './tax-id.js'
 import {
@@ -295,74 +293,8 @@ export async function clinicRoutes(
   suppliedConnectProvider?: ConnectProvider,
 ) {
   let connectProvider = suppliedConnectProvider
-  const params = {
-    type: 'object',
-    additionalProperties: false,
-    required: ['clinicId'],
-    properties: {
-      clinicId: {
-        type: 'string',
-        pattern:
-          '^(?:[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}|[A-Za-z]{2}-[0-9]{4})$',
-      },
-    },
-  }
-  async function authorized(
-    request: FastifyRequest<{ Params: { clinicId: string } }>,
-    reply: FastifyReply,
-    permission: string | null,
-    work: (connection: SqlConnection, tenant: TenantContext) => Promise<unknown>,
-    beforeWrite?: (identityId: string) => Promise<void>,
-    affectsPublicPage = false,
-  ) {
-    const identityId = await authenticate(request, reply)
-    if (!identityId) return
-    if (!pool) return reply.code(503).send({ error: 'Clinic unavailable' })
-    try {
-      await beforeWrite?.(identityId)
-      let publicSlug: string | undefined
-      const result = await withClinicTransaction(
-        pool,
-        identityId,
-        request.params.clinicId,
-        permission,
-        async (connection, tenant) => {
-          request.tenantContext = tenant
-          try {
-            const result = await work(connection, tenant)
-            if (affectsPublicPage) {
-              const { rows } = await connection.query(
-                'SELECT slug FROM luminix.clinics WHERE id = $1',
-                [tenant.clinicId],
-              )
-              if (typeof rows[0]?.slug === 'string') publicSlug = rows[0].slug
-            }
-            return result
-          } finally {
-            request.tenantContext = null
-          }
-        },
-      )
-      if (publicSlug) await invalidatePublicClinic(publicSlug, request.log)
-      return result
-    } catch (error) {
-      const statusCode = (error as { statusCode?: number })?.statusCode
-      if (statusCode && [400, 409, 413].includes(statusCode))
-        return reply.code(statusCode).send({ error: (error as Error).message })
-      if (statusCode === 503 && (error as Error).message === 'Stripe verification unavailable')
-        return reply.code(503).send({ error: 'Stripe verification unavailable' })
-      if ((error as { statusCode?: number })?.statusCode === 403) {
-        request.log.info({ event: 'clinic_access_denied' })
-        return reply.code(403).send({ error: 'Clinic access denied' })
-      }
-      if ((error as { code?: string })?.code === '23505')
-        return reply.code(409).send({ error: 'Onboarding changed; reload before retrying' })
-      if (['22023', '22P02', '23514'].includes((error as { code?: string })?.code ?? ''))
-        return reply.code(400).send({ error: 'Invalid onboarding data' })
-      request.log.warn({ event: 'clinic_read_unavailable' })
-      return reply.code(503).send({ error: 'Clinic unavailable' })
-    }
-  }
+  const params = clinicRefParams
+  const authorized = createAuthorizedRoute(authenticate, pool)
   // Authenticate and read tenant-bound state before Stripe; the final write reauthorizes
   // and checks the draft version. No transaction is held open over network calls.
   async function requireStripeReady(

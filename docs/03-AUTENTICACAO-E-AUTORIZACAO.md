@@ -13,6 +13,32 @@ em cada montagem. Google e confirmação de magic link usam sessão da aba. Nenh
 para storage próprio; autorização e revogação continuam no backend. Validar ambos os modos em
 navegador autenticado, incluindo fechamento/reabertura e logout, antes de clientes reais.
 
+## Acesso da equipe — convites e níveis (2026-11-08)
+
+Decisão: [ADR-023](decisions/ADR-023-EQUIPE-E-ACESSOS.md). Resumo operacional:
+
+- Níveis prontos por clínica: Proprietária (`owner`), Gerente (`manager`), Recepção
+  (`reception`) e Profissional (`professional`). Permissões em `role_preset_permissions`;
+  páginas visíveis no admin em `apps/admin/lib/access.ts`. Alterar os dois juntos.
+- Convite: Configurações → Acessos e logins. A API cria/encontra a conta Firebase pelo e-mail e
+  o vínculo; o admin dispara `sendPasswordResetEmail` (pt-BR) com retorno para `/login`.
+- Inativar = `revoked` no vínculo (efeito imediato); a conta Firebase não é desativada.
+
+### Configuração no Firebase (uma vez, pelo console)
+
+1. Authentication → Sign-in method: e-mail/senha habilitado (já usado no login).
+2. Authentication → Settings → Authorized domains: `app.luminix.beauty` e o domínio Vercel do
+   admin (o link de retorno usa a origem do admin).
+3. Authentication → Templates → Redefinição de senha, idioma Português (Brasil): trocar assunto e
+   texto para algo como “Crie sua senha de acesso ao Luminix” e “Você recebeu acesso ao painel do
+   espaço. Clique para criar sua senha.” O mesmo modelo serve para convite, reenvio e redefinição.
+4. Opcional: domínio de envio personalizado (Templates → Customize domain) para o e-mail sair de
+   `@luminix.beauty` e cair menos em spam.
+
+Se um dia for preciso um convite com texto próprio (nome do espaço, botão “Aceitar convite”),
+gerar o link com `generatePasswordResetLink` no Firebase Admin e enviar por um provedor de e-mail
+(Resend, SES) — isso exige escolher o provedor (PR10).
+
 ## Step 4 — entrega 1 (2026-09-15)
 
 Implementado: login da equipe em `/login` e na landing, com Google, senha, cadastro por e-mail,

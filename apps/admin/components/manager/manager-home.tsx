@@ -48,6 +48,8 @@ export function ManagerHome({
   clinicName = 'Clínica de demonstração',
   userName = 'Marcos',
   canManageSettings = true,
+  sections,
+  settingsTabs,
   profile,
   settings,
   payments,
@@ -64,6 +66,9 @@ export function ManagerHome({
   clinicName?: string
   userName?: string
   canManageSettings?: boolean
+  /** Sections allowed by the person's access level; all when omitted (demo). */
+  sections?: ManagerSectionId[]
+  settingsTabs?: ManagerSettingsSection[]
   profile?: ReactNode
   payments?: ReactNode
   settings?: (tab: ManagerSettingsSection, open: (section: ManagerSectionId) => void) => ReactNode
@@ -83,8 +88,13 @@ export function ManagerHome({
   logoutError?: string
 } = {}) {
   const navigation = useMemo(
-    () => managerNavigation.filter((item) => item.id !== 'configuracoes' || canManageSettings),
-    [canManageSettings],
+    () =>
+      managerNavigation.filter(
+        (item) =>
+          (item.id !== 'configuracoes' || canManageSettings) &&
+          (!sections || sections.includes(item.id)),
+      ),
+    [canManageSettings, sections],
   )
   const allowedIds = useMemo(() => navigation.map((item) => item.id), [navigation])
   const { section: sectionId, select } = useManagerSection(allowedIds, initialSection)
@@ -102,7 +112,12 @@ export function ManagerHome({
   const [tourOpen, setTourOpen] = useState(false)
   const [spotlight, setSpotlight] = useState<string>()
   const [settingsTab, setSettingsTab] = useState<ManagerSettingsSection>(
-    () => managerSettingsSections.find(({ id }) => id === initialSettingsTab)?.id ?? 'espaco',
+    () =>
+      managerSettingsSections.find(
+        ({ id }) => id === initialSettingsTab && (!settingsTabs || settingsTabs.includes(id)),
+      )?.id ??
+      settingsTabs?.[0] ??
+      'espaco',
   )
   const shell = useRef<HTMLDivElement>(null)
   useManagerSpotlight(shell, spotlight)
@@ -368,7 +383,11 @@ export function ManagerHome({
         )}
         {section.id === 'configuracoes' && (
           <>
-            <ManagerSettingsNav current={settingsTab} onSelect={setSettingsTab} />
+            <ManagerSettingsNav
+              current={settingsTab}
+              onSelect={setSettingsTab}
+              visible={settingsTabs}
+            />
             {settings ? (
               settings(settingsTab, select)
             ) : (
@@ -424,6 +443,7 @@ export function ManagerHome({
       {tourOpen && (
         <ManagerTour
           canManageSettings={canManageSettings}
+          sections={sections}
           onStep={showTourStep}
           onClose={closeTour}
         />

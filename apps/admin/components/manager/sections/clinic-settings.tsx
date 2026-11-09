@@ -1,31 +1,17 @@
 'use client'
 
 import Link from 'next/link'
-import Image from 'next/image'
-import { Button, Chip } from '@heroui/react'
-import {
-  ArrowRight,
-  CalendarDays,
-  Clock3,
-  Rocket,
-  Scissors,
-  UserRound,
-  UsersRound,
-  Wallet,
-} from 'lucide-react'
-import { useClinicApi, useClinicResource } from '../settings/clinic-api'
+import { Button } from '@heroui/react'
+import { ArrowRight, CalendarDays, Clock3, Rocket, Wallet } from 'lucide-react'
+import { AccessSettings } from '../settings/access-settings'
 import { PersonalizationSettings } from '../settings/personalization-settings'
 import { ProfileSettings } from '../settings/profile-settings'
 import { RulesSettings } from '../settings/rules-settings'
-import { SettingsCard, SettingsSkeleton, LoadError, Empty } from '../settings/settings-kit'
+import { SettingsCard } from '../settings/settings-kit'
 import { SiteSettings } from '../settings/site-settings'
+import { TeamSettings } from '../settings/team-settings'
 import type { ManagerSectionId } from '../demo-data'
 import type { ManagerSettingsSection } from '../manager-settings-nav'
-
-type Overview = {
-  services: { name: string; price_cents: number; duration_minutes: number }[]
-  professionals: { display_name: string; photo_url: string | null }[]
-}
 
 export function ClinicSettings({
   tab,
@@ -33,6 +19,8 @@ export function ClinicSettings({
   clinic,
   shareCode,
   canContinueOnboarding,
+  permissions = [],
+  ownName = '',
 }: {
   tab: ManagerSettingsSection
   onOpen: (section: ManagerSectionId) => void
@@ -40,6 +28,9 @@ export function ClinicSettings({
   shareCode: string | null
   canContinueOnboarding: boolean
   canReadOnboarding?: boolean
+  permissions?: string[]
+  /** Signed-in person's name, suggested when she adds herself to the team. */
+  ownName?: string
 }) {
   const ref = shareCode || clinic.id
   return (
@@ -75,7 +66,14 @@ export function ClinicSettings({
         />
       )}
       {tab === 'personalizacao' && <PersonalizationSettings clinicId={clinic.id} />}
-      {(tab === 'equipe' || tab === 'servicos') && <OverviewTab clinicId={clinic.id} tab={tab} />}
+      {tab === 'equipe' && (
+        <TeamSettings
+          clinicId={clinic.id}
+          ownName={ownName}
+          canManageAccess={permissions.includes('team:manage')}
+        />
+      )}
+      {tab === 'acessos' && <AccessSettings clinicId={clinic.id} />}
       {tab === 'rotina' && (
         <div className="settings-stack">
           <SettingsCard
@@ -99,88 +97,5 @@ export function ClinicSettings({
         </div>
       )}
     </div>
-  )
-}
-
-function OverviewTab({ clinicId, tab }: { clinicId: string; tab: 'equipe' | 'servicos' }) {
-  const api = useClinicApi(clinicId)
-  const overview = useClinicResource<Overview>(api, 'overview')
-  if (overview.error && !overview.data)
-    return <LoadError message={overview.error} onRetry={overview.reload} />
-  if (!overview.data) return <SettingsSkeleton cards={1} />
-  if (tab === 'equipe') {
-    const people = overview.data.professionals
-    return (
-      <SettingsCard
-        icon={<UsersRound size={20} />}
-        title="Equipe"
-        description="Profissionais que atendem no seu espaço."
-        badge={
-          <Chip size="sm" variant="soft">
-            {people.length}
-          </Chip>
-        }
-        help={{
-          title: 'Como adiciono ou edito profissionais?',
-          text: 'A edição da equipe pelo painel está em preparação. Por enquanto, a equipe é a que foi cadastrada no início.',
-        }}
-      >
-        {people.length ? (
-          <ul className="settings-people">
-            {people.map((person) => (
-              <li key={person.display_name}>
-                {person.photo_url ? (
-                  <Image src={person.photo_url} alt="" width={44} height={44} unoptimized />
-                ) : (
-                  <span className="settings-avatar" aria-hidden>
-                    <UserRound size={20} />
-                  </span>
-                )}
-                {person.display_name}
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <Empty>Nenhum profissional cadastrado ainda.</Empty>
-        )}
-        <p className="settings-footnote">Adicionar e editar profissionais: em breve.</p>
-      </SettingsCard>
-    )
-  }
-  const services = overview.data.services
-  return (
-    <SettingsCard
-      icon={<Scissors size={20} />}
-      title="Serviços"
-      description="Seu catálogo, com preço e duração."
-      badge={
-        <Chip size="sm" variant="soft">
-          {services.length}
-        </Chip>
-      }
-      help={{
-        title: 'Como mudo preços e serviços?',
-        text: 'A edição do catálogo pelo painel está em preparação. As fotos de cada serviço já podem ser trocadas em Vitrine e site → Editar site público.',
-      }}
-    >
-      {services.length ? (
-        <ul className="settings-services">
-          {services.map((service, index) => (
-            <li key={`${service.name}-${index}`}>
-              <strong>{service.name}</strong>
-              <span>
-                {(service.price_cents / 100).toLocaleString('pt-BR', {
-                  style: 'currency',
-                  currency: 'BRL',
-                })}{' '}
-                · {service.duration_minutes} min
-              </span>
-            </li>
-          ))}
-        </ul>
-      ) : (
-        <Empty>Nenhum serviço cadastrado ainda.</Empty>
-      )}
-    </SettingsCard>
   )
 }

@@ -7,6 +7,7 @@ import { createLoggerOptions } from './shared/config/logger.js'
 import { createDatabasePool } from './shared/database/pool.js'
 import { assertRuntimeDatabaseSecurity } from './shared/database/runtime-security.js'
 import { verifyFirebaseIdToken } from './shared/integrations/firebase/admin.js'
+import { createFirebaseStaffDirectory } from './shared/integrations/firebase/staff-directory.js'
 
 if (existsSync('.env')) {
   loadEnvFile('.env')
@@ -27,7 +28,12 @@ const app = await buildApp(
   {
     logger: createLoggerOptions(config),
   },
-  { database, tenantPool: database, verifyToken: verifyFirebaseIdToken },
+  {
+    database,
+    tenantPool: database,
+    verifyToken: verifyFirebaseIdToken,
+    staffDirectory: createFirebaseStaffDirectory(),
+  },
 )
 app.addHook('onClose', async () => database.end())
 

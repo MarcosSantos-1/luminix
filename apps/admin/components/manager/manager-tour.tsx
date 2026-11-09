@@ -89,16 +89,21 @@ export const firstManagerTourStep = steps[0]
 
 export function ManagerTour({
   canManageSettings,
+  sections,
   onStep,
   onClose,
 }: {
   canManageSettings: boolean
+  /** Sections the person can open; steps for other sections are skipped. */
+  sections?: string[]
   onStep: (step: ManagerTourStep | null) => void
   onClose: () => void
 }) {
-  const available = canManageSettings
-    ? steps
-    : steps.filter(({ section }) => section !== 'configuracoes')
+  const available = steps.filter(
+    ({ section }) =>
+      (canManageSettings || section !== 'configuracoes') &&
+      (!sections || sections.includes(section)),
+  )
   const [position, setIndex] = useState(0)
   const [collapsed, setCollapsed] = useState(false)
   const heading = useRef<HTMLHeadingElement>(null)

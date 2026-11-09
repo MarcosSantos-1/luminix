@@ -51,7 +51,7 @@ beforeAll(async () => {
     .rows[0].id
   const roleB = (
     await database.query(
-      "INSERT INTO luminix.roles(clinic_id, name) VALUES ($1, 'professional') RETURNING id",
+      "INSERT INTO luminix.roles(clinic_id, name) VALUES ($1, 'test-professional') RETURNING id",
       [b],
     )
   ).rows[0].id

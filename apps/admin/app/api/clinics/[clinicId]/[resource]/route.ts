@@ -14,6 +14,8 @@ const readable = [
   'profile',
   'booking-rules',
   'slug',
+  'team',
+  'staff',
 ] as const
 const writable = [
   'onboarding',
@@ -48,9 +50,14 @@ export async function POST(
   { params }: { params: Promise<{ clinicId: string; resource: string }> },
 ) {
   const { clinicId, resource } = await params
-  if (!isClinicRef(clinicId) || !['clients', 'appointments'].includes(resource)) return notFound()
+  if (!isClinicRef(clinicId) || !['clients', 'appointments', 'staff'].includes(resource))
+    return notFound()
   return staffApiWrite(
     request,
-    resource === 'clients' ? `/clinics/${clinicId}/clients` : `/clinics/${clinicId}/appointments`,
+    resource === 'clients'
+      ? `/clinics/${clinicId}/clients`
+      : resource === 'staff'
+        ? `/clinics/${clinicId}/staff`
+        : `/clinics/${clinicId}/appointments`,
   )
 }
