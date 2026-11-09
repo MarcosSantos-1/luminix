@@ -18,6 +18,8 @@ kill_timeout = "5s"
   R2_BUCKET = "luminix"
   R2_ENDPOINT = "https://51c03f3ee06031d1a0609f0c7055b63f.r2.cloudflarestorage.com"
   R2_PUBLIC_BASE_URL = "https://pub-7f1394cf6d374105892306c102259b0b.r2.dev"
+  # Private media library bucket (no public access). Keys are Fly secrets R2_PRIVATE_*.
+  R2_PRIVATE_BUCKET = "luminix-private"
 
 [[files]]
   guest_path = "/run/secrets/firebase-admin.json"
