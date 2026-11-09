@@ -151,12 +151,12 @@
   font-size: 14px;
 }
 
-/* Keeps the dark field when typing with the keyboard (HeroUI paints it almost white). */
-.manager-shell .lx-field .input-group:focus-within,
-.manager-shell .lx-field .input-group[data-focus-within='true'],
-.manager-shell .lx-field .date-input-group[data-focus-within='true'],
-.manager-shell .lx-field .textarea:focus-visible {
-  background: color-mix(in srgb, var(--field-background, #ffffff14) 100%, #ffffff0a);
-  color: var(--field-foreground, #fff);
-  box-shadow: 0 0 0 2px var(--space-highlight, #ffb5d3);
+/* Inside a HeroUI field the rounded group draws the focus ring; the global input outline would
+   add a second, square border inside it. */
+.lx-field
+  :is(.input-group, .date-input-group, .select__trigger, .combo-box__input-group)
+  :is(input, button):focus-visible,
+.manager-shell :is(.input-group, .search-field__group) input:focus-visible,
+.manager-dialog :is(.input-group, .search-field__group) input:focus-visible {
+  outline: none;
 }

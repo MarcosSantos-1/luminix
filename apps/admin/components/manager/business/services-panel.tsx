@@ -3,6 +3,7 @@
 import { Button, Spinner } from '@heroui/react'
 import {
   BadgePercent,
+  CalendarCheck,
   CalendarRange,
   Check,
   Clock3,
@@ -13,8 +14,12 @@ import {
   Play,
   Plus,
   Scissors,
+  ShieldAlert,
   Sparkles,
+  TrendingUp,
   TriangleAlert,
+  UserRound,
+  UsersRound,
   Wand2,
 } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
@@ -47,6 +52,7 @@ import {
   type SaveState,
 } from '../settings/settings-kit'
 import { money, moneyInput, parseMoney, dateBr } from './format'
+import { serviceIcon } from './service-icons'
 import './business.css'
 import { useSearchFocus, type SearchFocus } from '../workspace/workspace-signals'
 
@@ -346,55 +352,90 @@ export function ServicesPanel({
         </div>
 
         {groups.length ? (
-          groups.map((group) => (
-            <section key={group.name} className="biz-group" aria-label={group.name}>
-              <h4>{group.name}</h4>
-              <ul className="biz-list">
-                {group.items.map((service) => (
+          <ul className="biz-grid">
+            {groups
+              .flatMap((group) => group.items)
+              .map((service) => {
+                const Icon = serviceIcon(service.category, service.name)
+                const mode = bookingModes.find(({ id }) => id === service.bookingMode)
+                return (
                   <li
                     key={service.id}
-                    className={service.status === 'archived' ? 'is-muted' : undefined}
+                    className={`biz-tile${service.status === 'archived' ? ' is-muted' : ''}`}
                   >
-                    <div className="biz-row-main">
-                      <strong>{service.name}</strong>
-                      <span className="biz-row-meta">
-                        <Clock3 size={13} aria-hidden /> {service.durationMinutes} min
-                        {service.bookings90d
-                          ? ` · ${service.bookings90d} atendimentos em 90 dias`
-                          : ''}
+                    <div className="biz-tile-head">
+                      <span className="biz-tile-icon" aria-hidden>
+                        <Icon size={20} />
                       </span>
-                      <div className="biz-tags">
-                        {service.status === 'archived' ? (
-                          <StatusPill tone="off">Pausado</StatusPill>
-                        ) : null}
-                        {service.promotion ? (
-                          <StatusPill tone="on">
-                            <BadgePercent size={12} aria-hidden /> -{service.promotion.percent}%
-                            {service.promotion.endsOn
-                              ? ` até ${dateBr(service.promotion.endsOn)}`
-                              : ''}
-                          </StatusPill>
-                        ) : null}
-                        {service.status === 'active' && !service.professionals ? (
-                          <button type="button" className="biz-warning" onClick={onOpenTeam}>
-                            <TriangleAlert size={13} aria-hidden /> Ninguém da equipe faz este
-                            serviço
-                          </button>
-                        ) : null}
+                      <div className="biz-tile-title">
+                        <strong title={service.name}>{service.name}</strong>
+                        <span className="biz-row-meta">
+                          {service.category} · <Clock3 size={13} aria-hidden />{' '}
+                          {service.durationMinutes} min
+                        </span>
+                      </div>
+                      <div className="biz-price">
+                        {service.promotion?.priceCents != null && service.priceType !== 'quote' ? (
+                          <>
+                            <s>{money(service.priceCents)}</s>
+                            <strong>{priceLabel(service, service.promotion.priceCents)}</strong>
+                          </>
+                        ) : (
+                          <strong>{priceLabel(service)}</strong>
+                        )}
                       </div>
                     </div>
-                    <div className="biz-price">
-                      {service.promotion?.priceCents != null && service.priceType !== 'quote' ? (
-                        <>
-                          <s>{money(service.priceCents)}</s>
-                          <strong>{priceLabel(service, service.promotion.priceCents)}</strong>
-                        </>
-                      ) : (
-                        <strong>{priceLabel(service)}</strong>
-                      )}
+                    <p className={`biz-tile-text${service.description ? '' : ' is-empty'}`}>
+                      {service.description ||
+                        'Sem descrição. Conte em uma frase o que está incluído.'}
+                    </p>
+                    <ul className="biz-tile-facts" aria-label="Detalhes">
+                      <li title={mode?.hint}>
+                        <CalendarCheck size={13} aria-hidden /> {mode?.label}
+                      </li>
+                      <li>
+                        <UsersRound size={13} aria-hidden />{' '}
+                        {service.professionals
+                          ? `${service.professionals} ${service.professionals === 1 ? 'profissional' : 'profissionais'}`
+                          : 'Sem profissional'}
+                      </li>
+                      {service.audience !== 'all' ? (
+                        <li>
+                          <UserRound size={13} aria-hidden />{' '}
+                          {service.audience === 'women' ? 'Só mulheres' : 'Só homens'}
+                        </li>
+                      ) : null}
+                      {service.bookings90d ? (
+                        <li>
+                          <TrendingUp size={13} aria-hidden /> {service.bookings90d} em 90 dias
+                        </li>
+                      ) : null}
+                      {service.sensitive ? (
+                        <li>
+                          <ShieldAlert size={13} aria-hidden /> Pede cuidado extra
+                        </li>
+                      ) : null}
+                    </ul>
+                    <div className="biz-tags">
+                      {service.status === 'archived' ? (
+                        <StatusPill tone="off">Pausado</StatusPill>
+                      ) : null}
+                      {service.promotion ? (
+                        <StatusPill tone="on">
+                          <BadgePercent size={12} aria-hidden /> -{service.promotion.percent}%
+                          {service.promotion.endsOn
+                            ? ` até ${dateBr(service.promotion.endsOn)}`
+                            : ''}
+                        </StatusPill>
+                      ) : null}
+                      {service.status === 'active' && !service.professionals ? (
+                        <button type="button" className="biz-warning" onClick={onOpenTeam}>
+                          <TriangleAlert size={13} aria-hidden /> Escolher quem faz
+                        </button>
+                      ) : null}
                     </div>
                     {data.canManage ? (
-                      <div className="biz-actions">
+                      <div className="biz-tile-actions">
                         <Button size="sm" variant="secondary" onPress={() => setEditing(service)}>
                           <Pencil size={14} aria-hidden /> Editar
                         </Button>
@@ -422,10 +463,9 @@ export function ServicesPanel({
                       </div>
                     ) : null}
                   </li>
-                ))}
-              </ul>
-            </section>
-          ))
+                )
+              })}
+          </ul>
         ) : (
           <Empty>Nenhum serviço encontrado com esse filtro.</Empty>
         )}
@@ -462,21 +502,30 @@ export function ServicesPanel({
         }
       >
         {data.promotions.length ? (
-          <ul className="biz-list">
+          <ul className="biz-grid">
             {data.promotions.map((item) => {
               const state = promotionState(item, data.today)
               return (
-                <li key={item.id}>
+                <li key={item.id} className="biz-tile">
+                  <div className="biz-tile-head">
+                    <span className="biz-tile-icon" aria-hidden>
+                      <BadgePercent size={20} />
+                    </span>
+                    <div className="biz-tile-title">
+                      <strong title={item.name}>{item.name}</strong>
+                      <span className="biz-row-meta">
+                        {item.serviceIds.length}{' '}
+                        {item.serviceIds.length === 1 ? 'serviço' : 'serviços'}
+                      </span>
+                    </div>
+                    <div className="biz-price">
+                      <strong>-{item.percent}%</strong>
+                    </div>
+                  </div>
                   <div className="biz-row-main">
-                    <strong>
-                      {item.name} · -{item.percent}%
-                    </strong>
                     <span className="biz-row-meta">
                       <CalendarRange size={13} aria-hidden /> {dateBr(item.startsOn)}
-                      {item.endsOn
-                        ? ` até ${dateBr(item.endsOn)}`
-                        : ' · sem data para acabar'} · {item.serviceIds.length}{' '}
-                      {item.serviceIds.length === 1 ? 'serviço' : 'serviços'}
+                      {item.endsOn ? ` até ${dateBr(item.endsOn)}` : ' · sem data para acabar'}
                     </span>
                     <div className="biz-tags">
                       <StatusPill tone={state.tone}>{state.label}</StatusPill>
@@ -494,7 +543,7 @@ export function ServicesPanel({
                     </div>
                   </div>
                   {data.canManage ? (
-                    <div className="biz-actions">
+                    <div className="biz-tile-actions">
                       <Button size="sm" variant="secondary" onPress={() => setPromo(item)}>
                         <Pencil size={14} aria-hidden /> Editar
                       </Button>

@@ -1,3 +1,33 @@
+/*
+ * HeroUI computes its hover/focus colors from the light theme at :root, which turns fields and
+ * secondary surfaces almost white (with white text) inside the dark panel. Recompute them here.
+ */
+.manager-shell,
+.manager-dialog,
+.manager-account-menu,
+.ws-drawer {
+  --default: #ffffff1a;
+  --default-foreground: #fff;
+  --default-hover: #ffffff2b;
+  --default-soft: #ffffff12;
+  --default-soft-hover: #ffffff22;
+  --surface-hover: color-mix(in srgb, var(--space-deep, #65213f) 86%, #fff 14%);
+  --surface-secondary: #ffffff12;
+  --surface-secondary-foreground: #fff;
+  --surface-tertiary: #ffffff1c;
+  --surface-tertiary-foreground: #fff;
+  --accent-hover: color-mix(in srgb, var(--space-accent, #ec287a) 86%, #fff 14%);
+  --accent-soft: color-mix(in srgb, var(--space-accent, #ec287a) 22%, transparent);
+  --accent-soft-hover: color-mix(in srgb, var(--space-accent, #ec287a) 32%, transparent);
+  --field-hover: #ffffff1f;
+  --field-focus: #ffffff1a;
+  --field-border: #ffffff1f;
+  --field-border-hover: #ffffff45;
+  --field-border-focus: var(--space-highlight, #ffb5d3);
+  --border: #ffffff26;
+  --separator: #ffffff1f;
+}
+
 :is(.manager-shell, .manager-dialog)
   .button:is(.button--secondary, .button--tertiary, .button--outline) {
   color: #fff;

@@ -418,3 +418,133 @@
 .home-appointment-actions {
   margin-left: auto;
 }
+
+/* ---------- Cards em grade (Serviços, Promoções, Marketing) ---------- */
+/* Up to 3 columns; each column at least 300px, so it drops to 2 and then 1 on smaller screens. */
+.biz-grid {
+  display: grid;
+  grid-template-columns: repeat(
+    auto-fill,
+    minmax(max(min(100%, 300px), calc((100% - 24px) / 3)), 1fr)
+  );
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.biz-columns {
+  display: grid;
+  grid-template-columns: repeat(
+    auto-fit,
+    minmax(max(min(100%, 340px), calc((100% - 36px) / 3)), 1fr)
+  );
+  align-items: start;
+  gap: 18px;
+}
+.biz-columns > .settings-card {
+  height: 100%;
+}
+.biz-tile {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+  padding: 14px;
+  border: 1px solid var(--manager-border, #ffffff26);
+  border-radius: 18px;
+  background: #ffffff0d;
+  transition:
+    border-color 0.15s,
+    background-color 0.15s;
+}
+.biz-tile:hover {
+  border-color: color-mix(in srgb, var(--space-highlight, #ffb5d3) 55%, transparent);
+  background: #ffffff16;
+}
+.biz-tile.is-muted {
+  opacity: 0.62;
+}
+.biz-tile-head {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: start;
+  gap: 10px;
+}
+.biz-tile-icon {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  color: #fff;
+  background: color-mix(in srgb, var(--space-accent, #ec287a) 55%, transparent);
+}
+.biz-tile-title {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+.biz-tile-title strong {
+  overflow: hidden;
+  font-size: 15px;
+  line-height: 1.3;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.biz-tile .biz-price {
+  justify-items: end;
+  font-size: 15px;
+  white-space: nowrap;
+}
+.biz-tile-text {
+  display: -webkit-box;
+  min-height: calc(1.45em * 2);
+  margin: 0;
+  overflow: hidden;
+  color: var(--manager-muted);
+  font-size: 13px;
+  line-height: 1.45;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+.biz-tile-text.is-empty {
+  font-style: italic;
+  opacity: 0.75;
+}
+.biz-tile-facts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.biz-tile-facts li {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 9px;
+  border-radius: 999px;
+  color: var(--manager-text);
+  background: #ffffff12;
+  font-size: 12px;
+}
+.biz-tile .biz-tags:empty {
+  display: none;
+}
+.biz-tile-actions {
+  display: flex;
+  gap: 6px;
+  margin-top: auto;
+  padding-top: 10px;
+  border-top: 1px solid #ffffff14;
+}
+.biz-tile-actions .button {
+  flex: 1;
+}
+.biz-tile .biz-row-main {
+  flex: none;
+}
+.biz-tile .biz-tags {
+  align-items: center;
+}

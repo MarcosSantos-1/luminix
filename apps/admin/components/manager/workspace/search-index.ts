@@ -203,7 +203,7 @@ export const createShortcuts: IndexEntry[] = [
 ]
 
 export function fold(value: string) {
-  return value.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim()
+  return value.normalize('NFD').replace(/\p{M}/gu, '').toLowerCase().trim()
 }
 
 /** Scores an entry: title start > title word > keywords; 0 means no match. */

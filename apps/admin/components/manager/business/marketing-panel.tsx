@@ -149,102 +149,106 @@ export function MarketingPanel({
         </div>
       </SettingsCard>
 
-      <SettingsCard
-        icon={<BadgePercent size={20} />}
-        title="Promoções"
-        description="Descontos que aparecem no site com o preço riscado."
-        badge={
-          <Button size="sm" variant="secondary" onPress={() => onOpen('Serviços')}>
-            Gerenciar em Serviços
-          </Button>
-        }
-      >
-        {promotions.length ? (
-          <ul className="biz-list is-compact">
-            {promotions.map((item) => {
-              const state = promotionState(item, catalog.data!.today)
-              const promoText = `${item.name}: ${item.percent}% de desconto${item.endsOn ? ` até ${dateBr(item.endsOn)}` : ''} no ${clinicName}! Agende: ${url}`
-              return (
-                <li key={item.id}>
-                  <div className="biz-row-main">
-                    <strong>
-                      {item.name} · -{item.percent}%
-                    </strong>
-                    <span className="biz-row-meta">
-                      {item.serviceIds.length} serviços ·{' '}
-                      {item.endsOn ? `até ${dateBr(item.endsOn)}` : 'sem data para acabar'}
-                    </span>
-                  </div>
-                  <div className="biz-actions">
-                    <StatusPill tone={state.tone}>{state.label}</StatusPill>
-                    <a
-                      className="biz-whatsapp"
-                      href={`https://wa.me/?text=${encodeURIComponent(promoText)}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                    >
-                      <Send size={15} aria-hidden /> Divulgar
-                    </a>
-                  </div>
-                </li>
-              )
-            })}
-          </ul>
-        ) : (
-          <p className="settings-muted">
-            Nenhuma promoção ativa. Crie uma em Serviços → Promoções.
-          </p>
-        )}
-      </SettingsCard>
+      <div className="biz-columns">
+        <SettingsCard
+          icon={<BadgePercent size={20} />}
+          title="Promoções"
+          description="Descontos que aparecem no site com o preço riscado."
+          badge={
+            <Button size="sm" variant="secondary" onPress={() => onOpen('Serviços')}>
+              Gerenciar em Serviços
+            </Button>
+          }
+        >
+          {promotions.length ? (
+            <ul className="biz-list is-compact">
+              {promotions.map((item) => {
+                const state = promotionState(item, catalog.data!.today)
+                const promoText = `${item.name}: ${item.percent}% de desconto${item.endsOn ? ` até ${dateBr(item.endsOn)}` : ''} no ${clinicName}! Agende: ${url}`
+                return (
+                  <li key={item.id}>
+                    <div className="biz-row-main">
+                      <strong>
+                        {item.name} · -{item.percent}%
+                      </strong>
+                      <span className="biz-row-meta">
+                        {item.serviceIds.length} serviços ·{' '}
+                        {item.endsOn ? `até ${dateBr(item.endsOn)}` : 'sem data para acabar'}
+                      </span>
+                    </div>
+                    <div className="biz-actions">
+                      <StatusPill tone={state.tone}>{state.label}</StatusPill>
+                      <a
+                        className="biz-whatsapp"
+                        href={`https://wa.me/?text=${encodeURIComponent(promoText)}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      >
+                        <Send size={15} aria-hidden /> Divulgar
+                      </a>
+                    </div>
+                  </li>
+                )
+              })}
+            </ul>
+          ) : (
+            <p className="settings-muted">
+              Nenhuma promoção ativa. Crie uma em Serviços → Promoções.
+            </p>
+          )}
+        </SettingsCard>
 
-      <SettingsCard
-        icon={<Cake size={20} />}
-        title="Aniversariantes do mês"
-        description="Um carinho no dia certo faz a cliente voltar."
-        help={{
-          title: 'Por que não aparece ninguém?',
-          text: 'Só aparecem clientes com data de nascimento no cadastro. Você pode completar a data na ficha da cliente.',
-        }}
-        badge={<StatusPill tone="info">{data.birthdays.length}</StatusPill>}
-      >
-        {data.birthdays.length ? (
-          <ContactList
-            people={data.birthdays}
-            meta={(person) =>
-              `Dia ${String((person as Person & { day: number }).day).padStart(2, '0')}`
-            }
-            message={(person) =>
-              `Feliz aniversário, ${first(person.name)}! 🎉 Todo o time do ${clinicName} deseja um dia lindo. Tem um mimo esperando por você aqui!`
-            }
-          />
-        ) : (
-          <p className="settings-muted">
-            Ninguém faz aniversário este mês, ou as datas ainda não foram cadastradas.
-          </p>
-        )}
-      </SettingsCard>
+        <SettingsCard
+          icon={<Cake size={20} />}
+          title="Aniversariantes do mês"
+          description="Um carinho no dia certo faz a cliente voltar."
+          help={{
+            title: 'Por que não aparece ninguém?',
+            text: 'Só aparecem clientes com data de nascimento no cadastro. Você pode completar a data na ficha da cliente.',
+          }}
+          badge={<StatusPill tone="info">{data.birthdays.length}</StatusPill>}
+        >
+          {data.birthdays.length ? (
+            <ContactList
+              people={data.birthdays}
+              meta={(person) =>
+                `Dia ${String((person as Person & { day: number }).day).padStart(2, '0')}`
+              }
+              message={(person) =>
+                `Feliz aniversário, ${first(person.name)}! 🎉 Todo o time do ${clinicName} deseja um dia lindo. Tem um mimo esperando por você aqui!`
+              }
+            />
+          ) : (
+            <p className="settings-muted">
+              Ninguém faz aniversário este mês, ou as datas ainda não foram cadastradas.
+            </p>
+          )}
+        </SettingsCard>
 
-      <SettingsCard
-        icon={<HeartHandshake size={20} />}
-        title="Sentimos sua falta"
-        description="Clientes que não vêm há mais de 60 dias. Uma mensagem simples costuma trazer de volta."
-        badge={<StatusPill tone="info">{data.inactive.length}</StatusPill>}
-      >
-        {data.inactive.length ? (
-          <ContactList
-            people={data.inactive}
-            meta={(person) => {
-              const last = (person as Person & { lastVisit: string | null }).lastVisit
-              return last ? `Última visita em ${dateBr(last)}` : 'Ainda não veio desde o cadastro'
-            }}
-            message={(person) =>
-              `Oi, ${first(person.name)}! Que saudade de você aqui no ${clinicName}. Que tal marcar um horário? ${url}`
-            }
-          />
-        ) : (
-          <p className="settings-muted">Todas as clientes vieram nos últimos 60 dias. Que ótimo!</p>
-        )}
-      </SettingsCard>
+        <SettingsCard
+          icon={<HeartHandshake size={20} />}
+          title="Sentimos sua falta"
+          description="Clientes que não vêm há mais de 60 dias. Uma mensagem simples costuma trazer de volta."
+          badge={<StatusPill tone="info">{data.inactive.length}</StatusPill>}
+        >
+          {data.inactive.length ? (
+            <ContactList
+              people={data.inactive}
+              meta={(person) => {
+                const last = (person as Person & { lastVisit: string | null }).lastVisit
+                return last ? `Última visita em ${dateBr(last)}` : 'Ainda não veio desde o cadastro'
+              }}
+              message={(person) =>
+                `Oi, ${first(person.name)}! Que saudade de você aqui no ${clinicName}. Que tal marcar um horário? ${url}`
+              }
+            />
+          ) : (
+            <p className="settings-muted">
+              Todas as clientes vieram nos últimos 60 dias. Que ótimo!
+            </p>
+          )}
+        </SettingsCard>
+      </div>
       <p className="settings-footnote">
         Envio automático de mensagens e campanhas por e-mail: em preparação.
       </p>
