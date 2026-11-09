@@ -36,6 +36,7 @@ import {
   SettingsSkeleton,
   StatusPill,
 } from '@/components/manager/settings/settings-kit'
+import { SelectField, TextInputField } from '@/components/ui/fields'
 import './media.css'
 
 type FolderInfo = { id: string; name: string; systemKey: string | null; count: number }
@@ -253,17 +254,14 @@ function FolderList({
       {canManage ? (
         creating ? (
           <div className="media-new-folder">
-            <input
+            <TextInputField
               autoFocus
-              aria-label="Nome da nova pasta"
+              ariaLabel="Nome da nova pasta"
               placeholder="Ex.: Noivas 2026"
               value={name}
               maxLength={60}
-              onChange={(event) => setName(event.target.value)}
-              onKeyDown={(event) => {
-                if (event.key === 'Enter') void create()
-                if (event.key === 'Escape') setCreating(false)
-              }}
+              onChange={setName}
+              onEnter={() => void create()}
             />
             <div>
               <Button size="sm" onPress={() => void create()} isDisabled={busy || !name.trim()}>
@@ -543,16 +541,13 @@ function RenameFolder({
   }
   return (
     <div className="media-new-folder is-inline">
-      <input
+      <TextInputField
         autoFocus
-        aria-label="Novo nome da pasta"
+        ariaLabel="Novo nome da pasta"
         value={name}
         maxLength={60}
-        onChange={(event) => setName(event.target.value)}
-        onKeyDown={(event) => {
-          if (event.key === 'Enter') void save()
-          if (event.key === 'Escape') onDone(false)
-        }}
+        onChange={setName}
+        onEnter={() => void save()}
       />
       <Button size="sm" onPress={() => void save()}>
         Salvar
@@ -619,43 +614,28 @@ function Viewer({
           </small>
           {canManage && !trash ? (
             <>
-              <label className="settings-field">
-                <span className="settings-field-label">Nome da foto</span>
-                <span className="settings-input">
-                  <input
-                    value={title}
-                    maxLength={120}
-                    onChange={(event) => setTitle(event.target.value)}
-                  />
-                </span>
-              </label>
+              <TextInputField
+                label="Nome da foto"
+                value={title}
+                maxLength={120}
+                onChange={setTitle}
+              />
               {title !== item.title ? (
                 <Button size="sm" onPress={() => onChange({ title }, 'Nome atualizado.')}>
                   Salvar nome
                 </Button>
               ) : null}
-              <label className="settings-field">
-                <span className="settings-field-label">
-                  Mover para
+              <SelectField
+                label="Mover para"
+                help={
                   <HelpTip title="Mover muda o quê?">
                     Só a pasta onde a foto aparece. A foto continua a mesma, sem ocupar mais espaço.
                   </HelpTip>
-                </span>
-                <span className="settings-input">
-                  <select
-                    value={item.folderId}
-                    onChange={(event) =>
-                      onChange({ folderId: event.target.value }, 'Foto movida de pasta.')
-                    }
-                  >
-                    {folders.map((folder) => (
-                      <option key={folder.id} value={folder.id}>
-                        {folder.name}
-                      </option>
-                    ))}
-                  </select>
-                </span>
-              </label>
+                }
+                value={item.folderId}
+                options={folders.map((folder) => ({ id: folder.id, label: folder.name }))}
+                onChange={(folderId) => onChange({ folderId }, 'Foto movida de pasta.')}
+              />
               <Button
                 variant="ghost"
                 onPress={() => onChange({ status: 'trashed' }, 'Foto enviada para a lixeira.')}

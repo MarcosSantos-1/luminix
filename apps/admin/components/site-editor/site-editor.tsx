@@ -7,7 +7,6 @@ import {
   ArrowUp,
   CalendarHeart,
   Check,
-  ChevronDown,
   Clock3,
   ExternalLink,
   Image as ImageIcon,
@@ -20,7 +19,6 @@ import {
   Palette,
   PanelRightClose,
   PanelRightOpen,
-  Plus,
   RotateCcw,
   Save,
   Scissors,
@@ -39,6 +37,7 @@ import { useClinicApi } from '@/components/manager/settings/clinic-api'
 import { HelpTip, Hint, ToggleRow } from '@/components/manager/settings/settings-kit'
 import { publicSiteOrigin, publicSiteUrl } from '@/lib/public-site'
 import { spaceThemes } from '@/lib/space-theme'
+import { SelectField, TextInputField } from '@/components/ui/fields'
 import './site-editor.css'
 
 export const heroOptions = {
@@ -546,26 +545,22 @@ export function SiteEditor({
                 <h2 id="se-cover">
                   <Type size={17} aria-hidden /> Textos da capa
                 </h2>
-                <label className="se-field">
-                  <span>Nome que aparece no site</span>
-                  <input
-                    value={value.title}
-                    maxLength={100}
-                    placeholder={clinic.name}
-                    onChange={(event) => patch({ title: event.target.value })}
-                  />
-                  <small>Deixe vazio para usar o nome do espaço.</small>
-                </label>
-                <label className="se-field">
-                  <span>Frase de apresentação (subtítulo)</span>
-                  <input
-                    value={value.subtitle}
-                    maxLength={120}
-                    placeholder="Ex.: Cuidado e beleza feitos para você"
-                    onChange={(event) => patch({ subtitle: event.target.value })}
-                  />
-                  <small>{value.subtitle.length}/120 letras</small>
-                </label>
+                <TextInputField
+                  label="Nome que aparece no site"
+                  value={value.title}
+                  maxLength={100}
+                  placeholder={clinic.name}
+                  description="Deixe vazio para usar o nome do espaço."
+                  onChange={(title) => patch({ title })}
+                />
+                <TextInputField
+                  label="Frase de apresentação (subtítulo)"
+                  value={value.subtitle}
+                  maxLength={120}
+                  placeholder="Ex.: Cuidado e beleza feitos para você"
+                  description={`${value.subtitle.length}/120 letras`}
+                  onChange={(subtitle) => patch({ subtitle })}
+                />
                 <h2>
                   <ImageIcon size={17} aria-hidden /> Ilustração da capa
                   <HelpTip title="O que é a ilustração?">
@@ -744,32 +739,17 @@ export function SiteEditor({
                   ))}
                 </ol>
                 {value.featured.length < 4 ? (
-                  <label className="se-field">
-                    <span>
-                      <Plus size={14} aria-hidden /> Adicionar destaque
-                    </span>
-                    <span className="se-select">
-                      <select
-                        value=""
-                        onChange={(event) =>
-                          event.target.value &&
-                          patch({
-                            featured: [...value.featured, { serviceId: event.target.value }],
-                          })
-                        }
-                      >
-                        <option value="">Escolha um serviço</option>
-                        {data.services
-                          .filter(({ id }) => !value.featured.some((item) => item.serviceId === id))
-                          .map((service) => (
-                            <option key={service.id} value={service.id}>
-                              {service.name}
-                            </option>
-                          ))}
-                      </select>
-                      <ChevronDown size={16} aria-hidden />
-                    </span>
-                  </label>
+                  <SelectField
+                    label="Adicionar destaque"
+                    value=""
+                    placeholder="Escolha um serviço"
+                    options={data.services
+                      .filter(({ id }) => !value.featured.some((item) => item.serviceId === id))
+                      .map((service) => ({ id: service.id, label: service.name }))}
+                    onChange={(serviceId) =>
+                      patch({ featured: [...value.featured, { serviceId }] })
+                    }
+                  />
                 ) : null}
                 <h2>
                   Fotos dos serviços

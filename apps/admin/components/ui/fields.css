@@ -1,0 +1,162 @@
+@import './scrollbar.css';
+
+/* Campos HeroUI no painel (tema de vidro). Os tokens --field-* vêm de .manager-shell. */
+.lx-field {
+  display: grid;
+  align-content: start;
+  gap: 6px;
+  min-width: 0;
+}
+.lx-field > .textfield,
+.lx-field > .select,
+.lx-field > .date-picker,
+.lx-field > .time-field,
+.lx-field .input-group,
+.lx-field .date-input-group,
+.lx-field .select__trigger,
+.lx-field .textarea {
+  width: 100%;
+}
+.lx-field .input-group,
+.lx-field .date-input-group,
+.lx-field .select__trigger {
+  min-height: 50px;
+  border-radius: 14px;
+  font-size: 16px;
+}
+.lx-field .textarea {
+  min-height: 96px;
+  border-radius: 14px;
+  font-size: 16px;
+  line-height: 1.5;
+}
+.lx-field-label {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  min-height: 30px;
+}
+.lx-field-label .label {
+  font-size: 14px;
+  font-weight: 600;
+}
+.lx-required {
+  margin-left: 3px;
+  color: var(--space-highlight, #ffb5d3);
+}
+.lx-field-hint,
+.lx-field-error {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--manager-muted, #f1cfdf);
+  font-size: 13px;
+  line-height: 1.45;
+}
+.lx-field-error {
+  color: #ffc2c2;
+  font-weight: 600;
+}
+.lx-field.is-invalid .input-group,
+.lx-field.is-invalid .select__trigger,
+.lx-field.is-invalid .date-input-group {
+  border-color: #ff8a8a;
+}
+.lx-select-icon {
+  display: inline-flex;
+  margin-right: 6px;
+  color: var(--manager-muted, #f1cfdf);
+}
+.lx-option {
+  display: grid;
+  gap: 1px;
+}
+.lx-option small {
+  opacity: 0.75;
+  font-size: 12px;
+}
+.lx-search {
+  min-width: 0;
+}
+.lx-search .search-field__group {
+  min-height: 46px;
+  border-radius: 14px;
+}
+.lx-checkbox .checkbox__content {
+  align-items: flex-start;
+  gap: 10px;
+}
+.lx-checkbox-copy {
+  display: grid;
+  gap: 2px;
+}
+.lx-checkbox-copy small {
+  color: var(--manager-muted, #f1cfdf);
+  font-size: 12px;
+}
+
+/* Menus, calendário e listas abrem fora do painel: cores próprias, iguais ao onboarding. */
+.lx-popover {
+  --foreground: #fff;
+  --muted: rgba(255, 255, 255, 0.75);
+  --default: color-mix(in srgb, var(--space-accent, #ff2d79) 55%, transparent);
+  --default-foreground: #fff;
+  --overlay: color-mix(in srgb, var(--space-deep, rgb(92, 16, 48)) 82%, transparent);
+  --accent: var(--space-accent, #ff4a91);
+  --accent-foreground: #fff;
+  --surface: transparent;
+  border: 1px solid color-mix(in srgb, var(--space-highlight, rgb(255, 180, 210)) 72%, transparent);
+  color: #fff;
+  background: color-mix(in srgb, var(--space-deep, rgb(92, 16, 48)) 88%, transparent);
+  backdrop-filter: blur(28px) saturate(150%);
+}
+.lx-popover .list-box {
+  max-height: 280px;
+  overflow: auto;
+}
+.lx-popover .list-box-item {
+  min-height: 44px;
+  color: #fff;
+  font-size: 15px;
+}
+.lx-popover .list-box-item:hover,
+.lx-popover .list-box-item[data-hovered='true'],
+.lx-popover .list-box-item[data-focused='true'] {
+  color: #fff;
+  background: color-mix(in srgb, var(--space-accent, #ff2d79) 72%, transparent);
+}
+.lx-popover .calendar {
+  color: #fff;
+}
+.lx-popover .calendar__cell[data-selected='true'] {
+  color: #fff;
+  background: var(--space-accent, #ec287a);
+}
+.lx-popover .calendar__cell[data-disabled='true'],
+.lx-popover .calendar__cell[data-outside-month='true'] {
+  opacity: 0.35;
+}
+.lx-field.is-wide {
+  grid-column: 1 / -1;
+}
+.lx-field .combo-box__input-group,
+.lx-field .combobox__input-group {
+  min-height: 50px;
+  border-radius: 14px;
+}
+.lx-empty {
+  display: block;
+  padding: 12px;
+  opacity: 0.75;
+  font-size: 14px;
+}
+
+/* Keeps the dark field when typing with the keyboard (HeroUI paints it almost white). */
+.manager-shell .lx-field .input-group:focus-within,
+.manager-shell .lx-field .input-group[data-focus-within='true'],
+.manager-shell .lx-field .date-input-group[data-focus-within='true'],
+.manager-shell .lx-field .textarea:focus-visible {
+  background: color-mix(in srgb, var(--field-background, #ffffff14) 100%, #ffffff0a);
+  color: var(--field-foreground, #fff);
+  box-shadow: 0 0 0 2px var(--space-highlight, #ffb5d3);
+}

@@ -8,19 +8,18 @@ import {
   CalendarPlus,
   Check,
   ChevronRight,
-  Images,
   MessageCircle,
   Package,
-  Scissors,
   UserPlus,
   UserX,
-  Wallet,
 } from 'lucide-react'
 import { useState } from 'react'
 import { useClinicApi, useClinicResource } from '../settings/clinic-api'
 import { LoadError, SettingsSkeleton } from '../settings/settings-kit'
 import { managerNavigation, type ManagerSectionId } from '../demo-data'
 import { appointmentStatus, initials, money, timeBr, whatsapp } from './format'
+import { activityDetail, activityKinds, activityTitle, timeAgo } from '../workspace/activity-copy'
+import { useWorkspaceSignals } from '../workspace/workspace-signals'
 import './business.css'
 
 type Dashboard = {
@@ -51,31 +50,6 @@ type Dashboard = {
   }[]
 }
 
-const activityCopy: Record<string, { icon: typeof CalendarDays; insert: string; update?: string }> =
-  {
-    appointments: {
-      icon: CalendarDays,
-      insert: 'Novo agendamento',
-      update: 'Agendamento atualizado',
-    },
-    clinic_clients: { icon: UserPlus, insert: 'Nova cliente cadastrada' },
-    services: { icon: Scissors, insert: 'Serviço criado', update: 'Serviço pausado ou reativado' },
-    finance_entries: { icon: Wallet, insert: 'Lançamento no financeiro' },
-    inventory_movements: { icon: Package, insert: 'Movimento no estoque' },
-    media_items: { icon: Images, insert: 'Foto guardada no acervo' },
-    promotions: { icon: BadgePercent, insert: 'Promoção criada' },
-  }
-
-function ago(iso: string) {
-  const minutes = Math.max(0, Math.round((Date.now() - new Date(iso).getTime()) / 60000))
-  if (minutes < 1) return 'Agora'
-  if (minutes < 60) return `Há ${minutes} min`
-  const hours = Math.round(minutes / 60)
-  if (hours < 24) return `Há ${hours} h`
-  const days = Math.round(hours / 24)
-  return days === 1 ? 'Ontem' : `Há ${days} dias`
-}
-
 export function HomeDashboard({
   clinicId,
   sections,
@@ -86,6 +60,7 @@ export function HomeDashboard({
   onNavigate: (label: string) => void
 }) {
   const api = useClinicApi(clinicId)
+  const signals = useWorkspaceSignals()
   const dashboard = useClinicResource<Dashboard>(api, 'dashboard')
   const [busy, setBusy] = useState('')
   const [notice, setNotice] = useState('')
@@ -317,33 +292,26 @@ export function HomeDashboard({
           <Card className="manager-panel manager-activity">
             <Card.Header className="manager-panel-heading">
               <Card.Title>Atividades recentes</Card.Title>
+              {signals?.canAudit ? (
+                <Button size="sm" variant="ghost" onPress={signals.openCenter}>
+                  Ver todas
+                </Button>
+              ) : null}
             </Card.Header>
             <Card.Content>
               {data.activity.length ? (
                 data.activity.map((item, index) => {
-                  const copy = activityCopy[item.entity] ?? activityCopy.appointments
-                  const Icon = copy.icon
+                  const Icon = (activityKinds[item.entity] ?? activityKinds.appointments).icon
                   return (
                     <div className="manager-event" key={`${item.createdAt}-${index}`}>
                       <span className={`manager-event-icon event-${index % 5}`}>
                         <Icon size={19} />
                       </span>
                       <div>
-                        <strong>
-                          {item.action === 'UPDATE' ? (copy.update ?? copy.insert) : copy.insert}
-                        </strong>
-                        <p>
-                          {[
-                            item.label,
-                            item.entity === 'finance_entries' && item.detail
-                              ? `R$ ${item.detail}`
-                              : item.detail,
-                          ]
-                            .filter(Boolean)
-                            .join(' · ') || '—'}
-                        </p>
+                        <strong>{activityTitle(item)}</strong>
+                        <p>{activityDetail(item) || '—'}</p>
                       </div>
-                      <time>{ago(item.createdAt)}</time>
+                      <time>{timeAgo(item.createdAt)}</time>
                     </div>
                   )
                 })

@@ -4,6 +4,7 @@ import { Button } from '@heroui/react'
 import { CircleAlert, MessageSquareText, Wallet } from 'lucide-react'
 import { useState } from 'react'
 import { DepositSettings } from '@/components/onboarding/deposit-settings'
+import { TextAreaField } from '@/components/ui/fields'
 import { depositProblem } from '@/components/onboarding/deposit-policy'
 import type { Payload, Service } from '@/components/onboarding/model'
 import { RulesStep } from '@/components/onboarding/rules-review'
@@ -200,25 +201,17 @@ function RulesEditor({
           text: 'Quando o agendamento pelo app for liberado, a cliente verá este recado antes de confirmar o horário. Use para avisos simples, como pontualidade ou cuidados antes do atendimento.',
         }}
       >
-        <label className="settings-field is-wide">
-          <span className="sr-only">Recado para as clientes</span>
-          <textarea
-            className="settings-textarea"
-            rows={3}
-            maxLength={500}
-            value={payload.preferences.clientInstructions ?? ''}
-            placeholder="Escreva aqui um recado (opcional)"
-            onChange={(event) =>
-              change({
-                ...payload,
-                preferences: { ...payload.preferences, clientInstructions: event.target.value },
-              })
-            }
-          />
-          <span className="settings-field-hint">
-            {(payload.preferences.clientInstructions ?? '').length}/500 letras
-          </span>
-        </label>
+        <TextAreaField
+          ariaLabel="Recado para as clientes"
+          className="is-wide"
+          rows={3}
+          maxLength={500}
+          value={payload.preferences.clientInstructions ?? ''}
+          placeholder="Escreva aqui um recado (opcional)"
+          onChange={(clientInstructions) =>
+            change({ ...payload, preferences: { ...payload.preferences, clientInstructions } })
+          }
+        />
       </SettingsCard>
       <SaveBar
         dirty={dirty}

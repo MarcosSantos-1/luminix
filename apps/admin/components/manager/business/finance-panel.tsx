@@ -14,6 +14,7 @@ import {
   Wallet,
 } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
+import { ComboField, DateInputField, SelectField } from '@/components/ui/fields'
 import { useClinicApi, useClinicResource, type ClinicApi } from '../settings/clinic-api'
 import {
   HelpTip,
@@ -223,19 +224,13 @@ export function FinancePanel({
             text: 'Assim o financeiro mostra o que realmente entrou. O valor vem do preço guardado no agendamento, já com promoção. Se a cliente pagou outro valor, use “Nova entrada”.',
           }}
           badge={
-            <span className="settings-input biz-method">
-              <select
-                aria-label="Forma de pagamento"
-                value={method}
-                onChange={(event) => setMethod(event.target.value)}
-              >
-                {Object.entries(methods).map(([id, label]) => (
-                  <option key={id} value={id}>
-                    {label}
-                  </option>
-                ))}
-              </select>
-            </span>
+            <SelectField
+              className="biz-method"
+              ariaLabel="Forma de pagamento"
+              value={method}
+              onChange={setMethod}
+              options={Object.entries(methods).map(([id, label]) => ({ id, label }))}
+            />
           }
         >
           <ul className="biz-list">
@@ -423,17 +418,12 @@ function EntryForm({
           onChange={setAmount}
           required
         />
-        <label className="settings-field">
-          <span className="settings-field-label">Data</span>
-          <span className="settings-input">
-            <input
-              type="date"
-              value={date}
-              max={today}
-              onChange={(event) => setDate(event.target.value || today)}
-            />
-          </span>
-        </label>
+        <DateInputField
+          label="Data"
+          value={date}
+          max={today}
+          onChange={(value) => setDate(value || today)}
+        />
         <TextInput
           label="Descrição"
           value={description}
@@ -443,43 +433,28 @@ function EntryForm({
           placeholder={type === 'income' ? 'Ex.: Venda de produto' : 'Ex.: Conta de luz'}
           onChange={setDescription}
         />
-        <div className="settings-field">
-          <span className="settings-field-label">
-            <label htmlFor="entry-category">Categoria</label>
+        <ComboField
+          label="Categoria"
+          value={category}
+          maxLength={60}
+          suggestions={
+            type === 'expense'
+              ? expenseCategories
+              : ['Atendimentos', 'Produtos', 'Pacotes', 'Outros']
+          }
+          help={
             <HelpTip title="Para que serve?">
               Ajuda a ver para onde vai o dinheiro nos relatórios.
             </HelpTip>
-          </span>
-          <span className="settings-input">
-            <input
-              id="entry-category"
-              list="entry-categories"
-              value={category}
-              maxLength={60}
-              onChange={(event) => setCategory(event.target.value)}
-            />
-          </span>
-          <datalist id="entry-categories">
-            {(type === 'expense'
-              ? expenseCategories
-              : ['Atendimentos', 'Produtos', 'Pacotes', 'Outros']
-            ).map((name) => (
-              <option key={name} value={name} />
-            ))}
-          </datalist>
-        </div>
-        <label className="settings-field">
-          <span className="settings-field-label">Forma</span>
-          <span className="settings-input">
-            <select value={method} onChange={(event) => setMethod(event.target.value)}>
-              {Object.entries(methods).map(([id, label]) => (
-                <option key={id} value={id}>
-                  {label}
-                </option>
-              ))}
-            </select>
-          </span>
-        </label>
+          }
+          onChange={setCategory}
+        />
+        <SelectField
+          label="Forma"
+          value={method}
+          onChange={setMethod}
+          options={Object.entries(methods).map(([id, label]) => ({ id, label }))}
+        />
       </div>
       {error ? (
         <p className="settings-field-error" role="alert">

@@ -10,10 +10,10 @@ import {
   Package,
   Pencil,
   Plus,
-  Search,
   SlidersHorizontal,
 } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
+import { SearchInput, SelectField } from '@/components/ui/fields'
 import {
   useClinicApi,
   useClinicResource,
@@ -30,6 +30,7 @@ import {
 } from '../settings/settings-kit'
 import { money, moneyInput, parseMoney, shortDateBr, timeBr } from './format'
 import './business.css'
+import { useSearchFocus, type SearchFocus } from '../workspace/workspace-signals'
 
 type Item = {
   id: string
@@ -75,15 +76,18 @@ const parseQty = (value: string) => {
 export function InventoryPanel({
   clinicId,
   createSignal,
+  focus,
 }: {
   clinicId: string
   createSignal: number
+  focus?: SearchFocus | null
 }) {
   const api = useClinicApi(clinicId)
   const inventory = useClinicResource<Inventory>(api, 'inventory')
   const [editing, setEditing] = useState<Item | null>(null)
   const [moving, setMoving] = useState<{ item: Item; kind: 'in' | 'out' | 'adjust' } | null>(null)
   const [query, setQuery] = useState('')
+  useSearchFocus(focus, setQuery)
   const [notice, setNotice] = useState<{ kind: 'ok' | 'error'; text: string } | null>(null)
   const lastSignal = useRef(createSignal)
   const blank = (): Item => ({
@@ -184,15 +188,13 @@ export function InventoryPanel({
         }
       >
         {data.items.length > 6 ? (
-          <span className="settings-input biz-search">
-            <Search size={16} aria-hidden />
-            <input
-              aria-label="Buscar produto"
-              placeholder="Buscar produto"
-              value={query}
-              onChange={(event) => setQuery(event.target.value)}
-            />
-          </span>
+          <SearchInput
+            className="biz-search"
+            ariaLabel="Buscar produto"
+            placeholder="Buscar produto"
+            value={query}
+            onChange={setQuery}
+          />
         ) : null}
         {items.length ? (
           <ul className="biz-list">
@@ -385,21 +387,12 @@ function ItemEditor({
           placeholder="Ex.: Unhas"
           onChange={(category) => setItem({ ...item, category })}
         />
-        <label className="settings-field">
-          <span className="settings-field-label">Medida</span>
-          <span className="settings-input">
-            <select
-              value={item.unit}
-              onChange={(event) => setItem({ ...item, unit: event.target.value })}
-            >
-              {Object.entries(units).map(([id, label]) => (
-                <option key={id} value={id}>
-                  {label}
-                </option>
-              ))}
-            </select>
-          </span>
-        </label>
+        <SelectField
+          label="Medida"
+          value={item.unit}
+          onChange={(unit) => setItem({ ...item, unit })}
+          options={Object.entries(units).map(([id, label]) => ({ id, label }))}
+        />
         <TextInput
           label="Avisar quando chegar a"
           inputMode="numeric"

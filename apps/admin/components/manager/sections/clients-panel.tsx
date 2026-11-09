@@ -1,11 +1,13 @@
 'use client'
 
 import { Button, Card, Chip, Modal } from '@heroui/react'
-import { Plus, Search, TicketPercent, UserRound } from 'lucide-react'
+import { Plus, TicketPercent, UserRound } from 'lucide-react'
 import { useEffect, useState, type FormEvent } from 'react'
 import { useClinic } from '@/components/clinic-workspace'
 import { useStaff } from '@/components/staff-provider'
-import { formatBrPhone } from '@/lib/phone'
+import { formatBrPhone, toE164Phone } from '@/lib/phone'
+import { DateInputField, SearchInput, TextAreaField, TextInputField } from '@/components/ui/fields'
+import { useSearchFocus, type SearchFocus } from '../workspace/workspace-signals'
 
 type Client = {
   id: string
@@ -22,11 +24,18 @@ type Client = {
 
 const emptyForm = { name: '', phone: '', email: '', birthDate: '', notes: '' }
 
-export function ClientsPanel({ createSignal = 0 }: { createSignal?: number }) {
+export function ClientsPanel({
+  createSignal = 0,
+  focus,
+}: {
+  createSignal?: number
+  focus?: SearchFocus | null
+}) {
   const { clinic } = useClinic()
   const { user } = useStaff()
   const [clients, setClients] = useState<Client[]>([])
   const [query, setQuery] = useState('')
+  useSearchFocus(focus, setQuery)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [open, setOpen] = useState(false)
@@ -87,7 +96,10 @@ export function ClientsPanel({ createSignal = 0 }: { createSignal?: number }) {
           authorization: `Bearer ${await user.getIdToken()}`,
           'content-type': 'application/json',
         },
-        body: JSON.stringify(form),
+        body: JSON.stringify({
+          ...form,
+          phone: form.phone ? toE164Phone(form.phone) || form.phone : '',
+        }),
       })
       const body = await response.json().catch(() => null)
       if (!response.ok)
@@ -133,15 +145,13 @@ export function ClientsPanel({ createSignal = 0 }: { createSignal?: number }) {
         </div>
       </div>
       <div className="manager-section-toolbar manager-data-toolbar">
-        <label className="manager-inline-search">
-          <Search size={18} aria-hidden="true" />
-          <span className="sr-only">Buscar clientes</span>
-          <input
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
-            placeholder="Nome, telefone ou e-mail"
-          />
-        </label>
+        <SearchInput
+          className="manager-inline-search"
+          ariaLabel="Buscar clientes"
+          placeholder="Nome, telefone ou e-mail"
+          value={query}
+          onChange={setQuery}
+        />
         <div className="manager-toolbar-actions">
           <Button variant="secondary" onPress={() => setVoucherOpen(true)}>
             <TicketPercent size={18} /> Voucher
@@ -248,52 +258,52 @@ export function ClientsPanel({ createSignal = 0 }: { createSignal?: number }) {
                 global por coincidência de telefone ou e-mail.
               </p>
               <form id="manager-client-form" className="manager-form-grid" onSubmit={submit}>
-                <label className="manager-field manager-field-wide">
-                  <span>Nome *</span>
-                  <input
-                    required
-                    maxLength={160}
-                    value={form.name}
-                    onChange={(event) => setForm({ ...form, name: event.target.value })}
-                    autoFocus
-                  />
-                </label>
-                <label className="manager-field">
-                  <span>WhatsApp em formato internacional</span>
-                  <input
-                    maxLength={16}
-                    pattern="^\+[1-9][0-9]{7,14}$"
-                    placeholder="+5511999999999"
-                    value={form.phone}
-                    onChange={(event) => setForm({ ...form, phone: event.target.value })}
-                  />
-                </label>
-                <label className="manager-field">
-                  <span>E-mail</span>
-                  <input
-                    type="email"
-                    maxLength={254}
-                    value={form.email}
-                    onChange={(event) => setForm({ ...form, email: event.target.value })}
-                  />
-                </label>
-                <label className="manager-field">
-                  <span>Nascimento</span>
-                  <input
-                    type="date"
-                    value={form.birthDate}
-                    onChange={(event) => setForm({ ...form, birthDate: event.target.value })}
-                  />
-                </label>
-                <label className="manager-field manager-field-wide">
-                  <span>Observações internas</span>
-                  <textarea
-                    rows={3}
-                    maxLength={4000}
-                    value={form.notes}
-                    onChange={(event) => setForm({ ...form, notes: event.target.value })}
-                  />
-                </label>
+                <TextInputField
+                  className="manager-field-wide"
+                  label="Nome"
+                  isRequired
+                  autoFocus
+                  maxLength={160}
+                  value={form.name}
+                  onChange={(name) => setForm({ ...form, name })}
+                />
+                <TextInputField
+                  label="WhatsApp"
+                  type="tel"
+                  inputMode="tel"
+                  placeholder="(11) 98765-4321"
+                  value={form.phone}
+                  description="Com DDD. Clientes de outros países: use + e o código do país."
+                  onChange={(phone) =>
+                    setForm({
+                      ...form,
+                      phone: phone.startsWith('+') ? phone : formatBrPhone(phone),
+                    })
+                  }
+                />
+                <TextInputField
+                  label="E-mail"
+                  type="email"
+                  inputMode="email"
+                  maxLength={254}
+                  value={form.email}
+                  onChange={(email) => setForm({ ...form, email })}
+                />
+                <DateInputField
+                  label="Nascimento"
+                  value={form.birthDate}
+                  max={new Date().toLocaleDateString('en-CA')}
+                  description="Usado para lembrar o aniversário em Marketing."
+                  onChange={(birthDate) => setForm({ ...form, birthDate })}
+                />
+                <TextAreaField
+                  className="manager-field-wide"
+                  label="Observações internas"
+                  rows={3}
+                  maxLength={4000}
+                  value={form.notes}
+                  onChange={(notes) => setForm({ ...form, notes })}
+                />
               </form>
             </Modal.Body>
             <Modal.Footer>

@@ -3,6 +3,7 @@
 import { Button } from '@heroui/react'
 import { BarChart3, Download, Scissors, UsersRound } from 'lucide-react'
 import { useState } from 'react'
+import { DateInputField } from '@/components/ui/fields'
 import { useClinicApi, useClinicResource } from '../settings/clinic-api'
 import { HelpTip, LoadError, SettingsCard, SettingsSkeleton } from '../settings/settings-kit'
 import { addDays, money, percent, shortDateBr, todayIso } from './format'
@@ -117,29 +118,21 @@ export function ReportsPanel({ clinicId }: { clinicId: string }) {
             </button>
           ))}
         </div>
-        <span className="settings-input biz-date">
-          <input
-            type="date"
-            aria-label="De"
-            value={range.from}
-            max={range.to}
-            onChange={(event) =>
-              event.target.value && setRange({ ...range, from: event.target.value })
-            }
-          />
-        </span>
-        <span className="settings-input biz-date">
-          <input
-            type="date"
-            aria-label="Até"
-            value={range.to}
-            min={range.from}
-            max={today}
-            onChange={(event) =>
-              event.target.value && setRange({ ...range, to: event.target.value })
-            }
-          />
-        </span>
+        <DateInputField
+          className="biz-date"
+          ariaLabel="De"
+          value={range.from}
+          max={range.to}
+          onChange={(from) => from && setRange({ ...range, from })}
+        />
+        <DateInputField
+          className="biz-date"
+          ariaLabel="Até"
+          value={range.to}
+          min={range.from}
+          max={today}
+          onChange={(to) => to && setRange({ ...range, to })}
+        />
         <Button size="sm" variant="secondary" isDisabled={!data} onPress={exportCsv}>
           <Download size={15} aria-hidden /> Baixar planilha
         </Button>

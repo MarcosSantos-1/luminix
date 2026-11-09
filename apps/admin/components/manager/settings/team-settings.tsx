@@ -19,6 +19,7 @@ import {
 import Image from 'next/image'
 import { useMemo, useRef, useState } from 'react'
 import { TimePicker } from '@/components/onboarding/time-picker'
+import { CheckboxField, ComboField, SelectField } from '@/components/ui/fields'
 import '@/app/c/[clinicId]/onboarding/onboarding.css'
 import { roleLabel } from '@/lib/access'
 import { ClinicApiError, useClinicApi, useClinicResource, type ClinicApi } from './clinic-api'
@@ -420,26 +421,14 @@ function ProfessionalEditor({
               hint="Como as clientes vão ver na agenda."
               onChange={(name) => set({ name })}
             />
-            <div className="settings-field">
-              <span className="settings-field-label">
-                <label htmlFor="team-role">Função</label>
-              </span>
-              <span className="settings-input">
-                <input
-                  id="team-role"
-                  list="team-role-suggestions"
-                  value={person.role}
-                  maxLength={120}
-                  placeholder="Ex.: Cabeleireira"
-                  onChange={(event) => set({ role: event.target.value })}
-                />
-              </span>
-              <datalist id="team-role-suggestions">
-                {roleSuggestions.map((role) => (
-                  <option key={role} value={role} />
-                ))}
-              </datalist>
-            </div>
+            <ComboField
+              label="Função"
+              value={person.role}
+              maxLength={120}
+              placeholder="Ex.: Cabeleireira"
+              suggestions={roleSuggestions}
+              onChange={(role) => set({ role })}
+            />
             <div className="settings-field">
               <span className="settings-field-label">
                 <label>Imagem padrão (sem foto)</label>
@@ -522,39 +511,35 @@ function ProfessionalEditor({
                     const checked = person.serviceIds.includes(service.id)
                     return (
                       <div key={service.id} className="team-service">
-                        <label>
-                          <input
-                            type="checkbox"
-                            checked={checked}
-                            onChange={() =>
-                              set({
-                                serviceIds: checked
-                                  ? person.serviceIds.filter((id) => id !== service.id)
-                                  : [...person.serviceIds, service.id],
-                              })
-                            }
-                          />
-                          {service.name}
-                        </label>
+                        <CheckboxField
+                          label={service.name}
+                          isSelected={checked}
+                          onChange={() =>
+                            set({
+                              serviceIds: checked
+                                ? person.serviceIds.filter((id) => id !== service.id)
+                                : [...person.serviceIds, service.id],
+                            })
+                          }
+                        />
                         {checked && service.sensitive ? (
-                          <select
-                            aria-label={`Público de ${service.name}`}
+                          <SelectField
+                            className="team-audience"
+                            ariaLabel={`Público de ${service.name}`}
                             value={person.serviceAudiences[service.id] ?? service.audience}
-                            onChange={(event) =>
+                            options={audienceOptions.map((option) => ({
+                              id: option.id,
+                              label: option.label,
+                            }))}
+                            onChange={(audience) =>
                               set({
                                 serviceAudiences: {
                                   ...person.serviceAudiences,
-                                  [service.id]: event.target.value as Audience,
+                                  [service.id]: audience as Audience,
                                 },
                               })
                             }
-                          >
-                            {audienceOptions.map((option) => (
-                              <option key={option.id} value={option.id}>
-                                {option.label}
-                              </option>
-                            ))}
-                          </select>
+                          />
                         ) : null}
                       </div>
                     )
@@ -690,20 +675,18 @@ function ProfessionalEditor({
           ) : members.loading && !members.data ? (
             <Spinner size="sm" aria-label="Carregando logins" />
           ) : (
-            <div className="settings-input">
-              <select
-                aria-label="Login ligado"
-                value={person.membershipId ?? ''}
-                onChange={(event) => set({ membershipId: event.target.value || null })}
-              >
-                <option value="">Sem login</option>
-                {linkOptions.map((member) => (
-                  <option key={member.id} value={member.id}>
-                    {member.name || member.email} · {roleLabel(member.role)}
-                  </option>
-                ))}
-              </select>
-            </div>
+            <SelectField
+              ariaLabel="Login ligado"
+              value={person.membershipId ?? 'none'}
+              onChange={(value) => set({ membershipId: value === 'none' ? null : value })}
+              options={[
+                { id: 'none', label: 'Sem login' },
+                ...linkOptions.map((member) => ({
+                  id: member.id,
+                  label: `${member.name || member.email} · ${roleLabel(member.role)}`,
+                })),
+              ]}
+            />
           )}
         </SettingsCard>
       ) : null}

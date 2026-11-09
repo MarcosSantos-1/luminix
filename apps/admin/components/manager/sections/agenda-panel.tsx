@@ -13,6 +13,15 @@ import {
 import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
 import { useClinic } from '@/components/clinic-workspace'
 import { useStaff } from '@/components/staff-provider'
+import {
+  CheckboxField,
+  DateInputField,
+  SearchSelectField,
+  SelectField,
+  TextAreaField,
+  TextInputField,
+  TimeInputField,
+} from '@/components/ui/fields'
 
 type Period = { start: string; end: string }
 type Appointment = {
@@ -602,72 +611,75 @@ export function AgendaPanel({ createSignal = 0 }: { createSignal?: number }) {
             </Modal.Header>
             <Modal.Body>
               <form id="manager-booking-form" className="manager-form-grid" onSubmit={saveBooking}>
-                <label className="manager-field manager-field-wide">
-                  <span>Cliente *</span>
-                  <select
-                    required
-                    value={booking.clientId}
-                    onChange={(event) => setBooking({ ...booking, clientId: event.target.value })}
-                  >
-                    <option value="">Selecione</option>
-                    {data?.clients.map((client) => (
-                      <option key={client.id} value={client.id}>
-                        {client.display_name}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <label className="manager-field">
-                  <span>Serviço *</span>
-                  <select
-                    required
-                    value={booking.serviceId}
-                    onChange={(event) => setBooking({ ...booking, serviceId: event.target.value })}
-                  >
-                    <option value="">Selecione</option>
-                    {data?.services.map((service) => (
-                      <option key={service.id} value={service.id}>
-                        {service.name} · {service.duration_minutes} min
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <label className="manager-field">
-                  <span>Profissional</span>
-                  <select
-                    value={booking.professionalId}
-                    onChange={(event) =>
-                      setBooking({ ...booking, professionalId: event.target.value })
-                    }
-                  >
-                    <option value="">Sem profissional definido</option>
-                    {data?.professionals.map((professional) => (
-                      <option key={professional.id} value={professional.id}>
-                        {professional.display_name}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <label className="manager-field manager-field-wide">
-                  <span>Data e hora ({data?.timezone ?? 'fuso da clínica'}) *</span>
-                  <input
-                    type="datetime-local"
-                    required
-                    value={booking.localStartsAt}
-                    onChange={(event) =>
-                      setBooking({ ...booking, localStartsAt: event.target.value })
-                    }
-                  />
-                </label>
-                <label className="manager-field manager-field-wide">
-                  <span>Observações internas</span>
-                  <textarea
-                    rows={3}
-                    maxLength={4000}
-                    value={booking.notes}
-                    onChange={(event) => setBooking({ ...booking, notes: event.target.value })}
-                  />
-                </label>
+                <SearchSelectField
+                  className="manager-field-wide"
+                  label="Cliente"
+                  isRequired
+                  value={booking.clientId}
+                  placeholder="Digite o nome da cliente"
+                  options={(data?.clients ?? []).map((client) => ({
+                    id: client.id,
+                    label: client.display_name,
+                  }))}
+                  onChange={(clientId) => setBooking({ ...booking, clientId })}
+                />
+                <SearchSelectField
+                  label="Serviço"
+                  isRequired
+                  value={booking.serviceId}
+                  placeholder="Digite o serviço"
+                  options={(data?.services ?? []).map((service) => ({
+                    id: service.id,
+                    label: service.name,
+                    description: `${service.duration_minutes} min`,
+                  }))}
+                  onChange={(serviceId) => setBooking({ ...booking, serviceId })}
+                />
+                <SelectField
+                  label="Profissional"
+                  value={booking.professionalId || 'none'}
+                  options={[
+                    { id: 'none', label: 'Sem profissional definido' },
+                    ...(data?.professionals ?? []).map((professional) => ({
+                      id: professional.id,
+                      label: professional.display_name,
+                    })),
+                  ]}
+                  onChange={(value) =>
+                    setBooking({ ...booking, professionalId: value === 'none' ? '' : value })
+                  }
+                />
+                <DateInputField
+                  label="Data"
+                  isRequired
+                  value={booking.localStartsAt.slice(0, 10)}
+                  onChange={(date) =>
+                    setBooking({
+                      ...booking,
+                      localStartsAt: date
+                        ? `${date}T${booking.localStartsAt.slice(11, 16) || '09:00'}`
+                        : '',
+                    })
+                  }
+                />
+                <TimeInputField
+                  label={`Horário (${data?.timezone === 'America/Sao_Paulo' ? 'Brasília' : (data?.timezone ?? 'fuso da clínica')})`}
+                  value={booking.localStartsAt.slice(11, 16)}
+                  onChange={(time) =>
+                    setBooking({
+                      ...booking,
+                      localStartsAt: `${booking.localStartsAt.slice(0, 10) || new Date().toLocaleDateString('en-CA')}T${time || '09:00'}`,
+                    })
+                  }
+                />
+                <TextAreaField
+                  className="manager-field-wide"
+                  label="Observações internas"
+                  rows={3}
+                  maxLength={4000}
+                  value={booking.notes}
+                  onChange={(notes) => setBooking({ ...booking, notes })}
+                />
               </form>
               {warnings.length > 0 && (
                 <div className="manager-warning-box" role="alert">
@@ -731,42 +743,34 @@ export function AgendaPanel({ createSignal = 0 }: { createSignal?: number }) {
                 <div className="manager-schedule-days">
                   {weekly.map((day) => (
                     <div className="manager-schedule-day" key={day.weekday}>
-                      <label className="manager-day-toggle">
-                        <input
-                          type="checkbox"
-                          checked={day.isAvailable}
-                          onChange={(event) =>
-                            changeDay(day.weekday, {
-                              isAvailable: event.target.checked,
-                              periods:
-                                event.target.checked && !day.periods.length
-                                  ? [{ start: '09:00', end: '18:00' }]
-                                  : day.periods,
-                            })
-                          }
-                        />
-                        <strong>{weekdayNames[day.weekday]}</strong>
-                      </label>
+                      <CheckboxField
+                        className="manager-day-toggle"
+                        label={<strong>{weekdayNames[day.weekday]}</strong>}
+                        isSelected={day.isAvailable}
+                        onChange={(checked) =>
+                          changeDay(day.weekday, {
+                            isAvailable: checked,
+                            periods:
+                              checked && !day.periods.length
+                                ? [{ start: '09:00', end: '18:00' }]
+                                : day.periods,
+                          })
+                        }
+                      />
                       {day.isAvailable ? (
                         <div className="manager-periods">
                           {day.periods.map((period, index) => (
                             <div key={`${day.weekday}-${index}`}>
-                              <input
-                                aria-label={`Início de ${weekdayNames[day.weekday]}`}
-                                type="time"
+                              <TimeInputField
+                                ariaLabel={`Início de ${weekdayNames[day.weekday]}`}
                                 value={period.start}
-                                onChange={(event) =>
-                                  changePeriod(day.weekday, index, { start: event.target.value })
-                                }
+                                onChange={(start) => changePeriod(day.weekday, index, { start })}
                               />
                               <span>até</span>
-                              <input
-                                aria-label={`Fim de ${weekdayNames[day.weekday]}`}
-                                type="time"
+                              <TimeInputField
+                                ariaLabel={`Fim de ${weekdayNames[day.weekday]}`}
                                 value={period.end}
-                                onChange={(event) =>
-                                  changePeriod(day.weekday, index, { end: event.target.value })
-                                }
+                                onChange={(end) => changePeriod(day.weekday, index, { end })}
                               />
                               {day.periods.length > 1 && (
                                 <Button
@@ -807,63 +811,49 @@ export function AgendaPanel({ createSignal = 0 }: { createSignal?: number }) {
                 </div>
               ) : (
                 <div className="manager-override-form">
-                  <label className="manager-field">
-                    <span>Data</span>
-                    <input
-                      type="date"
-                      value={override.date}
-                      onChange={(event) => setOverride({ ...override, date: event.target.value })}
-                    />
-                  </label>
-                  <label className="manager-field">
-                    <span>Regra</span>
-                    <select
-                      value={override.kind}
-                      onChange={(event) =>
-                        setOverride({
-                          ...override,
-                          kind: event.target.value as typeof override.kind,
-                        })
-                      }
-                    >
-                      <option value="custom">Horário especial</option>
-                      <option value="closed">Fechado / folga</option>
-                      <option value="default">Usar semana padrão</option>
-                    </select>
-                  </label>
+                  <DateInputField
+                    label="Data"
+                    value={override.date}
+                    onChange={(date) => setOverride({ ...override, date })}
+                  />
+                  <SelectField
+                    label="Regra"
+                    value={override.kind}
+                    options={[
+                      { id: 'custom', label: 'Horário especial' },
+                      { id: 'closed', label: 'Fechado / folga' },
+                      { id: 'default', label: 'Usar semana padrão' },
+                    ]}
+                    onChange={(kind) =>
+                      setOverride({ ...override, kind: kind as typeof override.kind })
+                    }
+                  />
                   {override.kind === 'custom' && (
                     <div className="manager-periods">
                       <div>
-                        <input
-                          type="time"
+                        <TimeInputField
+                          ariaLabel="Início"
                           value={override.start}
-                          onChange={(event) =>
-                            setOverride({ ...override, start: event.target.value })
-                          }
+                          onChange={(start) => setOverride({ ...override, start })}
                         />
                         <span>até</span>
-                        <input
-                          type="time"
+                        <TimeInputField
+                          ariaLabel="Fim"
                           value={override.end}
-                          onChange={(event) =>
-                            setOverride({ ...override, end: event.target.value })
-                          }
+                          onChange={(end) => setOverride({ ...override, end })}
                         />
                       </div>
                     </div>
                   )}
                   {override.kind !== 'default' && (
-                    <label className="manager-field manager-field-wide">
-                      <span>Motivo interno</span>
-                      <input
-                        maxLength={240}
-                        placeholder="Ex.: horário estendido, feriado ou folga"
-                        value={override.reason}
-                        onChange={(event) =>
-                          setOverride({ ...override, reason: event.target.value })
-                        }
-                      />
-                    </label>
+                    <TextInputField
+                      className="manager-field-wide"
+                      label="Motivo interno"
+                      maxLength={240}
+                      placeholder="Ex.: horário estendido, feriado ou folga"
+                      value={override.reason}
+                      onChange={(reason) => setOverride({ ...override, reason })}
+                    />
                   )}
                 </div>
               )}

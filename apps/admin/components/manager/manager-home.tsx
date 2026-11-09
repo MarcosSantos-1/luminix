@@ -36,6 +36,15 @@ import { HomePanels } from './sections/home-panels'
 import { AgendaPanel } from './sections/agenda-panel'
 import { ClientsPanel } from './sections/clients-panel'
 import { SectionSketchView } from './sections/section-sketch'
+import type { ClinicApi } from './settings/clinic-api'
+import {
+  NoticeCarousel,
+  NotificationBell,
+  WorkspaceSignals,
+  type GoTarget,
+  type SearchFocus,
+} from './workspace/workspace-signals'
+import { WorkspaceSearch } from './workspace/workspace-search'
 
 function normalize(value: string) {
   return value
@@ -61,6 +70,7 @@ export function ManagerHome({
   initialSettingsTab,
   messages,
   userEmail,
+  workspace,
   onLogout,
   signingOut = false,
   logoutError,
@@ -79,7 +89,13 @@ export function ManagerHome({
   panels?: Partial<
     Record<
       ManagerSectionId,
-      (context: { createSignal: number; navigate: (label: string) => void }) => ReactNode
+      (context: {
+        createSignal: number
+        navigate: (label: string) => void
+        /** Set when a search result opened this page with its search box filled. */
+        focus: SearchFocus | null
+        go: (target: GoTarget) => void
+      }) => ReactNode
     >
   >
   settings?: (tab: ManagerSettingsSection, open: (section: ManagerSectionId) => void) => ReactNode
@@ -94,6 +110,8 @@ export function ManagerHome({
     getPublicUrl?: (signal: AbortSignal) => Promise<string | null>
   }
   userEmail?: string
+  /** Real clinic: notifications, notices on top and the indexed search. */
+  workspace?: { api: ClinicApi; clinicId: string; canAudit: boolean }
   onLogout?: () => void
   signingOut?: boolean
   logoutError?: string
@@ -140,6 +158,7 @@ export function ManagerHome({
   const [forceGlass, setForceGlass] = useState(false)
   const [copied, setCopied] = useState(false)
   const [createSignal, setCreateSignal] = useState(0)
+  const [focus, setFocus] = useState<SearchFocus | null>(null)
   const [copyError, setCopyError] = useState(false)
   const realClinic = shareCode !== undefined
   const isHome = section.id === 'inicio'
@@ -209,6 +228,22 @@ export function ManagerHome({
     openNotice(label)
   }
 
+  /** Opens a page (and settings tab), optionally filling its search or pointing at a field. */
+  function go(target: GoTarget) {
+    if (!allowedIds.includes(target.section as ManagerSectionId)) return
+    changeSearch(false)
+    select(target.section as ManagerSectionId)
+    if (target.tab) {
+      const tab = managerSettingsSections.find(({ id }) => id === target.tab)?.id
+      if (tab && (!settingsTabs || settingsTabs.includes(tab))) setSettingsTab(tab)
+    }
+    if (target.create) setCreateSignal((value) => value + 1)
+    setFocus(
+      target.query ? { section: target.section, query: target.query, nonce: Date.now() } : null,
+    )
+    if (target.anchor) highlightAnchor(target.anchor)
+  }
+
   const needle = normalize(query)
   const results = [
     ...navigation.map((item) => ({
@@ -226,6 +261,7 @@ export function ManagerHome({
   ].filter((item) => normalize(`${item.title} ${item.detail}`).includes(needle))
 
   const realPanel = panels?.[section.id]
+  const panelFocus = focus?.section === section.id ? focus : null
   const demoLabel = realClinic
     ? realPanel && section.id !== 'inicio'
       ? 'DADOS DO SEU ESPAÇO'
@@ -260,7 +296,7 @@ export function ManagerHome({
       ? null
       : sectionSketches[section.id]
 
-  return (
+  const shellContent = (
     <div
       className={`manager-shell ${collapsed ? 'is-collapsed' : ''}`}
       ref={shell}
@@ -319,14 +355,18 @@ export function ManagerHome({
             >
               <Plus size={21} />
             </Button>
-            <Button
-              isIconOnly
-              aria-label="Novidades e avisos"
-              className="manager-icon-button"
-              onPress={message.openUpdates}
-            >
-              <Bell size={20} />
-            </Button>
+            {workspace ? (
+              <NotificationBell api={workspace.api} go={go} onOpenUpdates={message.openUpdates} />
+            ) : (
+              <Button
+                isIconOnly
+                aria-label="Novidades e avisos"
+                className="manager-icon-button"
+                onPress={message.openUpdates}
+              >
+                <Bell size={20} />
+              </Button>
+            )}
             <Dropdown>
               <Dropdown.Trigger className="manager-profile" aria-label={`Conta: ${userName}`}>
                 <Avatar size="sm">
@@ -390,6 +430,7 @@ export function ManagerHome({
             <span>{demoDetail}</span>
           </div>
         )}
+        {workspace ? <NoticeCarousel go={go} /> : null}
         {section.id !== 'configuracoes' && banner}
         {realClinic && isHome && (
           <div className="manager-clinic-tools">
@@ -398,7 +439,7 @@ export function ManagerHome({
             </Button>
           </div>
         )}
-        {realPanel ? realPanel({ createSignal, navigate }) : null}
+        {realPanel ? realPanel({ createSignal, navigate, focus: panelFocus, go }) : null}
         {section.id === 'inicio' && !realPanel && (
           <HomePanels
             announcement={announcement}
@@ -407,7 +448,9 @@ export function ManagerHome({
           />
         )}
         {realClinic && section.id === 'agenda' && <AgendaPanel createSignal={createSignal} />}
-        {realClinic && section.id === 'clientes' && <ClientsPanel createSignal={createSignal} />}
+        {realClinic && section.id === 'clientes' && (
+          <ClientsPanel createSignal={createSignal} focus={panelFocus} />
+        )}
         {section.id === 'financeiro' && payments}
         {section.id === 'midia' && media}
         {sketch && (
@@ -509,44 +552,64 @@ export function ManagerHome({
           <Modal.Dialog className="manager-dialog">
             <Modal.CloseTrigger aria-label="Fechar" />
             <Modal.Header>
-              <Modal.Heading>Buscar em {section.label}</Modal.Heading>
+              <Modal.Heading>
+                {workspace ? `Pesquisar · ${section.label}` : `Buscar em ${section.label}`}
+              </Modal.Heading>
             </Modal.Header>
             <Modal.Body>
-              <SearchField
-                aria-label={`Buscar em ${section.label}`}
-                value={query}
-                onChange={setQuery}
-              >
-                <SearchField.Group>
-                  <SearchField.SearchIcon />
-                  <SearchField.Input autoFocus placeholder={section.searchPlaceholder} />
-                  <SearchField.ClearButton aria-label="Limpar busca" />
-                </SearchField.Group>
-              </SearchField>
-              <p className="manager-search-hint">{section.searchHint}</p>
-              <div className="manager-search-results">
-                {results.length ? (
-                  results.map((item) => (
-                    <Button
-                      variant="ghost"
-                      key={item.key}
-                      onPress={() => {
-                        changeSearch(false)
-                        if (item.sectionId) select(item.sectionId)
-                        else openNotice(item.title)
-                      }}
-                    >
-                      <span>
-                        <strong>{item.title}</strong>
-                        <small>{item.detail}</small>
-                      </span>
-                      <ArrowRight size={16} />
-                    </Button>
-                  ))
-                ) : (
-                  <p role="status">Nenhum resultado encontrado.</p>
-                )}
-              </div>
+              {workspace ? (
+                <WorkspaceSearch
+                  api={workspace.api}
+                  query={query}
+                  onQueryChange={setQuery}
+                  current={{
+                    id: section.id,
+                    label: section.label,
+                    placeholder: section.searchPlaceholder,
+                  }}
+                  pages={navigation.map(({ id, label, subtitle }) => ({ id, label, subtitle }))}
+                  settingsTabs={settingsTabs}
+                  go={go}
+                />
+              ) : (
+                <>
+                  <SearchField
+                    aria-label={`Buscar em ${section.label}`}
+                    value={query}
+                    onChange={setQuery}
+                  >
+                    <SearchField.Group>
+                      <SearchField.SearchIcon />
+                      <SearchField.Input autoFocus placeholder={section.searchPlaceholder} />
+                      <SearchField.ClearButton aria-label="Limpar busca" />
+                    </SearchField.Group>
+                  </SearchField>
+                  <p className="manager-search-hint">{section.searchHint}</p>
+                  <div className="manager-search-results">
+                    {results.length ? (
+                      results.map((item) => (
+                        <Button
+                          variant="ghost"
+                          key={item.key}
+                          onPress={() => {
+                            changeSearch(false)
+                            if (item.sectionId) select(item.sectionId)
+                            else openNotice(item.title)
+                          }}
+                        >
+                          <span>
+                            <strong>{item.title}</strong>
+                            <small>{item.detail}</small>
+                          </span>
+                          <ArrowRight size={16} />
+                        </Button>
+                      ))
+                    ) : (
+                      <p role="status">Nenhum resultado encontrado.</p>
+                    )}
+                  </div>
+                </>
+              )}
             </Modal.Body>
           </Modal.Dialog>
         </Modal.Container>
@@ -610,4 +673,49 @@ export function ManagerHome({
       </Modal.Backdrop>
     </div>
   )
+  return workspace ? (
+    <WorkspaceSignals
+      api={workspace.api}
+      clinicId={workspace.clinicId}
+      canAudit={workspace.canAudit}
+      go={go}
+    >
+      {shellContent}
+    </WorkspaceSignals>
+  ) : (
+    shellContent
+  )
+}
+
+/** After opening a page from the search, scrolls to the field it pointed at and makes it glow. */
+function highlightAnchor(anchor: string) {
+  const wanted = normalize(anchor)
+  let tries = 0
+  const look = () => {
+    const root = document.getElementById('manager-content')
+    const candidates = root?.querySelectorAll<HTMLElement>(
+      'h2, h3, h4, legend, label, .settings-card-title, [data-search-anchor]',
+    )
+    const found = [...(candidates ?? [])].find(
+      (element) =>
+        normalize(element.dataset.searchAnchor ?? element.textContent ?? '').trim() === wanted ||
+        normalize(element.textContent ?? '')
+          .trim()
+          .startsWith(wanted),
+    )
+    if (!found) {
+      if (++tries < 20) window.setTimeout(look, 150)
+      return
+    }
+    const target =
+      (found.closest('.lx-field, .settings-card, section, li') as HTMLElement | null) ?? found
+    target.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    target.classList.add('ws-flash')
+    window.setTimeout(() => target.classList.remove('ws-flash'), 2400)
+    const control =
+      target.querySelector<HTMLElement>('input:not([type="hidden"]), textarea') ??
+      target.querySelector<HTMLElement>('button:not([aria-label*="ajuda" i])')
+    control?.focus({ preventScroll: true })
+  }
+  window.setTimeout(look, 120)
 }

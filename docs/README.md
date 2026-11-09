@@ -62,6 +62,7 @@ Configurações editáveis, editor do site e endereços amigáveis: [ADR-022](de
 Equipe, horários, convites e níveis de acesso: [ADR-023](decisions/ADR-023-EQUIPE-E-ACESSOS.md).
 Acervo de mídia privado (bucket R2 privado, URLs assinadas): [ADR-024](decisions/ADR-024-ACERVO-DE-MIDIA-PRIVADO.md).
 Painel com dados reais (serviços, promoções, financeiro, estoque, relatórios): [ADR-025](decisions/ADR-025-PAINEL-COM-DADOS-REAIS.md).
+Atividades (ler, arquivar, apagar por pessoa), avisos em carrossel, sino e pesquisa indexada: [ADR-026](decisions/ADR-026-ATIVIDADES-AVISOS-E-PESQUISA.md).
 Guia “onde fica cada coisa” e dicas para próximas frentes: [00-ARQUITETURA](00-ARQUITETURA.md#onde-fica-cada-coisa-guia-rápido-para-novas-mudanças).
 
 ### `/decisions`

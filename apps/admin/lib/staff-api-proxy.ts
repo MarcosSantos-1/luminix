@@ -18,6 +18,9 @@ export async function staffApiGet(
     | `/clinics/${string}/reports`
     | `/clinics/${string}/marketing`
     | `/clinics/${string}/inventory`
+    | `/clinics/${string}/activity`
+    | `/clinics/${string}/notices`
+    | `/clinics/${string}/search`
     | `/clinics/${string}/payments/connect`
     | '/auth/clinics'
     | '/address/geocode'
@@ -59,6 +62,17 @@ export async function staffApiGet(
         const value = source.get(key)
         if (value) url.searchParams.set(key, value)
       }
+    } else if (path.endsWith('/activity')) {
+      const source = new URL(request.url).searchParams
+      const view = source.get('view')
+      const entity = source.get('entity')
+      const before = source.get('before')
+      if (view === 'archived') url.searchParams.set('view', 'archived')
+      if (entity && /^[a-z_]{3,40}$/.test(entity)) url.searchParams.set('entity', entity)
+      if (before && !Number.isNaN(Date.parse(before))) url.searchParams.set('before', before)
+    } else if (path.endsWith('/search')) {
+      const q = new URL(request.url).searchParams.get('q')?.slice(0, 80) ?? ''
+      url.searchParams.set('q', q)
     } else if (path.endsWith('/finance')) {
       const month = new URL(request.url).searchParams.get('month')
       if (month && /^\d{4}-\d{2}$/.test(month)) url.searchParams.set('month', month)

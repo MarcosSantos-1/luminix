@@ -22,6 +22,9 @@ const readable = [
   'reports',
   'marketing',
   'inventory',
+  'activity',
+  'notices',
+  'search',
 ] as const
 const writable = [
   'onboarding',

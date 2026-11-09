@@ -13,13 +13,21 @@ import {
   Play,
   Plus,
   Scissors,
-  Search,
   Sparkles,
   TriangleAlert,
   Wand2,
 } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import catalogSuggestions from '@/lib/service-catalog.json'
+import {
+  CheckboxField,
+  ComboField,
+  DateInputField,
+  SearchInput,
+  SelectField,
+  TextAreaField,
+  TextInputField,
+} from '@/components/ui/fields'
 import {
   useClinicApi,
   useClinicResource,
@@ -40,6 +48,7 @@ import {
 } from '../settings/settings-kit'
 import { money, moneyInput, parseMoney, dateBr } from './format'
 import './business.css'
+import { useSearchFocus, type SearchFocus } from '../workspace/workspace-signals'
 
 type PriceType = 'fixed' | 'from' | 'quote'
 type BookingMode = 'instant' | 'request' | 'manual_release'
@@ -126,16 +135,19 @@ export function ServicesPanel({
   clinicId,
   createSignal,
   onOpenTeam,
+  focus,
 }: {
   clinicId: string
   createSignal: number
   onOpenTeam: () => void
+  focus?: SearchFocus | null
 }) {
   const api = useClinicApi(clinicId)
   const catalog = useClinicResource<Catalog>(api, 'catalog')
   const [editing, setEditing] = useState<Service | null>(null)
   const [promo, setPromo] = useState<Promotion | null>(null)
   const [query, setQuery] = useState('')
+  useSearchFocus(focus, setQuery)
   const [category, setCategory] = useState('')
   const [showPaused, setShowPaused] = useState(false)
   const [notice, setNotice] = useState('')
@@ -304,15 +316,13 @@ export function ServicesPanel({
         }
       >
         <div className="biz-toolbar">
-          <span className="settings-input biz-search">
-            <Search size={16} aria-hidden />
-            <input
-              aria-label="Buscar serviço"
-              placeholder="Buscar serviço"
-              value={query}
-              onChange={(event) => setQuery(event.target.value)}
-            />
-          </span>
+          <SearchInput
+            className="biz-search"
+            ariaLabel="Buscar serviço"
+            placeholder="Buscar serviço"
+            value={query}
+            onChange={setQuery}
+          />
           <div className="biz-chips" role="group" aria-label="Filtrar por categoria">
             <button type="button" aria-pressed={!category} onClick={() => setCategory('')}>
               Todas
@@ -592,15 +602,13 @@ function ServiceEditor({
           title="Começar de uma sugestão"
           description="Digite o nome e escolha um modelo pronto. Depois é só ajustar o preço."
         >
-          <span className="settings-input biz-search">
-            <Search size={16} aria-hidden />
-            <input
-              aria-label="Buscar sugestão"
-              placeholder="Ex.: limpeza de pele, manicure, escova"
-              value={suggestQuery}
-              onChange={(event) => setSuggestQuery(event.target.value)}
-            />
-          </span>
+          <SearchInput
+            className="biz-search"
+            ariaLabel="Buscar sugestão"
+            placeholder="Ex.: limpeza de pele, manicure, escova"
+            value={suggestQuery}
+            onChange={setSuggestQuery}
+          />
           {suggestions.length ? (
             <ul className="biz-suggestions">
               {suggestions.map((item) => (
@@ -641,43 +649,29 @@ function ServiceEditor({
             error={showErrors ? errors.name : undefined}
             onChange={(name) => set({ name })}
           />
-          <div className="settings-field">
-            <span className="settings-field-label">
-              <label htmlFor="service-category">Categoria</label>
+          <ComboField
+            label="Categoria"
+            value={service.category}
+            maxLength={120}
+            suggestions={categories}
+            error={showErrors ? errors.category : undefined}
+            help={
               <HelpTip title="Para que serve a categoria?">
                 Agrupa os serviços no site, como “Cabelo” ou “Unhas”. Use uma que já existe ou
                 escreva uma nova.
               </HelpTip>
-            </span>
-            <span className="settings-input">
-              <input
-                id="service-category"
-                list="service-categories"
-                value={service.category}
-                maxLength={120}
-                onChange={(event) => set({ category: event.target.value })}
-              />
-            </span>
-            <datalist id="service-categories">
-              {categories.map((name) => (
-                <option key={name} value={name} />
-              ))}
-            </datalist>
-            {showErrors && errors.category ? (
-              <span className="settings-field-error">{errors.category}</span>
-            ) : null}
-          </div>
-          <label className="settings-field is-wide">
-            <span className="settings-field-label">Descrição (aparece no site)</span>
-            <textarea
-              className="settings-textarea"
-              rows={3}
-              maxLength={1200}
-              value={service.description}
-              placeholder="Conte em poucas palavras o que a cliente recebe."
-              onChange={(event) => set({ description: event.target.value })}
-            />
-          </label>
+            }
+            onChange={(category) => set({ category })}
+          />
+          <TextAreaField
+            className="is-wide"
+            label="Descrição (aparece no site)"
+            rows={3}
+            maxLength={1200}
+            value={service.description}
+            placeholder="Conte em poucas palavras o que a cliente recebe."
+            onChange={(description) => set({ description })}
+          />
         </div>
       </SettingsCard>
       <SettingsCard icon={<Clock3 size={20} />} title="Preço e duração">
@@ -709,25 +703,20 @@ function ServiceEditor({
               O site mostra “Sob consulta” e a cliente fala com você.
             </p>
           )}
-          <label className="settings-field">
-            <span className="settings-field-label">Duração</span>
-            <span className="settings-input">
-              <select
-                value={service.durationMinutes}
-                onChange={(event) => set({ durationMinutes: Number(event.target.value) })}
-              >
-                {[...new Set([...durations, service.durationMinutes])]
-                  .sort((a, b) => a - b)
-                  .map((minutes) => (
-                    <option key={minutes} value={minutes}>
-                      {minutes >= 60
-                        ? `${Math.floor(minutes / 60)}h${minutes % 60 ? ` ${minutes % 60}min` : ''}`
-                        : `${minutes} min`}
-                    </option>
-                  ))}
-              </select>
-            </span>
-          </label>
+          <SelectField
+            label="Duração"
+            value={String(service.durationMinutes)}
+            onChange={(value) => set({ durationMinutes: Number(value) })}
+            options={[...new Set([...durations, service.durationMinutes])]
+              .sort((a, b) => a - b)
+              .map((minutes) => ({
+                id: String(minutes),
+                label:
+                  minutes >= 60
+                    ? `${Math.floor(minutes / 60)}h${minutes % 60 ? ` ${minutes % 60}min` : ''}`
+                    : `${minutes} min`,
+              }))}
+          />
         </div>
       </SettingsCard>
       <SettingsCard icon={<Sparkles size={20} />} title="Como a cliente agenda">
@@ -889,44 +878,32 @@ function PromotionEditor({
                   {value}%
                 </button>
               ))}
-              <span className="settings-input biz-percent">
-                <input
-                  aria-label="Outra porcentagem"
-                  inputMode="numeric"
-                  value={promotion.percent}
-                  onChange={(event) => {
-                    const value = Number(event.target.value.replace(/\D/g, ''))
-                    set({ percent: Math.min(90, Math.max(1, value || 1)) })
-                  }}
-                />
-                %
-              </span>
+              <TextInputField
+                className="biz-percent"
+                ariaLabel="Outra porcentagem"
+                inputMode="numeric"
+                value={String(promotion.percent)}
+                suffix="%"
+                onChange={(text) => {
+                  const value = Number(text.replace(/\D/g, ''))
+                  set({ percent: Math.min(90, Math.max(1, value || 1)) })
+                }}
+              />
             </div>
           </div>
-          <label className="settings-field">
-            <span className="settings-field-label">Começa em</span>
-            <span className="settings-input">
-              <input
-                type="date"
-                value={promotion.startsOn}
-                onChange={(event) => set({ startsOn: event.target.value || today })}
-              />
-            </span>
-          </label>
-          <label className="settings-field">
-            <span className="settings-field-label">Termina em (opcional)</span>
-            <span className="settings-input">
-              <input
-                type="date"
-                value={promotion.endsOn ?? ''}
-                min={promotion.startsOn}
-                onChange={(event) => set({ endsOn: event.target.value || null })}
-              />
-            </span>
-            {showErrors && errors.dates ? (
-              <span className="settings-field-error">{errors.dates}</span>
-            ) : null}
-          </label>
+          <DateInputField
+            label="Começa em"
+            value={promotion.startsOn}
+            onChange={(startsOn) => set({ startsOn: startsOn || today })}
+          />
+          <DateInputField
+            label="Termina em (opcional)"
+            value={promotion.endsOn ?? ''}
+            min={promotion.startsOn}
+            error={showErrors ? errors.dates || undefined : undefined}
+            description="Deixe vazio para não ter data de fim."
+            onChange={(endsOn) => set({ endsOn: endsOn || null })}
+          />
         </div>
         <ToggleRow
           icon={<Eye size={17} />}
@@ -950,23 +927,18 @@ function PromotionEditor({
             const checked = promotion.serviceIds.includes(service.id)
             return (
               <li key={service.id}>
-                <label>
-                  <input
-                    type="checkbox"
-                    checked={checked}
-                    onChange={() =>
-                      set({
-                        serviceIds: checked
-                          ? promotion.serviceIds.filter((id) => id !== service.id)
-                          : [...promotion.serviceIds, service.id],
-                      })
-                    }
-                  />
-                  <span>
-                    <strong>{service.name}</strong>
-                    <small>{service.category}</small>
-                  </span>
-                </label>
+                <CheckboxField
+                  label={service.name}
+                  description={service.category}
+                  isSelected={checked}
+                  onChange={() =>
+                    set({
+                      serviceIds: checked
+                        ? promotion.serviceIds.filter((id) => id !== service.id)
+                        : [...promotion.serviceIds, service.id],
+                    })
+                  }
+                />
                 <span className="biz-price">
                   <s>{money(service.priceCents)}</s>
                   <strong>

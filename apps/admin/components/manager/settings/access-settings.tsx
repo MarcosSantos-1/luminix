@@ -16,6 +16,7 @@ import {
   X,
 } from 'lucide-react'
 import { useState } from 'react'
+import { SelectField } from '@/components/ui/fields'
 import { accessRoles, roleLabel, type AccessRole } from '@/lib/access'
 import { ClinicApiError, useClinicApi, useClinicResource } from './clinic-api'
 import {
@@ -281,24 +282,16 @@ export function AccessSettings({ clinicId }: { clinicId: string }) {
                   {locked || managerLocked || member.status === 'revoked' ? (
                     <StatusPill tone="info">{roleLabel(member.role)}</StatusPill>
                   ) : (
-                    <span className="settings-input access-role-select">
-                      <select
-                        aria-label={`Nível de acesso de ${member.name || member.email}`}
-                        value={member.role}
-                        disabled={busy === member.id}
-                        onChange={(event) => void change(member, { role: event.target.value })}
-                      >
-                        {accessRoles
-                          .filter(
-                            (role) => role.id !== 'owner' && (isOwner || role.id !== 'manager'),
-                          )
-                          .map((role) => (
-                            <option key={role.id} value={role.id}>
-                              {role.label}
-                            </option>
-                          ))}
-                      </select>
-                    </span>
+                    <SelectField
+                      className="access-role-select"
+                      ariaLabel={`Nível de acesso de ${member.name || member.email}`}
+                      value={member.role}
+                      isDisabled={busy === member.id}
+                      onChange={(role) => void change(member, { role })}
+                      options={accessRoles
+                        .filter((role) => role.id !== 'owner' && (isOwner || role.id !== 'manager'))
+                        .map((role) => ({ id: role.id, label: role.label }))}
+                    />
                   )}
                   <StatusPill tone={member.status === 'revoked' ? 'off' : pending ? 'info' : 'on'}>
                     {member.status === 'revoked'

@@ -3,6 +3,7 @@
 import { Button, Card, Popover, Skeleton, Spinner, Switch, Label, Tooltip } from '@heroui/react'
 import { CircleAlert, CircleCheck, CircleHelp, RotateCcw, Save } from 'lucide-react'
 import type { ReactNode } from 'react'
+import { TextInputField } from '@/components/ui/fields'
 import './settings.css'
 
 /** Click-to-open help: easier than hover for touch screens and less familiar users. */
@@ -92,6 +93,7 @@ export function TextInput({
   required,
   suffix,
   wide,
+  onEnter,
 }: {
   label: string
   icon?: ReactNode
@@ -109,49 +111,28 @@ export function TextInput({
   required?: boolean
   suffix?: ReactNode
   wide?: boolean
+  onEnter?: () => void
 }) {
   return (
-    <div className={`settings-field${wide ? ' is-wide' : ''}${error ? ' is-invalid' : ''}`}>
-      <span className="settings-field-label">
-        <label>
-          {label}
-          {required ? (
-            <span className="settings-required" aria-label="obrigatório">
-              *
-            </span>
-          ) : null}
-        </label>
-        {help ? <HelpTip title={help.title}>{help.text}</HelpTip> : null}
-      </span>
-      <span className="settings-input">
-        {icon ? (
-          <span className="settings-input-icon" aria-hidden>
-            {icon}
-          </span>
-        ) : null}
-        <input
-          aria-label={label}
-          type={type}
-          value={value}
-          placeholder={placeholder}
-          inputMode={inputMode}
-          autoComplete={autoComplete}
-          maxLength={maxLength}
-          disabled={disabled}
-          required={required}
-          aria-invalid={error ? true : undefined}
-          onChange={(event) => onChange(event.target.value)}
-        />
-        {suffix ? <span className="settings-input-suffix">{suffix}</span> : null}
-      </span>
-      {error ? (
-        <span className="settings-field-error" role="alert">
-          <CircleAlert size={14} aria-hidden /> {error}
-        </span>
-      ) : hint ? (
-        <span className="settings-field-hint">{hint}</span>
-      ) : null}
-    </div>
+    <TextInputField
+      label={label}
+      value={value}
+      onChange={onChange}
+      placeholder={placeholder}
+      description={hint}
+      error={error}
+      help={help ? <HelpTip title={help.title}>{help.text}</HelpTip> : undefined}
+      type={type}
+      inputMode={inputMode}
+      autoComplete={autoComplete}
+      maxLength={maxLength}
+      isDisabled={disabled}
+      isRequired={required}
+      prefix={icon}
+      suffix={suffix}
+      onEnter={onEnter}
+      className={wide ? 'is-wide' : undefined}
+    />
   )
 }
 

@@ -43,19 +43,21 @@ continuar desenvolvimento autorizado em `master`. `docs/tests` contém cenários
 
 ## Onde fica cada coisa (guia rápido para novas mudanças)
 
-| Quero mudar…                                                 | Arquivos                                                                                         |
-| ------------------------------------------------------------ | ------------------------------------------------------------------------------------------------ |
-| Uma aba de Configurações                                     | `apps/admin/components/manager/settings/<aba>-settings.tsx` (+ `settings.css`)                   |
-| Componentes comuns das Configurações                         | `settings-kit.tsx` (card, campo, ajuda “?”, barra de salvar, skeleton) e `clinic-api.tsx`        |
-| Quem vê qual página/aba                                      | `apps/admin/lib/access.ts` (UI) e `role_preset_permissions` na migration 0025 (API)              |
-| Uma nova rota da API do espaço                               | `apps/api/src/modules/<dominio>/routes.ts` usando `createAuthorizedRoute` (`shared/tenant`)      |
-| Liberar a rota no admin                                      | `apps/admin/lib/staff-api-proxy.ts` + `app/api/clinics/[clinicId]/…` (lista fechada de rotas)    |
-| Escrita no banco                                             | Função SQL `SECURITY DEFINER` em nova migration, com `authorize_staff_clinic` e teste PGlite     |
-| Visual da vitrine pública                                    | `apps/web/app/c/[clinica]/clinic-site-view.tsx` (vale para o site e para a prévia do editor)     |
-| Editor do site                                               | `apps/admin/components/site-editor/` e `apps/web/app/c/previa/`                                  |
-| Início, Serviços, Financeiro, Estoque, Marketing, Relatórios | `apps/admin/components/manager/business/`, API `modules/{catalog,finance,inventory,insights}`    |
-| Acervo de fotos (Mídia)                                      | `apps/admin/components/manager/media/`, API `modules/media`, `media-storage.ts` (bucket privado) |
-| Testar telas sem login                                       | `localhost:3000/qa-settings-local` (dados simulados, só em desenvolvimento)                      |
+| Quero mudar…                                                 | Arquivos                                                                                          |
+| ------------------------------------------------------------ | ------------------------------------------------------------------------------------------------- |
+| Uma aba de Configurações                                     | `apps/admin/components/manager/settings/<aba>-settings.tsx` (+ `settings.css`)                    |
+| Componentes comuns das Configurações                         | `settings-kit.tsx` (card, campo, ajuda “?”, barra de salvar, skeleton) e `clinic-api.tsx`         |
+| Quem vê qual página/aba                                      | `apps/admin/lib/access.ts` (UI) e `role_preset_permissions` na migration 0025 (API)               |
+| Uma nova rota da API do espaço                               | `apps/api/src/modules/<dominio>/routes.ts` usando `createAuthorizedRoute` (`shared/tenant`)       |
+| Liberar a rota no admin                                      | `apps/admin/lib/staff-api-proxy.ts` + `app/api/clinics/[clinicId]/…` (lista fechada de rotas)     |
+| Escrita no banco                                             | Função SQL `SECURITY DEFINER` em nova migration, com `authorize_staff_clinic` e teste PGlite      |
+| Visual da vitrine pública                                    | `apps/web/app/c/[clinica]/clinic-site-view.tsx` (vale para o site e para a prévia do editor)      |
+| Editor do site                                               | `apps/admin/components/site-editor/` e `apps/web/app/c/previa/`                                   |
+| Início, Serviços, Financeiro, Estoque, Marketing, Relatórios | `apps/admin/components/manager/business/`, API `modules/{catalog,finance,inventory,insights}`     |
+| Sino, avisos, atividades e pesquisa                          | `apps/admin/components/manager/workspace/` (índice em `search-index.ts`), API `modules/workspace` |
+| Acervo de fotos (Mídia)                                      | `apps/admin/components/manager/media/`, API `modules/media`, `media-storage.ts` (bucket privado)  |
+| Campos de formulário (texto, data, hora, seleção, busca)     | `apps/admin/components/ui/fields.tsx` (HeroUI; nada de `<input>`/`<select>` nativo)               |
+| Testar telas sem login                                       | `localhost:3000/qa-settings-local` (dados simulados, só em desenvolvimento)                       |
 
 Padrão de uma tela de configuração: carregador (`useClinicResource`) → skeleton/erro → editor
 com estado inicial vindo dos dados (sem `setState` em efeito) → `SaveBar`. Textos curtos, ajuda

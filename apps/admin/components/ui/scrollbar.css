@@ -1,0 +1,59 @@
+/* Barra de rolagem do onboarding aplicada a todo o painel (página, painéis e menus). */
+html:has(.manager-shell),
+html:has(.se-shell),
+.lx-popover .list-box,
+.lx-scroll,
+.se-panel-body,
+.modal__body,
+.drawer__body {
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in srgb, var(--space-highlight, rgb(255, 236, 244)) 92%, transparent)
+    color-mix(in srgb, var(--space-deep, rgb(92, 16, 48)) 92%, transparent);
+}
+html:has(.manager-shell)::-webkit-scrollbar,
+html:has(.se-shell)::-webkit-scrollbar,
+.lx-popover .list-box::-webkit-scrollbar,
+.lx-scroll::-webkit-scrollbar,
+.se-panel-body::-webkit-scrollbar,
+.modal__body::-webkit-scrollbar,
+.drawer__body::-webkit-scrollbar {
+  width: 10px;
+  height: 8px;
+}
+html:has(.manager-shell)::-webkit-scrollbar-track,
+html:has(.se-shell)::-webkit-scrollbar-track,
+.lx-popover .list-box::-webkit-scrollbar-track,
+.lx-scroll::-webkit-scrollbar-track,
+.se-panel-body::-webkit-scrollbar-track,
+.modal__body::-webkit-scrollbar-track,
+.drawer__body::-webkit-scrollbar-track {
+  margin: 6px;
+  border: 1px solid color-mix(in srgb, var(--space-highlight, rgb(255, 180, 210)) 28%, transparent);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--space-deep, rgb(92, 16, 48)) 92%, transparent);
+  backdrop-filter: blur(10px);
+}
+html:has(.manager-shell)::-webkit-scrollbar-thumb,
+html:has(.se-shell)::-webkit-scrollbar-thumb,
+.lx-popover .list-box::-webkit-scrollbar-thumb,
+.lx-scroll::-webkit-scrollbar-thumb,
+.se-panel-body::-webkit-scrollbar-thumb,
+.modal__body::-webkit-scrollbar-thumb,
+.drawer__body::-webkit-scrollbar-thumb {
+  border: 2px solid transparent;
+  border-radius: 999px;
+  background: linear-gradient(
+      180deg,
+      rgba(255, 255, 255, 0.92),
+      color-mix(in srgb, var(--space-highlight, rgb(255, 214, 230)) 82%, transparent)
+    )
+    padding-box;
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.18);
+}
+html:has(.manager-shell)::-webkit-scrollbar-thumb:hover,
+html:has(.se-shell)::-webkit-scrollbar-thumb:hover,
+.lx-popover .list-box::-webkit-scrollbar-thumb:hover,
+.lx-scroll::-webkit-scrollbar-thumb:hover,
+.se-panel-body::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(180deg, #fff, var(--space-highlight, #ffd0e4)) padding-box;
+}

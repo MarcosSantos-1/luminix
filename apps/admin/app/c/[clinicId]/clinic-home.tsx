@@ -17,9 +17,12 @@ import { ReportsPanel } from '@/components/manager/business/reports-panel'
 import { InventoryPanel } from '@/components/manager/business/inventory-panel'
 import { MarketingPanel } from '@/components/manager/business/marketing-panel'
 import { ClinicSettings } from '@/components/manager/sections/clinic-settings'
+import { useClinicApi } from '@/components/manager/settings/clinic-api'
+import type { SearchFocus } from '@/components/manager/workspace/workspace-signals'
 import { allowedSections, allowedSettings } from '@/lib/access'
 import { getFirebaseAuth } from '@/lib/firebase'
 import '@/app/dashboard/manager.css'
+import '@/components/ui/scrollbar.css'
 
 export function ClinicHome({
   initialSection,
@@ -37,6 +40,7 @@ export function ClinicHome({
   const [signingOut, setSigningOut] = useState(false)
   const canManageSettings = permissions.includes('settings:manage')
   const user = staff.user
+  const api = useClinicApi(clinic.id)
   const getPublicUrl = useCallback(
     async (signal: AbortSignal) => {
       if (!user || !canManageSettings) return null
@@ -74,6 +78,11 @@ export function ClinicHome({
       clinicName={clinic.name}
       userName={staff.user?.displayName || 'Gestor'}
       userEmail={staff.user?.email || undefined}
+      workspace={
+        clinic.status === 'active'
+          ? { api, clinicId: clinic.id, canAudit: permissions.includes('audit:read') }
+          : undefined
+      }
       onLogout={() => void logout()}
       signingOut={signingOut}
       logoutError={logoutError}
@@ -100,10 +109,11 @@ export function ClinicHome({
               inicio: ({ navigate }) => (
                 <HomeDashboard clinicId={clinic.id} sections={sections} onNavigate={navigate} />
               ),
-              servicos: ({ createSignal, navigate }) => (
+              servicos: ({ createSignal, navigate, focus }) => (
                 <ServicesPanel
                   clinicId={clinic.id}
                   createSignal={createSignal}
+                  focus={focus}
                   onOpenTeam={() => navigate('Equipe e horários')}
                 />
               ),
@@ -117,8 +127,18 @@ export function ClinicHome({
                 : {}),
               ...(permissions.includes('inventory:manage')
                 ? {
-                    estoque: ({ createSignal }: { createSignal: number }) => (
-                      <InventoryPanel clinicId={clinic.id} createSignal={createSignal} />
+                    estoque: ({
+                      createSignal,
+                      focus,
+                    }: {
+                      createSignal: number
+                      focus: SearchFocus | null
+                    }) => (
+                      <InventoryPanel
+                        clinicId={clinic.id}
+                        createSignal={createSignal}
+                        focus={focus}
+                      />
                     ),
                   }
                 : {}),

@@ -488,6 +488,78 @@ const fixtures: Record<string, unknown> = {
   },
 }
 
+const minutesAgo = (minutes: number) => new Date(Date.now() - minutes * 60000).toISOString()
+const qaActivity = [
+  [
+    'appointments',
+    'INSERT',
+    'Cecília Araújo',
+    'Corte feminino · 14:30',
+    'Ana Recepção',
+    'unread',
+    4,
+  ],
+  ['clinic_clients', 'INSERT', 'Beatriz Lopes', null, 'Ana Recepção', 'unread', 22],
+  ['finance_entries', 'INSERT', 'Tintura Lumière', '120,00', 'Maria Aparecida', 'unread', 70],
+  ['services', 'UPDATE', 'Coloração', null, 'Joana Lima', 'read', 180],
+  ['promotions', 'INSERT', 'Semana da noiva', '20%', 'Maria Aparecida', 'read', 1500],
+  ['inventory_movements', 'INSERT', 'Esmalte rosa', 'Saída de 2 un', 'Joana Lima', 'read', 2900],
+  ['media_items', 'INSERT', 'Antes e depois', null, 'Joana Lima', 'archived', 4000],
+].map(([entity, action, label, detail, actor, state, minutes], index) => ({
+  id: `00000000-0000-4000-8000-00000000000${index}`,
+  entity,
+  action,
+  label,
+  detail,
+  actor,
+  state,
+  createdAt: minutesAgo(minutes as number),
+}))
+const qaNotices = [
+  {
+    id: 'open-appointments-qa',
+    tone: 'warning',
+    title: '2 atendimentos já passaram sem conclusão',
+    text: 'Marque como concluído ou falta para manter o financeiro certinho.',
+    action: { label: 'Ver no Início', target: 'inicio' },
+  },
+  {
+    id: 'low-stock-qa',
+    tone: 'warning',
+    title: 'Esmalte rosa está acabando',
+    text: 'Restam 2 unidades. O mínimo é 5.',
+    action: { label: 'Ver estoque', target: 'estoque' },
+  },
+  {
+    id: 'birthdays-qa',
+    tone: 'success',
+    title: 'Hoje é aniversário de Cecília Araújo',
+    text: 'Que tal mandar uma mensagem com um mimo?',
+    action: { label: 'Abrir Marketing', target: 'marketing' },
+  },
+]
+const qaSearch: Record<string, { id: string; title: string; detail: string }[]> = {
+  clients: [
+    { id: 'c1', title: 'Cecília Araújo', detail: '(11) 98765-0000' },
+    { id: 'c2', title: 'Beatriz Lopes', detail: '(11) 91234-5678' },
+  ],
+  services: [
+    { id: 's1', title: 'Coloração', detail: 'Cabelo · R$ 200,00' },
+    { id: 's2', title: 'Corte feminino', detail: 'Cabelo · R$ 120,00' },
+  ],
+  promotions: [{ id: 'p1', title: 'Semana da noiva', detail: '20% · até 15/11' }],
+  appointments: [{ id: 'a1', title: 'Cecília Araújo · Corte feminino', detail: 'Hoje, 14:30' }],
+  professionals: [{ id: 'r1', title: 'Joana Lima', detail: 'Cabeleireira' }],
+  inventory: [{ id: 'i1', title: 'Esmalte rosa', detail: '2 un' }],
+  finance: [{ id: 'f1', title: 'Tintura Lumière', detail: 'Despesa · R$ 120,00' }],
+  media: [],
+}
+const qaFold = (value: string) =>
+  value
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+
 const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
 
 export default function QASettings({ view, tab }: { view: 'settings' | 'editor'; tab?: string }) {
@@ -502,6 +574,29 @@ export default function QASettings({ view, tab }: { view: 'settings' | 'editor';
             ...(fixtures.slug as object),
             check: { slug: query.check, available: !taken, problem: taken ? 'taken' : null },
             suggestion: taken ? `${query.check}-sp` : null,
+          } as T
+        }
+        if (path === 'activity') {
+          const items = qaActivity.filter((item) =>
+            query?.view === 'archived' ? item.state === 'archived' : item.state !== 'archived',
+          )
+          return {
+            items: query?.entity ? items.filter((item) => item.entity === query.entity) : items,
+            unread: qaActivity.filter((item) => item.state === 'unread').length,
+            nextBefore: null,
+          } as T
+        }
+        if (path === 'notices') return { notices: qaNotices } as T
+        if (path === 'search') {
+          const needle = qaFold(query?.q ?? '')
+          return {
+            q: query?.q,
+            groups: Object.fromEntries(
+              Object.entries(qaSearch).map(([key, rows]) => [
+                key,
+                rows.filter((row) => qaFold(`${row.title} ${row.detail}`).includes(needle)),
+              ]),
+            ),
           } as T
         }
         if (path.startsWith('library/items') && !fixtures[path]) return { items: [] } as T
@@ -543,8 +638,17 @@ export default function QASettings({ view, tab }: { view: 'settings' | 'editor';
         await wait(600)
         return { saved: true } as T
       },
-      async post<T>(path: string) {
+      async post<T>(path: string, body?: unknown) {
         await wait(600)
+        if (path === 'activity/state') {
+          const { ids, all, state } = body as { ids?: string[]; all?: boolean; state: string }
+          for (const item of qaActivity)
+            if (all ? item.state === 'unread' : ids?.includes(item.id))
+              item.state = state === 'hidden' ? 'gone' : state
+          for (let index = qaActivity.length - 1; index >= 0; index--)
+            if (qaActivity[index].state === 'gone') qaActivity.splice(index, 1)
+          return { changed: 1 } as T
+        }
         return (
           path === 'staff' ? { accountCreated: true, member: { id: 'x' } } : { archived: true }
         ) as T
@@ -586,6 +690,7 @@ export default function QASettings({ view, tab }: { view: 'settings' | 'editor';
             canManageSettings
             initialSection="configuracoes"
             initialSettingsTab={tab}
+            workspace={{ api, clinicId: clinic.id, canAudit: true }}
             media={<MediaLibrary clinicId={clinic.id} />}
             panels={{
               inicio: ({ navigate }) => (
@@ -595,10 +700,11 @@ export default function QASettings({ view, tab }: { view: 'settings' | 'editor';
                   onNavigate={navigate}
                 />
               ),
-              servicos: ({ createSignal, navigate }) => (
+              servicos: ({ createSignal, navigate, focus }) => (
                 <ServicesPanel
                   clinicId={clinic.id}
                   createSignal={createSignal}
+                  focus={focus}
                   onOpenTeam={() => navigate('Equipe e horários')}
                 />
               ),
@@ -606,8 +712,8 @@ export default function QASettings({ view, tab }: { view: 'settings' | 'editor';
                 <FinancePanel clinicId={clinic.id} createSignal={createSignal} />
               ),
               relatorios: () => <ReportsPanel clinicId={clinic.id} />,
-              estoque: ({ createSignal }) => (
-                <InventoryPanel clinicId={clinic.id} createSignal={createSignal} />
+              estoque: ({ createSignal, focus }) => (
+                <InventoryPanel clinicId={clinic.id} createSignal={createSignal} focus={focus} />
               ),
               marketing: ({ navigate }) => (
                 <MarketingPanel clinicId={clinic.id} clinicName={clinic.name} onOpen={navigate} />

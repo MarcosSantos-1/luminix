@@ -9,6 +9,7 @@ import { catalogRoutes } from '../catalog/routes.js'
 import { financeRoutes } from '../finance/routes.js'
 import { inventoryRoutes } from '../inventory/routes.js'
 import { insightsRoutes } from '../insights/routes.js'
+import { workspaceRoutes } from '../workspace/routes.js'
 import { formatClinicGeocodeAddress, pickGeocodedPoint } from './geocode.js'
 export type { AuthDependencies } from '../../shared/auth/staff-session.js'
 
@@ -32,6 +33,7 @@ export async function authRoutes(app: FastifyInstance, dependencies: AuthDepende
   await financeRoutes(app, authenticate, dependencies.tenantPool)
   await inventoryRoutes(app, authenticate, dependencies.tenantPool)
   await insightsRoutes(app, authenticate, dependencies.tenantPool)
+  await workspaceRoutes(app, authenticate, dependencies.tenantPool)
   app.get<{ Querystring: { after?: string } }>(
     '/auth/clinics',
     {

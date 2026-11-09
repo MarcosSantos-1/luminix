@@ -18,6 +18,7 @@ import {
 } from 'lucide-react'
 import Link from 'next/link'
 import { useEffect, useRef, useState } from 'react'
+import { TextInputField } from '@/components/ui/fields'
 import { publicSiteUrl } from '@/lib/public-site'
 import { useClinicApi, useClinicResource, ClinicApiError } from './clinic-api'
 import {
@@ -345,26 +346,26 @@ function SlugEditor({
         text: 'Pode. Quem tiver o link antigo continua chegando ao seu site, porque guardamos o endereço anterior para você. Cada endereço só pode ser usado por um espaço, como acontece no Instagram.',
       }}
     >
-      <div className={`slug-field${result && !result.available ? ' is-invalid' : ''}`}>
-        <span className="slug-prefix">{base}</span>
-        <input
-          aria-label="Endereço do site"
-          value={value}
-          maxLength={40}
-          spellCheck={false}
-          autoCapitalize="none"
-          onChange={(event) => type(event.target.value)}
-        />
-        <span className="slug-status" aria-hidden>
-          {checking ? (
-            <Spinner size="sm" />
-          ) : result?.available ? (
-            <Check size={18} />
-          ) : result ? (
-            <X size={18} />
-          ) : null}
-        </span>
-      </div>
+      <TextInputField
+        ariaLabel="Endereço do site"
+        className="slug-input"
+        value={value}
+        maxLength={40}
+        onChange={type}
+        error={result && !result.available ? ' ' : undefined}
+        prefix={<span className="slug-prefix">{base}</span>}
+        suffix={
+          <span className="slug-status" aria-hidden>
+            {checking ? (
+              <Spinner size="sm" />
+            ) : result?.available ? (
+              <Check size={18} />
+            ) : result ? (
+              <X size={18} />
+            ) : null}
+          </span>
+        }
+      />
       <p className="slug-feedback" role="status" aria-live="polite">
         {tooShort
           ? problemText.invalid

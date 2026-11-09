@@ -24,6 +24,7 @@ import { useRef, useState } from 'react'
 import { useStaff } from '@/components/staff-provider'
 import { formatBrPhone, toE164Phone } from '@/lib/phone'
 import { useClinicApi, useClinicResource, type ClinicApi } from './clinic-api'
+import { SelectField } from '@/components/ui/fields'
 import {
   Empty,
   HelpTip,
@@ -571,25 +572,13 @@ function ProfileEditor({
             maxLength={120}
             onChange={(city) => set({ city })}
           />
-          <div className="settings-field">
-            <span className="settings-field-label">
-              <label htmlFor="settings-state">Estado</label>
-            </span>
-            <span className="settings-input">
-              <select
-                id="settings-state"
-                value={form.state}
-                onChange={(event) => set({ state: event.target.value })}
-              >
-                <option value="">Escolha</option>
-                {states.map((uf) => (
-                  <option key={uf} value={uf}>
-                    {uf}
-                  </option>
-                ))}
-              </select>
-            </span>
-          </div>
+          <SelectField
+            label="Estado"
+            value={form.state}
+            placeholder="Escolha"
+            options={states.map((uf) => ({ id: uf, label: uf }))}
+            onChange={(state) => set({ state })}
+          />
           <TextInput
             label="Complemento ou referência"
             value={form.addressNote}
