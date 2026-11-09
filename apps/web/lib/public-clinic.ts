@@ -7,6 +7,10 @@ export type PublicService = {
   priceType: 'fixed' | 'from' | 'quote'
   durationMinutes: number
   bookingMode: string
+  /** Active promotion shown on the site (percent off), when any. */
+  promoPercent?: number | null
+  promoPriceCents?: number | null
+  promoEndsOn?: string | null
 }
 export type PublicClinic = {
   slug: string

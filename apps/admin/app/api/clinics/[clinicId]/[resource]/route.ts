@@ -16,6 +16,12 @@ const readable = [
   'slug',
   'team',
   'staff',
+  'catalog',
+  'dashboard',
+  'finance',
+  'reports',
+  'marketing',
+  'inventory',
 ] as const
 const writable = [
   'onboarding',

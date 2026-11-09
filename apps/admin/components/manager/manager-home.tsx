@@ -54,6 +54,7 @@ export function ManagerHome({
   settings,
   payments,
   media,
+  panels,
   shareCode,
   banner,
   initialSection = 'inicio',
@@ -74,6 +75,13 @@ export function ManagerHome({
   payments?: ReactNode
   /** Media library (Mídia); a placeholder explains it in the demo. */
   media?: ReactNode
+  /** Real section content backed by the API; replaces the illustrative sketch. */
+  panels?: Partial<
+    Record<
+      ManagerSectionId,
+      (context: { createSignal: number; navigate: (label: string) => void }) => ReactNode
+    >
+  >
   settings?: (tab: ManagerSettingsSection, open: (section: ManagerSectionId) => void) => ReactNode
   shareCode?: string | null
   banner?: ReactNode
@@ -187,6 +195,17 @@ export function ManagerHome({
       select(match.id)
       return
     }
+    const settingsTarget = managerSettingsSections.find((item) => item.label === label)
+    if (settingsTarget) {
+      select('configuracoes')
+      setSettingsTab(settingsTarget.id)
+      return
+    }
+    // The "+" action of a real section opens its own creation form.
+    if (panels?.[section.id] && label === section.createLabel) {
+      setCreateSignal((value) => value + 1)
+      return
+    }
     openNotice(label)
   }
 
@@ -206,17 +225,23 @@ export function ManagerHome({
     })),
   ].filter((item) => normalize(`${item.title} ${item.detail}`).includes(needle))
 
+  const realPanel = panels?.[section.id]
   const demoLabel = realClinic
-    ? section.id === 'configuracoes'
-      ? 'CONFIGURAÇÕES'
-      : section.id === 'midia'
-        ? 'ACERVO PRIVADO'
-        : isHome
-          ? 'HOME DO GESTOR'
-          : 'ESBOÇO'
+    ? realPanel && section.id !== 'inicio'
+      ? 'DADOS DO SEU ESPAÇO'
+      : section.id === 'configuracoes'
+        ? 'CONFIGURAÇÕES'
+        : section.id === 'midia'
+          ? 'ACERVO PRIVADO'
+          : isHome
+            ? 'HOME DO GESTOR'
+            : 'ESBOÇO'
     : 'PRÉVIA DO GESTOR'
-  const demoDetail =
-    section.id === 'midia'
+  const demoDetail = realPanel
+    ? section.id === 'inicio'
+      ? 'Dados reais do seu espaço'
+      : 'Atualizado agora'
+    : section.id === 'midia'
       ? 'Só a sua equipe vê estas fotos'
       : section.id === 'configuracoes'
         ? realClinic
@@ -226,6 +251,7 @@ export function ManagerHome({
           ? 'Agenda e indicadores demonstrativos'
           : 'Exemplos ilustrativos desta seção'
   const sketch =
+    realPanel ||
     (payments && section.id === 'financeiro') ||
     section.id === 'inicio' ||
     section.id === 'configuracoes' ||
@@ -372,7 +398,8 @@ export function ManagerHome({
             </Button>
           </div>
         )}
-        {section.id === 'inicio' && (
+        {realPanel ? realPanel({ createSignal, navigate }) : null}
+        {section.id === 'inicio' && !realPanel && (
           <HomePanels
             announcement={announcement}
             onDismissAnnouncement={() => setAnnouncement(false)}

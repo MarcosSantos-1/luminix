@@ -1117,3 +1117,27 @@
   font-size: 15px;
   cursor: pointer;
 }
+
+/* Promoções nos serviços */
+.clinic-service-badge {
+  display: inline-flex;
+  width: fit-content;
+  margin-bottom: 4px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  color: #fff;
+  background: var(--clinic-accent, #e72875);
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+}
+.clinic-service-promo {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 6px;
+}
+.clinic-service-promo s {
+  opacity: 0.6;
+  font-size: 0.85em;
+}

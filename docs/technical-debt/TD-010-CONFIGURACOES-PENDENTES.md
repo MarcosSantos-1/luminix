@@ -5,7 +5,7 @@ ID: TD-010
 Data: 2026-11-08 (revisado no mesmo dia após ADR-023)
 Módulo: admin (Configurações, editor do site), API (team, operations), web (/c/previa)
 Problema:
-  - Catálogo de serviços continua somente leitura (pertence à seção Serviços, não a Configurações).
+  - Catálogo editável desde a ADR-025 (seção Serviços); faltam fotos/descrições longas por serviço fora do editor do site.
   - Nível Profissional vê toda a agenda; falta filtrar pela profissional ligada ao login.
   - Folgas/férias por profissional não existem (só overrides da clínica inteira).
   - Permissões customizadas por pessoa não existem; apenas os quatro níveis prontos.

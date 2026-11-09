@@ -10,6 +10,12 @@ import { useStaff } from '@/components/staff-provider'
 import { ManagerHome } from '@/components/manager/manager-home'
 import { ConnectPanel } from '@/components/payments/connect-panel'
 import { MediaLibrary } from '@/components/manager/media/media-library'
+import { HomeDashboard } from '@/components/manager/business/home-dashboard'
+import { ServicesPanel } from '@/components/manager/business/services-panel'
+import { FinancePanel } from '@/components/manager/business/finance-panel'
+import { ReportsPanel } from '@/components/manager/business/reports-panel'
+import { InventoryPanel } from '@/components/manager/business/inventory-panel'
+import { MarketingPanel } from '@/components/manager/business/marketing-panel'
 import { ClinicSettings } from '@/components/manager/sections/clinic-settings'
 import { allowedSections, allowedSettings } from '@/lib/access'
 import { getFirebaseAuth } from '@/lib/firebase'
@@ -88,6 +94,40 @@ export function ClinicHome({
       initialSettingsTab={initialSettingsTab}
       payments={<ConnectPanel dashboard />}
       media={permissions.includes('media:read') ? <MediaLibrary clinicId={clinic.id} /> : undefined}
+      panels={
+        clinic.status === 'active'
+          ? {
+              inicio: ({ navigate }) => (
+                <HomeDashboard clinicId={clinic.id} sections={sections} onNavigate={navigate} />
+              ),
+              servicos: ({ createSignal, navigate }) => (
+                <ServicesPanel
+                  clinicId={clinic.id}
+                  createSignal={createSignal}
+                  onOpenTeam={() => navigate('Equipe e horários')}
+                />
+              ),
+              ...(permissions.includes('finance:manage')
+                ? {
+                    financeiro: ({ createSignal }: { createSignal: number }) => (
+                      <FinancePanel clinicId={clinic.id} createSignal={createSignal} />
+                    ),
+                    relatorios: () => <ReportsPanel clinicId={clinic.id} />,
+                  }
+                : {}),
+              ...(permissions.includes('inventory:manage')
+                ? {
+                    estoque: ({ createSignal }: { createSignal: number }) => (
+                      <InventoryPanel clinicId={clinic.id} createSignal={createSignal} />
+                    ),
+                  }
+                : {}),
+              marketing: ({ navigate }) => (
+                <MarketingPanel clinicId={clinic.id} clinicName={clinic.name} onOpen={navigate} />
+              ),
+            }
+          : undefined
+      }
       settings={
         canOpenSettings
           ? (tab, open) => (

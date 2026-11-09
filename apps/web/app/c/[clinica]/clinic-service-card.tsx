@@ -29,6 +29,14 @@ export function ClinicServiceCard({
       </div>
       <div className="clinic-service-copy">
         {showCategory && <span className="clinic-service-category">{service.category}</span>}
+        {service.promoPercent ? (
+          <span className="clinic-service-badge">
+            -{service.promoPercent}%
+            {service.promoEndsOn
+              ? ` até ${service.promoEndsOn.slice(8, 10)}/${service.promoEndsOn.slice(5, 7)}`
+              : ''}
+          </span>
+        ) : null}
         <h3>{service.name}</h3>
         {service.description && <p>{service.description}</p>}
         <div className="clinic-service-meta">
@@ -36,11 +44,23 @@ export function ClinicServiceCard({
             <Clock3 size={14} aria-hidden />
             {service.durationMinutes} min
           </span>
-          <strong>
-            {service.priceType === 'quote'
-              ? 'Sob consulta'
-              : `${service.priceType === 'from' ? 'A partir de ' : ''}${money.format(service.priceCents / 100)}`}
-          </strong>
+          {service.priceType !== 'quote' && service.promoPriceCents != null ? (
+            <span className="clinic-service-promo">
+              <s aria-label={`De ${money.format(service.priceCents / 100)}`}>
+                {money.format(service.priceCents / 100)}
+              </s>
+              <strong>
+                {service.priceType === 'from' ? 'A partir de ' : ''}
+                {money.format(service.promoPriceCents / 100)}
+              </strong>
+            </span>
+          ) : (
+            <strong>
+              {service.priceType === 'quote'
+                ? 'Sob consulta'
+                : `${service.priceType === 'from' ? 'A partir de ' : ''}${money.format(service.priceCents / 100)}`}
+            </strong>
+          )}
         </div>
         {service.bookingMode === 'manual_release' && (
           <small>Disponibilidade sob consulta com a equipe.</small>

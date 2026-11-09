@@ -12,6 +12,12 @@ export async function staffApiGet(
     | `/clinics/${string}/staff`
     | `/clinics/${string}/library`
     | `/clinics/${string}/library/items`
+    | `/clinics/${string}/catalog`
+    | `/clinics/${string}/dashboard`
+    | `/clinics/${string}/finance`
+    | `/clinics/${string}/reports`
+    | `/clinics/${string}/marketing`
+    | `/clinics/${string}/inventory`
     | `/clinics/${string}/payments/connect`
     | '/auth/clinics'
     | '/address/geocode'
@@ -52,6 +58,15 @@ export async function staffApiGet(
       for (const key of ['q', 'status']) {
         const value = source.get(key)
         if (value) url.searchParams.set(key, value)
+      }
+    } else if (path.endsWith('/finance')) {
+      const month = new URL(request.url).searchParams.get('month')
+      if (month && /^\d{4}-\d{2}$/.test(month)) url.searchParams.set('month', month)
+    } else if (path.endsWith('/reports')) {
+      const source = new URL(request.url).searchParams
+      for (const key of ['from', 'to']) {
+        const value = source.get(key)
+        if (value && /^\d{4}-\d{2}-\d{2}$/.test(value)) url.searchParams.set(key, value)
       }
     } else if (path.endsWith('/library/items')) {
       const source = new URL(request.url).searchParams
@@ -115,6 +130,7 @@ export async function staffApiWrite(
     | `/clinics/${string}/library/folders/${string}`
     | `/clinics/${string}/library/items`
     | `/clinics/${string}/library/items/${string}`
+    | `/clinics/${string}/business/${string}`
     | `/clinics/${string}/media`
     | `/clinics/${string}/media/${string}/finalize`,
 ) {

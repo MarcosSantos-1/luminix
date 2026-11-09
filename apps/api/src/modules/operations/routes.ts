@@ -464,6 +464,45 @@ export async function operationRoutes(
   )
 
   app.put<{
+    Params: { clinicId: string; appointmentId: string }
+    Body: { status: 'scheduled' | 'confirmed' | 'completed' | 'canceled' | 'no_show' }
+  }>(
+    '/clinics/:clinicId/appointments/:appointmentId/status',
+    {
+      schema: {
+        params: {
+          type: 'object',
+          additionalProperties: false,
+          required: ['clinicId', 'appointmentId'],
+          properties: {
+            ...clinicParams.properties,
+            appointmentId: { type: 'string', pattern: uuid },
+          },
+        },
+        body: {
+          type: 'object',
+          additionalProperties: false,
+          required: ['status'],
+          properties: {
+            status: {
+              type: 'string',
+              enum: ['scheduled', 'confirmed', 'completed', 'canceled', 'no_show'],
+            },
+          },
+        },
+      },
+    },
+    async (request, reply) =>
+      authorized(request, reply, 'agenda:manage', async (connection, tenant) => {
+        await connection.query(
+          'SELECT luminix.set_appointment_status($1::uuid, $2::uuid, $3::text)',
+          [tenant.clinicId, request.params.appointmentId, request.body.status],
+        )
+        return { status: request.body.status }
+      }),
+  )
+
+  app.put<{
     Params: { clinicId: string }
     Body:
       | {

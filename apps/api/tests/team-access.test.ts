@@ -165,6 +165,7 @@ describe('role presets', () => {
       'agenda:read',
       'client:manage',
       'client:read',
+      'inventory:manage',
       'media:read',
     ])
     expect(grants.professional).not.toContain('client:manage')
