@@ -2,9 +2,23 @@ import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify'
 import type { SqlConnection } from '../../shared/database/migrations.js'
 import { withClinicTransaction, type TenantPool } from '../../shared/tenant/clinic-transaction.js'
 import type { TenantContext } from '../../shared/tenant/tenant-context.js'
+import { isValidBrazilianTaxId } from '../clinics/tax-id.js'
 
 type Period = { start: string; end: string }
 type WarningCode = 'past' | 'outside_availability' | 'overlap'
+// Biological sex (waxing, intimate treatments), not gender identity.
+type ClientSex = 'female' | 'male'
+type ClientBody = {
+  name: string
+  phone?: string
+  email?: string
+  birthDate?: string
+  notes?: string
+  taxId?: string
+  sex?: ClientSex
+  marketingOptIn?: boolean
+  confirmDuplicatePhone?: boolean
+}
 
 const uuid = '^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$'
 const time = '^(?:[01][0-9]|2[0-3]):[0-5][0-9]$'
@@ -73,6 +87,51 @@ function fitsPeriod(start: Date, end: Date, timezone: string, periods: Period[])
   const localEnd = localDateTime(end, timezone)
   if (localStart.date !== localEnd.date) return false
   return periods.some((period) => period.start <= localStart.clock && period.end >= localEnd.clock)
+}
+
+const clientBodySchema = {
+  type: 'object',
+  additionalProperties: false,
+  required: ['name'],
+  properties: {
+    name: { type: 'string', minLength: 1, maxLength: 160, pattern: '\\S' },
+    phone: { type: 'string', maxLength: 16, pattern: '^$|^\\+[1-9][0-9]{7,14}$' },
+    email: { type: 'string', maxLength: 254 },
+    birthDate: { type: 'string', pattern: `^$|${ymd.slice(1, -1)}$` },
+    notes: { type: 'string', maxLength: 4000 },
+    taxId: { type: 'string', maxLength: 14 },
+    sex: { type: 'string', enum: ['female', 'male'] },
+    marketingOptIn: { type: 'boolean' },
+    confirmDuplicatePhone: { type: 'boolean' },
+  },
+} as const
+
+// Full detail, including the whole CPF. Only served to staff who can manage clients.
+const clientDetailColumns = `id, display_name, contact_phone, contact_email, birth_date, notes,
+  status, created_at, tax_id, sex, source, marketing_opt_in, marketing_opt_in_at,
+  client_profile_id IS NOT NULL AS linked`
+
+function normalizeClient(body: ClientBody) {
+  const email = body.email?.trim().toLowerCase() || null
+  if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return { error: 'Invalid email' }
+  const taxId = body.taxId?.replace(/\D/g, '') || null
+  if (taxId && !isValidBrazilianTaxId('cpf', taxId)) return { error: 'Invalid tax id' }
+  const birthDate = body.birthDate || null
+  // One day of slack so a clinic ahead of UTC can still register someone born "today".
+  if (birthDate && birthDate > new Date(Date.now() + 86400000).toISOString().slice(0, 10))
+    return { error: 'Invalid birth date' }
+  return {
+    values: {
+      name: body.name.trim(),
+      phone: body.phone?.trim() || null,
+      email,
+      birthDate,
+      notes: body.notes?.trim() || null,
+      taxId,
+      sex: body.sex ?? null,
+      marketingOptIn: body.marketingOptIn ?? false,
+    },
+  }
 }
 
 const periodSchema = {
@@ -167,7 +226,10 @@ export async function operationRoutes(
         const status = request.query.status ?? 'active'
         const result = await connection.query(
           `SELECT c.id, c.display_name, c.contact_phone, c.contact_email, c.birth_date,
-                  c.notes, c.status, c.created_at,
+                  c.notes, c.status, c.created_at, c.sex, c.source, c.marketing_opt_in,
+                  c.client_profile_id IS NOT NULL AS linked,
+                  CASE WHEN c.tax_id IS NULL THEN NULL
+                       ELSE '***.***.***-' || right(c.tax_id, 2) END AS tax_id_masked,
                   count(a.id)::integer AS appointment_count,
                   max(a.starts_at) FILTER (WHERE a.status IN ('confirmed','completed')) AS last_visit_at
              FROM luminix.clinic_clients c
@@ -177,57 +239,188 @@ export async function operationRoutes(
               AND ($2 = 'all' OR c.status = $2)
               AND ($3 = '' OR c.display_name ILIKE '%' || $3 || '%'
                 OR coalesce(c.contact_phone, '') ILIKE '%' || $3 || '%'
-                OR coalesce(c.contact_email, '') ILIKE '%' || $3 || '%')
+                OR coalesce(c.contact_email, '') ILIKE '%' || $3 || '%'
+                OR ($4 <> '' AND coalesce(c.tax_id, '') LIKE '%' || $4 || '%'))
             GROUP BY c.id
             ORDER BY lower(c.display_name), c.id
             LIMIT 200`,
-          [tenant.clinicId, status, query],
+          [
+            tenant.clinicId,
+            status,
+            query,
+            query.replace(/\D/g, '').length >= 3 ? query.replace(/\D/g, '') : '',
+          ],
         )
         return { clients: result.rows }
       }),
   )
 
-  app.post<{
-    Params: { clinicId: string }
-    Body: { name: string; phone?: string; email?: string; birthDate?: string; notes?: string }
-  }>(
+  // A shared phone is legitimate (mother/daughter, couple), so a duplicate only asks for
+  // confirmation. A repeated CPF is never legitimate inside one clinic and is refused.
+  async function conflicts(
+    connection: SqlConnection,
+    clinicId: string,
+    values: { phone: string | null; taxId: string | null },
+    excludeId: string | null,
+  ) {
+    if (values.taxId) {
+      const owner = (
+        await connection.query(
+          `SELECT id, display_name FROM luminix.clinic_clients
+            WHERE clinic_id = $1 AND tax_id = $2 AND ($3::uuid IS NULL OR id <> $3::uuid)`,
+          [clinicId, values.taxId, excludeId],
+        )
+      ).rows[0]
+      if (owner) return { taxIdOwner: owner, duplicates: [] }
+    }
+    const duplicates = values.phone
+      ? (
+          await connection.query(
+            `SELECT id, display_name, status FROM luminix.clinic_clients
+              WHERE clinic_id = $1 AND contact_phone = $2 AND ($3::uuid IS NULL OR id <> $3::uuid)
+              ORDER BY lower(display_name) LIMIT 5`,
+            [clinicId, values.phone, excludeId],
+          )
+        ).rows
+      : []
+    return { taxIdOwner: null, duplicates }
+  }
+
+  app.post<{ Params: { clinicId: string }; Body: ClientBody }>(
     '/clinics/:clinicId/clients',
+    { bodyLimit: 8192, schema: { params: clinicParams, body: clientBodySchema } },
+    async (request, reply) =>
+      authorized(request, reply, 'client:manage', async (connection, tenant) => {
+        const parsed = normalizeClient(request.body)
+        if ('error' in parsed) return reply.code(400).send({ error: parsed.error })
+        const v = parsed.values
+        const found = await conflicts(connection, tenant.clinicId, v, null)
+        if (found.taxIdOwner)
+          return reply
+            .code(409)
+            .send({ error: 'Tax id already registered', client: found.taxIdOwner })
+        if (found.duplicates.length && !request.body.confirmDuplicatePhone)
+          return reply
+            .code(409)
+            .send({ error: 'Client requires confirmation', duplicates: found.duplicates })
+        const result = await connection.query(
+          `SELECT ${clientDetailColumns}
+             FROM luminix.create_clinic_client_v2($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+          [
+            tenant.clinicId,
+            v.name,
+            v.phone,
+            v.email,
+            v.birthDate,
+            v.notes,
+            v.taxId,
+            v.sex,
+            v.marketingOptIn,
+          ],
+        )
+        return reply.code(201).send({ client: result.rows[0] })
+      }),
+  )
+
+  const clientParams = {
+    type: 'object',
+    additionalProperties: false,
+    required: ['clinicId', 'clientId'],
+    properties: { ...clinicParams.properties, clientId: { type: 'string', pattern: uuid } },
+  } as const
+
+  // Detail for editing: whole CPF and recent history, so it needs client:manage.
+  app.get<{ Params: { clinicId: string; clientId: string } }>(
+    '/clinics/:clinicId/clients/:clientId',
+    { schema: { params: clientParams } },
+    async (request, reply) =>
+      authorized(request, reply, 'client:manage', async (connection, tenant) => {
+        const client = (
+          await connection.query(
+            `SELECT ${clientDetailColumns} FROM luminix.clinic_clients
+              WHERE clinic_id = $1 AND id = $2`,
+            [tenant.clinicId, request.params.clientId],
+          )
+        ).rows[0]
+        if (!client) return reply.code(404).send({ error: 'Client not found' })
+        const history = await connection.query(
+          `SELECT a.id, a.starts_at, a.status, s.name AS service_name,
+                  p.display_name AS professional_name
+             FROM luminix.appointments a
+             JOIN luminix.services s ON s.clinic_id = a.clinic_id AND s.id = a.service_id
+             LEFT JOIN luminix.professionals p
+               ON p.clinic_id = a.clinic_id AND p.id = a.professional_id
+            WHERE a.clinic_id = $1 AND a.clinic_client_id = $2
+            ORDER BY a.starts_at DESC LIMIT 50`,
+          [tenant.clinicId, request.params.clientId],
+        )
+        return { client, history: history.rows }
+      }),
+  )
+
+  // Replaces every editable field (the form always sends the whole record).
+  app.put<{ Params: { clinicId: string; clientId: string }; Body: ClientBody }>(
+    '/clinics/:clinicId/clients/:clientId',
+    { bodyLimit: 8192, schema: { params: clientParams, body: clientBodySchema } },
+    async (request, reply) =>
+      authorized(request, reply, 'client:manage', async (connection, tenant) => {
+        const parsed = normalizeClient(request.body)
+        if ('error' in parsed) return reply.code(400).send({ error: parsed.error })
+        const v = parsed.values
+        const found = await conflicts(connection, tenant.clinicId, v, request.params.clientId)
+        if (found.taxIdOwner)
+          return reply
+            .code(409)
+            .send({ error: 'Tax id already registered', client: found.taxIdOwner })
+        if (found.duplicates.length && !request.body.confirmDuplicatePhone)
+          return reply
+            .code(409)
+            .send({ error: 'Client requires confirmation', duplicates: found.duplicates })
+        const result = await connection.query(
+          `SELECT ${clientDetailColumns}
+             FROM luminix.update_clinic_client($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+          [
+            tenant.clinicId,
+            request.params.clientId,
+            v.name,
+            v.phone,
+            v.email,
+            v.birthDate,
+            v.notes,
+            v.taxId,
+            v.sex,
+            v.marketingOptIn,
+          ],
+        )
+        if (!result.rows[0]) return reply.code(404).send({ error: 'Client not found' })
+        return { client: result.rows[0] }
+      }),
+  )
+
+  app.put<{
+    Params: { clinicId: string; clientId: string }
+    Body: { status: 'active' | 'archived' }
+  }>(
+    '/clinics/:clinicId/clients/:clientId/status',
     {
-      bodyLimit: 8192,
       schema: {
-        params: clinicParams,
+        params: clientParams,
         body: {
           type: 'object',
           additionalProperties: false,
-          required: ['name'],
-          properties: {
-            name: { type: 'string', minLength: 1, maxLength: 160, pattern: '\\S' },
-            phone: { type: 'string', maxLength: 16, pattern: '^$|^\\+[1-9][0-9]{7,14}$' },
-            email: { type: 'string', maxLength: 254 },
-            birthDate: { type: 'string', pattern: `^$|${ymd.slice(1, -1)}$` },
-            notes: { type: 'string', maxLength: 4000 },
-          },
+          required: ['status'],
+          properties: { status: { type: 'string', enum: ['active', 'archived'] } },
         },
       },
     },
     async (request, reply) =>
       authorized(request, reply, 'client:manage', async (connection, tenant) => {
-        const email = request.body.email?.trim().toLowerCase() || null
-        if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))
-          return reply.code(400).send({ error: 'Invalid email' })
         const result = await connection.query(
-          `SELECT id, display_name, contact_phone, contact_email, birth_date, notes, status, created_at
-             FROM luminix.create_clinic_client($1, $2, $3, $4, $5, $6)`,
-          [
-            tenant.clinicId,
-            request.body.name.trim(),
-            request.body.phone?.trim() || null,
-            email,
-            request.body.birthDate || null,
-            request.body.notes?.trim() || null,
-          ],
+          'SELECT id FROM luminix.set_clinic_client_status($1, $2, $3)',
+          [tenant.clinicId, request.params.clientId, request.body.status],
         )
-        return reply.code(201).send({ client: result.rows[0] })
+        if (!result.rows[0]) return reply.code(404).send({ error: 'Client not found' })
+        return { status: request.body.status }
       }),
   )
 

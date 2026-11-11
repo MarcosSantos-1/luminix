@@ -138,6 +138,8 @@ describe('versioned core migration', () => {
       { name: '0026_media_library.sql' },
       { name: '0027_catalog_promotions_finance_inventory.sql' },
       { name: '0028_activity_inbox_and_search.sql' },
+      { name: '0029_client_registry.sql' },
+      { name: '0030_client_biological_sex.sql' },
     ])
   })
 

@@ -30,6 +30,7 @@ export async function staffApiGet(
     | `/clinics/${string}/overview`
     | `/clinics/${string}/onboarding`
     | `/clinics/${string}/clients`
+    | `/clinics/${string}/clients/${string}`
     | `/clinics/${string}/agenda`,
   options?: { query?: Record<string, string> },
 ) {
