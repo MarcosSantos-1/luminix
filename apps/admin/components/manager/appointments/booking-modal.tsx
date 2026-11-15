@@ -39,6 +39,7 @@ export function BookingModal({
   onOpenChange,
   options,
   initialDate,
+  initialClientId,
   onCreated,
 }: {
   api: ClinicApi
@@ -48,6 +49,8 @@ export function BookingModal({
   options?: BookingOptions | null
   /** YYYY-MM-DD to start on. */
   initialDate?: string
+  /** Opens with this client already chosen (from the client's record). */
+  initialClientId?: string
   onCreated: (message: string) => void
 }) {
   const [loaded, setLoaded] = useState<BookingOptions | null>(null)
@@ -60,7 +63,11 @@ export function BookingModal({
   useEffect(() => {
     if (!isOpen) return
     // eslint-disable-next-line react-hooks/set-state-in-effect -- a fresh form each time it opens
-    setForm({ ...empty, date: initialDate ?? localDate(new Date()) })
+    setForm({
+      ...empty,
+      clientId: initialClientId ?? '',
+      date: initialDate ?? localDate(new Date()),
+    })
     setWarnings([])
     setError('')
     if (options) return
@@ -76,7 +83,7 @@ export function BookingModal({
     return () => {
       active = false
     }
-  }, [isOpen, initialDate, options, api])
+  }, [isOpen, initialDate, initialClientId, options, api])
 
   async function save(event?: FormEvent, confirm = false) {
     event?.preventDefault()

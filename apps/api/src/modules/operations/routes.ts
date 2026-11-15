@@ -308,7 +308,12 @@ export async function operationRoutes(
                   CASE WHEN c.tax_id IS NULL THEN NULL
                        ELSE '***.***.***-' || right(c.tax_id, 2) END AS tax_id_masked,
                   count(a.id)::integer AS appointment_count,
-                  max(a.starts_at) FILTER (WHERE a.status IN ('confirmed','completed')) AS last_visit_at
+                  count(a.id) FILTER (WHERE a.status = 'completed')::integer AS completed_count,
+                  coalesce(sum(a.price_cents) FILTER (WHERE a.status = 'completed'), 0)::integer AS spent_cents,
+                  max(a.starts_at) FILTER (WHERE a.status IN ('confirmed','completed')
+                    AND a.starts_at <= now()) AS last_visit_at,
+                  min(a.starts_at) FILTER (WHERE a.status IN ('scheduled','confirmed')
+                    AND a.starts_at > now()) AS next_visit_at
              FROM luminix.clinic_clients c
              LEFT JOIN luminix.appointments a
                ON a.clinic_id = c.clinic_id AND a.clinic_client_id = c.id
@@ -328,7 +333,14 @@ export async function operationRoutes(
             query.replace(/\D/g, '').length >= 3 ? query.replace(/\D/g, '') : '',
           ],
         )
-        return { clients: result.rows }
+        // Money follows the Financeiro permission, like the agenda prices.
+        const canSeeMoney = (await rolePermissions(connection, tenant)).has('finance:manage')
+        return {
+          canSeeMoney,
+          clients: canSeeMoney
+            ? result.rows
+            : result.rows.map((row) => ({ ...row, spent_cents: null })),
+        }
       }),
   )
 
@@ -422,7 +434,7 @@ export async function operationRoutes(
         if (!client) return reply.code(404).send({ error: 'Client not found' })
         const history = await connection.query(
           `SELECT a.id, a.starts_at, a.status, s.name AS service_name,
-                  p.display_name AS professional_name
+                  a.price_cents, p.display_name AS professional_name
              FROM luminix.appointments a
              JOIN luminix.services s ON s.clinic_id = a.clinic_id AND s.id = a.service_id
              LEFT JOIN luminix.professionals p
@@ -431,7 +443,14 @@ export async function operationRoutes(
             ORDER BY a.starts_at DESC LIMIT 50`,
           [tenant.clinicId, request.params.clientId],
         )
-        return { client, history: history.rows }
+        const canSeeMoney = (await rolePermissions(connection, tenant)).has('finance:manage')
+        return {
+          client,
+          canSeeMoney,
+          history: canSeeMoney
+            ? history.rows
+            : history.rows.map((row) => ({ ...row, price_cents: null })),
+        }
       }),
   )
 

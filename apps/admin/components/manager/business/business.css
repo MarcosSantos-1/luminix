@@ -548,3 +548,36 @@
 .biz-tile .biz-tags {
   align-items: center;
 }
+
+/* Promotion editor: price typed per service and the WhatsApp price list. */
+.biz-promo-custom {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.biz-promo-input {
+  width: 132px;
+}
+.biz-promo-text {
+  max-height: 320px;
+  margin: 0;
+  padding: 14px 16px;
+  overflow: auto;
+  border: 1px dashed var(--manager-border, #ffffff33);
+  border-radius: 14px;
+  color: var(--manager-text);
+  background: #00000026;
+  font: inherit;
+  font-size: 14.5px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+}
+@media (max-width: 650px) {
+  .biz-promo-services li {
+    flex-wrap: wrap;
+  }
+  .biz-promo-custom {
+    width: 100%;
+    justify-content: flex-end;
+  }
+}

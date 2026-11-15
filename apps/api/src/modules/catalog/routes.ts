@@ -13,11 +13,9 @@ import {
   uuidSchema,
 } from '../../shared/tenant/route-helpers.js'
 
-const discounted = (price: number, percent: number | null) =>
-  percent == null ? null : Math.round((price * (100 - percent)) / 100)
-
 /**
- * Service catalog (created by onboarding, edited here) and percent promotions. Every write
+ * Service catalog (created by onboarding, edited here) and promotions: a percent for every
+ * chosen service, or a hand-picked price for each one. Every write
  * changes the public site, so it expires the page cache after commit.
  */
 export async function catalogRoutes(
@@ -36,7 +34,8 @@ export async function catalogRoutes(
           connection.query(
             `SELECT s.id, s.name, coalesce(s.category, 'Cuidados') AS category, s.description,
                     s.price_cents, s.price_type, s.duration_minutes, s.booking_mode, s.audience,
-                    s.is_sensitive, s.status, promo.promotion_id, promo.percent, promo.ends_on
+                    s.is_sensitive, s.status, promo.promotion_id, promo.percent, promo.ends_on,
+                    promo.price_cents AS promo_price_cents
                FROM luminix.services s
                LEFT JOIN LATERAL luminix.service_promotion(s.clinic_id, s.id, luminix.clinic_today())
                  promo ON true
@@ -45,8 +44,10 @@ export async function catalogRoutes(
             [tenant.clinicId],
           ),
           connection.query(
-            `SELECT p.id, p.name, p.percent, p.starts_on, p.ends_on, p.status, p.show_on_site,
-                    coalesce(array_agg(ps.service_id) FILTER (WHERE ps.service_id IS NOT NULL), '{}') AS service_ids
+            `SELECT p.id, p.name, p.kind, p.percent, p.starts_on, p.ends_on, p.status, p.show_on_site,
+                    coalesce(array_agg(ps.service_id) FILTER (WHERE ps.service_id IS NOT NULL), '{}') AS service_ids,
+                    coalesce(jsonb_object_agg(ps.service_id, ps.price_cents)
+                      FILTER (WHERE ps.price_cents IS NOT NULL), '{}'::jsonb) AS prices
                FROM luminix.promotions p
                LEFT JOIN luminix.promotion_services ps ON ps.clinic_id = p.clinic_id AND ps.promotion_id = p.id
               WHERE p.clinic_id = $1 AND p.status <> 'archived'
@@ -100,14 +101,16 @@ export async function catalogRoutes(
                       id: String(row.promotion_id),
                       percent,
                       endsOn: isoDate(row.ends_on),
-                      priceCents: discounted(Number(row.price_cents), percent),
+                      priceCents: Number(row.promo_price_cents),
                     },
             }
           }),
           promotions: promotions.rows.map((row) => ({
             id: String(row.id),
             name: String(row.name),
+            kind: row.kind === 'custom' ? 'custom' : 'percent',
             percent: Number(row.percent),
+            prices: row.prices as Record<string, number>,
             startsOn: isoDate(row.starts_on),
             endsOn: isoDate(row.ends_on),
             status: row.status,
@@ -209,7 +212,13 @@ export async function catalogRoutes(
           required: ['name', 'percent', 'startsOn', 'endsOn', 'status', 'showOnSite', 'serviceIds'],
           properties: {
             name: { type: 'string', minLength: 1, maxLength: 80 },
+            kind: { type: 'string', enum: ['percent', 'custom'] },
             percent: { type: 'integer', minimum: 1, maximum: 90 },
+            prices: {
+              type: 'object',
+              maxProperties: 80,
+              additionalProperties: { type: 'integer', minimum: 1, maximum: 100000000 },
+            },
             startsOn: dateSchema,
             endsOn: { anyOf: [dateSchema, { type: 'null' }] },
             status: { type: 'string', enum: ['active', 'paused', 'archived'] },

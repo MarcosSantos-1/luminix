@@ -7,6 +7,7 @@ import {
   CalendarRange,
   Check,
   Clock3,
+  Copy,
   Eye,
   EyeOff,
   Pause,
@@ -15,7 +16,7 @@ import {
   Plus,
   Scissors,
   ShieldAlert,
-  Sparkles,
+  Store,
   TrendingUp,
   TriangleAlert,
   UserRound,
@@ -23,6 +24,8 @@ import {
   Wand2,
 } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { FilterMenu, KpiCards, type FilterValue } from '../data-kit'
+import { QuickModal } from '../quick-modal'
 import catalogSuggestions from '@/lib/service-catalog.json'
 import {
   CheckboxField,
@@ -83,7 +86,11 @@ export type Service = {
 type Promotion = {
   id: string
   name: string
+  /** percent: one discount for every chosen service; custom: a price typed for each one. */
+  kind: 'percent' | 'custom'
   percent: number
+  /** Only for kind = custom: service id → promotional price in cents. */
+  prices: Record<string, number>
   startsOn: string
   endsOn: string | null
   status: 'active' | 'paused' | 'archived'
@@ -119,8 +126,74 @@ const priceTypes: { id: PriceType; label: string }[] = [
   { id: 'quote', label: 'Sob consulta' },
 ]
 const durations = [15, 20, 30, 40, 45, 50, 60, 75, 90, 120, 150, 180, 240]
+const defaultFilters: FilterValue = { status: ['active'], mode: [], price: [], other: [] }
+const sortOptions = [
+  { id: 'category', label: 'Por categoria' },
+  { id: 'name', label: 'Nome (A–Z)' },
+  { id: 'price-desc', label: 'Maior valor' },
+  { id: 'price-asc', label: 'Menor valor' },
+  { id: 'long', label: 'Mais demorados' },
+  { id: 'short', label: 'Mais rápidos' },
+  { id: 'popular', label: 'Mais agendados' },
+]
+const sorters: Record<string, (a: Service, b: Service) => number> = {
+  name: (a, b) => a.name.localeCompare(b.name, 'pt-BR'),
+  'price-desc': (a, b) => b.priceCents - a.priceCents,
+  'price-asc': (a, b) => a.priceCents - b.priceCents,
+  long: (a, b) => b.durationMinutes - a.durationMinutes,
+  short: (a, b) => a.durationMinutes - b.durationMinutes,
+  popular: (a, b) => b.bookings90d - a.bookings90d,
+}
 
-export function promotionState(promotion: Promotion, today: string) {
+/** Promotional price of a service inside a promotion (null when it is not a real discount). */
+function promoPrice(promotion: Promotion, service: Service) {
+  if (promotion.kind === 'custom') return promotion.prices[service.id] ?? null
+  return Math.round((service.priceCents * (100 - promotion.percent)) / 100)
+}
+
+/**
+ * Price list of a promotion, ready to paste on WhatsApp: title, period and one block per
+ * category ("subtítulo") with "de R$ X por R$ Y".
+ */
+function promotionText(promotion: Promotion, services: Service[]) {
+  const chosen = services.filter((service) => promotion.serviceIds.includes(service.id))
+  const lines = [`*${promotion.name.trim() || 'Promoção'}*`]
+  if (promotion.endsOn)
+    lines.push(`_De ${dateBr(promotion.startsOn)} até ${dateBr(promotion.endsOn)}_`)
+  for (const category of [...new Set(chosen.map((service) => service.category))]) {
+    lines.push('', `*${category}*`)
+    for (const service of chosen.filter((item) => item.category === category)) {
+      const price = promoPrice(promotion, service)
+      lines.push(
+        price == null
+          ? `• ${service.name}: ${money(service.priceCents)}`
+          : `• ${service.name}: de ~${money(service.priceCents)}~ por *${money(price)}*`,
+      )
+    }
+  }
+  return lines.join('\n')
+}
+
+async function copyText(text: string) {
+  try {
+    await navigator.clipboard.writeText(text)
+    return true
+  } catch {
+    return false
+  }
+}
+
+/** Editors replace the list on the same page: start them at the top, not where the list was. */
+function useScrollTop() {
+  useEffect(() => {
+    window.scrollTo({ top: 0 })
+  }, [])
+}
+
+export function promotionState(
+  promotion: Pick<Promotion, 'status' | 'startsOn' | 'endsOn'>,
+  today: string,
+) {
   if (promotion.status === 'archived') return { label: 'Encerrada', tone: 'off' as const }
   if (promotion.status === 'paused') return { label: 'Pausada', tone: 'off' as const }
   if (promotion.endsOn && promotion.endsOn < today)
@@ -155,7 +228,8 @@ export function ServicesPanel({
   const [query, setQuery] = useState('')
   useSearchFocus(focus, setQuery)
   const [category, setCategory] = useState('')
-  const [showPaused, setShowPaused] = useState(false)
+  const [filters, setFilters] = useState<FilterValue>(defaultFilters)
+  const [sort, setSort] = useState('category')
   const [notice, setNotice] = useState('')
   const [busy, setBusy] = useState('')
   const lastSignal = useRef(createSignal)
@@ -194,23 +268,60 @@ export function ServicesPanel({
   if (catalog.error && !data) return <LoadError message={catalog.error} onRetry={catalog.reload} />
   if (!data) return <SettingsSkeleton cards={2} />
 
-  if (editing)
-    return (
-      <ServiceEditor
-        key={editing.id}
-        api={api}
-        initial={editing}
-        isNew={!data.services.some((service) => service.id === editing.id)}
-        categories={categories}
-        onClose={(message) => {
-          setEditing(null)
-          if (message) {
-            setNotice(message)
-            catalog.reload()
-          }
-        }}
-      />
+  const needle = query.trim().toLocaleLowerCase('pt-BR')
+  const picked = (group: string) => filters[group] ?? []
+  const matches = (group: string, value: string) =>
+    !picked(group).length || picked(group).includes(value)
+  const visible = data.services.filter(
+    (service) =>
+      matches('status', service.status) &&
+      matches('mode', service.bookingMode) &&
+      matches('price', service.priceType) &&
+      (!picked('other').includes('promo') || Boolean(service.promotion)) &&
+      (!picked('other').includes('noteam') || service.professionals === 0) &&
+      (!picked('other').includes('sensitive') || service.sensitive) &&
+      (!category || service.category === category) &&
+      (!needle ||
+        `${service.name} ${service.category}`.toLocaleLowerCase('pt-BR').includes(needle)),
+  )
+  const ordered = sorters[sort]
+    ? [...visible].sort(sorters[sort])
+    : [...new Set(visible.map((service) => service.category))].flatMap((name) =>
+        visible.filter((service) => service.category === name),
+      )
+  const active = data.services.filter((service) => service.status === 'active')
+  const paused = data.services.length - active.length
+  const withoutTeam = active.filter((service) => service.professionals === 0).length
+  const onPromo = active.filter((service) => service.promotion).length
+  const activeFilters =
+    picked('mode').length +
+    picked('price').length +
+    picked('other').length +
+    (picked('status').length === 1 && picked('status')[0] === 'active' ? 0 : 1)
+  // Which KPI card matches the current filters, so it shows as pressed.
+  const same = (value: FilterValue) =>
+    ['status', 'mode', 'price', 'other'].every(
+      (group) => [...picked(group)].sort().join() === [...(value[group] ?? [])].sort().join(),
     )
+  const kpiFilters: Record<string, FilterValue> = {
+    site: defaultFilters,
+    promo: { ...defaultFilters, other: ['promo'] },
+    noteam: { ...defaultFilters, other: ['noteam'] },
+    paused: { ...defaultFilters, status: ['archived'] },
+  }
+  const activeKpi = Object.keys(kpiFilters).find((id) => same(kpiFilters[id])) ?? ''
+  // Examples in the texts follow what this space actually sells (a tattoo studio is not offered
+  // a "semana da sobrancelha").
+  const topCategory =
+    [...categories].sort(
+      (a, b) =>
+        active.filter((service) => service.category === b).length -
+        active.filter((service) => service.category === a).length,
+    )[0] ?? ''
+  const example = topCategory
+    ? `Semana de ${topCategory.toLocaleLowerCase('pt-BR')}`
+    : 'Semana especial'
+
   if (promo)
     return (
       <PromotionEditor
@@ -220,6 +331,7 @@ export function ServicesPanel({
         isNew={!data.promotions.some((item) => item.id === promo.id)}
         services={data.services.filter((service) => service.status === 'active')}
         today={data.today}
+        example={example}
         onClose={(message) => {
           setPromo(null)
           if (message) {
@@ -229,22 +341,6 @@ export function ServicesPanel({
         }}
       />
     )
-
-  const needle = query.trim().toLocaleLowerCase('pt-BR')
-  const visible = data.services.filter(
-    (service) =>
-      (showPaused || service.status === 'active') &&
-      (!category || service.category === category) &&
-      (!needle ||
-        `${service.name} ${service.category}`.toLocaleLowerCase('pt-BR').includes(needle)),
-  )
-  const groups = [...new Set(visible.map((service) => service.category))].map((name) => ({
-    name,
-    items: visible.filter((service) => service.category === name),
-  }))
-  const active = data.services.filter((service) => service.status === 'active')
-  const paused = data.services.length - active.length
-  const withoutTeam = active.filter((service) => service.professionals === 0).length
 
   async function setStatus(service: Service, status: 'active' | 'archived') {
     setBusy(service.id)
@@ -270,34 +366,44 @@ export function ServicesPanel({
 
   return (
     <div className="biz-stack">
-      <div className="biz-stats">
-        <div>
-          <span>Serviços no site</span>
-          <strong>{active.length}</strong>
-          <small>{paused ? `${paused} pausados` : 'Nenhum pausado'}</small>
-        </div>
-        <div>
-          <span>Em promoção</span>
-          <strong>{active.filter((service) => service.promotion).length}</strong>
-          <small>
-            {
-              data.promotions.filter((item) => promotionState(item, data.today).label === 'Ativa')
-                .length
-            }{' '}
-            promoções ativas
-          </small>
-        </div>
-        <div>
-          <span>Categorias</span>
-          <strong>{categories.length}</strong>
-          <small>Agrupam os serviços no site</small>
-        </div>
-        <div className={withoutTeam ? 'is-alert' : undefined}>
-          <span>Sem profissional</span>
-          <strong>{withoutTeam}</strong>
-          <small>{withoutTeam ? 'Ninguém da equipe faz' : 'Todos têm alguém'}</small>
-        </div>
-      </div>
+      <KpiCards
+        label="Resumo dos serviços"
+        active={activeKpi}
+        onSelect={(id) => setFilters(activeKpi === id ? defaultFilters : kpiFilters[id])}
+        items={[
+          {
+            id: 'site',
+            label: 'No site',
+            value: active.length,
+            hint: `${categories.length} ${categories.length === 1 ? 'categoria' : 'categorias'}`,
+            icon: <Store size={22} />,
+          },
+          {
+            id: 'promo',
+            label: 'Em promoção',
+            value: onPromo,
+            hint: onPromo ? 'Com preço promocional hoje' : 'Nenhum hoje',
+            icon: <BadgePercent size={22} />,
+            tone: 'good',
+          },
+          {
+            id: 'noteam',
+            label: 'Sem profissional',
+            value: withoutTeam,
+            hint: withoutTeam ? 'Ninguém da equipe faz' : 'Todos têm alguém',
+            icon: <UsersRound size={22} />,
+            tone: withoutTeam ? 'warn' : 'info',
+          },
+          {
+            id: 'paused',
+            label: 'Pausados',
+            value: paused,
+            hint: paused ? 'Fora do site e da agenda' : 'Nenhum pausado',
+            icon: <Pause size={22} />,
+            tone: 'info',
+          },
+        ]}
+      />
 
       {notice ? (
         <p className="team-notice" role="status">
@@ -321,14 +427,54 @@ export function ServicesPanel({
           ) : null
         }
       >
-        <div className="biz-toolbar">
+        <div className="data-toolbar">
           <SearchInput
-            className="biz-search"
+            className="data-search"
             ariaLabel="Buscar serviço"
             placeholder="Buscar serviço"
             value={query}
             onChange={setQuery}
           />
+          <SelectField
+            className="data-sort"
+            ariaLabel="Ordenar serviços"
+            value={sort}
+            onChange={setSort}
+            options={sortOptions}
+          />
+          <FilterMenu
+            value={filters}
+            onChange={setFilters}
+            activeCount={activeFilters}
+            onClear={() => setFilters(defaultFilters)}
+            groups={[
+              {
+                id: 'status',
+                label: 'Situação',
+                options: [
+                  { id: 'active', label: 'No site', count: active.length },
+                  { id: 'archived', label: 'Pausados', count: paused },
+                ],
+              },
+              {
+                id: 'other',
+                label: 'Mostrar apenas',
+                options: [
+                  { id: 'promo', label: 'Em promoção', count: onPromo },
+                  { id: 'noteam', label: 'Sem profissional', count: withoutTeam },
+                  { id: 'sensitive', label: 'Íntimos ou sensíveis' },
+                ],
+              },
+              {
+                id: 'mode',
+                label: 'Como a cliente agenda',
+                options: bookingModes.map(({ id, label }) => ({ id, label })),
+              },
+              { id: 'price', label: 'Tipo de preço', options: priceTypes },
+            ]}
+          />
+        </div>
+        {categories.length > 1 ? (
           <div className="biz-chips" role="group" aria-label="Filtrar por categoria">
             <button type="button" aria-pressed={!category} onClick={() => setCategory('')}>
               Todas
@@ -344,127 +490,118 @@ export function ServicesPanel({
               </button>
             ))}
           </div>
-          {paused ? (
-            <button type="button" className="team-link" onClick={() => setShowPaused(!showPaused)}>
-              {showPaused ? 'Esconder pausados' : `Mostrar pausados (${paused})`}
-            </button>
-          ) : null}
-        </div>
+        ) : null}
 
-        {groups.length ? (
+        {ordered.length ? (
           <ul className="biz-grid">
-            {groups
-              .flatMap((group) => group.items)
-              .map((service) => {
-                const Icon = serviceIcon(service.category, service.name)
-                const mode = bookingModes.find(({ id }) => id === service.bookingMode)
-                return (
-                  <li
-                    key={service.id}
-                    className={`biz-tile${service.status === 'archived' ? ' is-muted' : ''}`}
-                  >
-                    <div className="biz-tile-head">
-                      <span className="biz-tile-icon" aria-hidden>
-                        <Icon size={20} />
+            {ordered.map((service) => {
+              const Icon = serviceIcon(service.category, service.name)
+              const mode = bookingModes.find(({ id }) => id === service.bookingMode)
+              return (
+                <li
+                  key={service.id}
+                  className={`biz-tile${service.status === 'archived' ? ' is-muted' : ''}`}
+                >
+                  <div className="biz-tile-head">
+                    <span className="biz-tile-icon" aria-hidden>
+                      <Icon size={20} />
+                    </span>
+                    <div className="biz-tile-title">
+                      <strong title={service.name}>{service.name}</strong>
+                      <span className="biz-row-meta">
+                        {service.category} · <Clock3 size={13} aria-hidden />{' '}
+                        {service.durationMinutes} min
                       </span>
-                      <div className="biz-tile-title">
-                        <strong title={service.name}>{service.name}</strong>
-                        <span className="biz-row-meta">
-                          {service.category} · <Clock3 size={13} aria-hidden />{' '}
-                          {service.durationMinutes} min
-                        </span>
-                      </div>
-                      <div className="biz-price">
-                        {service.promotion?.priceCents != null && service.priceType !== 'quote' ? (
+                    </div>
+                    <div className="biz-price">
+                      {service.promotion?.priceCents != null && service.priceType !== 'quote' ? (
+                        <>
+                          <s>{money(service.priceCents)}</s>
+                          <strong>{priceLabel(service, service.promotion.priceCents)}</strong>
+                        </>
+                      ) : (
+                        <strong>{priceLabel(service)}</strong>
+                      )}
+                    </div>
+                  </div>
+                  <p className={`biz-tile-text${service.description ? '' : ' is-empty'}`}>
+                    {service.description ||
+                      'Sem descrição. Conte em uma frase o que está incluído.'}
+                  </p>
+                  <ul className="biz-tile-facts" aria-label="Detalhes">
+                    <li title={mode?.hint}>
+                      <CalendarCheck size={13} aria-hidden /> {mode?.label}
+                    </li>
+                    <li>
+                      <UsersRound size={13} aria-hidden />{' '}
+                      {service.professionals
+                        ? `${service.professionals} ${service.professionals === 1 ? 'profissional' : 'profissionais'}`
+                        : 'Sem profissional'}
+                    </li>
+                    {service.audience !== 'all' ? (
+                      <li>
+                        <UserRound size={13} aria-hidden />{' '}
+                        {service.audience === 'women' ? 'Só mulheres' : 'Só homens'}
+                      </li>
+                    ) : null}
+                    {service.bookings90d ? (
+                      <li>
+                        <TrendingUp size={13} aria-hidden /> {service.bookings90d} em 90 dias
+                      </li>
+                    ) : null}
+                    {service.sensitive ? (
+                      <li>
+                        <ShieldAlert size={13} aria-hidden /> Pede cuidado extra
+                      </li>
+                    ) : null}
+                  </ul>
+                  <div className="biz-tags">
+                    {service.status === 'archived' ? (
+                      <StatusPill tone="off">Pausado</StatusPill>
+                    ) : null}
+                    {service.promotion ? (
+                      <StatusPill tone="on">
+                        <BadgePercent size={12} aria-hidden /> -{service.promotion.percent}%
+                        {service.promotion.endsOn ? ` até ${dateBr(service.promotion.endsOn)}` : ''}
+                      </StatusPill>
+                    ) : null}
+                    {service.status === 'active' && !service.professionals ? (
+                      <button type="button" className="biz-warning" onClick={onOpenTeam}>
+                        <TriangleAlert size={13} aria-hidden /> Escolher quem faz
+                      </button>
+                    ) : null}
+                  </div>
+                  {data.canManage ? (
+                    <div className="biz-tile-actions">
+                      <Button size="sm" variant="secondary" onPress={() => setEditing(service)}>
+                        <Pencil size={14} aria-hidden /> Editar
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        isDisabled={busy === service.id}
+                        onPress={() =>
+                          void setStatus(
+                            service,
+                            service.status === 'active' ? 'archived' : 'active',
+                          )
+                        }
+                      >
+                        {service.status === 'active' ? (
                           <>
-                            <s>{money(service.priceCents)}</s>
-                            <strong>{priceLabel(service, service.promotion.priceCents)}</strong>
+                            <Pause size={14} aria-hidden /> Pausar
                           </>
                         ) : (
-                          <strong>{priceLabel(service)}</strong>
+                          <>
+                            <Play size={14} aria-hidden /> Reativar
+                          </>
                         )}
-                      </div>
+                      </Button>
                     </div>
-                    <p className={`biz-tile-text${service.description ? '' : ' is-empty'}`}>
-                      {service.description ||
-                        'Sem descrição. Conte em uma frase o que está incluído.'}
-                    </p>
-                    <ul className="biz-tile-facts" aria-label="Detalhes">
-                      <li title={mode?.hint}>
-                        <CalendarCheck size={13} aria-hidden /> {mode?.label}
-                      </li>
-                      <li>
-                        <UsersRound size={13} aria-hidden />{' '}
-                        {service.professionals
-                          ? `${service.professionals} ${service.professionals === 1 ? 'profissional' : 'profissionais'}`
-                          : 'Sem profissional'}
-                      </li>
-                      {service.audience !== 'all' ? (
-                        <li>
-                          <UserRound size={13} aria-hidden />{' '}
-                          {service.audience === 'women' ? 'Só mulheres' : 'Só homens'}
-                        </li>
-                      ) : null}
-                      {service.bookings90d ? (
-                        <li>
-                          <TrendingUp size={13} aria-hidden /> {service.bookings90d} em 90 dias
-                        </li>
-                      ) : null}
-                      {service.sensitive ? (
-                        <li>
-                          <ShieldAlert size={13} aria-hidden /> Pede cuidado extra
-                        </li>
-                      ) : null}
-                    </ul>
-                    <div className="biz-tags">
-                      {service.status === 'archived' ? (
-                        <StatusPill tone="off">Pausado</StatusPill>
-                      ) : null}
-                      {service.promotion ? (
-                        <StatusPill tone="on">
-                          <BadgePercent size={12} aria-hidden /> -{service.promotion.percent}%
-                          {service.promotion.endsOn
-                            ? ` até ${dateBr(service.promotion.endsOn)}`
-                            : ''}
-                        </StatusPill>
-                      ) : null}
-                      {service.status === 'active' && !service.professionals ? (
-                        <button type="button" className="biz-warning" onClick={onOpenTeam}>
-                          <TriangleAlert size={13} aria-hidden /> Escolher quem faz
-                        </button>
-                      ) : null}
-                    </div>
-                    {data.canManage ? (
-                      <div className="biz-tile-actions">
-                        <Button size="sm" variant="secondary" onPress={() => setEditing(service)}>
-                          <Pencil size={14} aria-hidden /> Editar
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          isDisabled={busy === service.id}
-                          onPress={() =>
-                            void setStatus(
-                              service,
-                              service.status === 'active' ? 'archived' : 'active',
-                            )
-                          }
-                        >
-                          {service.status === 'active' ? (
-                            <>
-                              <Pause size={14} aria-hidden /> Pausar
-                            </>
-                          ) : (
-                            <>
-                              <Play size={14} aria-hidden /> Reativar
-                            </>
-                          )}
-                        </Button>
-                      </div>
-                    ) : null}
-                  </li>
-                )
-              })}
+                  ) : null}
+                </li>
+              )
+            })}
           </ul>
         ) : (
           <Empty>Nenhum serviço encontrado com esse filtro.</Empty>
@@ -474,10 +611,10 @@ export function ServicesPanel({
       <SettingsCard
         icon={<BadgePercent size={20} />}
         title="Promoções"
-        description="Dê um desconto em porcentagem por um período. O site mostra o preço riscado e o novo valor."
+        description="Desconto em porcentagem ou um valor escolhido para cada serviço, por um período. O site mostra o preço riscado e o novo valor."
         help={{
           title: 'Como a promoção funciona?',
-          text: 'Escolha os serviços, a porcentagem e as datas. Enquanto estiver ativa, o site mostra “De R$ 100 por R$ 80” e os novos agendamentos já guardam o preço com desconto. Serviços “sob consulta” não entram em promoção.',
+          text: 'Escolha os serviços, o desconto (uma porcentagem para todos ou um valor para cada um) e as datas. Enquanto estiver ativa, o site mostra “De R$ 100 por R$ 80” e os novos agendamentos já guardam o preço com desconto. Serviços “sob consulta” não entram em promoção.',
         }}
         badge={
           data.canManage ? (
@@ -487,7 +624,9 @@ export function ServicesPanel({
                 setPromo({
                   id: crypto.randomUUID(),
                   name: '',
+                  kind: 'percent',
                   percent: 10,
+                  prices: {},
                   startsOn: data.today,
                   endsOn: null,
                   status: 'active',
@@ -519,7 +658,9 @@ export function ServicesPanel({
                       </span>
                     </div>
                     <div className="biz-price">
-                      <strong>-{item.percent}%</strong>
+                      <strong>
+                        {item.kind === 'custom' ? `até -${item.percent}%` : `-${item.percent}%`}
+                      </strong>
                     </div>
                   </div>
                   <div className="biz-row-main">
@@ -547,6 +688,21 @@ export function ServicesPanel({
                       <Button size="sm" variant="secondary" onPress={() => setPromo(item)}>
                         <Pencil size={14} aria-hidden /> Editar
                       </Button>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onPress={() =>
+                          void copyText(promotionText(item, data.services)).then((ok) =>
+                            setNotice(
+                              ok
+                                ? `Lista de “${item.name}” copiada. É só colar no WhatsApp.`
+                                : 'Não foi possível copiar. Tente de novo.',
+                            ),
+                          )
+                        }
+                      >
+                        <Copy size={14} aria-hidden /> Copiar para WhatsApp
+                      </Button>
                     </div>
                   ) : null}
                 </li>
@@ -555,11 +711,28 @@ export function ServicesPanel({
           </ul>
         ) : (
           <div className="biz-empty">
-            <Sparkles size={24} aria-hidden />
-            <p>Nenhuma promoção ainda. Que tal uma “Semana da sobrancelha” com 15% de desconto?</p>
+            <BadgePercent size={24} aria-hidden />
+            <p>Nenhuma promoção ainda. Que tal uma “{example}” com 15% de desconto?</p>
           </div>
         )}
       </SettingsCard>
+
+      {editing ? (
+        <ServiceEditor
+          key={editing.id}
+          api={api}
+          initial={editing}
+          isNew={!data.services.some((service) => service.id === editing.id)}
+          categories={categories}
+          onClose={(message) => {
+            setEditing(null)
+            if (message) {
+              setNotice(message)
+              catalog.reload()
+            }
+          }}
+        />
+      ) : null}
     </div>
   )
 }
@@ -637,14 +810,39 @@ function ServiceEditor({
     }
   }
 
+  const sample = (catalogSuggestions as Suggestion[])
+    .filter((item) => !categories.length || categories.includes(item.categoria))
+    .slice(0, 3)
+    .map((item) => item.nome.toLocaleLowerCase('pt-BR'))
+    .join(', ')
+
   return (
-    <div className="biz-stack">
-      <div className="team-editor-head">
-        <Button variant="secondary" onPress={() => onClose()}>
-          ← Voltar para os serviços
-        </Button>
-        <h3>{isNew ? 'Novo serviço' : `Editar ${initial.name}`}</h3>
-      </div>
+    <QuickModal
+      isOpen
+      onOpenChange={(open) => !open && onClose()}
+      size="xl"
+      title={isNew ? 'Novo serviço' : `Editar ${initial.name}`}
+      subtitle="O que você salvar aqui muda no site e na agenda na hora."
+      footer={
+        <>
+          {state.status === 'error' ? (
+            <span className="apt-error qm-foot-start" role="alert">
+              {state.message}
+            </span>
+          ) : null}
+          <Button variant="secondary" onPress={() => onClose()}>
+            Cancelar
+          </Button>
+          <Button isDisabled={state.status === 'saving'} onPress={() => void save()}>
+            {state.status === 'saving'
+              ? 'Salvando…'
+              : isNew
+                ? 'Adicionar ao catálogo'
+                : 'Salvar serviço'}
+          </Button>
+        </>
+      }
+    >
       {isNew ? (
         <SettingsCard
           icon={<Wand2 size={20} />}
@@ -654,7 +852,7 @@ function ServiceEditor({
           <SearchInput
             className="biz-search"
             ariaLabel="Buscar sugestão"
-            placeholder="Ex.: limpeza de pele, manicure, escova"
+            placeholder={`Ex.: ${sample || 'limpeza de pele, manicure, escova'}`}
             value={suggestQuery}
             onChange={setSuggestQuery}
           />
@@ -768,7 +966,7 @@ function ServiceEditor({
           />
         </div>
       </SettingsCard>
-      <SettingsCard icon={<Sparkles size={20} />} title="Como a cliente agenda">
+      <SettingsCard icon={<CalendarCheck size={20} />} title="Como a cliente agenda">
         <div className="access-pick" role="radiogroup" aria-label="Como agendar">
           {bookingModes.map((mode) => (
             <button
@@ -809,19 +1007,12 @@ function ServiceEditor({
           onChange={(sensitive) => set({ sensitive })}
         />
       </SettingsCard>
-      <SaveBar
-        dirty
-        state={state}
-        onSave={() => void save()}
-        onDiscard={() => onClose()}
-        label={isNew ? 'Adicionar ao catálogo' : 'Salvar serviço'}
-      />
       {isNew ? (
         <p className="settings-footnote">
           Depois de criar, marque em Configurações → Equipe quem da equipe faz este serviço.
         </p>
       ) : null}
-    </div>
+    </QuickModal>
   )
 }
 
@@ -831,6 +1022,7 @@ function PromotionEditor({
   isNew,
   services,
   today,
+  example,
   onClose,
 }: {
   api: ClinicApi
@@ -838,9 +1030,21 @@ function PromotionEditor({
   isNew: boolean
   services: Service[]
   today: string
+  /** Name suggestion that fits what this space sells. */
+  example: string
   onClose: (message?: string) => void
 }) {
+  useScrollTop()
   const [promotion, setPromotion] = useState(initial)
+  const [search, setSearch] = useState('')
+  const [onlyChosen, setOnlyChosen] = useState(false)
+  const [copied, setCopied] = useState('')
+  // Typed prices of the "valor por serviço" kind, as text, keyed by service id.
+  const [priceText, setPriceText] = useState<Record<string, string>>(() =>
+    Object.fromEntries(
+      Object.entries(initial.prices).map(([id, cents]) => [id, moneyInput(cents)]),
+    ),
+  )
   const [state, setState] = useState<SaveState>({ status: 'idle' })
   const [showErrors, setShowErrors] = useState(false)
   const set = (patch: Partial<Promotion>) => {
@@ -848,9 +1052,47 @@ function PromotionEditor({
     if (state.status !== 'saving') setState({ status: 'idle' })
   }
   const eligible = services.filter((service) => service.priceType !== 'quote')
+  const custom = promotion.kind === 'custom'
+  const chosen = eligible.filter((service) => promotion.serviceIds.includes(service.id))
+  const typed = (service: Service) => parseMoney(priceText[service.id] ?? '')
+  const validPrice = (service: Service) => {
+    const cents = typed(service)
+    return cents != null && cents > 0 && cents < service.priceCents
+  }
+  const prices = Object.fromEntries(
+    chosen.filter(validPrice).map((service) => [service.id, typed(service)!]),
+  )
+  // The largest discount summarizes a "valor por serviço" promotion in lists.
+  const customPercent = Math.min(
+    90,
+    Math.max(
+      1,
+      ...chosen
+        .filter(validPrice)
+        .map((service) => Math.round(100 - (typed(service)! * 100) / service.priceCents)),
+    ),
+  )
+  const preview: Promotion = custom ? { ...promotion, prices, percent: customPercent } : promotion
+  const needle = search.trim().toLocaleLowerCase('pt-BR')
+  const listed = eligible.filter(
+    (service) =>
+      (!onlyChosen || promotion.serviceIds.includes(service.id)) &&
+      (!needle ||
+        `${service.name} ${service.category}`.toLocaleLowerCase('pt-BR').includes(needle)),
+  )
+  const toggle = (service: Service) =>
+    set({
+      serviceIds: promotion.serviceIds.includes(service.id)
+        ? promotion.serviceIds.filter((id) => id !== service.id)
+        : [...promotion.serviceIds, service.id],
+    })
   const errors = {
     name: !promotion.name.trim() ? 'Dê um nome para a promoção.' : '',
-    services: !promotion.serviceIds.length ? 'Escolha pelo menos um serviço.' : '',
+    services: !promotion.serviceIds.length
+      ? 'Escolha pelo menos um serviço.'
+      : custom && !chosen.every(validPrice)
+        ? 'Digite o valor promocional de cada serviço escolhido, menor que o preço normal.'
+        : '',
     dates:
       promotion.endsOn && promotion.endsOn < promotion.startsOn
         ? 'O fim precisa ser depois do início.'
@@ -867,12 +1109,14 @@ function PromotionEditor({
     try {
       await api.put(`catalog/promotions/${promotion.id}`, {
         name: promotion.name.trim(),
-        percent: promotion.percent,
+        kind: promotion.kind,
+        percent: custom ? customPercent : promotion.percent,
+        ...(custom ? { prices } : {}),
         startsOn: promotion.startsOn,
         endsOn: promotion.endsOn,
         status,
         showOnSite: promotion.showOnSite,
-        serviceIds: promotion.serviceIds,
+        serviceIds: custom ? chosen.map((service) => service.id) : promotion.serviceIds,
       })
       onClose(
         status === 'archived'
@@ -907,39 +1151,69 @@ function PromotionEditor({
             label="Nome da promoção"
             value={promotion.name}
             maxLength={80}
-            placeholder="Ex.: Semana da sobrancelha"
+            placeholder={`Ex.: ${example}`}
             error={showErrors ? errors.name : undefined}
             onChange={(name) => set({ name })}
           />
           <div className="settings-field">
             <span className="settings-field-label">
-              <label>Desconto</label>
+              <label>Tipo de desconto</label>
             </span>
-            <div className="team-choice" role="radiogroup" aria-label="Porcentagem">
-              {[10, 15, 20, 25, 30, 50].map((value) => (
+            <div className="team-choice" role="radiogroup" aria-label="Tipo de desconto">
+              {(
+                [
+                  ['percent', 'Mesma porcentagem'],
+                  ['custom', 'Valor por serviço'],
+                ] as const
+              ).map(([id, label]) => (
                 <button
-                  key={value}
+                  key={id}
                   type="button"
                   role="radio"
-                  aria-checked={promotion.percent === value}
-                  onClick={() => set({ percent: value })}
+                  aria-checked={promotion.kind === id}
+                  onClick={() => set({ kind: id })}
                 >
-                  {value}%
+                  {label}
                 </button>
               ))}
-              <TextInputField
-                className="biz-percent"
-                ariaLabel="Outra porcentagem"
-                inputMode="numeric"
-                value={String(promotion.percent)}
-                suffix="%"
-                onChange={(text) => {
-                  const value = Number(text.replace(/\D/g, ''))
-                  set({ percent: Math.min(90, Math.max(1, value || 1)) })
-                }}
-              />
             </div>
           </div>
+          {custom ? (
+            <p className="settings-muted is-wide">
+              Você digita o valor promocional de cada serviço na lista abaixo. Bom para “flash day”,
+              combos e tabelas com preços redondos.
+            </p>
+          ) : (
+            <div className="settings-field is-wide">
+              <span className="settings-field-label">
+                <label>Desconto</label>
+              </span>
+              <div className="team-choice" role="radiogroup" aria-label="Porcentagem">
+                {[10, 15, 20, 25, 30, 50].map((value) => (
+                  <button
+                    key={value}
+                    type="button"
+                    role="radio"
+                    aria-checked={promotion.percent === value}
+                    onClick={() => set({ percent: value })}
+                  >
+                    {value}%
+                  </button>
+                ))}
+                <TextInputField
+                  className="biz-percent"
+                  ariaLabel="Outra porcentagem"
+                  inputMode="numeric"
+                  value={String(promotion.percent)}
+                  suffix="%"
+                  onChange={(text) => {
+                    const value = Number(text.replace(/\D/g, ''))
+                    set({ percent: Math.min(90, Math.max(1, value || 1)) })
+                  }}
+                />
+              </div>
+            </div>
+          )}
           <DateInputField
             label="Começa em"
             value={promotion.startsOn}
@@ -965,41 +1239,128 @@ function PromotionEditor({
       <SettingsCard
         icon={<Scissors size={20} />}
         title="Serviços na promoção"
-        description="Veja como fica o preço de cada um."
+        description={
+          custom
+            ? 'Marque os serviços e digite quanto cada um custa na promoção.'
+            : 'Veja como fica o preço de cada um.'
+        }
         badge={<StatusPill tone="info">{promotion.serviceIds.length} escolhidos</StatusPill>}
       >
         {showErrors && errors.services ? (
           <p className="settings-field-error">{errors.services}</p>
         ) : null}
-        <ul className="biz-promo-services">
-          {eligible.map((service) => {
-            const checked = promotion.serviceIds.includes(service.id)
-            return (
-              <li key={service.id}>
-                <CheckboxField
-                  label={service.name}
-                  description={service.category}
-                  isSelected={checked}
-                  onChange={() =>
-                    set({
-                      serviceIds: checked
-                        ? promotion.serviceIds.filter((id) => id !== service.id)
-                        : [...promotion.serviceIds, service.id],
-                    })
-                  }
-                />
-                <span className="biz-price">
-                  <s>{money(service.priceCents)}</s>
-                  <strong>
-                    {money(Math.round((service.priceCents * (100 - promotion.percent)) / 100))}
-                  </strong>
-                </span>
-              </li>
-            )
-          })}
-        </ul>
+        <div className="data-toolbar">
+          <SearchInput
+            className="data-search"
+            ariaLabel="Buscar serviço para a promoção"
+            placeholder="Buscar serviço ou categoria"
+            value={search}
+            onChange={setSearch}
+          />
+          <div className="biz-chips" role="group" aria-label="Mostrar">
+            <button type="button" aria-pressed={!onlyChosen} onClick={() => setOnlyChosen(false)}>
+              Todos
+            </button>
+            <button type="button" aria-pressed={onlyChosen} onClick={() => setOnlyChosen(true)}>
+              Escolhidos ({promotion.serviceIds.length})
+            </button>
+          </div>
+          <Button
+            size="sm"
+            variant="ghost"
+            isDisabled={!listed.length}
+            onPress={() => {
+              const ids = listed.map((service) => service.id)
+              const all = ids.every((id) => promotion.serviceIds.includes(id))
+              set({
+                serviceIds: all
+                  ? promotion.serviceIds.filter((id) => !ids.includes(id))
+                  : [...new Set([...promotion.serviceIds, ...ids])],
+              })
+            }}
+          >
+            {listed.length && listed.every((service) => promotion.serviceIds.includes(service.id))
+              ? 'Desmarcar os da lista'
+              : 'Marcar os da lista'}
+          </Button>
+        </div>
+        {listed.length ? (
+          <ul className="biz-promo-services">
+            {listed.map((service) => {
+              const checked = promotion.serviceIds.includes(service.id)
+              const invalid = custom && checked && showErrors && !validPrice(service)
+              return (
+                <li key={service.id}>
+                  <CheckboxField
+                    label={service.name}
+                    description={service.category}
+                    isSelected={checked}
+                    onChange={() => toggle(service)}
+                  />
+                  {custom ? (
+                    <span className="biz-price biz-promo-custom">
+                      <s>{money(service.priceCents)}</s>
+                      <TextInputField
+                        className="biz-promo-input"
+                        ariaLabel={`Valor promocional de ${service.name}`}
+                        inputMode="numeric"
+                        placeholder="0,00"
+                        prefix="R$"
+                        value={priceText[service.id] ?? ''}
+                        error={invalid ? 'Menor que o normal' : undefined}
+                        onChange={(text) => {
+                          setPriceText((current) => ({ ...current, [service.id]: text }))
+                          if (text && !checked) toggle(service)
+                          else if (state.status !== 'saving') setState({ status: 'idle' })
+                        }}
+                      />
+                    </span>
+                  ) : (
+                    <span className="biz-price">
+                      <s>{money(service.priceCents)}</s>
+                      <strong>
+                        {money(Math.round((service.priceCents * (100 - promotion.percent)) / 100))}
+                      </strong>
+                    </span>
+                  )}
+                </li>
+              )
+            })}
+          </ul>
+        ) : (
+          <Empty>Nenhum serviço com esse nome.</Empty>
+        )}
         {services.length > eligible.length ? (
           <p className="settings-footnote">Serviços “sob consulta” não entram em promoção.</p>
+        ) : null}
+      </SettingsCard>
+      <SettingsCard
+        icon={<Copy size={20} />}
+        title="Divulgar no WhatsApp"
+        description="Lista pronta com o nome da promoção, as categorias e os preços. Copie e cole na conversa, no status ou no grupo."
+        badge={
+          <Button
+            size="sm"
+            isDisabled={!chosen.length}
+            onPress={() =>
+              void copyText(promotionText(preview, services)).then((ok) =>
+                setCopied(ok ? 'Copiado! É só colar no WhatsApp.' : 'Não foi possível copiar.'),
+              )
+            }
+          >
+            <Copy size={15} aria-hidden /> Copiar lista
+          </Button>
+        }
+      >
+        {chosen.length ? (
+          <pre className="biz-promo-text">{promotionText(preview, services)}</pre>
+        ) : (
+          <Empty>Escolha os serviços para ver a lista.</Empty>
+        )}
+        {copied ? (
+          <p className="team-notice" role="status">
+            <Check size={16} aria-hidden /> {copied}
+          </p>
         ) : null}
       </SettingsCard>
       <div className="team-danger">

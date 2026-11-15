@@ -6,13 +6,15 @@ import {
   Bell,
   Bug,
   ChevronDown,
+  CreditCard,
   LogOut,
   Plus,
   Search,
   Settings2,
   UserRound,
 } from 'lucide-react'
-import { useMemo, useRef, useState, type ReactNode } from 'react'
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import './data-kit.css'
 import { useManagerMessages } from '@/hooks/use-manager-messages'
 import { useManagerLayout } from '@/hooks/use-manager-layout'
 import { useManagerSpotlight } from '@/hooks/use-manager-spotlight'
@@ -33,7 +35,6 @@ import {
 } from './manager-settings-nav'
 import './manager-controls.css'
 import { HomePanels } from './sections/home-panels'
-import { ClientsPanel } from './sections/clients-panel'
 import { SectionSketchView } from './sections/section-sketch'
 import type { ClinicApi } from './settings/clinic-api'
 import {
@@ -127,6 +128,10 @@ export function ManagerHome({
   const allowedIds = useMemo(() => navigation.map((item) => item.id), [navigation])
   const { section: sectionId, select } = useManagerSection(allowedIds, initialSection)
   const section = navigation.find((item) => item.id === sectionId) ?? navigation[0]
+  // Every page starts at the top, wherever the previous one was scrolled to.
+  useEffect(() => {
+    window.scrollTo({ top: 0 })
+  }, [sectionId])
   const firstName = userName.trim().split(/\s+/)[0] || 'Gestor'
   const initials =
     userName
@@ -446,10 +451,25 @@ export function ManagerHome({
             onNavigate={navigate}
           />
         )}
-        {realClinic && section.id === 'clientes' && (
-          <ClientsPanel createSignal={createSignal} focus={panelFocus} />
-        )}
-        {section.id === 'financeiro' && payments}
+        {section.id === 'financeiro' && payments ? (
+          // Optional feature: kept out of the way for spaces that only register payments by hand.
+          <details className="fold" open={!realPanel}>
+            <summary>
+              <span className="kpi-icon" aria-hidden>
+                <CreditCard size={22} />
+              </span>
+              <span className="fold-copy">
+                <strong>Receber pelo app (Stripe)</strong>
+                <small>
+                  Opcional: cartão, Pix e boleto pagos pela cliente ao agendar. Abra para configurar
+                  ou acompanhar.
+                </small>
+              </span>
+              <ChevronDown className="fold-chevron" size={20} aria-hidden />
+            </summary>
+            <div className="fold-body">{payments}</div>
+          </details>
+        ) : null}
         {section.id === 'midia' && media}
         {sketch && (
           <SectionSketchView

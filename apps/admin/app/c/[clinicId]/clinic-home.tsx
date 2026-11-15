@@ -16,6 +16,7 @@ import { FinancePanel } from '@/components/manager/business/finance-panel'
 import { ReportsPanel } from '@/components/manager/business/reports-panel'
 import { InventoryPanel } from '@/components/manager/business/inventory-panel'
 import { MarketingPanel } from '@/components/manager/business/marketing-panel'
+import { ClientsPanel } from '@/components/manager/sections/clients-panel'
 import { AgendaPanel } from '@/components/manager/sections/agenda-panel'
 import { ClinicSettings } from '@/components/manager/sections/clinic-settings'
 import { useClinicApi } from '@/components/manager/settings/clinic-api'
@@ -110,6 +111,14 @@ export function ClinicHome({
             clinicId={clinic.id}
             createSignal={createSignal}
             onOpenClient={(client) => go({ section: 'clientes', query: client.name })}
+          />
+        ),
+        clientes: ({ createSignal, focus }) => (
+          <ClientsPanel
+            clinicId={clinic.id}
+            clinicName={clinic.name}
+            createSignal={createSignal}
+            focus={focus}
           />
         ),
         ...(clinic.status === 'active'

@@ -1,7 +1,8 @@
 'use client'
 
 import { Modal } from '@heroui/react'
-import type { ReactNode } from 'react'
+import { useRef, type ReactNode } from 'react'
+import { morphFrom } from './data-kit'
 import './appointments/appointments.css'
 
 /**
@@ -17,6 +18,7 @@ export function QuickModal({
   size = 'md',
   footer,
   className,
+  morph,
   children,
 }: {
   isOpen: boolean
@@ -27,8 +29,11 @@ export function QuickModal({
   size?: 'md' | 'lg' | 'xl' | 'wide'
   footer?: ReactNode
   className?: string
+  /** Rectangle of the card that opened it: the dialog grows out of that card. */
+  morph?: DOMRect | null
   children: ReactNode
 }) {
+  const animated = useRef<DOMRect | null>(null)
   return (
     <Modal.Backdrop isOpen={isOpen} onOpenChange={onOpenChange} variant="blur" className="qm-back">
       <Modal.Container size="lg" scroll="inside" className="qm-container">
@@ -37,6 +42,17 @@ export function QuickModal({
         >
           <Modal.CloseTrigger aria-label="Fechar" />
           <Modal.Header className="qm-head">
+            {morph ? (
+              <span
+                hidden
+                ref={(marker) => {
+                  // Modal.Dialog takes no ref; this marker finds the dialog once it mounts.
+                  if (!marker || animated.current === morph) return
+                  animated.current = morph
+                  morphFrom(marker.closest<HTMLElement>('[role="dialog"]'), morph)
+                }}
+              />
+            ) : null}
             <Modal.Heading>{title}</Modal.Heading>
             {subtitle ? <p className="qm-sub">{subtitle}</p> : null}
           </Modal.Header>

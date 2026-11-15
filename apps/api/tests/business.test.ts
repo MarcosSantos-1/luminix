@@ -242,6 +242,41 @@ describe('promotions and appointment prices', () => {
       (await publicServices('a')).find((item) => item.name === 'Corte')?.promoPercent,
     ).toBeNull()
   })
+
+  it('sells a service at a hand-picked promotion price and refuses a non-discount', async () => {
+    const promo = crypto.randomUUID()
+    const today = (await call('owner-a', 'GET', `/clinics/${c('a').id}/catalog`)).json()
+      .today as string
+    const body = {
+      name: 'Flash day',
+      kind: 'custom',
+      percent: 35,
+      startsOn: today,
+      endsOn: null,
+      status: 'active',
+      showOnSite: true,
+      serviceIds: [c('a').service],
+      prices: { [c('a').service]: 6500 },
+    }
+    const put = (payload: object) =>
+      call('owner-a', 'PUT', `/clinics/${c('a').id}/catalog/promotions/${promo}`, payload)
+    // Not below the catalog price (R$ 100), or missing: refused.
+    expect((await put({ ...body, prices: { [c('a').service]: 10000 } })).statusCode).toBe(400)
+    expect((await put({ ...body, prices: {} })).statusCode).toBe(400)
+    expect((await put(body)).statusCode).toBe(200)
+
+    const corte = (await publicServices('a')).find((item) => item.name === 'Corte')!
+    expect(corte).toMatchObject({ priceCents: 10000, promoPercent: 35, promoPriceCents: 6500 })
+    const catalog = (await call('owner-a', 'GET', `/clinics/${c('a').id}/catalog`)).json()
+    expect(catalog.promotions.find((item: { id: string }) => item.id === promo)).toMatchObject({
+      kind: 'custom',
+      prices: { [c('a').service]: 6500 },
+    })
+    expect(
+      catalog.services.find((item: { id: string }) => item.id === c('a').service).promotion,
+    ).toMatchObject({ id: promo, priceCents: 6500 })
+    expect((await put({ ...body, status: 'archived' })).statusCode).toBe(200)
+  })
 })
 
 describe('appointments, finance and reports', () => {

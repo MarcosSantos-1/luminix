@@ -5,6 +5,7 @@ import { ManagerHome } from '@/components/manager/manager-home'
 import { ClinicSettings } from '@/components/manager/sections/clinic-settings'
 import { MediaLibrary } from '@/components/manager/media/media-library'
 import { HomeDashboard } from '@/components/manager/business/home-dashboard'
+import { ClientsPanel } from '@/components/manager/sections/clients-panel'
 import { AgendaPanel } from '@/components/manager/sections/agenda-panel'
 import { ServicesPanel } from '@/components/manager/business/services-panel'
 import { FinancePanel } from '@/components/manager/business/finance-panel'
@@ -339,7 +340,9 @@ const fixtures: Record<string, unknown> = {
       {
         id: 'p1',
         name: 'Novembro colorido',
+        kind: 'percent',
         percent: 20,
+        prices: {},
         startsOn: '2026-11-01',
         endsOn: '2026-11-30',
         status: 'active',
@@ -667,6 +670,43 @@ const qaSearch: Record<string, { id: string; title: string; detail: string }[]> 
   finance: [{ id: 'f1', title: 'Tintura Lumière', detail: 'Despesa · R$ 120,00' }],
   media: [],
 }
+const qaAgo = (days: number) => new Date(Date.now() - days * 86400000).toISOString()
+const qaClients = [
+  [
+    'Cecília Araújo',
+    '+5511987650000',
+    8,
+    96000,
+    12,
+    -3,
+    240,
+    'Alergia a amônia. Gestante (2º trimestre).',
+  ],
+  ['Beatriz Lopes', '+5511912345678', 3, 36000, 75, null, 200, null],
+  ['Juliana Lima', '+5511955554444', 0, 0, null, -6, 4, null],
+  ['Camila Santos', null, 1, 12000, 20, null, 18, 'Prefere atendimento à tarde.'],
+  ['Marina Duarte', '+5511944443333', 14, 210000, 6, -10, 400, null],
+  ['Renata Prado', '+5511933332222', 2, 24000, 130, null, 300, null],
+].map(([name, phone, completed, spent, last, next, since, notes], index) => ({
+  id: `qa-client-${index}`,
+  display_name: name as string,
+  contact_phone: phone as string | null,
+  contact_email: index === 3 ? 'camila@example.com' : null,
+  birth_date:
+    index % 2 ? '1990-03-12' : `1991-${String(new Date().getMonth() + 1).padStart(2, '0')}-18`,
+  notes: notes as string | null,
+  status: index === 5 ? 'archived' : 'active',
+  created_at: qaAgo(since as number),
+  sex: 'female',
+  marketing_opt_in: index % 2 === 0,
+  linked: index === 0,
+  tax_id_masked: null,
+  appointment_count: (completed as number) + (next == null ? 0 : 1),
+  completed_count: completed as number,
+  spent_cents: spent as number,
+  last_visit_at: last == null ? null : qaAgo(last as number),
+  next_visit_at: next == null ? null : qaAgo(next as number),
+}))
 const qaFold = (value: string) =>
   value
     .normalize('NFD')
@@ -722,6 +762,14 @@ export default function QASettings({
         }
         if (path.startsWith('library/items') && !fixtures[path]) return { items: [] } as T
         if (path === 'agenda') return qaAgenda() as T
+        if (path === 'clients') {
+          const rows = qaClients.filter(
+            (client) =>
+              (!query?.status || query.status === 'all' || client.status === query.status) &&
+              qaFold(client.display_name).includes(qaFold(query?.q ?? '')),
+          )
+          return { canSeeMoney: true, clients: rows } as T
+        }
         if (path.startsWith('clients/'))
           return {
             client: {
@@ -731,8 +779,22 @@ export default function QASettings({
               notes: 'Alergia a amônia. Gestante (2º trimestre).',
             },
             history: [
-              { id: 'h1', starts_at: '2026-10-02T13:00:00Z', status: 'completed' },
-              { id: 'h2', starts_at: '2026-09-04T13:00:00Z', status: 'completed' },
+              {
+                id: 'h1',
+                starts_at: '2026-10-02T13:00:00Z',
+                status: 'completed',
+                service_name: 'Coloração',
+                professional_name: 'Joana Lima',
+                price_cents: 20000,
+              },
+              {
+                id: 'h2',
+                starts_at: '2026-09-04T13:00:00Z',
+                status: 'completed',
+                service_name: 'Corte feminino',
+                professional_name: null,
+                price_cents: 12000,
+              },
             ],
           } as T
         if (path === 'team')
@@ -851,6 +913,14 @@ export default function QASettings({
             panels={{
               agenda: ({ createSignal }) => (
                 <AgendaPanel clinicId={clinic.id} createSignal={createSignal} />
+              ),
+              clientes: ({ createSignal, focus }) => (
+                <ClientsPanel
+                  clinicId={clinic.id}
+                  clinicName={clinic.name}
+                  createSignal={createSignal}
+                  focus={focus}
+                />
               ),
               inicio: ({ navigate }) => (
                 <HomeDashboard

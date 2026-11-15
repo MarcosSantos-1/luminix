@@ -93,7 +93,7 @@ export function ClientAvatar({
   )
 }
 
-function Action({
+export function Action({
   icon: Icon,
   title,
   hint,
@@ -133,7 +133,15 @@ function Action({
   )
 }
 
-function Fact({ label, children, tone }: { label: string; children: ReactNode; tone?: string }) {
+export function Fact({
+  label,
+  children,
+  tone,
+}: {
+  label: string
+  children: ReactNode
+  tone?: string
+}) {
   return (
     <div className={`apt-fact${tone ? ` is-${tone}` : ''}`}>
       <span>{label}</span>
