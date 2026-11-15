@@ -8,7 +8,11 @@
   --surface: transparent;
 }
 .ws-drawer-dialog {
-  width: min(520px, 100vw);
+  /* The drawer renders outside the panel shell, so it carries its own tokens. */
+  --manager-text: #fff;
+  --manager-muted: #ffffffbf;
+  --manager-border: #ffffff26;
+  width: min(560px, 100vw);
   color: #fff;
   background: color-mix(in srgb, var(--space-deep, rgb(92, 16, 48)) 94%, #000);
   border-left: 1px solid color-mix(in srgb, var(--space-highlight, #ffb5d3) 40%, transparent);
@@ -20,9 +24,12 @@
   font-size: 20px;
 }
 .ws-drawer-dialog .drawer__body {
-  display: grid;
-  align-content: start;
+  display: flex;
+  flex-direction: column;
   gap: 12px;
+}
+.ws-drawer-dialog .drawer__body > * {
+  flex: none;
 }
 .ws-tabs {
   display: grid;
@@ -51,12 +58,10 @@
   background: color-mix(in srgb, var(--space-accent, #ec287a) 60%, transparent);
 }
 .ws-filters {
-  overflow-x: auto;
-  flex-wrap: nowrap;
-  padding-bottom: 4px;
+  flex-wrap: wrap;
 }
 .ws-filters button {
-  flex: none;
+  color: #fff;
 }
 .ws-bulk {
   display: flex;
@@ -115,10 +120,10 @@
 .ws-icon {
   display: grid;
   place-items: center;
-  width: 36px;
-  height: 36px;
+  width: 38px;
+  height: 38px;
+  border: 1px solid #ffffff20;
   border-radius: 12px;
-  background: #ffffff14;
 }
 .ws-activity-copy {
   display: grid;
@@ -150,13 +155,14 @@
 }
 @media (max-width: 520px) {
   .ws-activity li {
-    grid-template-columns: auto 1fr auto;
+    grid-template-columns: auto auto 1fr;
   }
-  .ws-activity .ws-icon {
+  .ws-activity .ws-select {
     display: none;
   }
   .ws-row-actions {
-    flex-direction: column;
+    grid-column: 2 / -1;
+    justify-content: flex-end;
   }
 }
 

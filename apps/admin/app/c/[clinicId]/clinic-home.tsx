@@ -16,6 +16,7 @@ import { FinancePanel } from '@/components/manager/business/finance-panel'
 import { ReportsPanel } from '@/components/manager/business/reports-panel'
 import { InventoryPanel } from '@/components/manager/business/inventory-panel'
 import { MarketingPanel } from '@/components/manager/business/marketing-panel'
+import { AgendaPanel } from '@/components/manager/sections/agenda-panel'
 import { ClinicSettings } from '@/components/manager/sections/clinic-settings'
 import { useClinicApi } from '@/components/manager/settings/clinic-api'
 import type { SearchFocus } from '@/components/manager/workspace/workspace-signals'
@@ -103,11 +104,23 @@ export function ClinicHome({
       initialSettingsTab={initialSettingsTab}
       payments={<ConnectPanel dashboard />}
       media={permissions.includes('media:read') ? <MediaLibrary clinicId={clinic.id} /> : undefined}
-      panels={
-        clinic.status === 'active'
+      panels={{
+        agenda: ({ createSignal, go }) => (
+          <AgendaPanel
+            clinicId={clinic.id}
+            createSignal={createSignal}
+            onOpenClient={(client) => go({ section: 'clientes', query: client.name })}
+          />
+        ),
+        ...(clinic.status === 'active'
           ? {
-              inicio: ({ navigate }) => (
-                <HomeDashboard clinicId={clinic.id} sections={sections} onNavigate={navigate} />
+              inicio: ({ navigate, go }) => (
+                <HomeDashboard
+                  clinicId={clinic.id}
+                  sections={sections}
+                  onNavigate={navigate}
+                  onOpenClient={(client) => go({ section: 'clientes', query: client.name })}
+                />
               ),
               servicos: ({ createSignal, navigate, focus }) => (
                 <ServicesPanel
@@ -146,8 +159,8 @@ export function ClinicHome({
                 <MarketingPanel clinicId={clinic.id} clinicName={clinic.name} onOpen={navigate} />
               ),
             }
-          : undefined
-      }
+          : {}),
+      }}
       settings={
         canOpenSettings
           ? (tab, open) => (

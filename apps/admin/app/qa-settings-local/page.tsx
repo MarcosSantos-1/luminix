@@ -5,9 +5,15 @@ import QASettings from './qa-client'
 export default async function QASettingsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ view?: string; tab?: string }>
+  searchParams: Promise<{ view?: string; tab?: string; section?: string }>
 }) {
   if (process.env.NODE_ENV !== 'development') notFound()
   const params = await searchParams
-  return <QASettings view={params.view === 'editor' ? 'editor' : 'settings'} tab={params.tab} />
+  return (
+    <QASettings
+      view={params.view === 'editor' ? 'editor' : 'settings'}
+      tab={params.tab}
+      section={params.section}
+    />
+  )
 }

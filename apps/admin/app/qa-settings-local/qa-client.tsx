@@ -5,6 +5,7 @@ import { ManagerHome } from '@/components/manager/manager-home'
 import { ClinicSettings } from '@/components/manager/sections/clinic-settings'
 import { MediaLibrary } from '@/components/manager/media/media-library'
 import { HomeDashboard } from '@/components/manager/business/home-dashboard'
+import { AgendaPanel } from '@/components/manager/sections/agenda-panel'
 import { ServicesPanel } from '@/components/manager/business/services-panel'
 import { FinancePanel } from '@/components/manager/business/finance-panel'
 import { ReportsPanel } from '@/components/manager/business/reports-panel'
@@ -246,16 +247,42 @@ const fixtures: Record<string, unknown> = {
       ['13:00', 'Beatriz Alves', 'Limpeza de pele', 'confirmed', 18000],
       ['15:30', 'Mariana Costa', 'Design de sobrancelhas', 'no_show', 6000],
     ].map(([time, client, service, status, price], index) => ({
-      id: `a-${index}`,
+      id: `a1b2c3d4-0000-4000-8000-0000000001${index}0`,
       startsAt: `2026-11-09T${time}:00-03:00`,
       endsAt: `2026-11-09T${time}:00-03:00`,
+      previousStartsAt: index === 2 ? '2026-11-06T14:00:00-03:00' : null,
       status,
+      clientId: 'a1b2c3d4-0000-4000-8000-000000000101',
       client,
       phone: '+5511987654321',
+      clientNotes: index === 1 ? 'Alergia a amônia. Gestante (2º trimestre).' : null,
+      notes: null,
+      warnings: [],
       service,
       professional: 'Joana Lima',
       priceCents: price,
+      paid: index === 0,
       promotion: index === 1,
+    })),
+    upcoming: [
+      ['2026-11-10T09:00', 'Renata Dias', 'Coloração', 25000],
+      ['2026-11-11T14:00', 'Paula Mendes', 'Limpeza de pele', 18000],
+    ].map(([when, client, service, price], index) => ({
+      id: `a1b2c3d4-0000-4000-8000-0000000002${index}0`,
+      startsAt: `${when}:00-03:00`,
+      endsAt: `${when}:00-03:00`,
+      previousStartsAt: null,
+      status: index ? 'scheduled' : 'confirmed',
+      clientId: 'a1b2c3d4-0000-4000-8000-000000000101',
+      client,
+      phone: '+5511987654321',
+      clientNotes: null,
+      notes: null,
+      warnings: [],
+      service,
+      professional: 'Joana Lima',
+      priceCents: price,
+      paid: false,
     })),
     activity: [
       {
@@ -489,6 +516,92 @@ const fixtures: Record<string, unknown> = {
 }
 
 const minutesAgo = (minutes: number) => new Date(Date.now() - minutes * 60000).toISOString()
+const qaPeople = [
+  { id: 'a1b2c3d4-0000-4000-8000-000000000201', name: 'Joana Lima' },
+  { id: 'a1b2c3d4-0000-4000-8000-000000000202', name: 'Maria Aparecida' },
+]
+
+/** Agenda of the current week: confirmed, pending, paid, canceled and rescheduled examples. */
+function qaAgenda() {
+  const monday = new Date()
+  monday.setHours(0, 0, 0, 0)
+  monday.setDate(monday.getDate() + (monday.getDay() === 0 ? -6 : 1 - monday.getDay()))
+  const at = (offset: number, time: string) => {
+    const day = new Date(monday)
+    day.setDate(day.getDate() + offset)
+    const date = `${day.getFullYear()}-${String(day.getMonth() + 1).padStart(2, '0')}-${String(day.getDate()).padStart(2, '0')}`
+    return `${date}T${time}:00-03:00`
+  }
+  const rows = [
+    [0, '09:00', 'Juliana Lima', 'Corte feminino', 'completed', true, null],
+    [0, '11:00', 'Camila Santos', 'Coloração', 'confirmed', false, null],
+    [
+      1,
+      '14:00',
+      'Beatriz Alves',
+      'Limpeza de pele profunda com extração',
+      'scheduled',
+      false,
+      null,
+    ],
+    [2, '10:00', 'Mariana Costa', 'Design de sobrancelhas', 'canceled', false, null],
+    [2, '15:30', 'Renata Dias', 'Coloração', 'confirmed', false, at(1, '16:00')],
+    [4, '09:30', 'Paula Mendes', 'Corte feminino', 'confirmed', true, null],
+    [4, '13:00', 'Sofia Rocha', 'Laser CO2', 'no_show', false, null],
+  ] as const
+  return {
+    appointments: rows.map(([offset, time, client, service, status, paid, previous], index) => ({
+      id: `a1b2c3d4-0000-4000-8000-0000000003${index}0`,
+      starts_at: at(offset, time),
+      ends_at: at(offset, time),
+      previous_starts_at: previous,
+      status,
+      override_reasons: index === 1 ? ['overlap'] : [],
+      notes: null,
+      price_cents: 12000 + index * 2000,
+      paid,
+      client_id: 'a1b2c3d4-0000-4000-8000-000000000101',
+      client_name: client,
+      client_phone: '+5511987654321',
+      client_notes: index === 1 ? 'Alergia a amônia. Gestante (2º trimestre).' : null,
+      service_name: service,
+      professional_name: qaPeople[index % 2].name,
+    })),
+    clients: ['Juliana Lima', 'Camila Santos', 'Beatriz Alves'].map((display_name, index) => ({
+      id: `a1b2c3d4-0000-4000-8000-00000000010${index + 1}`,
+      display_name,
+    })),
+    services: services.map(([id, name]) => ({ id, name, duration_minutes: 60 })),
+    professionals: qaPeople.map(({ id, name }) => ({ id, display_name: name })),
+    weeklyAvailability: [0, 1, 2, 3, 4, 5, 6].map((weekday) => ({
+      weekday,
+      is_available: weekday > 0 && weekday < 6,
+      periods:
+        weekday > 0 && weekday < 6
+          ? [
+              { start: '08:00', end: '12:00' },
+              { start: '13:00', end: '18:00' },
+            ]
+          : [],
+    })),
+    overrides: [
+      {
+        local_date: at(3, '00:00').slice(0, 10),
+        is_available: false,
+        periods: [],
+        reason: 'Feriado',
+      },
+    ],
+    professionalAvailability: [],
+    timezone: 'America/Sao_Paulo',
+    canManage: true,
+    canManageHours: true,
+    canManageTeam: true,
+    canCharge: true,
+    canOpenClients: true,
+  }
+}
+
 const qaActivity = [
   [
     'appointments',
@@ -562,7 +675,15 @@ const qaFold = (value: string) =>
 
 const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
 
-export default function QASettings({ view, tab }: { view: 'settings' | 'editor'; tab?: string }) {
+export default function QASettings({
+  view,
+  tab,
+  section,
+}: {
+  view: 'settings' | 'editor'
+  tab?: string
+  section?: string
+}) {
   const api = useMemo<ClinicApi>(
     () => ({
       ready: true,
@@ -600,6 +721,41 @@ export default function QASettings({ view, tab }: { view: 'settings' | 'editor';
           } as T
         }
         if (path.startsWith('library/items') && !fixtures[path]) return { items: [] } as T
+        if (path === 'agenda') return qaAgenda() as T
+        if (path.startsWith('clients/'))
+          return {
+            client: {
+              contact_phone: '+5511987654321',
+              contact_email: 'cliente@example.com',
+              birth_date: '1991-04-18',
+              notes: 'Alergia a amônia. Gestante (2º trimestre).',
+            },
+            history: [
+              { id: 'h1', starts_at: '2026-10-02T13:00:00Z', status: 'completed' },
+              { id: 'h2', starts_at: '2026-09-04T13:00:00Z', status: 'completed' },
+            ],
+          } as T
+        if (path === 'team')
+          return {
+            professionals: qaPeople.map((person, index) => ({
+              ...person,
+              role: 'Cabeleireira',
+              gender: 'female',
+              audience: 'all',
+              membershipId: null,
+              photoAssetId: '',
+              photoUrl: null,
+              serviceIds: [],
+              serviceAudiences: {},
+              days: [0, 1, 2, 3, 4, 5, 6].map((weekday) => ({
+                weekday,
+                enabled: weekday > 0 && weekday < 6 - index,
+                start: '09:00',
+                end: '18:00',
+                breaks: [{ start: '12:00', end: '13:00' }],
+              })),
+            })),
+          } as T
         if (path.startsWith('reports'))
           return {
             from: '2026-11-01',
@@ -688,11 +844,14 @@ export default function QASettings({ view, tab }: { view: 'settings' | 'editor';
             clinicName={clinic.name}
             userName="Maria"
             canManageSettings
-            initialSection="configuracoes"
+            initialSection={section ?? 'configuracoes'}
             initialSettingsTab={tab}
             workspace={{ api, clinicId: clinic.id, canAudit: true }}
             media={<MediaLibrary clinicId={clinic.id} />}
             panels={{
+              agenda: ({ createSignal }) => (
+                <AgendaPanel clinicId={clinic.id} createSignal={createSignal} />
+              ),
               inicio: ({ navigate }) => (
                 <HomeDashboard
                   clinicId={clinic.id}

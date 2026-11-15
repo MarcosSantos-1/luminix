@@ -204,6 +204,76 @@ describe('clinic clients and manager scheduling', () => {
   })
 })
 
+describe('rescheduling, canceling and the agenda read model', () => {
+  const range = 'agenda?from=2030-01-07T00:00:00.000Z&to=2030-01-15T23:59:59.999Z'
+  type Row = {
+    id: string
+    status: string
+    starts_at: string
+    previous_starts_at: string | null
+    paid: boolean
+  }
+  const rows = async () =>
+    (await call('agenda-a', 'GET', clinicA, range)).json().appointments as Row[]
+
+  it('moves an appointment after the same warnings as a new booking and remembers the old time', async () => {
+    const target = (await rows()).find((row) => row.starts_at.includes('T13:00'))!
+    const blocked = await call('agenda-a', 'PUT', clinicA, `appointments/${target.id}/reschedule`, {
+      localStartsAt: '2030-01-08T10:00',
+    })
+    expect(blocked.statusCode).toBe(409)
+    expect(blocked.json().warnings.map((warning: { code: string }) => warning.code)).toEqual([
+      'outside_availability',
+    ])
+    // Its own slot is not a conflict: moving 30 minutes inside the open day needs no warning.
+    const moved = await call('agenda-a', 'PUT', clinicA, `appointments/${target.id}/reschedule`, {
+      localStartsAt: '2030-01-14T15:00',
+    })
+    expect(moved.statusCode).toBe(200)
+    const after = (await rows()).find((row) => row.id === target.id)!
+    expect(after.starts_at).toContain('2030-01-14T18:00')
+    expect(after.previous_starts_at).toContain('2030-01-07T13:00')
+    expect(after.paid).toBe(false)
+  })
+
+  it('keeps canceled appointments in the agenda and refuses to move them', async () => {
+    const target = (await rows()).find((row) => row.starts_at.includes('2030-01-14T18:00'))!
+    expect(
+      (
+        await call('agenda-a', 'PUT', clinicA, `appointments/${target.id}/status`, {
+          status: 'canceled',
+        })
+      ).statusCode,
+    ).toBe(200)
+    expect((await rows()).find((row) => row.id === target.id)?.status).toBe('canceled')
+    expect(
+      (
+        await call('agenda-a', 'PUT', clinicA, `appointments/${target.id}/reschedule`, {
+          localStartsAt: '2030-01-14T16:00',
+        })
+      ).statusCode,
+    ).toBe(409)
+  })
+
+  it('does not let another clinic move an appointment', async () => {
+    const target = (await rows())[0]
+    expect(
+      (
+        await call('agenda-b', 'PUT', clinicA, `appointments/${target.id}/reschedule`, {
+          localStartsAt: '2030-01-14T11:00',
+        })
+      ).statusCode,
+    ).toBe(403)
+    expect(
+      (
+        await call('agenda-b', 'PUT', clinicB, `appointments/${target.id}/reschedule`, {
+          localStartsAt: '2030-01-14T11:00',
+        })
+      ).statusCode,
+    ).toBe(404)
+  })
+})
+
 describe('client registry: CPF, consent, duplicates, edit and archive', () => {
   const cpf = '529.982.247-25'
   let registryClient: string

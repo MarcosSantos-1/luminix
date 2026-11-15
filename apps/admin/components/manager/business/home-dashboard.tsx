@@ -1,42 +1,41 @@
 'use client'
 
-import { Avatar, Button, Card, Chip } from '@heroui/react'
+import { Button, Card, Chip } from '@heroui/react'
 import {
+  AlertTriangle,
   ArrowRight,
   BadgePercent,
   CalendarDays,
-  CalendarPlus,
   Check,
   ChevronRight,
-  MessageCircle,
   Package,
-  UserPlus,
-  UserX,
+  Plus,
+  RotateCcw,
 } from 'lucide-react'
 import { useState } from 'react'
 import { useClinicApi, useClinicResource } from '../settings/clinic-api'
 import { LoadError, SettingsSkeleton } from '../settings/settings-kit'
 import { managerNavigation, type ManagerSectionId } from '../demo-data'
-import { appointmentStatus, initials, money, timeBr, whatsapp } from './format'
+import { appointmentStatus, money } from './format'
 import { activityDetail, activityKinds, activityTitle, timeAgo } from '../workspace/activity-copy'
 import { useWorkspaceSignals } from '../workspace/workspace-signals'
+import { AppointmentSheet, ClientAvatar } from '../appointments/appointment-sheet'
+import { BookingModal, QuickClientModal } from '../appointments/booking-modal'
+import { clock, dayLabel, needsAttention, type AppointmentView } from '../appointments/model'
+import { AddClientIcon, NewBookingIcon, WeekAgendaIcon } from '../appointments/quick-icons'
+import { QuickModal } from '../quick-modal'
+import { AgendaPanel } from '../sections/agenda-panel'
 import './business.css'
 
 type Dashboard = {
   today: string
-  appointments: {
-    id: string
-    startsAt: string
-    status: string
-    client: string
-    phone: string | null
-    service: string
-    professional: string | null
-    priceCents: number | null
-    promotion: boolean
-  }[]
+  appointments: AppointmentView[]
+  /** Next open appointments after today. */
+  upcoming?: AppointmentView[]
   upcomingWeek: number
   canManageAgenda: boolean
+  canCharge?: boolean
+  canOpenClients?: boolean
   clients?: { newThisMonth: number; total: number }
   finance?: { monthIncomeCents: number; monthExpenseCents: number; todayExpectedCents: number }
   lowStock?: { name: string; quantity: number; unit: string }[]
@@ -50,38 +49,95 @@ type Dashboard = {
   }[]
 }
 
+/** A client of the day (or of the next days) as one big button that opens the sheet. */
+function AppointmentRow({
+  item,
+  showDay,
+  onOpen,
+}: {
+  item: AppointmentView
+  showDay?: boolean
+  onOpen: (item: AppointmentView) => void
+}) {
+  const status = appointmentStatus[item.status] ?? appointmentStatus.confirmed
+  return (
+    <button
+      type="button"
+      className={`apt-row is-${item.status}`}
+      onClick={() => onOpen(item)}
+      aria-label={`${item.client}, ${item.service}, ${clock(item.startsAt)}. Abrir opções`}
+    >
+      <time>
+        {showDay ? (
+          <small>
+            {dayLabel(item.startsAt).split(',')[0]}{' '}
+            {dayLabel(item.startsAt).split(', ')[1]?.slice(0, 2)}
+          </small>
+        ) : null}
+        {clock(item.startsAt)}
+      </time>
+      <ClientAvatar name={item.client} photoUrl={item.photoUrl} />
+      <span className="apt-row-copy">
+        <strong>{item.client}</strong>
+        <span>
+          {item.service}
+          {item.professional ? ` · ${item.professional}` : ''}
+          {item.priceCents != null ? ` · ${money(item.priceCents)}` : ''}
+        </span>
+      </span>
+      <span className="apt-row-tags">
+        {needsAttention(item) ? (
+          <span className="apt-tag is-attention" title="Tem observações importantes">
+            <AlertTriangle size={13} aria-hidden /> Atenção
+          </span>
+        ) : null}
+        {item.previousStartsAt ? (
+          <span className="apt-tag" title="Remarcado">
+            <RotateCcw size={12} aria-hidden /> Remarcado
+          </span>
+        ) : null}
+        {item.status !== 'canceled' ? (
+          <span className={`apt-tag ${item.paid ? 'is-paid' : 'is-due'}`}>
+            {item.paid ? 'Pago' : 'A receber'}
+          </span>
+        ) : null}
+        <span className={`apt-tag is-status tone-${status.tone} is-${item.status}`}>
+          {status.label}
+        </span>
+      </span>
+      <ChevronRight size={18} className="apt-row-go" aria-hidden />
+    </button>
+  )
+}
+
 export function HomeDashboard({
   clinicId,
   sections,
   onNavigate,
+  onOpenClient,
 }: {
   clinicId: string
   sections: ManagerSectionId[]
   onNavigate: (label: string) => void
+  onOpenClient?: (client: { id: string; name: string }) => void
 }) {
   const api = useClinicApi(clinicId)
   const signals = useWorkspaceSignals()
   const dashboard = useClinicResource<Dashboard>(api, 'dashboard')
-  const [busy, setBusy] = useState('')
   const [notice, setNotice] = useState('')
+  const [opened, setOpened] = useState<AppointmentView | null>(null)
+  const [quick, setQuick] = useState<'booking' | 'agenda' | 'client' | null>(null)
   if (dashboard.error && !dashboard.data)
     return <LoadError message={dashboard.error} onRetry={dashboard.reload} />
   if (!dashboard.data) return <SettingsSkeleton cards={2} />
   const data = dashboard.data
   const live = data.appointments.filter((item) => item.status !== 'canceled')
   const done = live.filter((item) => item.status === 'completed').length
-
-  async function setStatus(id: string, status: string, message: string) {
-    setBusy(id)
-    try {
-      await api.put(`appointments/${id}/status`, { status })
-      setNotice(message)
-      dashboard.reload()
-    } catch {
-      setNotice('Não foi possível atualizar o atendimento. Tente de novo.')
-    } finally {
-      setBusy('')
-    }
+  const upcoming = data.upcoming ?? []
+  const changed = (message: string) => {
+    setNotice(message)
+    dashboard.reload()
+    signals?.refresh()
   }
 
   const stats = [
@@ -136,35 +192,39 @@ export function HomeDashboard({
   return (
     <>
       <section className="manager-actions" aria-label="Ações principais">
-        {[
-          {
-            title: 'Novo agendamento',
-            detail: 'Abra espaço para um novo cuidado',
-            icon: CalendarPlus,
-            show: data.canManageAgenda,
-          },
-          {
-            title: 'Agenda semanal',
-            detail: 'Sua semana, bem organizada',
-            icon: CalendarDays,
-            show: true,
-          },
-          {
-            title: 'Adicionar cliente',
-            detail: 'Uma nova história começa aqui',
-            icon: UserPlus,
-            show: Boolean(data.clients),
-          },
-        ]
+        {(
+          [
+            {
+              id: 'booking',
+              title: 'Novo agendamento',
+              detail: 'Abra espaço para um novo cuidado',
+              icon: NewBookingIcon,
+              show: data.canManageAgenda,
+            },
+            {
+              id: 'agenda',
+              title: 'Agenda semanal',
+              detail: 'Sua semana, bem organizada',
+              icon: WeekAgendaIcon,
+              show: true,
+            },
+            {
+              id: 'client',
+              title: 'Adicionar cliente',
+              detail: 'Uma nova história começa aqui',
+              icon: AddClientIcon,
+              show: Boolean(data.clients),
+            },
+          ] as const
+        )
           .filter((item) => item.show)
-          .map(({ title, detail, icon: Icon }) => (
-            <Button key={title} className="manager-action" onPress={() => onNavigate(title)}>
+          .map(({ id, title, detail, icon: Icon }) => (
+            <Button key={id} className="manager-action" onPress={() => setQuick(id)}>
               <div>
                 <strong>{title}</strong>
                 <span>{detail}</span>
               </div>
-              <ChevronRight size={16} />
-              <Icon size={32} strokeWidth={1.5} />
+              <Icon />
             </Button>
           ))}
       </section>
@@ -182,103 +242,43 @@ export function HomeDashboard({
                 {live.length}
               </Chip>
             </div>
-            <Button variant="ghost" onPress={() => onNavigate('Agenda completa')}>
+            <Button variant="ghost" onPress={() => setQuick('agenda')}>
               Ver agenda <ArrowRight size={16} />
             </Button>
           </Card.Header>
-          <Card.Content>
+          <Card.Content className="apt-day">
             {data.appointments.length ? (
-              data.appointments.map((item, index) => {
-                const status = appointmentStatus[item.status] ?? appointmentStatus.confirmed
-                const open = item.status === 'scheduled' || item.status === 'confirmed'
-                const link = whatsapp(
-                  item.phone,
-                  `Olá, ${item.client.split(' ')[0]}! Passando para lembrar do seu horário hoje às ${timeBr(item.startsAt)}.`,
-                )
-                return (
-                  <div
-                    className={`manager-client${item.status === 'canceled' ? ' is-muted' : ''}`}
-                    key={item.id}
-                  >
-                    <time>{timeBr(item.startsAt)}</time>
-                    <Avatar className={`manager-avatar tone-${index % 3}`}>
-                      <Avatar.Fallback>{initials(item.client)}</Avatar.Fallback>
-                    </Avatar>
-                    <div className="manager-client-copy">
-                      <strong>{item.client}</strong>
-                      <span>
-                        {item.service}
-                        {item.professional ? ` · ${item.professional}` : ''}
-                        {item.priceCents != null ? ` · ${money(item.priceCents)}` : ''}
-                      </span>
-                    </div>
-                    <Chip
-                      size="sm"
-                      className={
-                        status.tone === 'off' ? 'manager-status pending' : 'manager-status'
-                      }
-                    >
-                      {status.label}
-                    </Chip>
-                    <div className="home-appointment-actions">
-                      {link ? (
-                        <a
-                          href={link}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          aria-label={`Mandar mensagem para ${item.client}`}
-                          title="Lembrar pelo WhatsApp"
-                        >
-                          <MessageCircle size={17} />
-                        </a>
-                      ) : null}
-                      {open && data.canManageAgenda ? (
-                        <>
-                          <Button
-                            size="sm"
-                            variant="secondary"
-                            isDisabled={busy === item.id}
-                            onPress={() =>
-                              void setStatus(
-                                item.id,
-                                'completed',
-                                `${item.client} · atendimento concluído.`,
-                              )
-                            }
-                          >
-                            <Check size={14} aria-hidden /> Concluir
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            isIconOnly
-                            aria-label={`${item.client} faltou`}
-                            isDisabled={busy === item.id}
-                            onPress={() =>
-                              void setStatus(
-                                item.id,
-                                'no_show',
-                                `Falta registrada para ${item.client}.`,
-                              )
-                            }
-                          >
-                            <UserX size={15} />
-                          </Button>
-                        </>
-                      ) : null}
-                    </div>
-                  </div>
-                )
-              })
+              <div className="apt-rows">
+                {data.appointments.map((item) => (
+                  <AppointmentRow key={item.id} item={item} onOpen={setOpened} />
+                ))}
+              </div>
             ) : (
-              <div className="biz-empty">
-                <CalendarDays size={24} aria-hidden />
+              <div className="apt-quiet">
+                <CalendarDays size={22} aria-hidden />
                 <p>
-                  Nenhum atendimento hoje. Que tal mandar uma mensagem para quem não vem há um
-                  tempo?
+                  <strong>Nenhum atendimento hoje.</strong>
+                  {upcoming.length
+                    ? ' Aproveite para confirmar quem vem nos próximos dias.'
+                    : ' Que tal chamar quem não vem há um tempo?'}
                 </p>
+                {data.canManageAgenda ? (
+                  <Button size="sm" variant="secondary" onPress={() => setQuick('booking')}>
+                    <Plus size={15} aria-hidden /> Agendar
+                  </Button>
+                ) : null}
               </div>
             )}
+            {upcoming.length ? (
+              <section className="apt-next" aria-label="Próximos dias">
+                <h3>Próximos dias</h3>
+                <div className="apt-rows">
+                  {upcoming.slice(0, data.appointments.length > 3 ? 3 : 6).map((item) => (
+                    <AppointmentRow key={item.id} item={item} showDay onOpen={setOpened} />
+                  ))}
+                </div>
+              </section>
+            ) : null}
           </Card.Content>
           <Card.Footer className="manager-agenda-footer">
             <span>
@@ -300,11 +300,11 @@ export function HomeDashboard({
             </Card.Header>
             <Card.Content>
               {data.activity.length ? (
-                data.activity.map((item, index) => {
+                data.activity.slice(0, 6).map((item, index) => {
                   const Icon = (activityKinds[item.entity] ?? activityKinds.appointments).icon
                   return (
                     <div className="manager-event" key={`${item.createdAt}-${index}`}>
-                      <span className={`manager-event-icon event-${index % 5}`}>
+                      <span className={`manager-event-icon act-kind act-${item.entity}`}>
                         <Icon size={19} />
                       </span>
                       <div>
@@ -380,6 +380,50 @@ export function HomeDashboard({
           </Card.Content>
         </Card>
       </div>
+      <AppointmentSheet
+        api={api}
+        item={opened}
+        today={data.today}
+        access={{
+          manage: data.canManageAgenda,
+          charge: data.canCharge ?? Boolean(data.finance),
+          openClients: data.canOpenClients ?? Boolean(data.clients),
+        }}
+        onClose={() => setOpened(null)}
+        onChanged={changed}
+        onOpenClient={onOpenClient}
+      />
+      <BookingModal
+        api={api}
+        isOpen={quick === 'booking'}
+        onOpenChange={(open) => setQuick(open ? 'booking' : null)}
+        onCreated={changed}
+      />
+      <QuickClientModal
+        api={api}
+        isOpen={quick === 'client'}
+        onOpenChange={(open) => setQuick(open ? 'client' : null)}
+        onCreated={changed}
+        onOpenFull={() => onNavigate('Adicionar cliente')}
+      />
+      <QuickModal
+        isOpen={quick === 'agenda'}
+        onOpenChange={(open) => {
+          setQuick(open ? 'agenda' : null)
+          if (!open) dashboard.reload()
+        }}
+        size="wide"
+        title="Agenda semanal"
+        footer={
+          <Button variant="secondary" onPress={() => onNavigate('Agenda completa')}>
+            Abrir a agenda completa <ArrowRight size={16} />
+          </Button>
+        }
+      >
+        {quick === 'agenda' ? (
+          <AgendaPanel clinicId={clinicId} embedded onOpenClient={onOpenClient} />
+        ) : null}
+      </QuickModal>
     </>
   )
 }

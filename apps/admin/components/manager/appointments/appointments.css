@@ -1,0 +1,1262 @@
+/* Ficha do atendimento, pop-ups rápidos, agenda semanal e horários. */
+
+/* ---------- Pop-up padrão (QuickModal) ---------- */
+.qm-back {
+  backdrop-filter: blur(14px) saturate(1.1);
+  background: color-mix(in srgb, var(--space-deep, #1b0a12) 55%, transparent);
+}
+.manager-dialog.qm {
+  width: 100%;
+  max-width: min(560px, calc(100vw - 32px));
+  max-height: min(880px, calc(100dvh - 32px));
+  padding: 0;
+  border-radius: 26px;
+  box-shadow:
+    0 30px 80px #00000066,
+    inset 0 1px #ffffff14;
+  animation: qm-in 0.28s cubic-bezier(0.2, 0.9, 0.3, 1.15);
+}
+.manager-dialog.qm.qm-lg {
+  max-width: min(780px, calc(100vw - 32px));
+}
+.manager-dialog.qm.qm-xl {
+  max-width: min(1040px, calc(100vw - 32px));
+}
+.manager-dialog.qm.qm-wide {
+  max-width: min(1500px, calc(100vw - 32px));
+}
+@keyframes qm-in {
+  from {
+    opacity: 0;
+    transform: translateY(14px) scale(0.97);
+  }
+}
+.qm .qm-head {
+  display: grid;
+  gap: 4px;
+  padding: 24px 64px 14px 28px;
+}
+.qm .qm-head .modal__heading {
+  font-size: 21px;
+  font-weight: 650;
+  letter-spacing: -0.3px;
+}
+.qm-sub {
+  margin: 0;
+  color: var(--manager-muted);
+  font-size: 14px;
+  line-height: 1.45;
+}
+.qm .qm-body {
+  display: grid;
+  align-content: start;
+  gap: 16px;
+  padding: 6px 28px 24px;
+  overflow-y: auto;
+  line-height: 1.5;
+}
+.qm .qm-foot {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 10px;
+  padding: 16px 28px 22px;
+  border-top: 1px solid #ffffff14;
+}
+.qm .qm-foot .button {
+  min-height: 46px;
+  padding-inline: 20px;
+}
+.qm-foot-start {
+  margin-right: auto;
+}
+@media (max-width: 650px) {
+  .qm-container {
+    padding: 0;
+    align-items: flex-end;
+  }
+  .manager-dialog.qm,
+  .manager-dialog.qm.qm-lg,
+  .manager-dialog.qm.qm-xl,
+  .manager-dialog.qm.qm-wide {
+    max-width: 100vw;
+    max-height: 94dvh;
+    border-radius: 24px 24px 0 0;
+    border-bottom: 0;
+  }
+  .qm .qm-head {
+    padding: 20px 56px 10px 18px;
+  }
+  .qm .qm-body {
+    padding: 4px 18px 20px;
+  }
+  .qm .qm-foot {
+    padding: 12px 18px max(16px, env(safe-area-inset-bottom));
+  }
+  .qm .qm-foot .button {
+    flex: 1 1 140px;
+  }
+}
+
+.apt-error,
+.apt-done {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  padding: 11px 14px;
+  border-radius: 13px;
+  font-size: 14px;
+}
+.apt-error {
+  border: 1px solid #fca5a566;
+  color: #fecaca;
+  background: #7f1d1d59;
+}
+.apt-done {
+  border: 1px solid #86efac55;
+  color: #bbf7d0;
+  background: #14532d59;
+}
+
+/* ---------- Ícones dos atalhos ---------- */
+.quick-icon {
+  flex-shrink: 0;
+  transition: transform 0.3s cubic-bezier(0.2, 0.9, 0.3, 1.3);
+}
+.manager-action.button > svg.quick-icon {
+  display: block;
+  margin: 0;
+}
+.quick-icon-accent {
+  stroke: var(--space-highlight, #ffb5d3);
+}
+.manager-action.button {
+  transition:
+    transform 0.2s ease,
+    border-color 0.2s ease,
+    box-shadow 0.2s ease;
+}
+.manager-action.button:hover {
+  transform: translateY(-2px);
+  border-color: color-mix(in srgb, var(--space-highlight, #ffb5d3) 55%, transparent);
+  box-shadow:
+    0 14px 30px #0000002e,
+    inset 0 1px #ffffff22;
+}
+.manager-action.button:hover .quick-icon {
+  transform: scale(1.1) rotate(-4deg);
+}
+
+/* ---------- Avatar da cliente ---------- */
+.apt-avatar {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 44px;
+  height: 44px;
+  overflow: hidden;
+  border: 2px solid #ffffff59;
+  border-radius: 50%;
+  color: #5b2f3a;
+  background: #f4c4ae;
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+.apt-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.apt-avatar.tone-1 {
+  color: #4a3163;
+  background: #d7c5e5;
+}
+.apt-avatar.tone-2 {
+  color: #2f4f3a;
+  background: #cbdcc6;
+}
+.apt-avatar.tone-3 {
+  color: #2d4660;
+  background: #c3d6ea;
+}
+.apt-avatar-lg {
+  width: 62px;
+  height: 62px;
+  font-size: 20px;
+}
+
+/* ---------- Início: clientes do dia ---------- */
+.apt-day.card__content {
+  display: grid;
+  align-content: start;
+  gap: 14px;
+}
+.apt-rows {
+  display: grid;
+  gap: 8px;
+}
+.apt-row {
+  display: grid;
+  grid-template-columns: auto auto minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  min-height: 72px;
+  padding: 10px 12px;
+  border: 1px solid #ffffff14;
+  border-radius: 18px;
+  color: inherit;
+  background: #ffffff09;
+  text-align: left;
+  cursor: pointer;
+  transition:
+    transform 0.18s ease,
+    background 0.18s ease,
+    border-color 0.18s ease,
+    box-shadow 0.18s ease;
+}
+.apt-row:hover,
+.apt-row:focus-visible {
+  transform: translateY(-1px);
+  border-color: color-mix(in srgb, var(--space-highlight, #ffb5d3) 50%, transparent);
+  background: #ffffff14;
+  box-shadow: 0 10px 24px #00000026;
+}
+.apt-row:focus-visible {
+  outline: 2px solid var(--space-highlight, #ffd4e7);
+  outline-offset: 2px;
+}
+.apt-row:active {
+  transform: scale(0.99);
+}
+.apt-row > time {
+  display: grid;
+  justify-items: center;
+  min-width: 58px;
+  padding: 8px 8px;
+  border: 1px solid color-mix(in srgb, var(--space-highlight, #ff65a1) 25%, transparent);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--space-accent, #e72777) 43%, transparent);
+  font-size: 15px;
+  font-weight: 650;
+  line-height: 1.15;
+}
+.apt-row > time small {
+  font-size: 11px;
+  font-weight: 500;
+  opacity: 0.85;
+  text-transform: capitalize;
+}
+.apt-row-copy {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+.apt-row-copy strong {
+  overflow: hidden;
+  font-size: 15px;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.apt-row-copy > span {
+  overflow: hidden;
+  color: var(--manager-muted);
+  font-size: 13px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.apt-row-tags {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 6px;
+}
+.apt-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 9px;
+  border-radius: 8px;
+  color: #ffffffd9;
+  background: #ffffff17;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.apt-tag.is-attention {
+  color: #ffe0a1;
+  background: #664014e6;
+}
+.apt-tag.is-paid,
+.apt-tag.is-completed {
+  color: #b6f7c6;
+  background: #204c3ee6;
+}
+.apt-tag.is-due {
+  color: #ffffffbf;
+  background: transparent;
+  box-shadow: inset 0 0 0 1px #ffffff2e;
+}
+.apt-tag.is-status.is-confirmed {
+  color: #c7e3ff;
+  background: #1f4266e6;
+}
+.apt-tag.is-status.is-scheduled {
+  color: #ffe0a1;
+  background: #664014e6;
+}
+.apt-tag.is-status.is-canceled,
+.apt-tag.is-status.is-no_show {
+  color: #fecaca;
+  background: #6b1f2be6;
+}
+.apt-row-go {
+  opacity: 0.5;
+  transition: transform 0.18s ease;
+}
+.apt-row:hover .apt-row-go {
+  opacity: 1;
+  transform: translateX(3px);
+}
+.apt-row.is-canceled .apt-row-copy,
+.apt-row.is-canceled > time,
+.apt-row.is-canceled .apt-avatar {
+  opacity: 0.5;
+}
+.apt-row.is-canceled .apt-row-copy strong {
+  text-decoration: line-through;
+}
+.apt-quiet {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+  border: 1px dashed #ffffff2e;
+  border-radius: 16px;
+  color: var(--manager-muted);
+}
+.apt-quiet p {
+  flex: 1;
+  font-size: 14px;
+  line-height: 1.45;
+}
+.apt-quiet strong {
+  color: var(--manager-text);
+}
+.apt-next h3 {
+  margin: 4px 0 10px;
+  color: var(--manager-muted);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.manager-agenda.card .manager-agenda-footer {
+  margin-top: auto;
+}
+.manager-activity .manager-event {
+  min-height: 68px;
+}
+@media (max-width: 1400px) {
+  .apt-row {
+    grid-template-columns: auto auto minmax(0, 1fr);
+    gap: 8px 12px;
+  }
+  .apt-row-go {
+    display: none;
+  }
+  .apt-row-tags {
+    grid-column: 1 / -1;
+    justify-content: flex-start;
+  }
+}
+@media (max-width: 650px) {
+  .apt-row {
+    padding: 12px;
+  }
+  .apt-row .apt-avatar {
+    width: 38px;
+    height: 38px;
+    font-size: 12px;
+  }
+  .manager-action.button > svg.quick-icon {
+    width: 30px;
+    height: 30px;
+  }
+  .apt-quiet {
+    flex-wrap: wrap;
+  }
+  /* The phone keeps the page short: four recent activities are enough. */
+  .manager-activity .manager-event:nth-child(n + 5) {
+    display: none;
+  }
+}
+
+/* ---------- Cores por tipo de atividade (Início e drawer) ---------- */
+.act-kind {
+  color: #fff;
+  background: linear-gradient(140deg, var(--space-accent, #fb4599), var(--space-accent, #cd1a68));
+}
+.act-kind.act-clinic_clients {
+  background: #9971bf;
+}
+.act-kind.act-services {
+  background: #d58253;
+}
+.act-kind.act-promotions {
+  background: #a051bf;
+}
+.act-kind.act-finance_entries {
+  background: #3f9d78;
+}
+.act-kind.act-inventory_movements {
+  background: #c98a2b;
+}
+.act-kind.act-media_items {
+  background: #4f8fc0;
+}
+.act-kind.act-professionals {
+  background: #7c6fd0;
+}
+.act-kind.act-clinic_memberships {
+  background: #7d8597;
+}
+
+/* ---------- Ficha do atendimento ---------- */
+.apt-title {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+.apt-title > span:last-child {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+.apt-title small {
+  color: var(--manager-muted);
+  font-size: 14px;
+  font-weight: 450;
+  letter-spacing: 0;
+}
+.apt-sheet-body {
+  display: grid;
+  gap: 16px;
+}
+.apt-facts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 10px;
+}
+.apt-fact {
+  display: grid;
+  gap: 4px;
+  padding: 12px 14px;
+  border: 1px solid #ffffff17;
+  border-radius: 16px;
+  background: #ffffff0c;
+}
+.apt-fact span {
+  color: var(--manager-muted);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.apt-fact strong {
+  font-size: 16px;
+  font-weight: 650;
+}
+.apt-fact strong::first-letter {
+  text-transform: uppercase;
+}
+.apt-fact.is-on strong {
+  color: #b6f7c6;
+}
+.apt-fact.is-pending strong {
+  color: #ffe0a1;
+}
+.apt-fact.is-off strong {
+  color: #fecaca;
+}
+.apt-moved {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  color: var(--manager-muted);
+  font-size: 14px;
+}
+.apt-attention {
+  display: grid;
+  gap: 6px;
+  padding: 14px 16px;
+  border: 1px solid #f59e0b80;
+  border-radius: 16px;
+  color: #fff3d6;
+  background: #6640144d;
+}
+.apt-attention h3 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  color: #ffd98a;
+  font-size: 14px;
+  font-weight: 700;
+}
+.apt-attention p {
+  margin: 0;
+  font-size: 15px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+}
+.apt-client {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 28px;
+  margin: 0;
+}
+.apt-client dt {
+  color: var(--manager-muted);
+  font-size: 12px;
+}
+.apt-client dd {
+  margin: 2px 0 0;
+  font-size: 15px;
+  font-weight: 550;
+}
+.apt-actions {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 10px;
+}
+.apt-action {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 68px;
+  padding: 12px 14px;
+  border: 1px solid #ffffff1f;
+  border-radius: 18px;
+  color: inherit;
+  background: #ffffff0d;
+  text-align: left;
+  text-decoration: none;
+  cursor: pointer;
+  transition:
+    transform 0.16s ease,
+    background 0.16s ease,
+    border-color 0.16s ease;
+}
+.apt-action:hover:not(:disabled),
+.apt-action:focus-visible {
+  transform: translateY(-2px);
+  border-color: #ffffff59;
+  background: #ffffff1a;
+}
+.apt-action:focus-visible {
+  outline: 2px solid var(--space-highlight, #ffd4e7);
+  outline-offset: 2px;
+}
+.apt-action:disabled {
+  opacity: 0.5;
+  cursor: progress;
+}
+.apt-action-icon {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 42px;
+  height: 42px;
+  border-radius: 13px;
+  background: #ffffff17;
+}
+.apt-action-copy {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+.apt-action-copy strong {
+  font-size: 15px;
+  font-weight: 620;
+}
+.apt-action-copy small {
+  color: var(--manager-muted);
+  font-size: 13px;
+  line-height: 1.3;
+}
+.apt-action.is-good .apt-action-icon {
+  color: #b6f7c6;
+  background: #204c3e;
+}
+.apt-action.is-whats .apt-action-icon {
+  color: #0b3b22;
+  background: #8ff0b4;
+}
+.apt-action.is-warn .apt-action-icon {
+  color: #ffe0a1;
+  background: #664014;
+}
+.apt-action.is-danger .apt-action-icon {
+  color: #fecaca;
+  background: #6b1f2b;
+}
+.apt-hint {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  grid-column: 1 / -1;
+  margin: 0;
+  color: var(--manager-muted);
+  font-size: 13px;
+}
+.apt-step {
+  display: grid;
+  gap: 12px;
+  padding: 16px;
+  border: 1px solid #ffffff1f;
+  border-radius: 18px;
+  background: #ffffff0a;
+}
+.apt-step h3 {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 650;
+}
+.apt-step p {
+  margin: 0;
+  color: var(--manager-muted);
+  font-size: 14px;
+}
+.apt-step-fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+.apt-step-foot {
+  display: flex;
+  justify-content: flex-end;
+}
+.apt-step-foot .button {
+  min-height: 46px;
+  padding-inline: 22px;
+}
+.apt-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  justify-self: start;
+  padding: 4px 0;
+  border: 0;
+  color: var(--manager-muted);
+  background: none;
+  font-size: 14px;
+  cursor: pointer;
+}
+.apt-back:hover {
+  color: var(--manager-text);
+}
+@media (max-width: 650px) {
+  .apt-facts {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .apt-actions,
+  .apt-step-fields {
+    grid-template-columns: 1fr;
+  }
+  .apt-avatar-lg {
+    width: 50px;
+    height: 50px;
+    font-size: 17px;
+  }
+  .apt-step-foot .button {
+    width: 100%;
+  }
+}
+
+/* ---------- Agenda: semana ---------- */
+.ag.is-embedded {
+  gap: 14px;
+}
+.ag-week {
+  display: grid;
+  grid-template-columns: repeat(var(--ag-days, 7), minmax(0, 1fr));
+  align-items: start;
+  gap: 10px;
+}
+.ag-day {
+  display: grid;
+  align-content: start;
+  gap: 10px;
+  min-height: 220px;
+  padding: 14px 12px;
+  border: 1px solid var(--manager-border);
+  border-radius: 20px;
+  background: var(--manager-surface);
+  backdrop-filter: blur(20px);
+}
+.ag-day[data-today] {
+  border-color: color-mix(in srgb, var(--space-highlight, #ffb5d3) 75%, transparent);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--space-highlight, #ffb5d3) 40%, transparent);
+}
+.ag-day[data-past] {
+  opacity: 0.78;
+}
+.ag-day[data-closed] {
+  background: #ffffff09;
+}
+.ag-day-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 6px;
+}
+.ag-day-head > div:first-child {
+  display: grid;
+}
+.ag-day-head span {
+  color: var(--manager-muted);
+  font-size: 13px;
+  text-transform: capitalize;
+}
+.ag-day-head strong {
+  font-size: 26px;
+  font-weight: 650;
+  line-height: 1.1;
+}
+.ag-day-tags {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 5px;
+}
+.ag-day-tags em,
+.ag-day-rule {
+  padding: 3px 8px;
+  border: 0;
+  border-radius: 8px;
+  font-size: 12px;
+  font-style: normal;
+  font-weight: 650;
+}
+.ag-day-tags em {
+  color: #3a0d22;
+  background: var(--space-highlight, #ffb5d3);
+}
+.ag-day-rule {
+  max-width: 120px;
+  overflow: hidden;
+  color: #ffe0a1;
+  background: #664014e6;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.ag-day-add {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border: 1px solid var(--manager-border);
+  border-radius: 10px;
+  color: inherit;
+  background: #ffffff0f;
+  cursor: pointer;
+}
+.ag-day-add:hover {
+  background: #ffffff24;
+}
+.ag-list {
+  display: grid;
+  gap: 8px;
+}
+.ag-list.is-wide {
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+}
+.ag-card {
+  display: grid;
+  gap: 2px;
+  width: 100%;
+  min-width: 0;
+  padding: 10px 11px;
+  border: 1px solid color-mix(in srgb, var(--accent) 30%, var(--manager-border));
+  border-left: 4px solid #6aa8e0;
+  border-radius: 13px;
+  color: inherit;
+  background: color-mix(in srgb, var(--accent) 9%, #ffffff0f);
+  text-align: left;
+  cursor: pointer;
+  transition:
+    transform 0.16s ease,
+    background 0.16s ease,
+    box-shadow 0.16s ease;
+}
+.ag-card:hover,
+.ag-card:focus-visible {
+  transform: translateY(-2px);
+  background: #ffffff21;
+  box-shadow: 0 10px 22px #00000030;
+}
+.ag-card:focus-visible {
+  outline: 2px solid var(--space-highlight, #ffd4e7);
+  outline-offset: 2px;
+}
+.ag-card.is-scheduled {
+  border-left-color: #e8b04a;
+}
+.ag-card.is-completed {
+  border-left-color: #5fc98a;
+}
+.ag-card.is-no_show,
+.ag-card.is-canceled {
+  border-left-color: #e0707f;
+}
+.ag-card.is-canceled,
+.ag-card.is-moved {
+  opacity: 0.72;
+  border-style: dashed;
+  border-left-style: solid;
+  background: transparent;
+}
+.ag-card.is-moved {
+  border-left-color: #9aa3b5;
+}
+.ag-card.is-canceled strong {
+  text-decoration: line-through;
+}
+.ag-card-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+}
+.ag-card time {
+  font-size: 14px;
+  font-weight: 750;
+}
+.ag-card-flags {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: #ffffffb3;
+}
+.ag-card-flags .is-attention {
+  color: #ffc861;
+}
+.ag-card-flags .is-paid {
+  color: #8ff0b4;
+}
+.ag-card strong {
+  font-size: 14px;
+  font-weight: 620;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+}
+.ag-card > span:not(.ag-card-top) {
+  display: -webkit-box;
+  overflow: hidden;
+  color: var(--manager-muted);
+  font-size: 13px;
+  line-height: 1.3;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+.ag-card small {
+  color: var(--manager-muted);
+  font-size: 12px;
+}
+.ag-card small.ag-card-note {
+  margin-top: 3px;
+  color: #ffffffd9;
+  font-weight: 600;
+}
+.ag-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  width: 100%;
+  min-height: 96px;
+  margin: 0;
+  border: 1px dashed var(--manager-border);
+  border-radius: 13px;
+  color: var(--manager-muted);
+  background: transparent;
+  font-size: 14px;
+}
+button.ag-empty {
+  cursor: pointer;
+}
+button.ag-empty:hover {
+  border-color: var(--space-highlight, #ffb5d3);
+  color: var(--manager-text);
+  background: #ffffff0d;
+}
+.ag-removed summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  padding: 7px 10px;
+  border-radius: 10px;
+  color: var(--manager-muted);
+  background: #ffffff0d;
+  font-size: 12px;
+  font-weight: 650;
+  list-style: none;
+  cursor: pointer;
+}
+.ag-removed summary::-webkit-details-marker {
+  display: none;
+}
+.ag-removed[open] summary svg {
+  transform: rotate(180deg);
+}
+.ag-removed .ag-list {
+  margin-top: 8px;
+}
+.ag-hidden-days {
+  margin: 0;
+  color: var(--manager-muted);
+  font-size: 13px;
+}
+.ag-hidden-days button {
+  padding: 0;
+  border: 0;
+  color: var(--manager-text);
+  background: none;
+  font: inherit;
+  font-weight: 650;
+  text-decoration: underline;
+  cursor: pointer;
+}
+.manager-month-day[data-closed] {
+  background: #00000014;
+}
+.manager-month-day[data-closed] strong {
+  opacity: 0.45;
+}
+@media (max-width: 1100px) {
+  /* Below a laptop the week reads as a list of days instead of squeezed columns. */
+  .ag-week {
+    grid-template-columns: 1fr;
+  }
+  .ag-day {
+    grid-template-columns: 76px minmax(0, 1fr);
+    min-height: 0;
+  }
+  .ag-day-head {
+    flex-direction: column;
+    grid-row: span 2;
+  }
+  .ag-day-tags {
+    justify-content: flex-start;
+  }
+  .ag-day > .ag-list,
+  .ag-day > .ag-empty,
+  .ag-day > .ag-removed {
+    grid-column: 2;
+  }
+  .ag-day > .ag-list {
+    grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+  }
+  .ag-empty {
+    min-height: 60px;
+  }
+}
+@media (max-width: 650px) {
+  .ag .manager-agenda-toolbar,
+  .ag .manager-toolbar-actions {
+    align-items: stretch;
+  }
+  .ag .manager-toolbar-actions > .button {
+    flex: 1 1 140px;
+  }
+  .ag-day {
+    grid-template-columns: 58px minmax(0, 1fr);
+    padding: 12px 10px;
+  }
+  .ag-day-head strong {
+    font-size: 22px;
+  }
+  .ag-day > .ag-list {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ---------- Horários ---------- */
+.sch-tabs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px;
+  padding: 4px;
+  border-radius: 16px;
+  background: #ffffff10;
+}
+.sch-tabs button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 46px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 12px;
+  color: var(--manager-muted);
+  background: transparent;
+  font-size: 15px;
+  font-weight: 650;
+  cursor: pointer;
+}
+.sch-tabs button[aria-selected='true'] {
+  color: #fff;
+  background: color-mix(in srgb, var(--space-accent, #ec287a) 60%, transparent);
+}
+.sch-people {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.qm .qm-body > * {
+  flex-shrink: 0;
+}
+.sch-people button {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: 9px;
+  min-height: 46px;
+  padding: 5px 16px 5px 6px;
+  border: 1px solid var(--manager-border);
+  border-radius: 999px;
+  color: var(--manager-text);
+  background: #ffffff0c;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.sch-people button[aria-pressed='true'] {
+  border-color: var(--space-highlight, #ffb5d3);
+  background: color-mix(in srgb, var(--space-accent, #ec287a) 45%, transparent);
+}
+.sch-face {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  overflow: hidden;
+  border-radius: 50%;
+  color: #5b2f3a;
+  background: #f4c4ae;
+  font-size: 12px;
+  font-weight: 700;
+}
+.sch-face img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.sch-week {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.sch-week li {
+  display: grid;
+  grid-template-columns: 220px minmax(0, 1fr);
+  align-items: start;
+  gap: 12px 20px;
+  padding: 14px 16px;
+  border: 1px solid #ffffff14;
+  border-radius: 18px;
+  background: #ffffff07;
+}
+.sch-week li.is-open {
+  border-color: #ffffff26;
+  background: #ffffff0f;
+}
+.sch-day-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 44px;
+}
+.sch-day-head strong {
+  font-size: 16px;
+  font-weight: 620;
+}
+.sch-day-state {
+  margin-left: auto;
+  color: var(--manager-muted);
+  font-size: 13px;
+}
+.sch-week li.is-open .sch-day-state {
+  color: #b6f7c6;
+}
+.sch-day-body {
+  display: grid;
+  gap: 8px;
+}
+.sch-day-summary {
+  margin: 0;
+  align-self: center;
+  font-size: 15px;
+}
+.sch-range {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+.sch-range > span {
+  color: var(--manager-muted);
+  font-size: 14px;
+}
+.sch-range .lx-field {
+  width: 112px;
+}
+.sch-range.is-break {
+  padding-left: 2px;
+  color: var(--manager-muted);
+}
+.sch-day-tools {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.sch-note {
+  margin: 0;
+  color: var(--manager-muted);
+  font-size: 14px;
+}
+.sch-dates {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);
+  align-items: start;
+  gap: 18px;
+}
+.sch-special,
+.sch-list {
+  display: grid;
+  gap: 14px;
+  padding: 18px;
+  border: 1px solid #ffffff1f;
+  border-radius: 20px;
+  background: #ffffff0a;
+}
+.sch-choice {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+.sch-choice button {
+  display: grid;
+  justify-items: start;
+  gap: 4px;
+  padding: 16px;
+  border: 1px solid var(--manager-border);
+  border-radius: 18px;
+  color: inherit;
+  background: #ffffff0a;
+  text-align: left;
+  cursor: pointer;
+  transition:
+    transform 0.16s ease,
+    background 0.16s ease;
+}
+.sch-choice button:hover {
+  transform: translateY(-2px);
+}
+.sch-choice button strong {
+  font-size: 17px;
+}
+.sch-choice button small {
+  color: var(--manager-muted);
+  font-size: 13px;
+}
+.sch-choice button[aria-pressed='true'] {
+  border-color: var(--space-highlight, #ffb5d3);
+  background: color-mix(in srgb, var(--space-accent, #ec287a) 40%, transparent);
+  box-shadow: 0 0 0 1px var(--space-highlight, #ffb5d3);
+}
+.sch-special-foot {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+.sch-special-foot .button {
+  min-height: 46px;
+}
+.sch-list h3 {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 650;
+}
+.sch-list ul {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.sch-list li {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 6px 4px 12px;
+  border-left: 4px solid #e0707f;
+  border-radius: 12px;
+  background: #ffffff0c;
+}
+.sch-list li.is-open {
+  border-left-color: #5fc98a;
+}
+.sch-list li > button:first-child {
+  display: grid;
+  flex: 1;
+  gap: 1px;
+  min-width: 0;
+  padding: 6px 0;
+  border: 0;
+  color: inherit;
+  background: none;
+  text-align: left;
+  cursor: pointer;
+}
+.sch-list li span {
+  color: var(--manager-muted);
+  font-size: 13px;
+}
+@media (max-width: 760px) {
+  .sch-week li,
+  .sch-dates {
+    grid-template-columns: 1fr;
+  }
+  .sch-tabs button {
+    font-size: 13px;
+  }
+  .sch-range .lx-field {
+    width: 104px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .manager-dialog.qm {
+    animation: none;
+  }
+  .apt-row,
+  .apt-action,
+  .ag-card,
+  .manager-action.button,
+  .quick-icon,
+  .sch-choice button {
+    transition: none;
+  }
+}

@@ -34,11 +34,15 @@ export async function insightsRoutes(
         const today = isoDate(
           (await connection.query('SELECT luminix.clinic_today() AS d')).rows[0]?.d,
         )!
-        const [appointments, week] = await Promise.all([
+        const [appointments, week, upcoming] = await Promise.all([
           connection.query(
             `SELECT a.id, a.starts_at, a.ends_at, a.status, a.price_cents, a.promotion_id,
-                    c.display_name AS client, c.contact_phone AS phone, s.name AS service,
-                    p.display_name AS professional
+                    a.notes, a.override_reasons, a.previous_starts_at, c.id AS client_id,
+                    c.display_name AS client, c.contact_phone AS phone, c.notes AS client_notes,
+                    s.name AS service, p.display_name AS professional,
+                    EXISTS (SELECT 1 FROM luminix.finance_entries e
+                             WHERE e.clinic_id = a.clinic_id AND e.appointment_id = a.id
+                               AND e.status = 'active') AS paid
                FROM luminix.appointments a
                JOIN luminix.clinic_clients c ON c.clinic_id = a.clinic_id AND c.id = a.clinic_client_id
                JOIN luminix.services s ON s.clinic_id = a.clinic_id AND s.id = a.service_id
@@ -53,23 +57,54 @@ export async function insightsRoutes(
               WHERE clinic_id = $1 AND starts_at >= now() AND starts_at < now() + interval '7 days'`,
             [tenant.clinicId],
           ),
+          // What comes next, so a quiet day still shows the week ahead.
+          connection.query(
+            `SELECT a.id, a.starts_at, a.ends_at, a.status, a.price_cents, a.promotion_id,
+                    a.notes, a.override_reasons, a.previous_starts_at, c.id AS client_id,
+                    c.display_name AS client, c.contact_phone AS phone, c.notes AS client_notes,
+                    s.name AS service, p.display_name AS professional,
+                    EXISTS (SELECT 1 FROM luminix.finance_entries e
+                             WHERE e.clinic_id = a.clinic_id AND e.appointment_id = a.id
+                               AND e.status = 'active') AS paid
+               FROM luminix.appointments a
+               JOIN luminix.clinic_clients c ON c.clinic_id = a.clinic_id AND c.id = a.clinic_client_id
+               JOIN luminix.services s ON s.clinic_id = a.clinic_id AND s.id = a.service_id
+               LEFT JOIN luminix.professionals p ON p.clinic_id = a.clinic_id AND p.id = a.professional_id
+              WHERE a.clinic_id = $1 AND (a.starts_at AT TIME ZONE '${zone}')::date > $2::date
+                AND a.status IN ('scheduled', 'confirmed')
+              ORDER BY a.starts_at, a.id LIMIT 6`,
+            [tenant.clinicId, today],
+          ),
         ])
+        const seesClients = can.has('client:read')
+        const view = (row: Record<string, unknown>) => ({
+          id: String(row.id),
+          startsAt: new Date(String(row.starts_at)).toISOString(),
+          endsAt: new Date(String(row.ends_at)).toISOString(),
+          previousStartsAt: row.previous_starts_at
+            ? new Date(String(row.previous_starts_at)).toISOString()
+            : null,
+          status: String(row.status),
+          clientId: String(row.client_id),
+          client: String(row.client),
+          phone: row.phone ? String(row.phone) : null,
+          clientNotes: seesClients && row.client_notes ? String(row.client_notes) : null,
+          notes: row.notes ? String(row.notes) : null,
+          warnings: (row.override_reasons ?? []) as string[],
+          service: String(row.service),
+          professional: row.professional ? String(row.professional) : null,
+          priceCents: can.has('finance:manage') ? toNumber(row.price_cents) : null,
+          paid: row.paid === true,
+          promotion: Boolean(row.promotion_id),
+        })
         const result: Record<string, unknown> = {
           today,
-          appointments: appointments.rows.map((row) => ({
-            id: String(row.id),
-            startsAt: new Date(String(row.starts_at)).toISOString(),
-            endsAt: new Date(String(row.ends_at)).toISOString(),
-            status: row.status,
-            client: String(row.client),
-            phone: row.phone ? String(row.phone) : null,
-            service: String(row.service),
-            professional: row.professional ? String(row.professional) : null,
-            priceCents: can.has('finance:manage') ? toNumber(row.price_cents) : null,
-            promotion: Boolean(row.promotion_id),
-          })),
+          appointments: appointments.rows.map(view),
+          upcoming: upcoming.rows.map(view),
           upcomingWeek: toNumber(week.rows[0]?.upcoming),
           canManageAgenda: can.has('agenda:manage'),
+          canCharge: can.has('finance:manage'),
+          canOpenClients: can.has('client:manage'),
         }
         if (can.has('client:read')) {
           const clients = await connection.query(

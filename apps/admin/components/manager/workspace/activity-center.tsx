@@ -22,6 +22,8 @@ import {
   timeAgo,
   type ActivityItem,
 } from './activity-copy'
+import '../business/business.css'
+import '../appointments/appointments.css'
 import './workspace.css'
 
 type Page = { items: ActivityItem[]; unread: number; nextBefore: string | null }
@@ -232,7 +234,7 @@ export function ActivityCenter({
                           isSelected={selected.has(item.id)}
                           onChange={() => toggle(item.id)}
                         />
-                        <span className="ws-icon" aria-hidden>
+                        <span className={`ws-icon act-kind act-${item.entity}`} aria-hidden>
                           <Icon size={17} />
                         </span>
                         <button

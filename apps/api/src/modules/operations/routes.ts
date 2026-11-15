@@ -1,6 +1,7 @@
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify'
 import type { SqlConnection } from '../../shared/database/migrations.js'
 import { withClinicTransaction, type TenantPool } from '../../shared/tenant/clinic-transaction.js'
+import { rolePermissions } from '../../shared/tenant/route-helpers.js'
 import type { TenantContext } from '../../shared/tenant/tenant-context.js'
 import { isValidBrazilianTaxId } from '../clinics/tax-id.js'
 
@@ -88,6 +89,82 @@ function fitsPeriod(start: Date, end: Date, timezone: string, periods: Period[])
   if (localStart.date !== localEnd.date) return false
   return periods.some((period) => period.start <= localStart.clock && period.end >= localEnd.clock)
 }
+
+type BookingWarning = { code: WarningCode; title: string; detail: string }
+
+/** What the manager must confirm before a time is accepted (clients are simply refused). */
+async function bookingWarnings(
+  connection: SqlConnection,
+  clinicId: string,
+  slot: { startsAt: Date; endsAt: Date; timezone: string; professionalId: string | null },
+  ignoreAppointmentId: string | null,
+): Promise<BookingWarning[]> {
+  const local = localDateTime(slot.startsAt, slot.timezone)
+  const override = (
+    await connection.query(
+      `SELECT is_available, periods FROM luminix.schedule_overrides
+        WHERE clinic_id = $1 AND local_date = $2`,
+      [clinicId, local.date],
+    )
+  ).rows[0]
+  const weekly = override
+    ? null
+    : (
+        await connection.query(
+          `SELECT is_available, periods FROM luminix.weekly_availability
+            WHERE clinic_id = $1 AND weekday = $2`,
+          [clinicId, local.weekday],
+        )
+      ).rows[0]
+  const availability = override ?? weekly
+  const periods = (availability?.periods ?? []) as Period[]
+  const overlap = await connection.query(
+    `SELECT id FROM luminix.appointments
+      WHERE clinic_id = $1 AND status = ANY($2::text[])
+        AND starts_at < $4 AND ends_at > $3
+        AND ($5::uuid IS NULL OR professional_id = $5::uuid)
+        AND ($6::uuid IS NULL OR id <> $6::uuid)
+      LIMIT 5`,
+    [
+      clinicId,
+      activeAppointmentStatuses,
+      slot.startsAt.toISOString(),
+      slot.endsAt.toISOString(),
+      slot.professionalId,
+      ignoreAppointmentId,
+    ],
+  )
+  const warnings: BookingWarning[] = []
+  if (slot.startsAt.getTime() < Date.now())
+    warnings.push({
+      code: 'past',
+      title: 'Horário no passado',
+      detail: 'O atendimento ficará registrado em um horário que já passou.',
+    })
+  if (
+    !availability?.is_available ||
+    !fitsPeriod(slot.startsAt, slot.endsAt, slot.timezone, periods)
+  )
+    warnings.push({
+      code: 'outside_availability',
+      title: 'Fora do horário disponível',
+      detail: 'Clientes não poderiam escolher este horário, mas o gestor pode prosseguir.',
+    })
+  if (overlap.rows.length)
+    warnings.push({
+      code: 'overlap',
+      title: 'Conflito de agenda',
+      detail: `Há ${overlap.rows.length} atendimento(s) ocupando parte deste horário.`,
+    })
+  return warnings
+}
+
+const localStartPattern = '^\\d{4}-\\d{2}-\\d{2}T(?:[01][0-9]|2[0-3]):[0-5][0-9]$'
+const confirmedWarningsSchema = {
+  type: 'array',
+  uniqueItems: true,
+  items: { type: 'string', enum: ['past', 'outside_availability', 'overlap'] },
+} as const
 
 const clientBodySchema = {
   type: 'object',
@@ -449,53 +526,90 @@ export async function operationRoutes(
         const to = new Date(request.query.to)
         if (!(to > from) || to.getTime() - from.getTime() > 63 * 86400000)
           return reply.code(400).send({ error: 'Invalid date range' })
-        const [appointments, clients, services, professionals, weekly, overrides, settings] =
-          await Promise.all([
-            connection.query(
-              `SELECT a.id, a.starts_at, a.ends_at, a.status, a.booking_source,
-                      a.override_reasons, a.notes, c.id AS client_id,
-                      c.display_name AS client_name, s.id AS service_id, s.name AS service_name,
-                      s.duration_minutes, p.id AS professional_id, p.display_name AS professional_name
+        const can = await rolePermissions(connection, tenant)
+        const [
+          appointments,
+          clients,
+          services,
+          professionals,
+          weekly,
+          overrides,
+          settings,
+          professionalDays,
+        ] = await Promise.all([
+          connection.query(
+            `SELECT a.id, a.starts_at, a.ends_at, a.status, a.booking_source,
+                      a.override_reasons, a.notes, a.previous_starts_at, a.price_cents,
+                      c.id AS client_id, c.display_name AS client_name,
+                      c.contact_phone AS client_phone, c.notes AS client_notes,
+                      s.id AS service_id, s.name AS service_name,
+                      s.duration_minutes, p.id AS professional_id, p.display_name AS professional_name,
+                      EXISTS (SELECT 1 FROM luminix.finance_entries e
+                               WHERE e.clinic_id = a.clinic_id AND e.appointment_id = a.id
+                                 AND e.status = 'active') AS paid
                  FROM luminix.appointments a
                  JOIN luminix.clinic_clients c ON c.clinic_id = a.clinic_id AND c.id = a.clinic_client_id
                  JOIN luminix.services s ON s.clinic_id = a.clinic_id AND s.id = a.service_id
                  LEFT JOIN luminix.professionals p ON p.clinic_id = a.clinic_id AND p.id = a.professional_id
-                WHERE a.clinic_id = $1 AND a.starts_at < $3 AND a.ends_at > $2
-                  AND a.status <> 'canceled'
+                WHERE a.clinic_id = $1
+                  AND ((a.starts_at < $3 AND a.ends_at > $2)
+                    OR (a.previous_starts_at >= $2 AND a.previous_starts_at < $3))
                 ORDER BY a.starts_at, a.id`,
-              [tenant.clinicId, from.toISOString(), to.toISOString()],
-            ),
-            connection.query(
-              `SELECT id, display_name FROM luminix.clinic_clients
+            [tenant.clinicId, from.toISOString(), to.toISOString()],
+          ),
+          connection.query(
+            `SELECT id, display_name FROM luminix.clinic_clients
                 WHERE clinic_id = $1 AND status = 'active' ORDER BY lower(display_name) LIMIT 500`,
-              [tenant.clinicId],
-            ),
-            connection.query(
-              `SELECT id, name, duration_minutes FROM luminix.services
+            [tenant.clinicId],
+          ),
+          connection.query(
+            `SELECT id, name, duration_minutes FROM luminix.services
                 WHERE clinic_id = $1 AND status = 'active' ORDER BY lower(name) LIMIT 200`,
-              [tenant.clinicId],
-            ),
-            connection.query(
-              `SELECT id, display_name FROM luminix.professionals
+            [tenant.clinicId],
+          ),
+          connection.query(
+            `SELECT id, display_name FROM luminix.professionals
                 WHERE clinic_id = $1 AND status = 'active' ORDER BY lower(display_name) LIMIT 100`,
-              [tenant.clinicId],
-            ),
-            connection.query(
-              `SELECT weekday, is_available, periods FROM luminix.weekly_availability
+            [tenant.clinicId],
+          ),
+          connection.query(
+            `SELECT weekday, is_available, periods FROM luminix.weekly_availability
                 WHERE clinic_id = $1 ORDER BY weekday`,
-              [tenant.clinicId],
-            ),
-            connection.query(
-              `SELECT local_date, is_available, periods, reason FROM luminix.schedule_overrides
+            [tenant.clinicId],
+          ),
+          connection.query(
+            `SELECT local_date, is_available, periods, reason FROM luminix.schedule_overrides
                 WHERE clinic_id = $1 AND local_date BETWEEN $2::date AND $3::date ORDER BY local_date`,
-              [tenant.clinicId, request.query.from.slice(0, 10), request.query.to.slice(0, 10)],
-            ),
-            connection.query('SELECT timezone FROM luminix.clinic_settings WHERE clinic_id = $1', [
-              tenant.clinicId,
-            ]),
-          ])
+            [tenant.clinicId, request.query.from.slice(0, 10), request.query.to.slice(0, 10)],
+          ),
+          connection.query('SELECT timezone FROM luminix.clinic_settings WHERE clinic_id = $1', [
+            tenant.clinicId,
+          ]),
+          connection.query(
+            `SELECT w.professional_id, w.weekday, w.is_available, w.periods
+                 FROM luminix.professional_weekly_availability w
+                 JOIN luminix.professionals p ON p.clinic_id = w.clinic_id AND p.id = w.professional_id
+                WHERE w.clinic_id = $1 AND p.status = 'active'
+                ORDER BY w.professional_id, w.weekday`,
+            [tenant.clinicId],
+          ),
+        ])
+        // Reception sees the day; money and client details follow the person's level.
+        const seesMoney = can.has('finance:manage')
+        const seesClients = can.has('client:read')
         return {
-          appointments: appointments.rows,
+          appointments: appointments.rows.map((row) => ({
+            ...row,
+            price_cents: seesMoney ? row.price_cents : null,
+            client_phone: seesClients ? row.client_phone : null,
+            client_notes: seesClients ? row.client_notes : null,
+          })),
+          canManage: can.has('agenda:manage'),
+          canManageHours: can.has('clinic:manage'),
+          canManageTeam: can.has('professional:manage'),
+          canCharge: seesMoney,
+          canOpenClients: can.has('client:manage'),
+          professionalAvailability: professionalDays.rows,
           clients: clients.rows,
           services: services.rows,
           professionals: professionals.rows,
@@ -530,16 +644,9 @@ export async function operationRoutes(
             clientId: { type: 'string', pattern: uuid },
             serviceId: { type: 'string', pattern: uuid },
             professionalId: { type: 'string', pattern: uuid },
-            localStartsAt: {
-              type: 'string',
-              pattern: '^\\d{4}-\\d{2}-\\d{2}T(?:[01][0-9]|2[0-3]):[0-5][0-9]$',
-            },
+            localStartsAt: { type: 'string', pattern: localStartPattern },
             notes: { type: 'string', maxLength: 4000 },
-            confirmedWarnings: {
-              type: 'array',
-              uniqueItems: true,
-              items: { type: 'string', enum: ['past', 'outside_availability', 'overlap'] },
-            },
+            confirmedWarnings: confirmedWarningsSchema,
           },
         },
       },
@@ -583,58 +690,12 @@ export async function operationRoutes(
         if (Number.isNaN(startsAt.getTime()))
           return reply.code(400).send({ error: 'Invalid local appointment time' })
         const endsAt = new Date(startsAt.getTime() + Number(service.duration_minutes) * 60000)
-        const local = localDateTime(startsAt, timezone)
-        const override = (
-          await connection.query(
-            `SELECT is_available, periods FROM luminix.schedule_overrides
-              WHERE clinic_id = $1 AND local_date = $2`,
-            [tenant.clinicId, local.date],
-          )
-        ).rows[0]
-        const weekly = override
-          ? null
-          : (
-              await connection.query(
-                `SELECT is_available, periods FROM luminix.weekly_availability
-                  WHERE clinic_id = $1 AND weekday = $2`,
-                [tenant.clinicId, local.weekday],
-              )
-            ).rows[0]
-        const availability = override ?? weekly
-        const periods = (availability?.periods ?? []) as Period[]
-        const overlap = await connection.query(
-          `SELECT id FROM luminix.appointments
-            WHERE clinic_id = $1 AND status = ANY($2::text[])
-              AND starts_at < $4 AND ends_at > $3
-              AND ($5::uuid IS NULL OR professional_id = $5::uuid)
-            LIMIT 5`,
-          [
-            tenant.clinicId,
-            activeAppointmentStatuses,
-            startsAt.toISOString(),
-            endsAt.toISOString(),
-            request.body.professionalId ?? null,
-          ],
+        const warnings = await bookingWarnings(
+          connection,
+          tenant.clinicId,
+          { startsAt, endsAt, timezone, professionalId: request.body.professionalId ?? null },
+          null,
         )
-        const warnings: Array<{ code: WarningCode; title: string; detail: string }> = []
-        if (startsAt.getTime() < Date.now())
-          warnings.push({
-            code: 'past',
-            title: 'Horário no passado',
-            detail: 'O atendimento ficará registrado em um horário que já passou.',
-          })
-        if (!availability?.is_available || !fitsPeriod(startsAt, endsAt, timezone, periods))
-          warnings.push({
-            code: 'outside_availability',
-            title: 'Fora do horário disponível',
-            detail: 'Clientes não poderiam escolher este horário, mas o gestor pode prosseguir.',
-          })
-        if (overlap.rows.length)
-          warnings.push({
-            code: 'overlap',
-            title: 'Conflito de agenda',
-            detail: `Há ${overlap.rows.length} atendimento(s) ocupando parte deste horário.`,
-          })
         const confirmed = new Set(request.body.confirmedWarnings ?? [])
         if (warnings.some((warning) => !confirmed.has(warning.code)))
           return reply.code(409).send({ error: 'Appointment requires confirmation', warnings })
@@ -692,6 +753,89 @@ export async function operationRoutes(
           [tenant.clinicId, request.params.appointmentId, request.body.status],
         )
         return { status: request.body.status }
+      }),
+  )
+
+  // Moves an appointment that is still to happen; same warnings as a new booking.
+  app.put<{
+    Params: { clinicId: string; appointmentId: string }
+    Body: { localStartsAt: string; confirmedWarnings?: WarningCode[] }
+  }>(
+    '/clinics/:clinicId/appointments/:appointmentId/reschedule',
+    {
+      bodyLimit: 2048,
+      schema: {
+        params: {
+          type: 'object',
+          additionalProperties: false,
+          required: ['clinicId', 'appointmentId'],
+          properties: {
+            ...clinicParams.properties,
+            appointmentId: { type: 'string', pattern: uuid },
+          },
+        },
+        body: {
+          type: 'object',
+          additionalProperties: false,
+          required: ['localStartsAt'],
+          properties: {
+            localStartsAt: { type: 'string', pattern: localStartPattern },
+            confirmedWarnings: confirmedWarningsSchema,
+          },
+        },
+      },
+    },
+    async (request, reply) =>
+      authorized(request, reply, 'agenda:manage', async (connection, tenant) => {
+        const current = (
+          await connection.query(
+            `SELECT a.professional_id, a.status, s.duration_minutes
+               FROM luminix.appointments a
+               JOIN luminix.services s ON s.clinic_id = a.clinic_id AND s.id = a.service_id
+              WHERE a.clinic_id = $1 AND a.id = $2`,
+            [tenant.clinicId, request.params.appointmentId],
+          )
+        ).rows[0]
+        if (!current) return reply.code(404).send({ error: 'Appointment not found' })
+        if (!activeAppointmentStatuses.includes(String(current.status)))
+          return reply.code(409).send({ error: 'Appointment is closed' })
+        const timezone = String(
+          (
+            await connection.query(
+              'SELECT timezone FROM luminix.clinic_settings WHERE clinic_id = $1',
+              [tenant.clinicId],
+            )
+          ).rows[0]?.timezone ?? 'America/Sao_Paulo',
+        )
+        const startsAt = zonedLocalToUtc(request.body.localStartsAt, timezone)
+        if (Number.isNaN(startsAt.getTime()))
+          return reply.code(400).send({ error: 'Invalid local appointment time' })
+        const endsAt = new Date(startsAt.getTime() + Number(current.duration_minutes) * 60000)
+        const warnings = await bookingWarnings(
+          connection,
+          tenant.clinicId,
+          {
+            startsAt,
+            endsAt,
+            timezone,
+            professionalId: current.professional_id ? String(current.professional_id) : null,
+          },
+          request.params.appointmentId,
+        )
+        const confirmed = new Set(request.body.confirmedWarnings ?? [])
+        if (warnings.some((warning) => !confirmed.has(warning.code)))
+          return reply.code(409).send({ error: 'Appointment requires confirmation', warnings })
+        await connection.query(
+          'SELECT luminix.reschedule_appointment($1::uuid, $2::uuid, $3::timestamptz, $4::timestamptz, $5::text[])',
+          [
+            tenant.clinicId,
+            request.params.appointmentId,
+            startsAt.toISOString(),
+            endsAt.toISOString(),
+            warnings.map((warning) => warning.code),
+          ],
+        )
+        return { startsAt: startsAt.toISOString(), endsAt: endsAt.toISOString(), warnings }
       }),
   )
 

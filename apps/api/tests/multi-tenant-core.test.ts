@@ -140,6 +140,7 @@ describe('versioned core migration', () => {
       { name: '0028_activity_inbox_and_search.sql' },
       { name: '0029_client_registry.sql' },
       { name: '0030_client_biological_sex.sql' },
+      { name: '0031_appointment_reschedule.sql' },
     ])
   })
 

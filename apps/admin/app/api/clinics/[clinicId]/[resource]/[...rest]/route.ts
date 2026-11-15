@@ -10,7 +10,7 @@ const writes: Record<'PUT' | 'POST', RegExp[]> = {
     new RegExp(`^catalog/services/${id}$`, 'i'),
     new RegExp(`^catalog/promotions/${id}$`, 'i'),
     new RegExp(`^inventory/items/${id}$`, 'i'),
-    new RegExp(`^appointments/${id}/status$`, 'i'),
+    new RegExp(`^appointments/${id}/(status|reschedule)$`, 'i'),
     new RegExp(`^clients/${id}$`, 'i'),
     new RegExp(`^clients/${id}/status$`, 'i'),
   ],

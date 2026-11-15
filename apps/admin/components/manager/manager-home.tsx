@@ -33,7 +33,6 @@ import {
 } from './manager-settings-nav'
 import './manager-controls.css'
 import { HomePanels } from './sections/home-panels'
-import { AgendaPanel } from './sections/agenda-panel'
 import { ClientsPanel } from './sections/clients-panel'
 import { SectionSketchView } from './sections/section-sketch'
 import type { ClinicApi } from './settings/clinic-api'
@@ -447,7 +446,6 @@ export function ManagerHome({
             onNavigate={navigate}
           />
         )}
-        {realClinic && section.id === 'agenda' && <AgendaPanel createSignal={createSignal} />}
         {realClinic && section.id === 'clientes' && (
           <ClientsPanel createSignal={createSignal} focus={panelFocus} />
         )}
