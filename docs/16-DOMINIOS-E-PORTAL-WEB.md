@@ -194,29 +194,30 @@ Implementada em `apps/web`, rota `/cliente`, mobile first com layout próprio pa
 (barra inferior adaptativa no celular, menu lateral a partir de 960 px). Substitui as orientações
 de `/acesso` e o aviso de `/c/<slug>/meu-plano`, que agora redirecionam.
 
-| Rota                    | Conteúdo                                                            |
-| ----------------------- | ------------------------------------------------------------------- |
-| `/cliente/entrar`       | Login por e-mail e senha (ADR-027; CPF não é credencial)            |
-| `/cliente/cadastro`     | Cadastro da conta Luminix, com aceite dos termos                    |
-| `/cliente/anamnese`     | Ficha nível I: foto obrigatória, sexo, nascimento, saúde            |
-| `/cliente/espacos`      | Seletor (PR21): busca por nome completo/código, minimapa, permissão |
-| `/cliente`              | Home: destaques em slider, atalhos, próximos horários, serviços     |
-| `/cliente/servicos`     | Busca, categorias, ordenação, filtro de promoção e detalhe          |
-| `/cliente/agendar`      | Serviço, dia, horário e pagamento simulado; também remarca          |
-| `/cliente/agenda`       | Semana/mês, linha do tempo do dia, próximos, remarcar e cancelar    |
-| `/cliente/historico`    | Atendimentos e pagamentos, com totais                               |
-| `/cliente/notificacoes` | Avisos com lido/não lido; sino na home                              |
-| `/cliente/perfil`       | Dados, ficha, senha, notificações, idioma, ajuda, sobre, avaliação  |
+| Rota                    | Conteúdo                                                           |
+| ----------------------- | ------------------------------------------------------------------ |
+| `/cliente/entrar`       | Login por e-mail e senha (ADR-027; CPF não é credencial)           |
+| `/cliente/cadastro`     | Cadastro da conta Luminix, com aceite dos termos                   |
+| `/cliente/anamnese`     | Ficha nível I: foto obrigatória, sexo, nascimento, saúde           |
+| `/cliente/espacos`      | Seletor (PR21): busca por nome (parcial) ou código, minimapa       |
+| `/cliente`              | Home: destaques em slider, atalhos, próximos horários, serviços    |
+| `/cliente/servicos`     | Busca, categorias, ordenação, filtro de promoção e detalhe         |
+| `/cliente/agendar`      | Serviço, dia, horário e pagamento simulado; também remarca         |
+| `/cliente/agenda`       | Semana/mês, linha do tempo do dia, próximos, remarcar e cancelar   |
+| `/cliente/historico`    | Atendimentos e pagamentos, com totais                              |
+| `/cliente/notificacoes` | Avisos com lido/não lido; sino na home                             |
+| `/cliente/perfil`       | Dados, ficha, senha, notificações, idioma, ajuda, sobre, avaliação |
 
 Sequência depois do cadastro (revisão de 2026-11-15): ficha de anamnese **da conta**, uma vez →
-escolha do espaço por nome completo ou código → confirmação com minimapa do Google, logo e
+escolha do espaço por nome ou código → confirmação com minimapa do Google, logo e
 endereço → tela de preparação → home. Nada é vinculado sem essa confirmação: os botões do site da
 clínica levam a `/cliente?espaco=<slug>` e o slug só abre a confirmação daquele espaço.
 
 Ao entrar em um espaço, a cliente marca se ele pode usar a ficha da conta (`shareAnamnesis`). Sem
 a permissão, o espaço exige uma ficha própria antes do primeiro acesso. Fichas específicas por
-tipo de espaço (níveis II–III) seguem pendentes. O nome completo é convertido no endereço público
-(`slugFromQuery`), que nasce do nome; espaços com endereço personalizado só aparecem pelo código.
+tipo de espaço (níveis II–III) seguem pendentes. A busca aceita parte do nome (3+ caracteres, sem
+diferenciar acentos ou maiúsculas), o código ou o endereço colado; só espaços publicados e ativos
+aparecem, inclusive os de endereço personalizado ([ADR-028](decisions/ADR-028-DIRETORIO-PUBLICO-POR-NOME.md)).
 
 O tema do espaço ativo (`data-theme`, mesmas seis paletas da vitrine) colore toda a área; telas
 sem espaço usam o tema neutro `luminix`. No celular a barra inferior tem Histórico, Serviços,
@@ -224,8 +225,9 @@ Início (centro), Agenda e Perfil; agendar fica nos atalhos da home, nos serviç
 
 Organização: telas em `app/cliente`, componentes em `components/client-app`, modelo e regras em
 `lib/client-app`, estilos em `app/cliente/cliente.css` (escopo `.ca`). Os dados públicos do espaço
-vêm da mesma projeção da vitrine por `GET /api/espacos/<slug>`; `GET /api/espacos?q=` resolve
-espaços publicados só por código ou endereço exato.
+vêm da mesma projeção da vitrine por `GET /api/espacos/<slug>`; `GET /api/espacos?q=` combina o
+endereço/código exato com `GET /public/clinic-search?q=` da API (até 8 resultados por nome, 60
+requisições/minuto por IP, cache de um minuto por termo no web) e com as demonstrações.
 
 ### Estado: avaliação, sem backend de cliente
 
@@ -238,7 +240,7 @@ e não existe recuperação. As telas avisam isso. Não divulgar `/cliente` a cl
    de troca de URL, IDs de outra clínica e vínculo removido.
 3. Anamnese, agendamento, pagamentos e notificações persistidos por clínica (dado de saúde é
    sensível: consentimento versionado, validade de 180 dias, foto em bucket privado).
-4. Busca pública por nome/localização: decisão de produto e endpoint com limite de requisições.
+4. Busca pública por localização/categoria (por nome: implementada, ADR-028) e limite distribuído.
 5. Disponibilidade real de horários (hoje: expediente publicado menos as reservas do próprio
    aparelho; sem profissionais, salas ou regras de antecedência).
 
@@ -257,7 +259,7 @@ e abrir a versão web (porta 8081); Android/iOS não foram executados nesta etap
 | `/boas-vindas`         | Apresentação em três páginas com paralaxe e troca de tom              |
 | `/entrar`, `/cadastro` | Login e cadastro por e-mail e senha                                   |
 | `/permissoes`          | Notificações, localização e câmera, pedidas uma a uma, com o motivo   |
-| `/espacos`             | Encontrar espaço: código com máscara `AA-0000` ou nome completo       |
+| `/espacos`             | Encontrar espaço: código com máscara `AA-0000` ou nome (parcial)      |
 | `/espaco/<slug>`       | Confirmação: localização, nome, endereço e tela de preparação         |
 | `/(tabs)`              | Início (centro), Serviços, Agenda, Histórico e Perfil                 |
 

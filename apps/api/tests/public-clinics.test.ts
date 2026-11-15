@@ -366,3 +366,173 @@ it('applies public overrides while preserving the stored suggestion and internal
     await publish(clinicA, 'public-a', false)
   }
 })
+
+describe('public clinic search by name', () => {
+  const search = (q: string, target = app) =>
+    target.inject({ method: 'GET', url: `/public/clinic-search?q=${encodeURIComponent(q)}` })
+  const names = async (q: string) =>
+    ((await search(q)).json().clinics as { name: string }[]).map((clinic) => clinic.name)
+
+  beforeAll(async () => {
+    await db.exec('RESET ROLE')
+    const create = async (
+      uid: string,
+      name: string,
+      options: { published?: boolean; status?: string; title?: string; address?: boolean } = {},
+    ) => {
+      const identity = (
+        await connection.query('SELECT * FROM luminix.resolve_staff_identity($1)', [uid])
+      ).rows[0].identity_id
+      const id = String(
+        (
+          await connection.query('SELECT * FROM luminix.bootstrap_owner_clinic($1::uuid, $2)', [
+            identity,
+            name,
+          ])
+        ).rows[0].clinic_id,
+      )
+      await connection.query("SELECT set_config('luminix.clinic_id', $1, false)", [id])
+      await connection.query(
+        `INSERT INTO luminix.clinic_profiles (clinic_id, owner_name, contact_email, contact_phone, public_enabled, public_address, public_showcase)
+         VALUES ($1, 'SEARCH OWNER', 'search-private@example.com', '+5511977777777', $2, $3, $4::jsonb)`,
+        [
+          id,
+          options.published ?? true,
+          options.address ?? false,
+          JSON.stringify(options.title ? { title: options.title } : {}),
+        ],
+      )
+      await connection.query(
+        `INSERT INTO luminix.locations (clinic_id, name, address_line, address_number, district, city, state, is_primary)
+         VALUES ($1, 'Local', 'Rua da Busca', '10', 'Centro', 'Campinas', 'SP', true)`,
+        [id],
+      )
+      await connection.query("UPDATE luminix.clinics SET status = 'active' WHERE id = $1", [id])
+      if (options.status)
+        await connection.query('UPDATE luminix.clinics SET status = $2 WHERE id = $1', [
+          id,
+          options.status,
+        ])
+    }
+    try {
+      for (let index = 1; index <= 10; index += 1)
+        await create(`search-${index}`, `Studio Íris ${String(index).padStart(2, '0')}`)
+      await create('search-hidden', 'Studio Íris Oculta', { published: false })
+      await create('search-suspended', 'Studio Íris Suspensa', { status: 'suspended' })
+      await create('search-title', 'Interno Zeta', { title: 'Ateliê Ômega & Cia' })
+      await create('search-address', 'Recanto Jaçanã', { address: true })
+    } finally {
+      await db.exec('SET ROLE luminix_api')
+    }
+  })
+
+  it('finds only published and active clinics, capped at 8, ignoring accents and case', async () => {
+    const result = await search('íris')
+    expect(result.statusCode).toBe(200)
+    expect(result.headers['cache-control']).toBe('no-store')
+    const found = await names('IRIS')
+    expect(found).toHaveLength(8)
+    expect(found).toEqual(
+      Array.from({ length: 8 }, (_, index) => `Studio Íris ${String(index + 1).padStart(2, '0')}`),
+    )
+    expect(result.json().clinics.map((clinic: { name: string }) => clinic.name)).toEqual(found)
+    for (const term of ['oculta', 'suspensa', 'Studio Íris Oculta', 'Studio Íris Suspensa'])
+      expect(await names(term)).toEqual([])
+    expect(await names('  StUdIo   iris 10 ')).toEqual(['Studio Íris 10'])
+  })
+
+  it('matches the public name only and returns just the picker fields', async () => {
+    expect(await names('zeta')).toEqual([])
+    expect(await names('atelie omega')).toEqual(['Ateliê Ômega & Cia'])
+    const hidden = (await search('omega cia')).json().clinics[0]
+    expect(Object.keys(hidden).sort()).toEqual([
+      'address',
+      'category',
+      'city',
+      'code',
+      'district',
+      'logoUrl',
+      'name',
+      'slug',
+      'state',
+      'theme',
+    ])
+    // Address stays private unless the clinic opted in to publish it.
+    expect(hidden).toMatchObject({ address: null, city: null, district: null, state: null })
+    const result = await search('jacana')
+    expect(result.json().clinics).toEqual([
+      expect.objectContaining({
+        name: 'Recanto Jaçanã',
+        slug: 'recanto-jacana',
+        address: 'Rua da Busca, 10',
+        district: 'Centro',
+        city: 'Campinas',
+        state: 'SP',
+      }),
+    ])
+    for (const privateText of ['SEARCH OWNER', 'search-private@example.com', '+5511977777777'])
+      expect(result.body).not.toContain(privateText)
+    // The full space code finds its own clinic; a fragment of it does not enumerate codes.
+    const code = String(result.json().clinics[0].code)
+    expect(code).toMatch(/^[A-Z]{2}-[0-9]{4}$/)
+    expect(await names(code.toLowerCase())).toEqual(['Recanto Jaçanã'])
+    expect(await names(code.slice(3))).toEqual([])
+  })
+
+  it('refuses short or missing terms and treats wildcards as text', async () => {
+    expect((await search('ir')).statusCode).toBe(400)
+    expect((await app.inject({ url: '/public/clinic-search' })).statusCode).toBe(400)
+    expect((await app.inject({ url: '/public/clinic-search?q=iris&limit=99' })).statusCode).toBe(
+      400,
+    )
+    for (const term of ['%%%', '___', 'í-í', '   a   ', '% %'])
+      expect(await names(term)).toEqual([])
+    expect((await search('x'.repeat(121))).statusCode).toBe(400)
+  })
+
+  it('is not callable anonymously in the database and limits requests per IP', async () => {
+    await db.exec('RESET ROLE')
+    try {
+      const acl = await connection.query(
+        `SELECT has_function_privilege('public', 'luminix.search_public_clinics(text)', 'EXECUTE') AS search,
+                has_function_privilege('luminix_api', 'luminix.search_public_clinics(text)', 'EXECUTE') AS runtime`,
+      )
+      expect(acl.rows[0]).toEqual({ search: false, runtime: true })
+    } finally {
+      await db.exec('SET ROLE luminix_api')
+    }
+    const fresh = await buildApp(
+      {},
+      { database: connection, verifyToken: async (uid: string) => ({ uid }) },
+    )
+    try {
+      for (let attempt = 0; attempt < 60; attempt += 1)
+        expect((await search('iris', fresh)).statusCode).toBe(200)
+      const blocked = await search('iris', fresh)
+      expect(blocked.statusCode).toBe(429)
+      expect(blocked.headers['retry-after']).toBe('60')
+      // The search budget is separate from the page budget.
+      expect((await fresh.inject({ url: '/public/clinics/studio-iris-01' })).statusCode).toBe(200)
+    } finally {
+      await fresh.close()
+    }
+  })
+
+  it('sanitizes database failures', async () => {
+    const failing = await buildApp(
+      {},
+      {
+        database: {
+          query: async () => {
+            throw new Error('secret SQL password')
+          },
+        },
+        verifyToken: async (uid: string) => ({ uid }),
+      },
+    )
+    const result = await failing.inject({ url: '/public/clinic-search?q=iris' })
+    expect(result.statusCode).toBe(503)
+    expect(result.body).not.toContain('secret')
+    await failing.close()
+  })
+})

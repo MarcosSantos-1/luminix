@@ -2,7 +2,13 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 
 import { dayKey, slotsFor } from '../lib/client-app/format.ts'
-import { searchDemoSpaces, slugFromQuery, summarizeSpace } from '../lib/client-app/summary.ts'
+import {
+  searchDemoSpaces,
+  searchTerm,
+  slugFromQuery,
+  summarizeSearchResult,
+  summarizeSpace,
+} from '../lib/client-app/summary.ts'
 import { getPreviewClinic } from '../lib/preview-clinic.ts'
 
 test('código, endereço colado e slug viram o mesmo candidato de busca', () => {
@@ -17,7 +23,55 @@ test('código, endereço colado e slug viram o mesmo candidato de busca', () => 
   assert.equal(slugFromQuery('&&&'), null)
 })
 
-test('busca por nome cobre apenas demonstrações e ignora acentos', () => {
+test('termo da busca pública ignora acentos e recusa endereço colado ou texto curto', () => {
+  assert.equal(searchTerm('  Íris  & Cia '), 'iris cia')
+  assert.equal(searchTerm('KW-4374'), 'kw 4374')
+  assert.equal(searchTerm('ír'), null)
+  assert.equal(searchTerm('%%%'), null)
+  assert.equal(searchTerm('https://luminix.beauty/c/espaco-vanessa'), null)
+})
+
+test('resultado da busca pública vira resumo do seletor e descarta itens inválidos', () => {
+  const summary = summarizeSearchResult({
+    slug: 'studio-iris',
+    code: 'KW-4374',
+    name: 'Studio Íris',
+    theme: 'esmeralda',
+    logoUrl: null,
+    city: 'Campinas',
+    state: 'SP',
+    address: 'Rua da Busca, 10',
+    district: 'Centro',
+    category: 'cabelo',
+    services: [{ name: 'não deve passar' }],
+  })
+  assert.deepEqual(summary, {
+    slug: 'studio-iris',
+    code: 'KW-4374',
+    name: 'Studio Íris',
+    theme: 'esmeralda',
+    logoUrl: null,
+    city: 'Campinas · SP',
+    address: 'Rua da Busca, 10 · Centro',
+    category: 'Cabeleireiro feminino',
+    mapQuery: 'Rua da Busca, 10, Centro, Campinas, SP',
+    demo: false,
+  })
+  const bare = summarizeSearchResult({ slug: 'sem-endereco', name: 'Sem endereço', theme: 'x' })
+  assert.equal(bare?.mapQuery, null)
+  assert.equal(bare?.category, null)
+  assert.equal(bare?.theme, 'rosa')
+  for (const invalid of [null, 'texto', { slug: '../x', name: 'X' }, { slug: 'sem-nome' }])
+    assert.equal(summarizeSearchResult(invalid), null)
+  // Uma demonstração nunca é substituída por um espaço publicado com o mesmo endereço.
+  assert.equal(summarizeSearchResult({ slug: 'demonstracao', name: 'Falsa' }), null)
+  assert.equal(
+    summarizeSearchResult({ slug: 'a-b', name: 'A', category: 'constructor' })?.category,
+    null,
+  )
+})
+
+test('busca local por nome cobre apenas demonstrações e ignora acentos', () => {
   assert.deepEqual(
     searchDemoSpaces('traco').map((space) => space.slug),
     ['demonstracao-tatuagem'],

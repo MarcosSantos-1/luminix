@@ -14,7 +14,7 @@ class ClinicMoved extends Error {
   }
 }
 
-async function fetchPublicClinic(slug: string): Promise<PublicClinic> {
+function publicApiBase() {
   const base = new URL(process.env.API_URL ?? 'https://luminix-api.fly.dev')
   if (
     base.protocol !== 'https:' &&
@@ -25,6 +25,37 @@ async function fetchPublicClinic(slug: string): Promise<PublicClinic> {
     )
   )
     throw new Error('Public API unavailable')
+  return base
+}
+
+async function fetchClinicSearch(term: string): Promise<unknown[]> {
+  const url = new URL('/public/clinic-search', publicApiBase())
+  url.searchParams.set('q', term)
+  const response = await fetch(url, {
+    cache: 'no-store',
+    redirect: 'error',
+    signal: AbortSignal.timeout(20_000),
+  })
+  if (!response.ok) throw new Error('Public search unavailable')
+  const data = (await response.json()) as { clinics?: unknown }
+  if (!Array.isArray(data.clinics)) throw new Error('Invalid public search')
+  return data.clinics
+}
+
+/**
+ * Published spaces whose public name contains the folded term (see `searchTerm`). Same freshness
+ * as the public page: an answer lives for the current minute at most, and failures are not stored.
+ */
+export async function searchPublicClinics(term: string): Promise<unknown[]> {
+  await connection()
+  const minute = Math.floor(Date.now() / 60_000)
+  return unstable_cache(fetchClinicSearch, ['public-clinic-search', String(minute)], {
+    revalidate: 60,
+  })(term)
+}
+
+async function fetchPublicClinic(slug: string): Promise<PublicClinic> {
+  const base = publicApiBase()
   const response = await fetch(new URL(`/public/clinics/${encodeURIComponent(slug)}`, base), {
     cache: 'no-store',
     redirect: 'error',

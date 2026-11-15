@@ -142,6 +142,7 @@ describe('versioned core migration', () => {
       { name: '0030_client_biological_sex.sql' },
       { name: '0031_appointment_reschedule.sql' },
       { name: '0032_promotion_custom_prices.sql' },
+      { name: '0033_public_clinic_search.sql' },
     ])
   })
 

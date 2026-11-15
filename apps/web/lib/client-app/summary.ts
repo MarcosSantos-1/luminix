@@ -42,7 +42,50 @@ const fold = (text: string) =>
     .toLowerCase()
     .trim()
 
-/** Demo spaces matching a name, category or code. Real spaces resolve only by code/address. */
+/**
+ * Term sent to the public name search: folded like the API does, or null when it is a pasted
+ * address or has fewer than 3 useful characters.
+ */
+export function searchTerm(query: string) {
+  if (/^https?:\/\//i.test(query.trim())) return null
+  const term = fold(query)
+    .replace(/[^a-z0-9]+/g, ' ')
+    .trim()
+  return term.length >= 3 && term.length <= 120 ? term : null
+}
+
+/** One item of `GET /public/clinic-search` → picker summary; null when it is not a valid space. */
+export function summarizeSearchResult(item: unknown): SpaceSummary | null {
+  if (typeof item !== 'object' || item === null) return null
+  const text = (key: string) => {
+    const value = (item as Record<string, unknown>)[key]
+    return typeof value === 'string' && value.trim() ? value.trim() : null
+  }
+  const slug = text('slug')
+  const name = text('name')
+  if (!slug || !name || !/^[a-z0-9]+(-[a-z0-9]+)*$/.test(slug) || slug.length > 80) return null
+  if (getPreviewClinic(slug)) return null
+  const category = text('category')
+  const [street, district, city, state] = ['address', 'district', 'city', 'state'].map(text)
+  return {
+    slug,
+    code: text('code'),
+    name,
+    theme: clinicTheme(text('theme') ?? ''),
+    logoUrl: text('logoUrl'),
+    city: [city, state].filter(Boolean).join(' · ') || null,
+    address: [street, district].filter(Boolean).join(' · ') || null,
+    category:
+      category && Object.hasOwn(clinicCategories, category)
+        ? clinicCategories[category as keyof typeof clinicCategories].label
+        : null,
+    mapQuery:
+      street || district ? [street, district, city, state].filter(Boolean).join(', ') : null,
+    demo: false,
+  }
+}
+
+/** Demo spaces matching a name, category or code. Published spaces come from the API search. */
 export function searchDemoSpaces(query: string): SpaceSummary[] {
   const term = fold(query)
   if (term.length < 2) return []
@@ -57,7 +100,8 @@ export function searchDemoSpaces(query: string): SpaceSummary[] {
 
 /**
  * "KW-4374", a pasted site address or the full name → candidate slug, or null. Addresses are
- * generated from the space name, so "Espaço Vanessa" resolves to "espaco-vanessa".
+ * generated from the space name, so "Espaço Vanessa" resolves to "espaco-vanessa". Partial names
+ * and spaces with a custom address are found by the public name search instead (`searchTerm`).
  */
 export function slugFromQuery(query: string) {
   const pasted = /^https?:\/\//i.test(query.trim())

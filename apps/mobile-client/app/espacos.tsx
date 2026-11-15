@@ -166,7 +166,7 @@ export default function FindSpace() {
         <Text style={[type.body, { color: palette.muted, marginTop: 10 }]}>
           {linked.length
             ? 'Toque para entrar ou adicione outro espaço.'
-            : 'Use o código que o espaço passou para você ou busque pelo nome completo.'}
+            : 'Use o código que o espaço passou para você ou busque pelo nome.'}
         </Text>
       </Enter>
 
@@ -246,7 +246,7 @@ export default function FindSpace() {
             onChangeText={setName}
             placeholder="Ex.: Espaço Vanessa"
             autoCorrect={false}
-            hint="Escreva o nome completo, como aparece no site do espaço."
+            hint="Escreva o nome, ou parte dele, como aparece no site do espaço."
             right={
               <View style={{ paddingRight: 10 }}>
                 <Icon name="search" size={19} color={palette.muted} />
@@ -291,7 +291,7 @@ export default function FindSpace() {
           </Text>
           <Text style={[type.small, { color: palette.muted, textAlign: 'center' }]}>
             {current.spaces
-              ? 'Confira o código ou o nome completo com a equipe do espaço.'
+              ? 'Confira o código ou o nome com a equipe do espaço.'
               : 'Verifique sua internet e tente de novo.'}
           </Text>
         </Enter>

@@ -43,6 +43,7 @@ Cobrança real e assinatura do Luminix ainda pendentes, conforme a decisão.
 
 Agenda e clientes do gestor: [ADR-012](decisions/ADR-012-AGENDA-E-CLIENTES-DO-GESTOR.md).
 Cadastro de clientes (CPF, consentimento, duplicidade, edição/arquivo) e regras de vínculo com a conta Luminix: [ADR-027](decisions/ADR-027-CADASTRO-DE-CLIENTES-E-VINCULO.md).
+Diretório público de espaços por nome para a área do cliente: [ADR-028](decisions/ADR-028-DIRETORIO-PUBLICO-POR-NOME.md).
 
 ## Diretórios
 

@@ -9,6 +9,11 @@ projeção por slug e invalida após escrita, com expiração limitada pela jane
 Antes de tráfego comercial, medir o cache e o compartilhamento de IP de saída entre visitantes,
 definir limite distribuído e acrescentar métricas de disponibilidade e de invalidação sem dados pessoais.
 
+A busca por nome (ADR-028, `GET /public/clinic-search`, 60/minuto) herda a mesma limitação: sem
+`trustProxy`, quem chega pelo proxy do Fly ou pelo servidor da Vercel divide um único orçamento, e a
+consulta varre as clínicas publicadas sem índice. Definir IP confiável do cliente e índice de
+trigramas junto com o limite distribuído.
+
 Também pendentes: editor de frases por categoria, edição de slug com redirects, revisão de SEO
 antes de retirar `noindex`, fotos editoriais e testes browser autenticados de publicação completa.
 A leitura e mutação da publicação já têm testes de integração SQL/HTTP e isolamento tenant.

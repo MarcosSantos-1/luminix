@@ -120,7 +120,7 @@ export default function SpacesPage() {
         <p className="ca-lead">
           {linked.length
             ? 'Toque para entrar. Horários e histórico são separados por espaço.'
-            : 'Digite o nome completo do salão, clínica ou estúdio, ou o código que ele passou para você.'}
+            : 'Digite o nome do salão, clínica ou estúdio, ou o código que ele passou para você.'}
         </p>
 
         {linked.length > 0 && (
@@ -158,8 +158,8 @@ export default function SpacesPage() {
                 autoFocus
                 value={query}
                 onChange={(event) => setQuery(event.target.value)}
-                placeholder="Nome completo ou código (ex.: KW-4374)"
-                aria-label="Buscar espaço por nome completo ou código"
+                placeholder="Nome ou código (ex.: KW-4374)"
+                aria-label="Buscar espaço por nome ou código"
               />
             </label>
             {term.length >= 2 && !current && (
@@ -170,8 +170,8 @@ export default function SpacesPage() {
             {term.length >= 2 && current && current.length === 0 && (
               <Empty title="Nenhum espaço encontrado">
                 <p>
-                  Escreva o nome completo, como aparece no site do espaço, ou confira o código com a
-                  equipe.
+                  Escreva pelo menos três letras do nome, como aparece no site do espaço, ou confira
+                  o código com a equipe.
                 </p>
               </Empty>
             )}
