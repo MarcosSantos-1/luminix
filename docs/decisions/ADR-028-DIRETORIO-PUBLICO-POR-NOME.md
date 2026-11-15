@@ -1,6 +1,7 @@
 # ADR-028 — Diretório público de espaços por nome
 
-Status: Accepted (implementada: migration 0033, API e área do cliente)
+Status: Accepted (implementada: migration 0033 aplicada no Neon principal, API publicada no Fly e
+web em produção em 2026-11-15)
 
 Data: 2026-11-15
 
