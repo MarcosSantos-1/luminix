@@ -13,6 +13,8 @@ export type Account = {
   createdAt: string
   language: 'pt-BR' | 'en' | 'es'
   notify: { reminders: boolean; promotions: boolean }
+  /** Answered once after sign-up; spaces use it when the client allows (see SpaceLink). */
+  anamnesis: Anamnesis | null
   activeSlug: string | null
   spaces: Record<string, SpaceLink>
 }
@@ -26,6 +28,8 @@ export type SpaceSummary = {
   city: string | null
   address: string | null
   category: string | null
+  /** Text for the map lookup; null when the space publishes no address. */
+  mapQuery: string | null
   demo: boolean
 }
 
@@ -80,6 +84,8 @@ export type Notice = {
 export type SpaceLink = {
   summary: SpaceSummary
   linkedAt: string
+  /** True: this space reads the account record. False: it needs its own record below. */
+  shareAnamnesis: boolean
   anamnesis: Anamnesis | null
   appointments: Appointment[]
   payments: Payment[]

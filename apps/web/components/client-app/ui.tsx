@@ -1,7 +1,7 @@
 'use client'
 
-import { useEffect, type ReactNode } from 'react'
-import { X } from 'lucide-react'
+import { useEffect, useState, type ReactNode } from 'react'
+import { MapPin, X } from 'lucide-react'
 import { initials } from '../../lib/client-app/format'
 import type { Appointment, SpaceSummary } from '../../lib/client-app/types'
 
@@ -144,5 +144,49 @@ export function PageHeader({
       </div>
       {action}
     </header>
+  )
+}
+
+/** Google minimap that settles on the space address; pan and zoom stay available. */
+export function SpaceMap({ space }: { space: SpaceSummary }) {
+  const [loaded, setLoaded] = useState(false)
+  if (!space.mapQuery) return null
+  return (
+    <div className="ca-map" data-loaded={loaded || undefined}>
+      <iframe
+        title={`Mapa da localização de ${space.name}`}
+        src={`https://maps.google.com/maps?q=${encodeURIComponent(space.mapQuery)}&z=16&output=embed`}
+        loading="lazy"
+        referrerPolicy="no-referrer"
+        onLoad={() => setLoaded(true)}
+      />
+      {!loaded && (
+        <div className="ca-map-loading" role="status">
+          <span className="ca-map-pin">
+            <MapPin size={22} aria-hidden />
+          </span>
+          Localizando {space.name}…
+        </div>
+      )}
+    </div>
+  )
+}
+
+/** Short transition while the space area is assembled, then `onDone`. */
+export function Preparing({ space, onDone }: { space: SpaceSummary; onDone: () => void }) {
+  useEffect(() => {
+    const timer = setTimeout(onDone, 2200)
+    return () => clearTimeout(timer)
+  }, [onDone])
+  return (
+    <div className="ca ca-preparing" data-theme={space.theme} role="status">
+      <Lines />
+      <span className="ca-preparing-logo">
+        <SpaceLogo space={space} size={84} />
+      </span>
+      <strong>{space.name}</strong>
+      <p>Preparando o seu acesso…</p>
+      <span className="ca-preparing-bar" aria-hidden />
+    </div>
   )
 }

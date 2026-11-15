@@ -81,7 +81,7 @@ function Slider({ slides }: { slides: Slide[] }) {
 }
 
 export default function HomePage() {
-  const { account, space } = useClient()
+  const { account, space, anamnesis } = useClient()
   const { clinic } = useClinic(space?.summary.slug ?? null)
   if (!account || !space) return null
 
@@ -225,7 +225,7 @@ export default function HomePage() {
             {unread > 0 && <b>{unread > 9 ? '9+' : unread}</b>}
           </Link>
           <Link href="/cliente/perfil" aria-label="Seu perfil">
-            <Avatar name={account.name} photo={space.anamnesis?.photo} size={42} />
+            <Avatar name={account.name} photo={anamnesis?.photo} size={42} />
           </Link>
         </div>
         <p className="ca-hero-hello">Olá, {firstName(account.name)}</p>

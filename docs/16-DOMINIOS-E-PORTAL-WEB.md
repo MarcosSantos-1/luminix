@@ -198,8 +198,8 @@ de `/acesso` e o aviso de `/c/<slug>/meu-plano`, que agora redirecionam.
 | ----------------------- | ------------------------------------------------------------------- |
 | `/cliente/entrar`       | Login por e-mail e senha (ADR-027; CPF não é credencial)            |
 | `/cliente/cadastro`     | Cadastro da conta Luminix, com aceite dos termos                    |
-| `/cliente/espacos`      | Seletor (PR21): espaços vinculados, busca por nome/código, remoção  |
-| `/cliente/anamnese`     | Ficha nível I por espaço: foto obrigatória, sexo, nascimento, saúde |
+| `/cliente/anamnese`     | Ficha nível I: foto obrigatória, sexo, nascimento, saúde            |
+| `/cliente/espacos`      | Seletor (PR21): busca por nome completo/código, minimapa, permissão |
 | `/cliente`              | Home: destaques em slider, atalhos, próximos horários, serviços     |
 | `/cliente/servicos`     | Busca, categorias, ordenação, filtro de promoção e detalhe          |
 | `/cliente/agendar`      | Serviço, dia, horário e pagamento simulado; também remarca          |
@@ -208,9 +208,19 @@ de `/acesso` e o aviso de `/c/<slug>/meu-plano`, que agora redirecionam.
 | `/cliente/notificacoes` | Avisos com lido/não lido; sino na home                              |
 | `/cliente/perfil`       | Dados, ficha, senha, notificações, idioma, ajuda, sobre, avaliação  |
 
-Vinculação automática: os botões do site da clínica levam a `/cliente?espaco=<slug>`; o slug é
-guardado até existir sessão e então vinculado e ativado. O tema do espaço ativo (`data-theme`,
-mesmas seis paletas da vitrine) colore toda a área; telas sem espaço usam o tema neutro `luminix`.
+Sequência depois do cadastro (revisão de 2026-11-15): ficha de anamnese **da conta**, uma vez →
+escolha do espaço por nome completo ou código → confirmação com minimapa do Google, logo e
+endereço → tela de preparação → home. Nada é vinculado sem essa confirmação: os botões do site da
+clínica levam a `/cliente?espaco=<slug>` e o slug só abre a confirmação daquele espaço.
+
+Ao entrar em um espaço, a cliente marca se ele pode usar a ficha da conta (`shareAnamnesis`). Sem
+a permissão, o espaço exige uma ficha própria antes do primeiro acesso. Fichas específicas por
+tipo de espaço (níveis II–III) seguem pendentes. O nome completo é convertido no endereço público
+(`slugFromQuery`), que nasce do nome; espaços com endereço personalizado só aparecem pelo código.
+
+O tema do espaço ativo (`data-theme`, mesmas seis paletas da vitrine) colore toda a área; telas
+sem espaço usam o tema neutro `luminix`. No celular a barra inferior tem Histórico, Serviços,
+Início (centro), Agenda e Perfil; agendar fica nos atalhos da home, nos serviços e na agenda.
 
 Organização: telas em `app/cliente`, componentes em `components/client-app`, modelo e regras em
 `lib/client-app`, estilos em `app/cliente/cliente.css` (escopo `.ca`). Os dados públicos do espaço

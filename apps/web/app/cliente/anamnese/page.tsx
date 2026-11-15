@@ -4,12 +4,12 @@
 
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { useEffect, useState, type ChangeEvent } from 'react'
+import { useCallback, useEffect, useState, type ChangeEvent } from 'react'
 import { ArrowLeft, ArrowRight, Camera, Check } from 'lucide-react'
 import { saveAnamnesis, useClient } from '../../../lib/client-app/store'
-import type { Sex, SpaceLink } from '../../../lib/client-app/types'
+import type { Anamnesis, Sex, SpaceLink } from '../../../lib/client-app/types'
 import { Splash } from '../../../components/client-app/shell'
-import { SpaceLogo } from '../../../components/client-app/ui'
+import { Preparing, SpaceLogo } from '../../../components/client-app/ui'
 
 /** Square, small JPEG: enough for the record and light enough to keep on the device. */
 async function toPortrait(file: File) {
@@ -39,18 +39,35 @@ export default function AnamnesisPage() {
   const router = useRouter()
   const { ready, account, space } = useClient()
   useEffect(() => {
-    if (!ready) return
-    if (!account) router.replace('/cliente/entrar')
-    else if (!space) router.replace('/cliente/espacos')
-  }, [ready, account, space, router])
-  if (!ready || !account || !space) return <Splash />
+    if (ready && !account) router.replace('/cliente/entrar')
+  }, [ready, account, router])
+  if (!ready || !account) return <Splash />
+  // One record for the account, answered right after sign-up. A space only gets its own record
+  // when the client did not allow it to read the account one.
+  const own = account.anamnesis && space && !space.shareAnamnesis ? space : null
   // Mounted only with the stored record available, so a review starts prefilled.
-  return <AnamnesisForm key={space.summary.slug} space={space} />
+  return (
+    <AnamnesisForm
+      key={own?.summary.slug ?? 'account'}
+      own={own}
+      previous={own ? own.anamnesis : account.anamnesis}
+      hasSpace={Boolean(space)}
+    />
+  )
 }
 
-function AnamnesisForm({ space }: { space: SpaceLink }) {
+function AnamnesisForm({
+  own,
+  previous,
+  hasSpace,
+}: {
+  own: SpaceLink | null
+  previous: Anamnesis | null
+  hasSpace: boolean
+}) {
   const router = useRouter()
-  const previous = space.anamnesis
+  const [preparing, setPreparing] = useState(false)
+  const goHome = useCallback(() => router.replace('/cliente'), [router])
   const [step, setStep] = useState(0)
   const [photo, setPhoto] = useState(previous?.photo ?? '')
   const [sex, setSex] = useState<Sex | ''>(previous?.sex ?? '')
@@ -81,11 +98,11 @@ function AnamnesisForm({ space }: { space: SpaceLink }) {
             ? 'Selecione o sexo biológico.'
             : (!birthDate || birthDate >= today || birthDate < '1900-01-01') &&
               'Informe uma data de nascimento válida.'
-          : !consent && 'Confirme o uso das informações pelo espaço.'
+          : !consent && 'Confirme o uso das informações.'
     if (problem) return setError(problem)
     setError('')
     if (step < 2) return setStep(step + 1)
-    saveAnamnesis(space.summary.slug, {
+    saveAnamnesis(own?.summary.slug ?? null, {
       level: 1,
       photo,
       sex: sex as Sex,
@@ -95,11 +112,16 @@ function AnamnesisForm({ space }: { space: SpaceLink }) {
       consent: true,
       answeredAt: new Date().toISOString(),
     })
-    router.replace(previous ? '/cliente/perfil' : '/cliente')
+    if (previous) router.replace('/cliente/perfil')
+    // First record of the account: next comes choosing the space.
+    else if (!own) router.replace(hasSpace ? '/cliente' : '/cliente/espacos')
+    else setPreparing(true)
   }
 
+  if (preparing && own) return <Preparing space={own.summary} onDone={goHome} />
+
   return (
-    <div className="ca ca-flow" data-theme={space.summary.theme}>
+    <div className="ca ca-flow" data-theme={own?.summary.theme ?? 'luminix'}>
       <div className="ca-flow-card">
         <header className="ca-flow-top">
           {step > 0 ? (
@@ -115,14 +137,20 @@ function AnamnesisForm({ space }: { space: SpaceLink }) {
             <Link className="ca-icon-button" href="/cliente/perfil" aria-label="Voltar ao perfil">
               <ArrowLeft size={18} aria-hidden />
             </Link>
-          ) : (
+          ) : own ? (
             <Link className="ca-link" href="/cliente/espacos">
               Trocar espaço
             </Link>
+          ) : (
+            <span className="ca-wordmark">Luminix</span>
           )}
-          <span className="ca-flow-space">
-            <SpaceLogo space={space.summary} size={28} /> {space.summary.name}
-          </span>
+          {own ? (
+            <span className="ca-flow-space">
+              <SpaceLogo space={own.summary} size={28} /> {own.summary.name}
+            </span>
+          ) : (
+            <span className="ca-flow-space">Sua ficha Luminix</span>
+          )}
         </header>
 
         <ol className="ca-steps" aria-label="Etapas da ficha">
@@ -139,7 +167,9 @@ function AnamnesisForm({ space }: { space: SpaceLink }) {
 
         {step === 0 && (
           <section className="ca-form">
-            <h1>Uma foto para o espaço reconhecer você</h1>
+            <h1>
+              {own ? 'Uma foto para o espaço reconhecer você' : 'Uma foto para reconhecerem você'}
+            </h1>
             <p className="ca-lead">
               Rosto visível, sem filtro. Ela aparece na sua ficha e para a equipe na recepção.
             </p>
@@ -220,8 +250,9 @@ function AnamnesisForm({ space }: { space: SpaceLink }) {
                 onChange={(event) => setConsent(event.target.checked)}
               />
               <span>
-                Autorizo {space.summary.name} a usar estas informações para o meu atendimento. Os
-                dados valem só para este espaço.
+                {own
+                  ? `Autorizo ${own.summary.name} a usar estas informações para o meu atendimento. Esta ficha vale só para este espaço.`
+                  : 'Autorizo o uso destas informações no meu atendimento. Cada espaço só vê a ficha quando eu permitir, ao entrar nele.'}
               </span>
             </label>
           </section>

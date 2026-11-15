@@ -26,6 +26,11 @@ export function summarizeSpace(clinic: PublicClinic): SpaceSummary {
     city: city || (demo ? 'São Paulo · SP' : null),
     address: [street, location?.district].filter(Boolean).join(' · ') || null,
     category: category ? clinicCategories[category].label : null,
+    mapQuery: demo
+      ? 'Praça da Sé, São Paulo, SP'
+      : street || location?.district
+        ? [street, location?.district, location?.city, location?.state].filter(Boolean).join(', ')
+        : null,
     demo,
   }
 }
@@ -50,8 +55,12 @@ export function searchDemoSpaces(query: string): SpaceSummary[] {
     )
 }
 
-/** "KW-4374" or a pasted site address → candidate slug, or null. */
+/**
+ * "KW-4374", a pasted site address or the full name → candidate slug, or null. Addresses are
+ * generated from the space name, so "Espaço Vanessa" resolves to "espaco-vanessa".
+ */
 export function slugFromQuery(query: string) {
+  const pasted = /^https?:\/\//i.test(query.trim())
   const text = query
     .trim()
     .toLowerCase()
@@ -59,5 +68,12 @@ export function slugFromQuery(query: string) {
     .replace(/[/?#].*$/, '')
   const demo = demoOptions.find(({ slug }) => demoSpaceCode(slug).toLowerCase() === text)
   if (demo) return demo.slug
-  return text.length <= 80 && /^[a-z0-9]+(-[a-z0-9]+)*$/.test(text) ? text : null
+  const slug = pasted
+    ? text
+    : fold(text)
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/^-+|-+$/g, '')
+  return slug.length >= 3 && slug.length <= 80 && /^[a-z0-9]+(-[a-z0-9]+)*$/.test(slug)
+    ? slug
+    : null
 }

@@ -26,7 +26,15 @@ let state: State | undefined
 function read(): State {
   try {
     const parsed = JSON.parse(localStorage.getItem(KEY) ?? 'null') as State | null
-    if (parsed && typeof parsed === 'object' && parsed.accounts) return parsed
+    if (parsed && typeof parsed === 'object' && parsed.accounts) {
+      // Records saved before the account-level anamnesis: the first space record becomes it.
+      for (const account of Object.values(parsed.accounts)) {
+        const spaces = Object.values(account.spaces)
+        account.anamnesis ??= spaces.find((space) => space.anamnesis)?.anamnesis ?? null
+        for (const space of spaces) space.shareAnamnesis ??= !space.anamnesis
+      }
+      return parsed
+    }
   } catch {
     // Corrupt or blocked storage: start empty rather than break the app.
   }
@@ -72,7 +80,13 @@ export function useClient() {
   )
   const account = current.session ? (current.accounts[current.session] ?? null) : null
   const space = account?.activeSlug ? (account.spaces[account.activeSlug] ?? null) : null
-  return { ready, account, space }
+  /** The record the active space reads: the account one when shared, else its own. */
+  const anamnesis = !account
+    ? null
+    : space && !space.shareAnamnesis
+      ? space.anamnesis
+      : account.anamnesis
+  return { ready, account, space, anamnesis }
 }
 
 const id = () => crypto.randomUUID()
@@ -129,6 +143,7 @@ export async function signUp(input: {
     createdAt: nowIso(),
     language: 'pt-BR',
     notify: { reminders: true, promotions: true },
+    anamnesis: null,
     activeSlug: null,
     spaces: {},
   }
@@ -170,7 +185,7 @@ export async function changePassword(current: string, next: string): Promise<str
 }
 
 /** Links (or refreshes) a space and makes it the active one. */
-export function linkSpace(summary: SpaceSummary) {
+export function linkSpace(summary: SpaceSummary, shareAnamnesis: boolean) {
   patchAccount((account) => {
     const existing = account.spaces[summary.slug]
     const space: SpaceLink = existing
@@ -178,6 +193,7 @@ export function linkSpace(summary: SpaceSummary) {
       : {
           summary,
           linkedAt: nowIso(),
+          shareAnamnesis,
           anamnesis: null,
           appointments: [],
           payments: [],
@@ -215,8 +231,14 @@ export function unlinkSpace(slug: string) {
   })
 }
 
-export function saveAnamnesis(slug: string, anamnesis: Anamnesis) {
-  patchSpace(slug, (space) => ({ ...space, anamnesis }))
+/** `slug` null saves the account record; a slug saves that space's own record. */
+export function saveAnamnesis(slug: string | null, anamnesis: Anamnesis) {
+  if (slug) patchSpace(slug, (space) => ({ ...space, anamnesis, shareAnamnesis: false }))
+  else patchAccount((account) => ({ ...account, anamnesis }))
+}
+
+export function setAnamnesisSharing(slug: string, shareAnamnesis: boolean) {
+  patchSpace(slug, (space) => ({ ...space, shareAnamnesis }))
 }
 
 export function book(

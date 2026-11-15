@@ -1933,6 +1933,203 @@
   flex: none;
 }
 
+/* ── Space confirmation: map, permission, preparing ─────────── */
+.ca-space-preview {
+  justify-items: stretch;
+  text-align: left;
+  padding: 12px 12px 18px;
+  gap: 12px;
+}
+.ca-space-preview > .ca-link,
+.ca-space-preview > .ca-note,
+.ca-space-address {
+  padding: 0 6px;
+}
+.ca-space-preview-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 0 6px;
+}
+.ca-space-preview-head > span:not(.ca-logo) {
+  display: grid;
+  flex: 1;
+  min-width: 0;
+}
+.ca-space-preview-head strong {
+  font-family: var(--font-display), sans-serif;
+  font-size: 20px;
+  line-height: 1.15;
+}
+.ca-space-address {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  color: var(--muted);
+}
+.ca-space-address svg {
+  flex: none;
+  margin-top: 2px;
+  color: var(--accent);
+}
+.ca-map {
+  position: relative;
+  overflow: hidden;
+  height: 210px;
+  border-radius: 20px;
+  background: var(--light);
+}
+.ca-map iframe {
+  width: 100%;
+  height: 100%;
+  border: 0;
+  opacity: 0;
+  transform: scale(1.12);
+  transition:
+    opacity 0.6s,
+    transform 1.4s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+.ca-map[data-loaded] iframe {
+  opacity: 1;
+  transform: none;
+}
+.ca-map-loading {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: 12px;
+  color: var(--deep);
+  font-weight: 650;
+  font-size: 13.5px;
+  background:
+    repeating-linear-gradient(
+      0deg,
+      transparent 0 34px,
+      color-mix(in srgb, var(--accent) 12%, transparent) 34px 35px
+    ),
+    repeating-linear-gradient(
+      90deg,
+      transparent 0 34px,
+      color-mix(in srgb, var(--accent) 12%, transparent) 34px 35px
+    );
+}
+.ca-map-pin {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
+  background: var(--deep);
+  color: #fff;
+  animation: ca-drop 1.1s cubic-bezier(0.3, 0.7, 0.3, 1) infinite alternate;
+}
+.ca-map-pin::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent) 55%, transparent);
+  animation: ca-ping 1.6s ease-out infinite;
+}
+@keyframes ca-drop {
+  from {
+    transform: translateY(-10px);
+  }
+  to {
+    transform: translateY(2px);
+  }
+}
+@keyframes ca-ping {
+  to {
+    box-shadow: 0 0 0 26px transparent;
+  }
+}
+.ca-permission {
+  padding: 14px;
+  border-radius: 18px;
+  background: var(--card);
+  box-shadow: inset 0 0 0 1.5px var(--line);
+  cursor: pointer;
+}
+.ca-permission span {
+  display: grid;
+  gap: 3px;
+}
+.ca-permission strong {
+  color: var(--ink);
+  font-weight: 650;
+}
+.ca-preparing {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: 14px;
+  overflow: hidden;
+  background: var(--deep);
+  color: #fff;
+  text-align: center;
+  animation: ca-fade 0.3s;
+}
+.ca-preparing > * {
+  position: relative;
+}
+.ca-preparing .ca-lines {
+  position: absolute;
+}
+.ca-preparing-logo {
+  border-radius: 30%;
+  animation: ca-breathe 1.4s ease-in-out infinite;
+}
+.ca-preparing-logo .ca-logo {
+  background: #fff;
+  color: var(--deep);
+}
+.ca-preparing strong {
+  font-family: var(--font-display), sans-serif;
+  font-size: 24px;
+  letter-spacing: -0.02em;
+}
+.ca-preparing p {
+  color: rgba(255, 255, 255, 0.72);
+}
+.ca-preparing-bar {
+  width: 180px;
+  height: 4px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.18);
+}
+.ca-preparing-bar::after {
+  content: '';
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: inherit;
+  background: #fff;
+  transform-origin: left;
+  animation: ca-fill 2.1s cubic-bezier(0.3, 0.6, 0.2, 1) forwards;
+}
+@keyframes ca-breathe {
+  50% {
+    transform: scale(1.07);
+    box-shadow: 0 0 0 14px rgba(255, 255, 255, 0.08);
+  }
+}
+@keyframes ca-fill {
+  from {
+    transform: scaleX(0.04);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+
 /* ── Wide screens ───────────────────────────────────────────── */
 @media (min-width: 960px) {
   .ca-auth {

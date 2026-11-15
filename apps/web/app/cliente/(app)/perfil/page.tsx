@@ -94,11 +94,11 @@ function Row({
 
 export default function ProfilePage() {
   const router = useRouter()
-  const { account, space } = useClient()
+  const { account, space, anamnesis } = useClient()
   const { clinic } = useClinic(space?.summary.slug ?? null)
   const [panel, setPanel] = useState<Panel>(null)
   const [message, setMessage] = useState('')
-  if (!account || !space?.anamnesis) return null
+  if (!account || !space || !anamnesis) return null
   const close = () => {
     setPanel(null)
     setMessage('')
@@ -123,14 +123,14 @@ export default function ProfilePage() {
     close()
   }
 
-  const answered = new Date(space.anamnesis.answeredAt).toLocaleDateString('pt-BR')
+  const answered = new Date(anamnesis.answeredAt).toLocaleDateString('pt-BR')
   const spaceCount = Object.keys(account.spaces).length
 
   return (
     <div className="ca-page ca-profile">
       <header className="ca-profile-card">
         <Lines />
-        <Avatar name={account.name} photo={space.anamnesis.photo} size={76} />
+        <Avatar name={account.name} photo={anamnesis.photo} size={76} />
         <div>
           <h1>{account.name}</h1>
           <p>{account.email}</p>
@@ -164,7 +164,7 @@ export default function ProfilePage() {
             <Row
               icon={<ClipboardList size={18} />}
               label="Ficha de anamnese"
-              hint={`Respondida em ${answered}`}
+              hint={`${space.shareAnamnesis ? 'Ficha da conta' : 'Ficha só deste espaço'} · ${answered}`}
               href="/cliente/anamnese"
             />
             <Row

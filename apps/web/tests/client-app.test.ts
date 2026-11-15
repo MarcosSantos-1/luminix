@@ -9,8 +9,12 @@ test('código, endereço colado e slug viram o mesmo candidato de busca', () => 
   assert.equal(slugFromQuery('KW-4374'), 'kw-4374')
   assert.equal(slugFromQuery('https://luminix.beauty/c/espaco-vanessa?x=1'), 'espaco-vanessa')
   assert.equal(slugFromQuery('DEMO-TATUAGEM'), 'demonstracao-tatuagem')
-  assert.equal(slugFromQuery('Traço & Sombra'), null)
+  // O endereço nasce do nome do espaço: o nome completo vira o mesmo candidato.
+  assert.equal(slugFromQuery('Espaço Vanessa'), 'espaco-vanessa')
+  assert.equal(slugFromQuery('Traço & Sombra'), 'traco-sombra')
   assert.equal(slugFromQuery('../demonstracao'), null)
+  assert.equal(slugFromQuery('ab'), null)
+  assert.equal(slugFromQuery('&&&'), null)
 })
 
 test('busca por nome cobre apenas demonstrações e ignora acentos', () => {
@@ -31,6 +35,7 @@ test('resumo do espaço não carrega serviços nem contatos', () => {
     'code',
     'demo',
     'logoUrl',
+    'mapQuery',
     'name',
     'slug',
     'theme',

@@ -13,34 +13,18 @@ import {
   Plus,
   UserRound,
 } from 'lucide-react'
-import {
-  linkSpace,
-  rememberPendingSpace,
-  takePendingSpace,
-  useClient,
-} from '../../lib/client-app/store'
-import { fetchSpace } from './use-clinic'
+import { rememberPendingSpace, useClient } from '../../lib/client-app/store'
 import { Avatar, SpaceLogo } from './ui'
 
-/** Captures `?espaco=<slug>` (button on the clinic site) and links it once there is a session. */
+/**
+ * Remembers `?espaco=<slug>` (button on the clinic site). Nothing is linked silently: the space
+ * picker opens that space for confirmation once the visitor has a session and a record.
+ */
 export function ClientRoot({ children }: { children: ReactNode }) {
-  const { ready, account } = useClient()
-  const router = useRouter()
-  const signedIn = Boolean(account)
   useEffect(() => {
     const slug = new URLSearchParams(window.location.search).get('espaco')
     if (slug) rememberPendingSpace(slug)
   }, [])
-  useEffect(() => {
-    if (!ready || !signedIn) return
-    const slug = takePendingSpace()
-    if (!slug) return
-    void fetchSpace(slug).then((found) => {
-      if (!found) return
-      linkSpace(found.summary)
-      router.replace('/cliente')
-    })
-  }, [ready, signedIn, router])
   return children
 }
 
@@ -52,31 +36,40 @@ export function Splash() {
   )
 }
 
-const tabs = [
-  { href: '/cliente', label: 'Início', icon: House },
-  { href: '/cliente/servicos', label: 'Serviços', icon: LayoutGrid },
-  { href: '/cliente/agendar', label: 'Agendar', icon: Plus, primary: true },
-  { href: '/cliente/agenda', label: 'Agenda', icon: CalendarDays },
-  { href: '/cliente/perfil', label: 'Perfil', icon: UserRound },
+const home = { href: '/cliente', label: 'Início', icon: House }
+const services = { href: '/cliente/servicos', label: 'Serviços', icon: LayoutGrid }
+const agenda = { href: '/cliente/agenda', label: 'Agenda', icon: CalendarDays }
+const history = { href: '/cliente/historico', label: 'Histórico', icon: History }
+const profile = { href: '/cliente/perfil', label: 'Perfil', icon: UserRound }
+// Phone bar: home sits in the middle, under the thumb.
+const tabs: { href: string; label: string; icon: typeof House; primary?: boolean }[] = [
+  history,
+  services,
+  { ...home, primary: true },
+  agenda,
+  profile,
 ]
+const sideLinks = [home, services, agenda, history]
 
 export function AppShell({ children }: { children: ReactNode }) {
-  const { ready, account, space } = useClient()
+  const { ready, account, space, anamnesis } = useClient()
   const router = useRouter()
   const pathname = usePathname()
   const target = !ready
     ? null
     : !account
       ? '/cliente/entrar'
-      : !space
-        ? '/cliente/espacos'
-        : !space.anamnesis
-          ? '/cliente/anamnese'
-          : null
+      : !account.anamnesis
+        ? '/cliente/anamnese'
+        : !space
+          ? '/cliente/espacos'
+          : !anamnesis
+            ? '/cliente/anamnese'
+            : null
   useEffect(() => {
     if (target) router.replace(target)
   }, [target, router])
-  if (!ready || !account || !space || !space.anamnesis) return <Splash />
+  if (!ready || !account || !space || !anamnesis) return <Splash />
 
   const unread = space.notices.filter((item) => !item.read).length
   // Exact segment match: /cliente/agendar must not light up /cliente/agenda.
@@ -95,22 +88,14 @@ export function AppShell({ children }: { children: ReactNode }) {
           <ArrowLeftRight size={16} aria-hidden />
         </Link>
         <nav aria-label="Navegação principal">
-          {tabs.map(({ href, label, icon: Icon, primary }) => (
-            <Link
-              key={href}
-              href={href}
-              className={primary ? 'ca-side-primary' : undefined}
-              aria-current={isActive(href) ? 'page' : undefined}
-            >
+          <Link href="/cliente/agendar" className="ca-side-primary">
+            <Plus size={19} aria-hidden /> Agendar
+          </Link>
+          {sideLinks.map(({ href, label, icon: Icon }) => (
+            <Link key={href} href={href} aria-current={isActive(href) ? 'page' : undefined}>
               <Icon size={19} aria-hidden /> {label}
             </Link>
           ))}
-          <Link
-            href="/cliente/historico"
-            aria-current={isActive('/cliente/historico') ? 'page' : undefined}
-          >
-            <History size={19} aria-hidden /> Histórico
-          </Link>
           <Link
             href="/cliente/notificacoes"
             aria-current={isActive('/cliente/notificacoes') ? 'page' : undefined}
@@ -118,9 +103,12 @@ export function AppShell({ children }: { children: ReactNode }) {
             <Bell size={19} aria-hidden /> Notificações
             {unread > 0 && <b>{unread}</b>}
           </Link>
+          <Link href={profile.href} aria-current={isActive(profile.href) ? 'page' : undefined}>
+            <UserRound size={19} aria-hidden /> Perfil
+          </Link>
         </nav>
         <Link className="ca-side-user" href="/cliente/perfil">
-          <Avatar name={account.name} photo={space.anamnesis.photo} size={38} />
+          <Avatar name={account.name} photo={anamnesis.photo} size={38} />
           <span>
             <strong>{account.name}</strong>
             <small>{account.email}</small>
