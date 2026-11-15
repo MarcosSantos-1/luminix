@@ -1,0 +1,351 @@
+/* Página /funcionalidades — layout de documentação. Usa os tokens de landing.css. */
+
+.docs-layout {
+  max-width: var(--wrap);
+  margin: 0 auto;
+  padding: 8px var(--gutter) 64px;
+}
+
+/* ───────────── Menu ───────────── */
+
+.docs-nav {
+  position: sticky;
+  top: 76px;
+  z-index: 30;
+  margin-bottom: 28px;
+  border-radius: var(--r-s) var(--r-m) var(--r-m) var(--r-s);
+  background: #fff;
+  box-shadow:
+    0 0 0 1px var(--line),
+    0 14px 30px -22px rgba(87, 16, 47, 0.6);
+}
+
+.docs-nav > summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 18px;
+  font-weight: 700;
+  list-style: none;
+  cursor: pointer;
+}
+
+.docs-nav > summary::-webkit-details-marker {
+  display: none;
+}
+
+.docs-nav > summary small {
+  display: block;
+  color: var(--berry);
+  font-size: 0.7rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.docs-nav[open] > summary svg {
+  transform: rotate(180deg);
+}
+
+.docs-nav-body {
+  max-height: 62vh;
+  overflow-y: auto;
+  padding: 4px 14px 16px;
+  border-top: 1px solid var(--line);
+}
+
+.docs-search {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 12px 0 6px;
+  padding: 0 14px;
+  border-radius: 99px;
+  background: var(--petal);
+  color: var(--ink-soft);
+}
+
+.docs-search:focus-within {
+  box-shadow: 0 0 0 2px var(--pink-soft);
+}
+
+.docs-search input {
+  flex: 1;
+  height: 42px;
+  border: 0;
+  background: none;
+  color: var(--ink);
+  font: inherit;
+  font-size: 0.92rem;
+  outline: none;
+}
+
+.docs-nav nav h2 {
+  margin: 18px 0 6px 12px;
+  font-family: var(--font-body), sans-serif;
+  font-size: 0.72rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #a58a96;
+}
+
+.docs-nav nav a {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 9px 12px;
+  border-radius: 10px;
+  border-left: 3px solid transparent;
+  color: var(--ink-soft);
+  font-size: 0.95rem;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.docs-nav nav a:hover {
+  background: var(--petal);
+  color: var(--ink);
+}
+
+.docs-nav nav a[aria-current='true'] {
+  border-left-color: var(--pink);
+  border-radius: 3px 10px 10px 3px;
+  background: var(--blush);
+  color: var(--wine);
+}
+
+.docs-nav nav i {
+  flex: none;
+  font-style: normal;
+  font-size: 0.66rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #9a6a1c;
+  background: #fbefd2;
+  padding: 2px 7px;
+  border-radius: 99px;
+}
+
+.docs-empty {
+  padding: 16px 12px;
+  color: var(--ink-soft);
+}
+
+/* ───────────── Conteúdo ───────────── */
+
+.docs-intro {
+  padding: 12px 0 30px;
+}
+
+.docs .docs-intro h1 {
+  font-size: clamp(2rem, 8vw, 3.2rem);
+  margin-bottom: 14px;
+}
+
+.docs-group-title {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin: 26px 0 6px !important;
+  color: var(--berry);
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.docs-group-title::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--line);
+}
+
+.docs-article {
+  padding: 26px 0 34px;
+  scroll-margin-top: 150px;
+}
+
+.docs-article + .docs-article {
+  border-top: 1px dashed var(--line);
+}
+
+.docs-article-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 14px;
+  margin-bottom: 10px;
+}
+
+.docs .docs-article h2 {
+  font-size: 1.7rem;
+}
+
+.docs-status {
+  padding: 4px 11px;
+  border-radius: 99px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  background: #e2f6ec;
+  color: #17734a;
+}
+
+.docs-status[data-status='em-breve'] {
+  background: #fbefd2;
+  color: #9a6a1c;
+}
+
+.docs-summary {
+  color: var(--ink-soft);
+  font-size: 1.06rem;
+  max-width: 40rem;
+}
+
+.docs-media {
+  margin: 22px 0;
+  aspect-ratio: 16 / 9;
+  overflow: hidden;
+  border-radius: var(--r-l) var(--r-m) var(--r-m) var(--r-m);
+  background: var(--blush);
+}
+
+.docs-media img,
+.docs-media iframe {
+  width: 100%;
+  height: 100%;
+  border: 0;
+  object-fit: contain;
+}
+
+.docs-media img[src*='sala'] {
+  object-fit: cover;
+}
+
+.docs-media-empty {
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: 8px;
+  aspect-ratio: 16 / 6;
+  background: none;
+  border: 1.5px dashed #e7b9c8;
+  color: #b88a9b;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.docs-points {
+  display: grid;
+  gap: 10px;
+}
+
+.docs-points li {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 12px;
+  align-items: start;
+}
+
+.docs-points svg {
+  width: 22px;
+  height: 22px;
+  margin-top: 1px;
+  padding: 4px;
+  border-radius: 50%;
+  background: var(--blush);
+  color: var(--berry);
+}
+
+.docs-faq {
+  display: grid;
+  gap: 8px;
+  margin-top: 22px;
+}
+
+.docs-faq details {
+  border-radius: var(--r-s);
+  background: #fff;
+  box-shadow: inset 0 0 0 1px var(--line);
+}
+
+.docs-faq summary {
+  padding: 13px 16px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.docs-faq p {
+  padding: 0 16px 14px;
+  color: var(--ink-soft);
+}
+
+.docs-cta {
+  display: grid;
+  gap: 20px;
+  margin-top: 30px;
+  padding: 30px 26px;
+  border-radius: var(--r-l) var(--r-xl) var(--r-l) var(--r-l);
+  background: var(--wine);
+  color: #fff;
+}
+
+.docs .docs-cta h2 {
+  font-size: 1.6rem;
+  margin-bottom: 6px;
+}
+
+.docs-cta p {
+  color: #e9c9d6;
+}
+
+@media (min-width: 960px) {
+  .docs-layout {
+    display: grid;
+    grid-template-columns: 264px minmax(0, 1fr);
+    gap: 64px;
+    align-items: start;
+    padding-top: 28px;
+  }
+
+  .docs-nav {
+    top: 104px;
+    margin: 0;
+    background: none;
+    box-shadow: none;
+  }
+
+  .docs-nav > summary {
+    display: none;
+  }
+
+  .docs-nav-body {
+    max-height: calc(100vh - 130px);
+    padding: 0 8px 20px 0;
+    border: 0;
+  }
+
+  .docs-search {
+    margin-top: 0;
+    background: #fff;
+    box-shadow: inset 0 0 0 1px var(--line);
+  }
+
+  .docs-main {
+    max-width: 780px;
+  }
+
+  .docs-article {
+    scroll-margin-top: 110px;
+  }
+
+  .docs-cta {
+    grid-template-columns: 1fr auto;
+    align-items: center;
+    padding: 40px 44px;
+  }
+}

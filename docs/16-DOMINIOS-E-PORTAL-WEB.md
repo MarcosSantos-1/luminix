@@ -136,3 +136,54 @@ API publicada no Fly; `/health` retorna 200 e slug desconhecido retorna 404 pela
 `pnpm check` passou: 108 testes API, 23 admin e 4 web, além de lint, TypeScript e builds.
 Revisão visual local em desktop e mobile (320/390 px), navegação por categorias e termos.
 Editor de frases, agendamentos e fluxo privado seguem explicitamente pendentes.
+
+## Landing, funcionalidades e páginas de anúncio — 2026-11-14
+
+Home refeita (mobile first, com fotos) e posicionada como **ecossistema de gestão**, não agenda:
+agenda é um módulo entre financeiro, estoque, equipe, relatórios, marketing, WhatsApp com IA e
+app do cliente. Oferta informada pelo usuário: 12 dias grátis sem cartão, Pix ou cartão,
+mensal R$ 99,90 e anual R$ 900,00.
+
+| Rota               | Conteúdo                                                    | Fonte dos textos  |
+| ------------------ | ----------------------------------------------------------- | ----------------- |
+| `/`                | Hero, o que é, para quem, ecossistema, começar, planos, FAQ | `app/page.tsx`    |
+| `/funcionalidades` | Estilo documentação: menu lateral com busca + tópicos       | `lib/features.ts` |
+| `/para/<slug>`     | Páginas de anúncio sem menu, uma por público                | `lib/ad-pages.ts` |
+
+Slugs de anúncio: `seu-espaco` (geral), `tatuagem` (tema grafite), `estetica` (clínicas,
+massoterapia e quiropraxia), `cabeleireiras`, `manicures`. Novo público = novo item em
+`lib/ad-pages.ts`; slug desconhecido responde 404 (`dynamicParams = false`).
+
+Organização: componentes em `components/landing`, estilos em `app/landing.css` (escopo `.lp`,
+tokens em variáveis; `data-theme="graphite"` troca a paleta), anúncios em `app/para/ads.css`,
+docs em `app/funcionalidades/docs.css`. Constantes comerciais (dias de teste, preços, WhatsApp,
+e-mail, URL do vídeo) em `lib/site.ts`; etiquetas de módulos em `lib/modules.ts`. Imagens em
+`public/landing/*.webp`, geradas a partir de `Luminix-Page/assets` (fora do repositório; 48 MB em
+PNG viraram 1,2 MB). `/acesso`, `/termos` e `/privacidade` seguem com `components/marketing`.
+
+Pendências conhecidas:
+
+- `SUPPORT_WHATSAPP_URL` e `SUPPORT_EMAIL` são provisórios; `DEMO_VIDEO_EMBED_URL` vazio mostra
+  "Vídeo em produção" no modal.
+- Selos "Disponível"/"Em breve" em `lib/features.ts` e `lib/modules.ts` foram estimados; revisar
+  contra o que o painel entrega. WhatsApp com IA, imagens por IA, app do cliente, anamnese e
+  pagamentos online estão como "em breve".
+- Retratos dos cartões "Para quem" vieram com moldura embutida; regenerar sem moldura.
+- Trocar o mockup ilustrado por capturas reais do painel; adicionar depoimentos quando houver.
+- `robots: noindex` continua global no layout: remover da home no lançamento, manter em `/para/*`.
+- Falta imagem Open Graph; `/acesso` e páginas legais ainda usam o cabeçalho antigo.
+- Planejado pelo usuário: seção por tipo de negócio na home e mais páginas de nicho (barbearia,
+  depilação etc.).
+
+### Anúncios (Instagram/Facebook)
+
+- Apontar cada anúncio para a página do público correspondente em `/para/<slug>`, nunca para a
+  home: menu e links extras são saídas antes do cadastro.
+- O título da página deve repetir a promessa do anúncio; "12 dias grátis, sem cartão" aparece
+  na primeira dobra.
+- Antes de investir: Pixel da Meta com API de Conversões, evento no clique do botão e evento de
+  cadastro concluído em `app.luminix.beauty` (outro domínio), e UTM em todos os links. Repassar
+  os UTMs da landing para o link de cadastro ainda não está implementado.
+- Testar o cadastro completo dentro do navegador do Instagram; login social costuma falhar ali.
+- Criativo: vídeo vertical de 15 a 20 s mostrando o sistema no celular; o mesmo vídeo serve ao
+  modal da página.

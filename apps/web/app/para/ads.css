@@ -1,0 +1,260 @@
+/* Páginas de anúncio (/para/<nicho>). Usa os tokens e componentes de landing.css. */
+
+.ad-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  max-width: var(--wrap);
+  margin: 0 auto;
+  padding: 18px var(--gutter) 6px;
+}
+
+.ad-top a:first-child {
+  display: flex;
+}
+
+/* etiquetas flutuantes sobre a foto */
+.ad-chip {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 16px 10px 12px;
+  color: var(--ink-soft);
+  animation: lp-float 8s ease-in-out infinite;
+}
+
+.ad-chip b {
+  color: var(--ink);
+}
+
+.ad-chip-1 {
+  left: -18px;
+  bottom: 34px;
+  border-radius: 18px 18px 18px 6px;
+}
+
+.ad-chip-2 {
+  top: 18px;
+  right: -6px;
+  border-radius: 18px 18px 6px 18px;
+  animation-delay: 1.2s;
+}
+
+/* ───────────── O que resolve ───────────── */
+
+.ad-pains {
+  display: grid;
+  gap: 14px;
+  padding-top: 24px;
+}
+
+.ad-pains article {
+  position: relative;
+  padding: 26px 26px 28px;
+  background: var(--paper);
+  box-shadow: inset 0 0 0 1px var(--line);
+}
+
+.ad-pains article:nth-child(1) {
+  border-radius: var(--r-xl) var(--r-m) var(--r-m) var(--r-m);
+}
+.ad-pains article:nth-child(2) {
+  border-radius: var(--r-m);
+  background: var(--blush);
+  box-shadow: none;
+}
+.ad-pains article:nth-child(3) {
+  border-radius: var(--r-m) var(--r-m) var(--r-xl) var(--r-m);
+}
+
+.ad-pains span {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  margin-bottom: 18px;
+  border-radius: 14px 14px 14px 4px;
+  background: var(--pink);
+  color: #fff;
+  font-family: var(--font-display), sans-serif;
+  font-size: 1.2rem;
+  font-weight: 700;
+}
+
+.ad .ad-pains h2 {
+  font-size: 1.35rem;
+  margin-bottom: 8px;
+}
+
+.ad-pains p {
+  color: var(--ink-soft);
+}
+
+/* ───────────── Faixa com foto ───────────── */
+
+.ad-band {
+  display: grid;
+  gap: 34px;
+}
+
+.ad-band-photo {
+  position: relative;
+}
+
+.ad-band-photo img {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 5 / 4;
+  object-fit: cover;
+  border-radius: var(--r-l) var(--r-xl) var(--r-l) var(--r-l);
+}
+
+.ad-band-photo .lp-dots {
+  left: -12px;
+  bottom: -18px;
+}
+
+.ad-band h2 {
+  margin-bottom: 14px;
+}
+
+.ad-points {
+  display: grid;
+  gap: 12px;
+  margin-top: 24px !important;
+}
+
+.ad-points li {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-weight: 600;
+}
+
+.ad-points svg {
+  flex: none;
+  width: 24px;
+  height: 24px;
+  padding: 5px;
+  border-radius: 50%;
+  background: var(--pink);
+  color: #fff;
+}
+
+.ad-modules h2 {
+  margin-bottom: 4px;
+}
+
+.ad-faq {
+  gap: 22px;
+}
+
+/* ───────────── Fecho ───────────── */
+
+.ad-final {
+  display: grid;
+  justify-items: start;
+  gap: 22px;
+  max-width: calc(var(--wrap) - var(--gutter) * 2);
+  margin: 40px var(--gutter) 48px;
+  padding: 44px 28px;
+  border-radius: var(--r-xl) var(--r-l) var(--r-l) var(--r-l);
+  background: var(--pink);
+  color: #fff;
+}
+
+.ad-final p {
+  color: #ffe1ea;
+  font-weight: 600;
+}
+
+.ad-foot {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 22px;
+  max-width: var(--wrap);
+  margin: 0 auto;
+  padding: 0 var(--gutter) 96px;
+  color: var(--ink-soft);
+  font-size: 0.88rem;
+}
+
+.ad-foot span {
+  margin-right: auto;
+}
+
+@media (min-width: 640px) {
+  .ad-pains {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+@media (min-width: 960px) {
+  .ad-top {
+    padding-top: 26px;
+  }
+
+  .ad .lp-hero {
+    padding-top: 40px;
+    padding-bottom: 90px;
+  }
+
+  .ad-chip-1 {
+    left: -56px;
+    bottom: 70px;
+  }
+
+  .ad-chip-2 {
+    right: -26px;
+    top: 56px;
+  }
+
+  .ad-pains {
+    gap: 22px;
+    padding-top: 0;
+  }
+
+  .ad-pains article {
+    padding: 36px 34px 40px;
+  }
+
+  .ad-pains article:nth-child(2) {
+    transform: translateY(28px);
+  }
+
+  .ad-band {
+    grid-template-columns: 1fr 1fr;
+    align-items: center;
+    gap: 72px;
+  }
+
+  .ad-faq {
+    grid-template-columns: 0.6fr 1.4fr;
+  }
+
+  .ad-final {
+    grid-template-columns: 1fr auto;
+    align-items: center;
+    margin: 60px auto 64px;
+    padding: 64px 72px;
+  }
+
+  .ad-final p {
+    grid-column: 1 / -1;
+  }
+
+  .ad-foot {
+    padding-bottom: 40px;
+  }
+}
+
+/* títulos de nicho são mais longos que o da home */
+.ad .lp-hero h1 {
+  font-size: clamp(2.3rem, 9.6vw, 4rem);
+}
+
+.ad .lp-mark {
+  display: block;
+  white-space: normal;
+}

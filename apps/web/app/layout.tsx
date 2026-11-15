@@ -1,7 +1,11 @@
 import type { Metadata } from 'next'
 import type { ReactNode } from 'react'
+import { Figtree, Outfit } from 'next/font/google'
 
 import './globals.css'
+
+const display = Outfit({ subsets: ['latin'], variable: '--font-display', display: 'swap' })
+const body = Figtree({ subsets: ['latin'], variable: '--font-body', display: 'swap' })
 
 export const metadata: Metadata = {
   title: { default: 'Luminix — Sua clínica, mais simples', template: '%s | Luminix' },
@@ -15,7 +19,7 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
-    <html lang="pt-BR">
+    <html lang="pt-BR" className={`${display.variable} ${body.variable}`}>
       <body>{children}</body>
     </html>
   )
