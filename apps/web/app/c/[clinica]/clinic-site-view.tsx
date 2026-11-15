@@ -198,7 +198,7 @@ export function ClinicSiteView({
                 </a>
                 <Link
                   className="clinic-contact"
-                  href={`/c/${encodeURIComponent(clinic.slug)}/meu-plano`}
+                  href={`/cliente?espaco=${encodeURIComponent(clinic.slug)}`}
                 >
                   <UserRound size={17} aria-hidden /> Acessar Meu Espaço
                 </Link>

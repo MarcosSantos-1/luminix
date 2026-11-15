@@ -187,3 +187,67 @@ Pendências conhecidas:
 - Testar o cadastro completo dentro do navegador do Instagram; login social costuma falhar ali.
 - Criativo: vídeo vertical de 15 a 20 s mostrando o sistema no celular; o mesmo vídeo serve ao
   modal da página.
+
+## Área do cliente web — 2026-11-15
+
+Implementada em `apps/web`, rota `/cliente`, mobile first com layout próprio para telas largas
+(barra inferior adaptativa no celular, menu lateral a partir de 960 px). Substitui as orientações
+de `/acesso` e o aviso de `/c/<slug>/meu-plano`, que agora redirecionam.
+
+| Rota                    | Conteúdo                                                            |
+| ----------------------- | ------------------------------------------------------------------- |
+| `/cliente/entrar`       | Login por e-mail e senha (ADR-027; CPF não é credencial)            |
+| `/cliente/cadastro`     | Cadastro da conta Luminix, com aceite dos termos                    |
+| `/cliente/espacos`      | Seletor (PR21): espaços vinculados, busca por nome/código, remoção  |
+| `/cliente/anamnese`     | Ficha nível I por espaço: foto obrigatória, sexo, nascimento, saúde |
+| `/cliente`              | Home: destaques em slider, atalhos, próximos horários, serviços     |
+| `/cliente/servicos`     | Busca, categorias, ordenação, filtro de promoção e detalhe          |
+| `/cliente/agendar`      | Serviço, dia, horário e pagamento simulado; também remarca          |
+| `/cliente/agenda`       | Semana/mês, linha do tempo do dia, próximos, remarcar e cancelar    |
+| `/cliente/historico`    | Atendimentos e pagamentos, com totais                               |
+| `/cliente/notificacoes` | Avisos com lido/não lido; sino na home                              |
+| `/cliente/perfil`       | Dados, ficha, senha, notificações, idioma, ajuda, sobre, avaliação  |
+
+Vinculação automática: os botões do site da clínica levam a `/cliente?espaco=<slug>`; o slug é
+guardado até existir sessão e então vinculado e ativado. O tema do espaço ativo (`data-theme`,
+mesmas seis paletas da vitrine) colore toda a área; telas sem espaço usam o tema neutro `luminix`.
+
+Organização: telas em `app/cliente`, componentes em `components/client-app`, modelo e regras em
+`lib/client-app`, estilos em `app/cliente/cliente.css` (escopo `.ca`). Os dados públicos do espaço
+vêm da mesma projeção da vitrine por `GET /api/espacos/<slug>`; `GET /api/espacos?q=` resolve
+espaços publicados só por código ou endereço exato.
+
+### Estado: avaliação, sem backend de cliente
+
+Conta, sessão, ficha, horários, pagamentos e avisos ficam **apenas no `localStorage` do aparelho**
+(`lib/client-app/store.ts`). Nada é enviado à clínica, não há cobrança, a senha é só um hash local
+e não existe recuperação. As telas avisam isso. Não divulgar `/cliente` a clientes reais antes de:
+
+1. Identidade real (Firebase e-mail/senha + Google/Apple, conforme ADR-027) e perfil global na API.
+2. Vínculo cliente–clínica validado pela API (convite com ID da ficha, código, aceite), com testes
+   de troca de URL, IDs de outra clínica e vínculo removido.
+3. Anamnese, agendamento, pagamentos e notificações persistidos por clínica (dado de saúde é
+   sensível: consentimento versionado, validade de 180 dias, foto em bucket privado).
+4. Busca pública por nome/localização: decisão de produto e endpoint com limite de requisições.
+5. Disponibilidade real de horários (hoje: expediente publicado menos as reservas do próprio
+   aparelho; sem profissionais, salas ou regras de antecedência).
+
+Cada ação da store tem a forma do futuro contrato; a migração troca o corpo das funções por
+chamadas à API sem mudar as telas. Idiomas en/es, push e níveis II–III de anamnese estão marcados
+como pendentes na interface.
+
+### Aplicativo Expo (plano, não iniciado)
+
+`apps/mobile-client` continua um shell Expo 57 vazio. Sequência proposta:
+
+1. Mover `lib/client-app/{types,format}.ts` e as assinaturas da store para `packages/contracts`
+   (ou pacote `client-core`), sem dependência de DOM, para web e app usarem as mesmas regras.
+2. Expo Router espelhando as rotas acima: grupo `(auth)`, `espacos`, `anamnese` e abas
+   `(tabs)/{index,servicos,agenda,perfil}` com o botão central de agendar.
+3. Tokens das seis paletas em `packages/design-tokens`, consumidos pelo CSS do web e por um
+   `ThemeProvider` no app.
+4. Diferenças nativas: `expo-secure-store` para sessão, `expo-image-picker`/câmera na foto da
+   anamnese, `expo-notifications` (push), deep link `luminix://espaco/<slug>` e universal links de
+   `/cliente?espaco=`, biometria para reabrir, calendário do aparelho e mapas nativos.
+5. Só iniciar depois dos itens 1 e 2 da lista anterior: o app nas lojas não pode depender de
+   dados locais nem de login simulado.
