@@ -15,3 +15,9 @@ Foram excluídos da cópia:
 O original permanece intacto em `legacy/charme-bela/mobile/`. Migre cada funcionalidade conforme
 `docs/11-MIGRACAO-DO-LEGADO.md`, adicionando contratos e autorização multi-tenant antes de conectá-la
 à API Luminix.
+
+## Estado atual
+
+O aplicativo novo vive em `app/` e `src/` (Expo Router). Rotas, limites e próximos passos estão em
+`docs/16-DOMINIOS-E-PORTAL-WEB.md`, seção "Aplicativo Expo". `legacy-source/` continua apenas como
+referência e fora do build.

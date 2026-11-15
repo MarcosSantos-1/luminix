@@ -3,6 +3,6 @@
   "compilerOptions": {
     "strict": true
   },
-  "include": ["App.tsx", "index.ts"],
-  "exclude": ["legacy-source"]
+  "include": ["app", "src"],
+  "exclude": ["legacy-source", "node_modules", "dist"]
 }

@@ -5,7 +5,7 @@
     "scheme": "luminix",
     "version": "0.1.0",
     "orientation": "portrait",
-    "userInterfaceStyle": "automatic",
+    "userInterfaceStyle": "light",
     "newArchEnabled": true,
     "ios": {
       "supportsTablet": true,
@@ -17,6 +17,24 @@
     "web": {
       "bundler": "metro",
       "output": "single"
-    }
+    },
+    "plugins": [
+      "expo-router",
+      "expo-font",
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "O Luminix usa sua localização para mostrar os espaços perto de você."
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "cameraPermission": "O Luminix usa a câmera para a foto da sua ficha.",
+          "photosPermission": "O Luminix acessa suas fotos para você escolher a foto da sua ficha."
+        }
+      ],
+      "expo-notifications"
+    ]
   }
 }

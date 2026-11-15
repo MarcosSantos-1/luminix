@@ -246,18 +246,33 @@ Cada ação da store tem a forma do futuro contrato; a migração troca o corpo 
 chamadas à API sem mudar as telas. Idiomas en/es, push e níveis II–III de anamnese estão marcados
 como pendentes na interface.
 
-### Aplicativo Expo (plano, não iniciado)
+### Aplicativo Expo — iniciado em 2026-11-15
 
-`apps/mobile-client` continua um shell Expo 57 vazio. Sequência proposta:
+`apps/mobile-client` usa Expo 57 com `expo-router`. Preview web local: `pnpm dev:mobile-client`
+e abrir a versão web (porta 8081); Android/iOS não foram executados nesta etapa.
 
-1. Mover `lib/client-app/{types,format}.ts` e as assinaturas da store para `packages/contracts`
-   (ou pacote `client-core`), sem dependência de DOM, para web e app usarem as mesmas regras.
-2. Expo Router espelhando as rotas acima: grupo `(auth)`, `espacos`, `anamnese` e abas
-   `(tabs)/{index,servicos,agenda,perfil}` com o botão central de agendar.
-3. Tokens das seis paletas em `packages/design-tokens`, consumidos pelo CSS do web e por um
-   `ThemeProvider` no app.
-4. Diferenças nativas: `expo-secure-store` para sessão, `expo-image-picker`/câmera na foto da
-   anamnese, `expo-notifications` (push), deep link `luminix://espaco/<slug>` e universal links de
-   `/cliente?espaco=`, biometria para reabrir, calendário do aparelho e mapas nativos.
-5. Só iniciar depois dos itens 1 e 2 da lista anterior: o app nas lojas não pode depender de
-   dados locais nem de login simulado.
+| Rota                   | Conteúdo                                                              |
+| ---------------------- | --------------------------------------------------------------------- |
+| `/` (`app/index`)      | Porteiro: decide entre apresentação, login, permissões, espaço e abas |
+| `/boas-vindas`         | Apresentação em três páginas com paralaxe e troca de tom              |
+| `/entrar`, `/cadastro` | Login e cadastro por e-mail e senha                                   |
+| `/permissoes`          | Notificações, localização e câmera, pedidas uma a uma, com o motivo   |
+| `/espacos`             | Encontrar espaço: código com máscara `AA-0000` ou nome completo       |
+| `/espaco/<slug>`       | Confirmação: localização, nome, endereço e tela de preparação         |
+| `/(tabs)`              | Início (centro), Serviços, Agenda, Histórico e Perfil                 |
+
+Organização: rotas em `app/`, tema e paletas em `src/theme.ts` (as mesmas seis do web), estado em
+`src/store.tsx` (AsyncStorage), leitura pública em `src/api.ts` e componentes animados em `src/ui`.
+A busca e os dados do espaço vêm de `EXPO_PUBLIC_WEB_URL` (`/api/espacos`), que por isso aceita
+leitura cross-origin. Animações usam só `Animated` do React Native, sem dependência extra.
+
+Estado e limites:
+
+- Conta e espaços ficam só no aparelho, como no web; a senha é apenas um hash local.
+- Início e Serviços leem dados reais do espaço. Agenda, Histórico, ficha de anamnese e ajuda são
+  telas de espera: o agendamento ainda acontece só no web.
+- No celular a localização abre o aplicativo de mapas; o minimapa embutido existe só na versão
+  web do app. Mapa nativo (`react-native-maps` ou WebView) fica para a próxima etapa.
+- Faltam: ícone e splash, EAS/builds, push real, deep link `luminix://espaco/<slug>`, armazenamento
+  seguro da sessão e mover tipos/regras comuns para `packages/contracts`.
+- Publicar nas lojas só depois da identidade real e do vínculo validado pela API (itens 1 e 2).
