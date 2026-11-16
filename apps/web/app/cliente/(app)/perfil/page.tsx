@@ -2,6 +2,7 @@
 
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
+import { expiresAt, levelNames } from '@luminix/contracts/anamnesis'
 import { useState, type FormEvent, type ReactNode } from 'react'
 import {
   ArrowLeftRight,
@@ -113,7 +114,10 @@ export default function ProfilePage() {
     close()
   }
 
-  const answered = new Date(anamnesis.answeredAt).toLocaleDateString('pt-BR')
+  const expiry = expiresAt(anamnesis)
+  const validity = expiry
+    ? `vale até ${expiry.toLocaleDateString('pt-BR')}`
+    : `respondida em ${new Date(anamnesis.answeredAt).toLocaleDateString('pt-BR')}`
   const spaceCount = Object.keys(account.spaces).length
 
   return (
@@ -154,8 +158,8 @@ export default function ProfilePage() {
             <Row
               icon={<ClipboardList size={18} />}
               label="Ficha de anamnese"
-              hint={`${space.shareAnamnesis ? 'Ficha da conta' : 'Ficha só deste espaço'} · ${answered}`}
-              href="/cliente/anamnese"
+              hint={`${levelNames[anamnesis.level]}${space.shareAnamnesis ? '' : ' só deste espaço'} · ${validity}`}
+              href={`/cliente/anamnese?espaco=${space.summary.slug}`}
             />
             <Row
               icon={<History size={18} />}

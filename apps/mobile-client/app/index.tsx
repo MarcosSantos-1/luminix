@@ -1,3 +1,4 @@
+import { recordState } from '@luminix/contracts/anamnesis'
 import { Redirect } from 'expo-router'
 import { ActivityIndicator, View } from 'react-native'
 import { useStore } from '../src/store'
@@ -23,7 +24,8 @@ export default function Gate() {
   if (!permissionsSeen) return <Redirect href="/permissoes" />
   if (!account.anamnesis) return <Redirect href="/anamnese" />
   if (!space) return <Redirect href="/espacos" />
-  // The space did not get the account record and has none of its own yet.
-  if (!anamnesis) return <Redirect href={`/anamnese?espaco=${space.summary.slug}`} />
+  // The space needs more of the record (higher level, own record or yearly renewal).
+  if (recordState(anamnesis, space.requiredLevel) !== 'ok')
+    return <Redirect href={`/anamnese?espaco=${space.summary.slug}`} />
   return <Redirect href="/(tabs)" />
 }

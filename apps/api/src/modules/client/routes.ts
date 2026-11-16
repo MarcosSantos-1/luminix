@@ -10,7 +10,13 @@ import { localDateTime, zonedLocalToUtc } from '../operations/routes.js'
 // under the clinic RLS scope and are filtered by the person's own local record.
 
 type Period = { start: string; end: string }
-type Scope = { clinicId: string; clientId: string; sex: string | null }
+type Scope = {
+  clinicId: string
+  clientId: string
+  sex: string | null
+  /** Why the space cannot take bookings from this person yet, if anything. */
+  recordProblem: string | null
+}
 
 const uuid = '^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$'
 const slug = '^[a-z0-9]+(-[a-z0-9]+)*$'
@@ -37,15 +43,27 @@ const appointmentParams = {
   },
 } as const
 
+// Answers follow the shared script in packages/contracts (ADR-030). The API checks the shape and
+// the keys each level requires; the wording and step order live in the clients.
 const anamnesisBody = {
   type: 'object',
   additionalProperties: false,
-  required: ['sex', 'birthDate', 'photo', 'consent'],
+  required: ['level', 'answers', 'photo', 'consent'],
   properties: {
-    sex: { type: 'string', enum: ['female', 'male'] },
-    birthDate: { type: 'string', pattern: ymd },
-    allergies: { type: 'string', maxLength: 200 },
-    healthNotes: { type: 'string', maxLength: 500 },
+    level: { type: 'integer', enum: [1, 2, 3] },
+    answers: {
+      type: 'object',
+      maxProperties: 80,
+      propertyNames: { pattern: '^[a-zA-Z]{1,40}$' },
+      additionalProperties: {
+        anyOf: [
+          { type: 'string', maxLength: 500 },
+          { type: 'boolean' },
+          { type: 'integer', minimum: 0, maximum: 100 },
+          { type: 'array', maxItems: 20, items: { type: 'string', maxLength: 40 } },
+        ],
+      },
+    },
     photo: {
       type: 'string',
       pattern: '^data:image/jpeg;base64,[A-Za-z0-9+/=]+$',
@@ -55,13 +73,76 @@ const anamnesisBody = {
   },
 } as const
 
+type Level = 1 | 2 | 3
 type AnamnesisBody = {
-  sex: 'female' | 'male'
-  birthDate: string
-  allergies?: string
-  healthNotes?: string
+  level: Level
+  answers: Record<string, string | boolean | number | string[]>
   photo: string
   consent: true
+}
+
+/** Keys each level must answer (mirrors `required` of the shared steps). */
+const requiredKeys: Record<Level, string[]> = {
+  1: ['sex', 'birthDate', 'allergies', 'cosmeticAllergy'],
+  2: ['diagnosedDisease', 'medicalTreatment', 'continuousMedications', 'aestheticReaction'],
+  3: [
+    'physicalLimitation',
+    'smoking',
+    'alcohol',
+    'physicalActivity',
+    'waterIntake',
+    'skinType',
+    'previousAesthetic',
+  ],
+}
+
+function missingKeys(level: number, answers: Record<string, unknown>) {
+  const keys = ([1, 2, 3] as const)
+    .filter((item) => item <= level)
+    .flatMap((item) => requiredKeys[item])
+  if (level >= 2 && answers.sex === 'female') keys.push('pregnant')
+  return keys.filter((key) => answers[key] === undefined || answers[key] === '')
+}
+
+function validRecord(body: AnamnesisBody) {
+  const { sex, birthDate } = body.answers
+  if (!['female', 'male'].includes(String(sex))) return false
+  if (typeof birthDate !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(birthDate)) return false
+  const birth = Date.parse(`${birthDate}T12:00:00Z`)
+  return (
+    birth > Date.parse('1900-01-01') &&
+    birth < Date.now() &&
+    !missingKeys(body.level, body.answers).length
+  )
+}
+
+function record(body: AnamnesisBody) {
+  return {
+    version: 2,
+    level: body.level,
+    answeredAt: new Date().toISOString(),
+    answers: body.answers,
+  }
+}
+
+/** Levels II–III are asked again every year; level I does not expire. */
+function recordProblem(raw: unknown, hasPhoto: boolean, requiredLevel: number) {
+  const value = raw as {
+    version?: number
+    level?: number
+    answeredAt?: string
+    answers?: Record<string, unknown>
+  } | null
+  if (!value || !hasPhoto) return 'Record required'
+  const level = value.version === 2 ? Number(value.level ?? 1) : 1
+  const answers = value.version === 2 ? (value.answers ?? {}) : (value as Record<string, unknown>)
+  if (level < requiredLevel || missingKeys(requiredLevel, answers).length) {
+    // Version 1 records only had sex and birth date: they serve level I spaces.
+    if (!(value.version !== 2 && requiredLevel === 1)) return 'Record required'
+  }
+  if (level >= 2 && Date.parse(value.answeredAt ?? '') + 365 * 86_400_000 < Date.now())
+    return 'Record expired'
+  return null
 }
 
 /** Browser origins of the client area. Bearer tokens only: no cookies cross these origins. */
@@ -98,23 +179,6 @@ function intersect(left: Period[], right: Period[]): Period[] {
       if (start < end) result.push({ start: clock(start), end: clock(end) })
     }
   return result
-}
-
-function validRecord(body: AnamnesisBody) {
-  const birth = Date.parse(`${body.birthDate}T12:00:00Z`)
-  return birth > Date.parse('1900-01-01') && birth < Date.now()
-}
-
-function record(body: AnamnesisBody) {
-  return {
-    level: 1,
-    sex: body.sex,
-    birthDate: body.birthDate,
-    allergies: body.allergies?.trim() ?? '',
-    healthNotes: body.healthNotes?.trim() ?? '',
-    consent: true,
-    answeredAt: new Date().toISOString(),
-  }
 }
 
 /** Database errors raised on purpose by the client functions, mapped to safe answers. */
@@ -182,6 +246,11 @@ export async function clientRoutes(app: FastifyInstance, dependencies: AuthDepen
           clinicId: String(found.clinic_id),
           clientId: String(found.clinic_client_id),
           sex: found.client_sex ? String(found.client_sex) : null,
+          recordProblem: recordProblem(
+            found.anamnesis,
+            Boolean(found.has_photo),
+            Number(found.required_level ?? 1),
+          ),
         }
         await connection.query("SELECT set_config('luminix.clinic_id', $1, true)", [scope.clinicId])
       }
@@ -509,6 +578,16 @@ export async function clientRoutes(app: FastifyInstance, dependencies: AuthDepen
     return { slots: result, lastDate: last }
   }
 
+  async function acceptsInApp(connection: SqlConnection, scope: Scope) {
+    const row = (
+      await connection.query(
+        'SELECT accept_in_app FROM luminix.payment_preferences WHERE clinic_id = $1',
+        [scope.clinicId],
+      )
+    ).rows[0]
+    return row?.accept_in_app === true
+  }
+
   async function serviceFor(connection: SqlConnection, scope: Scope, serviceId: string) {
     return (
       await connection.query(
@@ -560,6 +639,8 @@ export async function clientRoutes(app: FastifyInstance, dependencies: AuthDepen
           bookingMode: service.booking_mode,
           // 0 or 1 professional: the agenda is chosen for the client, no picker.
           choose: professionals.length > 1,
+          // Pix/card only when the space turned on payments in the app.
+          inAppPayments: await acceptsInApp(connection, scope!),
           professionals,
           slots,
         }
@@ -595,6 +676,9 @@ export async function clientRoutes(app: FastifyInstance, dependencies: AuthDepen
     },
     async (request, reply) =>
       asClient(request, reply, request.params.slug, async (connection, scope) => {
+        if (scope!.recordProblem) return reply.code(409).send({ error: scope!.recordProblem })
+        if (request.body.paymentMethod !== 'local' && !(await acceptsInApp(connection, scope!)))
+          return reply.code(400).send({ error: 'Payment unavailable' })
         const service = await serviceFor(connection, scope!, request.body.serviceId)
         if (!service) return reply.code(400).send({ error: 'Service unavailable' })
         const professionals = await professionalsFor(connection, scope!, String(service.id))

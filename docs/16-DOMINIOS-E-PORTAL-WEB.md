@@ -236,6 +236,13 @@ Conta (Firebase), perfil, ficha, espaços e agendamentos vivem no servidor (ADR-
 preferências e quais avisos foram lidos. O agendamento cai na agenda da clínica; com mais de uma
 profissional para o serviço, a cliente escolhe (foto e nome) antes dos horários.
 
+Fluxos guiados (2026-11-16): uma janela por vez no celular. Espaços: lista com "Acessar outro
+espaço" → código (máscara `AA-0000`) ou nome → confirmação com mapa → escolha da ficha (da conta ou
+só do espaço). Agendamento: serviço → profissional (quando houver escolha) → dia e horário →
+pagamento (só se a clínica aceitar pagamento no app, `payment_preferences.accept_in_app`) →
+revisão. No desktop do site o agendamento continua em uma página só. Ficha em etapas por nível,
+com validade anual: ADR-030.
+
 Configuração: `NEXT_PUBLIC_API_URL` e `NEXT_PUBLIC_FIREBASE_*` no web; `EXPO_PUBLIC_API_URL`,
 `EXPO_PUBLIC_WEB_URL` e `EXPO_PUBLIC_FIREBASE_*` no app (ver `.env.example` de cada um).
 Pendências conhecidas em TD-012. Espaços de demonstração não aceitam vínculo (não existem no banco).

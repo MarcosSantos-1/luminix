@@ -1,3 +1,4 @@
+import { levelNames, missingSteps, recordState, type Level } from '@luminix/contracts/anamnesis'
 import { useLocalSearchParams, useRouter } from 'expo-router'
 import { createElement, useEffect, useRef, useState } from 'react'
 import {
@@ -154,7 +155,8 @@ export default function SpaceConfirm() {
   const { account, enterSpace, joinSpace } = useStore()
   const [state, setState] = useState<{ slug: string; space: SpaceSummary | null } | null>(null)
   const [entering, setEntering] = useState(false)
-  const [share, setShare] = useState(true)
+  // Second window: how this space gets the record (account record or one of its own).
+  const [choosing, setChoosing] = useState(false)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
 
@@ -175,22 +177,25 @@ export default function SpaceConfirm() {
     router.replace('/(tabs)')
   }
 
-  async function enter() {
+  /** Linked space: straight in when its record is enough, else through the record. */
+  function enterKnown() {
+    if (!space || !account) return
+    const known = account.spaces.find((item) => item.summary.slug === space.slug)
+    if (!known) return
+    enterSpace(space.slug)
+    const record = known.shareAnamnesis ? account.anamnesis : known.ownAnamnesis
+    if (recordState(record, known.requiredLevel) === 'ok') return setEntering(true)
+    router.replace(`/anamnese?espaco=${space.slug}&entrar=1`)
+  }
+
+  async function join(share: boolean) {
     if (!space) return
-    const known = account?.spaces.find((item) => item.summary.slug === space.slug)
-    if (known) {
-      enterSpace(space.slug)
-      // Linked before without a record of its own: it still needs one.
-      if (!known.shareAnamnesis && !known.ownAnamnesis)
-        return router.replace(`/anamnese?espaco=${space.slug}`)
-      return setEntering(true)
-    }
     setBusy(true)
     const failure = await joinSpace(space, share)
     setBusy(false)
     if (failure) return setError(failure)
-    if (!share) return router.replace(`/anamnese?espaco=${space.slug}`)
-    setEntering(true)
+    // The record screen decides: nothing to fill (straight in), missing steps or a new record.
+    router.replace(`/anamnese?espaco=${space.slug}&entrar=1`)
   }
 
   if (space === undefined)
@@ -229,6 +234,10 @@ export default function SpaceConfirm() {
 
   const palette = paletteFor(space.theme)
   const known = account?.spaces.some((item) => item.summary.slug === space.slug)
+  const needed = (space.anamnesisLevel ?? 1) as Level
+  const toFill = account?.anamnesis
+    ? missingSteps(needed, account.anamnesis.answers, account.anamnesis.photo).length
+    : 0
   const location = [space.address, space.city].filter(Boolean).join(' · ')
 
   return (
@@ -311,61 +320,15 @@ export default function SpaceConfirm() {
         </Enter>
 
         <Enter delay={220}>
-          {!known && (
-            <Press
-              onPress={() => setShare(!share)}
-              selected={share}
-              style={{
-                flexDirection: 'row',
-                gap: 12,
-                alignItems: 'flex-start',
-                padding: 16,
-                borderRadius: 20,
-                backgroundColor: colors.card,
-                borderWidth: 1.5,
-                borderColor: share ? palette.deep : colors.line,
-                marginBottom: 14,
-              }}
-            >
-              <View
-                style={{
-                  width: 24,
-                  height: 24,
-                  borderRadius: 8,
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  borderWidth: share ? 0 : 1.5,
-                  borderColor: colors.line,
-                  backgroundColor: share ? palette.deep : colors.card,
-                }}
-              >
-                {share && <Icon name="check" size={15} color="#fff" />}
-              </View>
-              <View style={{ flex: 1, gap: 3 }}>
-                <Text style={type.strong}>Permitir que {space.name} use minha ficha</Text>
-                <Text style={[type.small, { color: palette.muted }]}>
-                  {share
-                    ? 'A equipe verá a ficha e a foto que você já preencheu.'
-                    : 'Sem a permissão, você preenche uma ficha só para este espaço.'}
-                </Text>
-              </View>
-            </Press>
-          )}
           {error ? (
             <Text style={[type.small, { color: colors.danger, marginBottom: 10 }]}>{error}</Text>
           ) : null}
           <Button
-            label={
-              busy
-                ? 'Entrando…'
-                : known || share
-                  ? 'Entrar neste espaço'
-                  : 'Preencher ficha e entrar'
-            }
+            label={known ? 'Entrar neste espaço' : 'Sim, é este'}
             icon="arrow-right"
             palette={palette}
-            disabled={busy || space.demo}
-            onPress={() => void enter()}
+            disabled={busy || (space.demo && !known)}
+            onPress={() => (known ? enterKnown() : setChoosing(true))}
           />
           {space.demo ? (
             <Text
@@ -376,6 +339,92 @@ export default function SpaceConfirm() {
           ) : null}
         </Enter>
       </ScrollView>
+      {choosing && account && (
+        <View style={[StyleSheet.absoluteFill, { backgroundColor: colors.bg }]}>
+          <ScrollView
+            contentContainerStyle={{
+              padding: 22,
+              paddingTop: Platform.OS === 'ios' ? 22 : insets.top + 16,
+              paddingBottom: insets.bottom + 24,
+              gap: 16,
+            }}
+          >
+            <Press
+              onPress={() => setChoosing(false)}
+              label="Voltar"
+              style={{
+                width: 42,
+                height: 42,
+                borderRadius: 15,
+                backgroundColor: colors.card,
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              <Icon name="arrow-left" size={19} color={colors.ink} />
+            </Press>
+            <Enter style={{ gap: 14 }}>
+              <Text style={type.h1}>Sua ficha para {space.name}</Text>
+              <Text style={[type.body, { color: palette.muted }]}>
+                Este espaço pede a {levelNames[needed].toLowerCase()}. Escolha como quer responder.
+              </Text>
+              {[
+                {
+                  share: true,
+                  icon: 'clipboard' as const,
+                  title: 'Usar a ficha da minha conta',
+                  body: toFill
+                    ? `Foto e dados já preenchidos. Faltam ${toFill} ${toFill === 1 ? 'etapa' : 'etapas'}.`
+                    : 'Tudo pronto: nada para preencher.',
+                },
+                {
+                  share: false,
+                  icon: 'file-plus' as const,
+                  title: 'Preencher uma ficha só para este espaço',
+                  body: 'Seus dados salvos não são compartilhados com ele.',
+                },
+              ].map((option) => (
+                <Press
+                  key={option.title}
+                  onPress={() => void join(option.share)}
+                  disabled={busy}
+                  label={option.title}
+                  style={{
+                    padding: 18,
+                    gap: 6,
+                    borderRadius: 22,
+                    backgroundColor: colors.card,
+                    borderWidth: 1.5,
+                    borderColor: colors.line,
+                  }}
+                >
+                  <View
+                    style={{
+                      width: 46,
+                      height: 46,
+                      borderRadius: 16,
+                      backgroundColor: palette.light,
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      marginBottom: 4,
+                    }}
+                  >
+                    <Icon name={option.icon} size={21} color={palette.deep} />
+                  </View>
+                  <Text style={{ fontFamily: fonts.display, fontSize: 18, color: colors.ink }}>
+                    {option.title}
+                  </Text>
+                  <Text style={[type.small, { color: palette.muted }]}>{option.body}</Text>
+                </Press>
+              ))}
+              {error ? <Text style={[type.small, { color: colors.danger }]}>{error}</Text> : null}
+              <Text style={[type.small, { color: palette.muted }]}>
+                A equipe só vê a ficha do espaço que você escolheu.
+              </Text>
+            </Enter>
+          </ScrollView>
+        </View>
+      )}
       {entering && <Preparing space={space} onDone={() => finish.current()} />}
     </View>
   )

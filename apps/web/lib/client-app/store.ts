@@ -15,11 +15,11 @@ import {
   updatePassword,
   type User,
 } from 'firebase/auth'
+import { normalizeRecord, type Answers, type Level } from '@luminix/contracts/anamnesis'
 import { clientAuth } from './firebase'
 import type {
   Account,
   Anamnesis,
-  AnamnesisInput,
   Appointment,
   Availability,
   BookingPolicy,
@@ -29,7 +29,7 @@ import type {
   SpaceSummary,
 } from './types'
 
-type ApiAnamnesis = Omit<Anamnesis, 'photo'>
+type ApiAnamnesis = unknown
 type Me = {
   profile: {
     name: string | null
@@ -44,6 +44,7 @@ type Me = {
     shareAnamnesis: boolean
     ownAnamnesis: ApiAnamnesis | null
     ownPhoto: string | null
+    requiredLevel: Level
     linkedAt: string
   }[]
 }
@@ -161,6 +162,9 @@ const messages: Record<string, string> = {
   'Rescheduling closed': 'O prazo para remarcar pelo app já passou. Fale com o espaço.',
   'Too many requests': 'Muitas tentativas seguidas. Aguarde um minuto.',
   'Space not linked': 'Este espaço não está mais na sua conta.',
+  'Record required': 'Complete a ficha que este espaço pede antes de agendar.',
+  'Record expired': 'Sua ficha venceu. Confirme seus dados para agendar de novo.',
+  'Payment unavailable': 'Este espaço recebe o pagamento no dia do atendimento.',
 }
 
 function friendly(error: unknown) {
@@ -193,7 +197,7 @@ async function fetchSummary(slug: string): Promise<SpaceSummary | null> {
 }
 
 function toAnamnesis(record: ApiAnamnesis | null, photo: string | null): Anamnesis | null {
-  return record && photo ? { ...record, photo } : null
+  return normalizeRecord(record, photo)
 }
 
 const statusMap: Record<ApiAppointment['status'], Appointment['status']> = {
@@ -355,6 +359,7 @@ function accountOf(current: State): Account | null {
         linkedAt: link.linkedAt,
         shareAnamnesis: link.shareAnamnesis,
         anamnesis: toAnamnesis(link.ownAnamnesis, link.ownPhoto),
+        requiredLevel: link.requiredLevel ?? 1,
         loaded: Boolean(data),
         policy: data?.policy ?? null,
         appointments,
@@ -615,21 +620,14 @@ export async function unlinkSpace(slug: string) {
 }
 
 /** `slug` null saves the account record; a slug saves that space's own record. */
-export async function saveAnamnesis(slug: string | null, record: AnamnesisInput) {
+export async function saveAnamnesis(
+  slug: string | null,
+  record: { level: Level; answers: Answers; photo: string },
+) {
   try {
     await api(
       slug ? `/client/spaces/${encodeURIComponent(slug)}/anamnesis` : '/client/me/anamnesis',
-      {
-        method: 'PUT',
-        body: {
-          sex: record.sex,
-          birthDate: record.birthDate,
-          allergies: record.allergies,
-          healthNotes: record.healthNotes,
-          photo: record.photo,
-          consent: true,
-        },
-      },
+      { method: 'PUT', body: { ...record, consent: true } },
     )
     await refreshMe()
     return null

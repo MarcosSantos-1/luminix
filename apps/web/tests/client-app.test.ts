@@ -55,6 +55,7 @@ test('resultado da busca pública vira resumo do seletor e descarta itens invál
     address: 'Rua da Busca, 10 · Centro',
     category: 'Cabeleireiro feminino',
     mapQuery: 'Rua da Busca, 10, Centro, Campinas, SP',
+    anamnesisLevel: 1,
     demo: false,
   })
   const bare = summarizeSearchResult({ slug: 'sem-endereco', name: 'Sem endereço', theme: 'x' })
@@ -84,6 +85,7 @@ test('resumo do espaço não carrega serviços nem contatos', () => {
   const summary = summarizeSpace(getPreviewClinic('demonstracao-tatuagem')!)
   assert.deepEqual(Object.keys(summary).sort(), [
     'address',
+    'anamnesisLevel',
     'category',
     'city',
     'code',
@@ -109,4 +111,43 @@ test('horários respeitam expediente, duração, dia fechado e reservas já feit
   assert.equal(slotsFor(day, [], 30, new Set())[0], '09:00')
   // Dias passados nunca oferecem horário.
   assert.deepEqual(slotsFor(new Date(2020, 0, 6), hours, 60, new Set()), [])
+})
+
+test('ficha: nível do espaço vem dos serviços e a ficha básica é reaproveitada', async () => {
+  const { levelFromServices, missingSteps, recordState, normalizeRecord } =
+    await import('@luminix/contracts/anamnesis')
+  assert.equal(levelFromServices(['Cabelos Corte feminino']), 1)
+  assert.equal(levelFromServices(['Cabelos Escova', 'Unhas Manicure']), 2)
+  assert.equal(levelFromServices(['Unhas Pé', 'Estética facial Limpeza de pele']), 3)
+
+  const basic = {
+    version: 2 as const,
+    level: 1 as const,
+    answeredAt: new Date().toISOString(),
+    photo: 'data:image/jpeg;base64,AA==',
+    answers: { sex: 'male', birthDate: '1990-01-01', allergies: 'no', cosmeticAllergy: 'no' },
+  }
+  assert.equal(recordState(basic, 1), 'ok')
+  assert.equal(recordState(basic, 3), 'incomplete')
+  // Upgrading to level III asks only what is missing, never photo or birth date again.
+  const missing = missingSteps(3, basic.answers, basic.photo).map((step) => step.id)
+  assert.ok(!missing.includes('photo') && !missing.includes('about'))
+  assert.ok(missing.includes('habits') && !missing.includes('moment'))
+  // Health records expire after a year.
+  const old = {
+    ...basic,
+    level: 2 as const,
+    answeredAt: '2020-01-01T00:00:00Z',
+    answers: {
+      ...basic.answers,
+      diagnosedDisease: 'no',
+      medicalTreatment: 'no',
+      continuousMedications: 'no',
+      aestheticReaction: 'no',
+    },
+  }
+  assert.equal(recordState(old, 2), 'expired')
+  // Version 1 records still open level I spaces.
+  const legacy = normalizeRecord({ sex: 'female', birthDate: '1992-04-10', allergies: '' }, 'x')
+  assert.equal(recordState(legacy, 1), 'ok')
 })

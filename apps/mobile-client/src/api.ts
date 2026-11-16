@@ -12,6 +12,8 @@ export type SpaceSummary = {
   address: string | null
   category: string | null
   mapQuery: string | null
+  /** Record level the space will ask for (preview; the API decides after linking). */
+  anamnesisLevel?: 1 | 2 | 3
   demo: boolean
 }
 

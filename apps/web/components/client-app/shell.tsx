@@ -14,6 +14,7 @@ import {
   UserRound,
 } from 'lucide-react'
 import { rememberPendingSpace, useClient } from '../../lib/client-app/store'
+import { recordState } from '@luminix/contracts/anamnesis'
 import { Avatar, SpaceLogo } from './ui'
 
 /**
@@ -63,13 +64,13 @@ export function AppShell({ children }: { children: ReactNode }) {
         ? '/cliente/anamnese'
         : !space
           ? '/cliente/espacos'
-          : !anamnesis
-            ? '/cliente/anamnese'
+          : recordState(anamnesis, space.requiredLevel) !== 'ok'
+            ? `/cliente/anamnese?espaco=${space.summary.slug}`
             : null
   useEffect(() => {
     if (target) router.replace(target)
   }, [target, router])
-  if (!ready || !account || !space || !anamnesis) return <Splash />
+  if (!ready || !account || !space || !anamnesis || target) return <Splash />
 
   const unread = space.notices.filter((item) => !item.read).length
   // Exact segment match: /cliente/agendar must not light up /cliente/agenda.

@@ -1,270 +1,111 @@
 'use client'
 
-/* eslint-disable @next/next/no-img-element -- local data URL preview */
-
-import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { useCallback, useEffect, useState, type ChangeEvent } from 'react'
-import { ArrowLeft, ArrowRight, Camera, Check } from 'lucide-react'
+import { useCallback, useEffect, useState } from 'react'
+import { recordState, type Answers, type Level } from '@luminix/contracts/anamnesis'
 import { saveAnamnesis, useClient } from '../../../lib/client-app/store'
-import type { Anamnesis, Sex, SpaceLink } from '../../../lib/client-app/types'
 import { Splash } from '../../../components/client-app/shell'
-import { Preparing, SpaceLogo } from '../../../components/client-app/ui'
+import { Preparing } from '../../../components/client-app/ui'
+import { AnamnesisWizard, type WizardMode } from '../../../components/client-app/anamnesis-wizard'
 
-/** Square, small JPEG: enough for the record and light enough to keep on the device. */
-async function toPortrait(file: File) {
-  const bitmap = await createImageBitmap(file)
-  const side = Math.min(bitmap.width, bitmap.height)
-  const canvas = document.createElement('canvas')
-  canvas.width = canvas.height = 360
-  canvas
-    .getContext('2d')!
-    .drawImage(
-      bitmap,
-      (bitmap.width - side) / 2,
-      (bitmap.height - side) / 2,
-      side,
-      side,
-      0,
-      0,
-      360,
-      360,
-    )
-  return canvas.toDataURL('image/jpeg', 0.82)
-}
-
-const steps = ['Foto', 'Sobre você', 'Saúde'] as const
-
+/**
+ * One page for every record situation:
+ * - no account record yet (right after sign-up): basic record, level I;
+ * - a space that reuses the account record and needs a higher level: only the missing steps;
+ * - a space with its own record (client did not share): that record, from scratch;
+ * - a record past its yearly validity: everything prefilled, to confirm.
+ * `?espaco=<slug>` picks the space; `&entrar=1` shows the welcome animation at the end.
+ */
 export default function AnamnesisPage() {
   const router = useRouter()
-  const { ready, account, space } = useClient()
+  const { ready, account } = useClient()
+  const [params, setParams] = useState<{ slug: string | null; entering: boolean } | null>(null)
+  const goHome = useCallback(() => router.replace('/cliente'), [router])
+
+  useEffect(() => {
+    const search = new URLSearchParams(window.location.search)
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- one-time read of the URL after hydration
+    setParams({ slug: search.get('espaco'), entering: search.get('entrar') === '1' })
+  }, [])
   useEffect(() => {
     if (ready && !account) router.replace('/cliente/entrar')
   }, [ready, account, router])
-  if (!ready || !account) return <Splash />
-  // One record for the account, answered right after sign-up. A space only gets its own record
-  // when the client did not allow it to read the account one.
-  const own = account.anamnesis && space && !space.shareAnamnesis ? space : null
-  // Mounted only with the stored record available, so a review starts prefilled.
+
+  if (!ready || !account || !params) return <Splash />
+  const space = params.slug ? (account.spaces[params.slug] ?? null) : null
+  const own = Boolean(space && !space.shareAnamnesis)
+  const initial = own ? space!.anamnesis : account.anamnesis
+  const level = (
+    own ? space!.requiredLevel : Math.max(account.anamnesis?.level ?? 1, space?.requiredLevel ?? 1)
+  ) as Level
+  const state = recordState(initial, level)
+  // Entering a space whose record is already enough: nothing to ask, straight in.
+  if (params.entering && space && state === 'ok')
+    return <Preparing space={space.summary} onDone={goHome} />
+  const mode: WizardMode = !initial
+    ? 'new'
+    : state === 'incomplete'
+      ? 'upgrade'
+      : state === 'expired'
+        ? 'renew'
+        : 'edit'
+
   return (
-    <AnamnesisForm
-      key={own?.summary.slug ?? 'account'}
+    <Form
+      key={params.slug ?? 'conta'}
+      mode={mode}
+      level={level}
       own={own}
-      previous={own ? own.anamnesis : account.anamnesis}
-      hasSpace={Boolean(space)}
+      slug={space?.summary.slug ?? null}
+      entering={params.entering}
     />
   )
 }
 
-function AnamnesisForm({
-  own,
-  previous,
-  hasSpace,
-}: {
-  own: SpaceLink | null
-  previous: Anamnesis | null
-  hasSpace: boolean
+function Form(props: {
+  mode: WizardMode
+  level: Level
+  own: boolean
+  slug: string | null
+  entering: boolean
 }) {
+  // Saving refreshes the account and would change the situation; the form keeps the one it opened.
+  const [{ mode, level, own, slug, entering }] = useState(props)
   const router = useRouter()
-  const [preparing, setPreparing] = useState(false)
-  const goHome = useCallback(() => router.replace('/cliente'), [router])
-  const [step, setStep] = useState(0)
-  const [photo, setPhoto] = useState(previous?.photo ?? '')
-  const [sex, setSex] = useState<Sex | ''>(previous?.sex ?? '')
-  const [birthDate, setBirthDate] = useState(previous?.birthDate ?? '')
-  const [allergies, setAllergies] = useState(previous?.allergies ?? '')
-  const [healthNotes, setHealthNotes] = useState(previous?.healthNotes ?? '')
-  const [consent, setConsent] = useState(false)
-  const [error, setError] = useState('')
-
-  async function pickPhoto(event: ChangeEvent<HTMLInputElement>) {
-    const file = event.target.files?.[0]
-    if (!file) return
-    try {
-      setPhoto(await toPortrait(file))
-      setError('')
-    } catch {
-      setError('Não foi possível ler essa imagem. Tente outra foto.')
-    }
-  }
-
-  const today = new Date().toISOString().slice(0, 10)
+  const { account } = useClient()
   const [saving, setSaving] = useState(false)
-  async function next() {
-    const problem =
-      step === 0
-        ? !photo && 'Adicione uma foto do rosto para continuar.'
-        : step === 1
-          ? !sex
-            ? 'Selecione o sexo biológico.'
-            : (!birthDate || birthDate >= today || birthDate < '1900-01-01') &&
-              'Informe uma data de nascimento válida.'
-          : !consent && 'Confirme o uso das informações.'
-    if (problem) return setError(problem)
-    setError('')
-    if (step < 2) return setStep(step + 1)
+  const [error, setError] = useState('')
+  const [done, setDone] = useState(false)
+  const goHome = useCallback(() => router.replace('/cliente'), [router])
+  const space = slug && account ? (account.spaces[slug] ?? null) : null
+  const initial = own ? (space?.anamnesis ?? null) : (account?.anamnesis ?? null)
+
+  async function save(record: { level: Level; answers: Answers; photo: string }) {
     setSaving(true)
-    const failure = await saveAnamnesis(own?.summary.slug ?? null, {
-      photo,
-      sex: sex as Sex,
-      birthDate,
-      allergies: allergies.trim(),
-      healthNotes: healthNotes.trim(),
-    })
+    const failure = await saveAnamnesis(own ? slug : null, record)
     setSaving(false)
     if (failure) return setError(failure)
-    if (previous) router.replace('/cliente/perfil')
-    // First record of the account: next comes choosing the space.
-    else if (!own) router.replace(hasSpace ? '/cliente' : '/cliente/espacos')
-    else setPreparing(true)
+    if (entering && space) return setDone(true)
+    // First record of a new account: next comes choosing the space.
+    if (!slug && mode === 'new') return router.replace('/cliente/espacos')
+    router.replace(mode === 'edit' ? '/cliente/perfil' : '/cliente')
   }
 
-  if (preparing && own) return <Preparing space={own.summary} onDone={goHome} />
+  if (done && space) return <Preparing space={space.summary} onDone={goHome} />
 
   return (
-    <div className="ca ca-flow" data-theme={own?.summary.theme ?? 'luminix'}>
+    <div className="ca ca-flow" data-theme={space?.summary.theme ?? 'luminix'}>
       <div className="ca-flow-card">
-        <header className="ca-flow-top">
-          {step > 0 ? (
-            <button
-              type="button"
-              className="ca-icon-button"
-              aria-label="Voltar"
-              onClick={() => setStep(step - 1)}
-            >
-              <ArrowLeft size={18} aria-hidden />
-            </button>
-          ) : previous ? (
-            <Link className="ca-icon-button" href="/cliente/perfil" aria-label="Voltar ao perfil">
-              <ArrowLeft size={18} aria-hidden />
-            </Link>
-          ) : own ? (
-            <Link className="ca-link" href="/cliente/espacos">
-              Trocar espaço
-            </Link>
-          ) : (
-            <span className="ca-wordmark">Luminix</span>
-          )}
-          {own ? (
-            <span className="ca-flow-space">
-              <SpaceLogo space={own.summary} size={28} /> {own.summary.name}
-            </span>
-          ) : (
-            <span className="ca-flow-space">Sua ficha Luminix</span>
-          )}
-        </header>
-
-        <ol className="ca-steps" aria-label="Etapas da ficha">
-          {steps.map((label, index) => (
-            <li
-              key={label}
-              data-state={index < step ? 'done' : index === step ? 'current' : 'next'}
-            >
-              <span>{index < step ? <Check size={13} aria-hidden /> : index + 1}</span>
-              {label}
-            </li>
-          ))}
-        </ol>
-
-        {step === 0 && (
-          <section className="ca-form">
-            <h1>
-              {own ? 'Uma foto para o espaço reconhecer você' : 'Uma foto para reconhecerem você'}
-            </h1>
-            <p className="ca-lead">
-              Rosto visível, sem filtro. Ela aparece na sua ficha e para a equipe na recepção.
-            </p>
-            <label className="ca-photo">
-              {photo ? <img src={photo} alt="Sua foto" /> : <Camera size={34} aria-hidden />}
-              <span>{photo ? 'Trocar foto' : 'Tirar ou escolher foto'}</span>
-              <input type="file" accept="image/*" capture="user" onChange={pickPhoto} />
-            </label>
-          </section>
-        )}
-
-        {step === 1 && (
-          <section className="ca-form">
-            <h1>Sobre você</h1>
-            <p className="ca-lead">
-              Informações básicas que o espaço usa para indicar os cuidados certos.
-            </p>
-            <fieldset>
-              <legend>Sexo biológico</legend>
-              <div className="ca-choices">
-                {(
-                  [
-                    ['female', 'Feminino'],
-                    ['male', 'Masculino'],
-                  ] as const
-                ).map(([value, label]) => (
-                  <button
-                    key={value}
-                    type="button"
-                    aria-pressed={sex === value}
-                    onClick={() => setSex(value)}
-                  >
-                    {label}
-                  </button>
-                ))}
-              </div>
-              <small>Usado em procedimentos como depilação e tratamentos corporais.</small>
-            </fieldset>
-            <label>
-              Data de nascimento
-              <input
-                type="date"
-                value={birthDate}
-                max={today}
-                onChange={(event) => setBirthDate(event.target.value)}
-              />
-            </label>
-          </section>
-        )}
-
-        {step === 2 && (
-          <section className="ca-form">
-            <h1>Algo que o espaço precisa saber?</h1>
-            <p className="ca-lead">Opcional. Você pode atualizar depois, no seu perfil.</p>
-            <label>
-              Alergias ou sensibilidades
-              <input
-                value={allergies}
-                onChange={(event) => setAllergies(event.target.value)}
-                placeholder="Ex.: látex, esmalte, algum ativo"
-                maxLength={200}
-              />
-            </label>
-            <label>
-              Observações de saúde
-              <textarea
-                value={healthNotes}
-                onChange={(event) => setHealthNotes(event.target.value)}
-                placeholder="Ex.: gestante, uso de medicação, cirurgia recente"
-                rows={3}
-                maxLength={500}
-              />
-            </label>
-            <label className="ca-check">
-              <input
-                type="checkbox"
-                checked={consent}
-                onChange={(event) => setConsent(event.target.checked)}
-              />
-              <span>
-                {own
-                  ? `Autorizo ${own.summary.name} a usar estas informações para o meu atendimento. Esta ficha vale só para este espaço.`
-                  : 'Autorizo o uso destas informações no meu atendimento. Cada espaço só vê a ficha quando eu permitir, ao entrar nele.'}
-              </span>
-            </label>
-          </section>
-        )}
-
-        <p className="ca-error" role="alert">
-          {error}
-        </p>
-        <button type="button" className="ca-button" disabled={saving} onClick={() => void next()}>
-          {step < 2 ? 'Continuar' : 'Concluir ficha'} <ArrowRight size={18} aria-hidden />
-        </button>
+        <AnamnesisWizard
+          mode={mode}
+          level={level}
+          initial={initial}
+          space={space?.summary ?? null}
+          saving={saving}
+          error={error}
+          onSave={(record) => void save(record)}
+          onCancel={mode === 'edit' ? () => router.back() : undefined}
+        />
       </div>
     </div>
   )

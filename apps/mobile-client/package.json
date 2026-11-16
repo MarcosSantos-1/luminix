@@ -18,6 +18,7 @@
     "@expo-google-fonts/outfit": "^0.4.3",
     "@expo/metro-runtime": "~57.0.18",
     "@expo/vector-icons": "^15.1.1",
+    "@luminix/contracts": "workspace:*",
     "@react-native-async-storage/async-storage": "2.2.0",
     "expo": "~57.0.22",
     "expo-constants": "~57.0.24",

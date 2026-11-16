@@ -15,7 +15,15 @@ let bia: string
 
 // Tiny valid JPEG data URL, enough for the record photo.
 const photo = 'data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2Q=='
-const anamnesis = { sex: 'female', birthDate: '1992-04-10', photo, consent: true }
+const basic = { sex: 'female', birthDate: '1992-04-10', allergies: 'no', cosmeticAllergy: 'no' }
+const anamnesis = { level: 1, answers: basic, photo, consent: true }
+const health = {
+  diagnosedDisease: 'no',
+  medicalTreatment: 'no',
+  continuousMedications: 'no',
+  aestheticReaction: 'no',
+  pregnant: 'no',
+}
 
 /** Next weekday (Mon–Fri) at least two days ahead, as YYYY-MM-DD in São Paulo. */
 function nextWeekday() {
@@ -174,7 +182,7 @@ describe('área do cliente', () => {
     expect(joined.statusCode).toBe(201)
     const me = (await call('cliente-1', 'GET', '/client/me')).json()
     expect(me.profile).toMatchObject({ name: 'Cliente Um', phone: '+5511988887777' })
-    expect(me.profile.anamnesis).toMatchObject({ sex: 'female', birthDate: '1992-04-10' })
+    expect(me.profile.anamnesis).toMatchObject({ version: 2, level: 1, answers: basic })
     expect(me.spaces).toEqual([
       expect.objectContaining({ slug: slugA, shareAnamnesis: true, ownAnamnesis: null }),
     ])
@@ -248,7 +256,7 @@ describe('área do cliente', () => {
     const booked = await call('cliente-1', 'POST', `/client/spaces/${slugA}/appointments`, {
       serviceId: solo,
       localStartsAt: `${date}T09:00`,
-      paymentMethod: 'pix',
+      paymentMethod: 'local',
     })
     expect(booked.statusCode).toBe(201)
     expect(booked.json().status).toBe('confirmed')
@@ -259,7 +267,8 @@ describe('área do cliente', () => {
       email: 'dois@example.com',
     })
     await call('cliente-2', 'PUT', '/client/me/anamnesis', anamnesis)
-    await call('cliente-2', 'POST', '/client/spaces', { slug: slugA, shareAnamnesis: false })
+    // Without a record the space cannot take bookings: this client shares the account record.
+    await call('cliente-2', 'POST', '/client/spaces', { slug: slugA, shareAnamnesis: true })
     const after = (
       await call(
         'cliente-2',
@@ -289,7 +298,7 @@ describe('área do cliente', () => {
     expect(mine.appointments[0]).toMatchObject({
       status: 'confirmed',
       source: 'client',
-      paymentMethod: 'pix',
+      paymentMethod: 'local',
       priceCents: 8000,
       professional: { name: 'Ana' },
     })
@@ -339,13 +348,14 @@ describe('área do cliente', () => {
   it('ficha própria do espaço deixa de usar a ficha da conta', async () => {
     const saved = await call('cliente-2', 'PUT', `/client/spaces/${slugA}/anamnesis`, {
       ...anamnesis,
-      sex: 'male',
+      level: 2,
+      answers: { ...basic, ...health, sex: 'male' },
     })
     expect(saved.statusCode).toBe(200)
     const me = (await call('cliente-2', 'GET', '/client/me')).json()
     expect(me.spaces[0]).toMatchObject({ shareAnamnesis: false })
-    expect(me.spaces[0].ownAnamnesis).toMatchObject({ sex: 'male' })
-    expect(me.profile.anamnesis).toMatchObject({ sex: 'female' })
+    expect(me.spaces[0].ownAnamnesis).toMatchObject({ level: 2, answers: { sex: 'male' } })
+    expect(me.profile.anamnesis).toMatchObject({ answers: { sex: 'female' } })
   })
 
   it('remover o espaço tira da lista sem apagar a ficha da clínica', async () => {
@@ -363,6 +373,135 @@ describe('área do cliente', () => {
     await db.exec('SET ROLE luminix_api')
     expect(kept.total).toBe(1)
     expect(slugB).toBeTruthy()
+  })
+
+  it('recusa ficha sem as respostas obrigatórias do nível', async () => {
+    const short = await call('cliente-3', 'PUT', '/client/me', {
+      name: 'Três',
+      email: 'tres@example.com',
+    })
+    expect(short.statusCode).toBe(200)
+    const missing = await call('cliente-3', 'PUT', '/client/me/anamnesis', {
+      ...anamnesis,
+      level: 2,
+    })
+    expect(missing.statusCode).toBe(400)
+    const strange = await call('cliente-3', 'PUT', '/client/me/anamnesis', {
+      ...anamnesis,
+      answers: { ...basic, 'bad key': 'x' },
+    })
+    expect(strange.statusCode).toBe(400)
+  })
+
+  it('espaço de estética exige ficha completa e ficha vencida bloqueia o agendamento', async () => {
+    await db.exec('RESET ROLE')
+    await connection.query("SELECT set_config('luminix.clinic_id', $1, false)", [clinicA])
+    const facial = String(
+      (
+        await connection.query(
+          `INSERT INTO luminix.services (clinic_id, name, category, price_cents, duration_minutes)
+           VALUES ($1, 'Limpeza de pele', 'Estética facial', 15000, 60) RETURNING id`,
+          [clinicA],
+        )
+      ).rows[0].id,
+    )
+    await db.exec('SET ROLE luminix_api')
+    const me = (await call('cliente-2', 'GET', '/client/me')).json()
+    expect(me.spaces[0].requiredLevel).toBe(3)
+    const date = nextWeekday()
+    const refused = await call('cliente-2', 'POST', `/client/spaces/${slugA}/appointments`, {
+      serviceId: facial,
+      localStartsAt: `${date}T11:00`,
+      paymentMethod: 'local',
+    })
+    expect(refused.json()).toEqual({ error: 'Record required' })
+    const full = {
+      ...basic,
+      ...health,
+      sex: 'male',
+      physicalLimitation: 'no',
+      smoking: 'never',
+      alcohol: 'socially',
+      physicalActivity: 'yes',
+      activityPerWeek: 3,
+      waterIntake: 'medium',
+      skinType: 'oily',
+      previousAesthetic: 'no',
+      goals: ['acne'],
+    }
+    expect(
+      (
+        await call('cliente-2', 'PUT', `/client/spaces/${slugA}/anamnesis`, {
+          ...anamnesis,
+          level: 3,
+          answers: full,
+        })
+      ).statusCode,
+    ).toBe(200)
+    // A year-old record must be confirmed again before booking.
+    await db.exec('RESET ROLE')
+    await connection.query(
+      `UPDATE luminix.clinic_clients
+          SET client_anamnesis = jsonb_set(client_anamnesis, '{answeredAt}', to_jsonb((now() - interval '400 days')::text))
+        WHERE clinic_id = $1 AND client_anamnesis IS NOT NULL`,
+      [clinicA],
+    )
+    await db.exec('SET ROLE luminix_api')
+    const expired = await call('cliente-2', 'POST', `/client/spaces/${slugA}/appointments`, {
+      serviceId: facial,
+      localStartsAt: `${date}T11:00`,
+      paymentMethod: 'local',
+    })
+    expect(expired.json()).toEqual({ error: 'Record expired' })
+  })
+
+  it('só aceita Pix ou cartão quando o espaço liga pagamento no app', async () => {
+    const date = nextWeekday()
+    await call('cliente-4', 'PUT', '/client/me', { name: 'Quatro', email: 'quatro@example.com' })
+    await call('cliente-4', 'PUT', '/client/me/anamnesis', {
+      ...anamnesis,
+      level: 3,
+      answers: {
+        ...basic,
+        ...health,
+        physicalLimitation: 'no',
+        smoking: 'never',
+        alcohol: 'never',
+        physicalActivity: 'no',
+        waterIntake: 'high',
+        skinType: 'dry',
+        previousAesthetic: 'no',
+      },
+    })
+    await call('cliente-4', 'POST', '/client/spaces', { slug: slugA, shareAnamnesis: true })
+    const availability = (
+      await call(
+        'cliente-4',
+        'GET',
+        `/client/spaces/${slugA}/availability?serviceId=${solo}&date=${date}`,
+      )
+    ).json()
+    expect(availability.inAppPayments).toBe(false)
+    const pix = await call('cliente-4', 'POST', `/client/spaces/${slugA}/appointments`, {
+      serviceId: solo,
+      localStartsAt: `${date}T10:00`,
+      paymentMethod: 'pix',
+    })
+    expect(pix.json()).toEqual({ error: 'Payment unavailable' })
+    await db.exec('RESET ROLE')
+    await connection.query("SELECT set_config('luminix.clinic_id', $1, false)", [clinicA])
+    await connection.query(
+      `INSERT INTO luminix.payment_preferences (clinic_id, accept_in_app) VALUES ($1, true)
+       ON CONFLICT (clinic_id) DO UPDATE SET accept_in_app = true`,
+      [clinicA],
+    )
+    await db.exec('SET ROLE luminix_api')
+    const paid = await call('cliente-4', 'POST', `/client/spaces/${slugA}/appointments`, {
+      serviceId: solo,
+      localStartsAt: `${date}T10:00`,
+      paymentMethod: 'pix',
+    })
+    expect(paid.statusCode).toBe(201)
   })
 
   it('responde CORS só para as origens da área do cliente', async () => {

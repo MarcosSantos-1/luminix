@@ -26,6 +26,15 @@ const methods = [
 /** "" = no preference: the space gives the time to the first professional free. */
 const ANY = ''
 
+type Stage = 'service' | 'pro' | 'time' | 'pay' | 'review'
+const stageTitles: Record<Stage, string> = {
+  service: 'Serviço',
+  pro: 'Profissional',
+  time: 'Dia e horário',
+  pay: 'Pagamento',
+  review: 'Revisão',
+}
+
 export default function BookingPage() {
   const { space } = useClient()
   const { clinic, status } = useClinic(space?.summary.slug ?? null)
@@ -40,6 +49,8 @@ export default function BookingPage() {
     data: Availability | null
   } | null>(null)
   const [busy, setBusy] = useState(false)
+  // Phones see one window at a time; wide screens show every section (CSS).
+  const [at, setAt] = useState<Stage>('service')
   const [error, setError] = useState('')
   const [done, setDone] = useState<{
     start: string
@@ -120,7 +131,40 @@ export default function BookingPage() {
 
   const priced = service && service.priceType !== 'quote' && effectivePrice(service) > 0
   const start = time ? `${day}T${time}` : null
-  const step = { pro: 2, day: current?.choose && !moving ? 3 : 2 }
+  // Pix/card only when the space accepts payments in the app; otherwise it is paid there.
+  const payInApp = Boolean(priced && current?.inAppPayments && !moving)
+  const flow: Stage[] = [
+    ...(moving ? [] : (['service'] as Stage[])),
+    ...(current?.choose && !moving ? (['pro'] as Stage[]) : []),
+    'time',
+    ...(payInApp ? (['pay'] as Stage[]) : []),
+    'review',
+  ]
+  // A step the client cannot be on yet falls back to the first one still open.
+  const view: Stage =
+    !moving && !service
+      ? 'service'
+      : at === 'service' && moving
+        ? 'time'
+        : (at === 'time' || at === 'pay' || at === 'review') && agenda === null
+          ? 'pro'
+          : (at === 'pay' || at === 'review') && !start
+            ? 'time'
+            : flow.includes(at)
+              ? at
+              : 'time'
+  const position = flow.indexOf(view)
+  const number = (stage: Stage) => flow.indexOf(stage) + 1
+  const ready =
+    view === 'service'
+      ? Boolean(service)
+      : view === 'pro'
+        ? agenda !== null
+        : view === 'time'
+          ? Boolean(start)
+          : true
+  const hidden = (stage: Stage) => (view !== stage ? true : undefined)
+  const shown = (stage: Stage) => (view === stage ? true : undefined)
 
   async function confirm() {
     if (!start || !space) return
@@ -156,11 +200,17 @@ export default function BookingPage() {
 
   return (
     <div className="ca-page ca-booking">
-      <PageHeader title={moving ? 'Remarcar horário' : 'Agendar'} kicker={space.summary.name} />
+      <PageHeader
+        title={moving ? 'Remarcar horário' : 'Agendar'}
+        kicker={`${space.summary.name} · ${position + 1} de ${flow.length}: ${stageTitles[view]}`}
+      />
+      <div className="ca-wizard-progress" aria-hidden>
+        <span style={{ transform: `scaleX(${(position + 1) / flow.length})` }} />
+      </div>
 
-      <section className="ca-step">
+      <section className="ca-step" data-hidden={hidden('service')} data-current={shown('service')}>
         <h2>
-          <span>1</span> Serviço
+          <span>{number('service') || 1}</span> Serviço
         </h2>
         {moving ? (
           <div className="ca-picked">
@@ -187,6 +237,7 @@ export default function BookingPage() {
                 setServiceId('')
                 setProfessional(null)
                 setTime(null)
+                setAt('service')
               }}
             >
               Trocar
@@ -204,6 +255,7 @@ export default function BookingPage() {
                     setServiceId(item.id)
                     setProfessional(null)
                     setTime(null)
+                    setAt('time')
                   }}
                 >
                   <span>
@@ -221,9 +273,9 @@ export default function BookingPage() {
       </section>
 
       {(service || moving) && current?.choose && !moving && (
-        <section className="ca-step">
+        <section className="ca-step" data-hidden={hidden('pro')} data-current={shown('pro')}>
           <h2>
-            <span>{step.pro}</span> Profissional
+            <span>{number('pro')}</span> Profissional
           </h2>
           <div className="ca-team" role="radiogroup" aria-label="Profissional">
             <button
@@ -233,6 +285,7 @@ export default function BookingPage() {
               onClick={() => {
                 setProfessional(ANY)
                 setTime(null)
+                setAt('time')
               }}
             >
               <span className="ca-team-any">
@@ -250,6 +303,7 @@ export default function BookingPage() {
                 onClick={() => {
                   setProfessional(item.id)
                   setTime(null)
+                  setAt('time')
                 }}
               >
                 <Avatar name={item.name} photo={item.photoUrl} size={58} />
@@ -262,9 +316,9 @@ export default function BookingPage() {
       )}
 
       {(service || moving) && agenda !== null && (
-        <section className="ca-step">
+        <section className="ca-step" data-hidden={hidden('time')} data-current={shown('time')}>
           <h2>
-            <span>{step.day}</span> Dia e horário
+            <span>{number('time')}</span> Dia e horário
           </h2>
           {current && !current.choose && team[0] && !moving && (
             <p className="ca-with">
@@ -322,10 +376,10 @@ export default function BookingPage() {
         </section>
       )}
 
-      {start && priced && !moving && (
-        <section className="ca-step">
+      {start && payInApp && (
+        <section className="ca-step" data-hidden={hidden('pay')} data-current={shown('pay')}>
           <h2>
-            <span>{step.day + 1}</span> Pagamento
+            <span>{number('pay')}</span> Pagamento
           </h2>
           <div className="ca-methods" role="radiogroup" aria-label="Forma de pagamento">
             {methods.map(({ value, label, hint, icon: Icon }) => (
@@ -348,9 +402,92 @@ export default function BookingPage() {
         </section>
       )}
 
+      {start && (
+        <section
+          className="ca-step ca-review-step"
+          data-hidden={hidden('review')}
+          data-current={shown('review')}
+        >
+          <h2>
+            <span>{number('review')}</span> Confira e confirme
+          </h2>
+          <dl className="ca-review">
+            <div>
+              <dt>Serviço</dt>
+              <dd>{service?.name ?? moving?.serviceName}</dd>
+            </div>
+            {(moving?.professionalName ?? team.find((item) => item.id === agenda)?.name) && (
+              <div>
+                <dt>Com</dt>
+                <dd>{moving?.professionalName ?? team.find((item) => item.id === agenda)?.name}</dd>
+              </div>
+            )}
+            {agenda === ANY && current?.choose && !moving && (
+              <div>
+                <dt>Com</dt>
+                <dd>Primeira profissional livre</dd>
+              </div>
+            )}
+            <div>
+              <dt>Quando</dt>
+              <dd>
+                {dateLabel(start)} às {time}
+              </dd>
+            </div>
+            {priced && !moving && (
+              <div>
+                <dt>Valor</dt>
+                <dd>{formatMoney(effectivePrice(service))}</dd>
+              </div>
+            )}
+            {priced && !moving && (
+              <div>
+                <dt>Pagamento</dt>
+                <dd>
+                  {payInApp
+                    ? (methods.find((item) => item.value === method)?.label ?? 'No espaço')
+                    : 'No espaço, no dia'}
+                </dd>
+              </div>
+            )}
+          </dl>
+          <button
+            type="button"
+            className="ca-button"
+            disabled={busy}
+            onClick={() => void confirm()}
+          >
+            {busy ? 'Enviando…' : moving ? 'Remarcar' : 'Confirmar agendamento'}{' '}
+            <Check size={18} aria-hidden />
+          </button>
+        </section>
+      )}
+
       <p className="ca-error" role="alert">
         {error}
       </p>
+
+      {view !== 'review' && (
+        <nav className="ca-wizard-nav" aria-label="Etapas">
+          {position > 0 && (
+            <button
+              type="button"
+              className="ca-button ghost"
+              onClick={() => setAt(flow[position - 1])}
+            >
+              Voltar
+            </button>
+          )}
+          <button
+            type="button"
+            className="ca-button"
+            disabled={!ready}
+            onClick={() => setAt(flow[position + 1] ?? 'review')}
+          >
+            Continuar <ArrowRight size={18} aria-hidden />
+          </button>
+        </nav>
+      )}
 
       {start && (
         <footer className="ca-confirm">

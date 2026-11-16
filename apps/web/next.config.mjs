@@ -7,6 +7,8 @@ const adminOrigins = [
 ]
 
 const nextConfig = {
+  // Shared TypeScript sources (packages/contracts) are compiled by each app.
+  transpilePackages: ['@luminix/contracts'],
   async headers() {
     return [
       {

@@ -12,6 +12,15 @@ import { Avatar, money, usePalette, useServices } from '../src/ui/space'
 /** "" = no preference: the space gives the time to the first professional free. */
 const ANY = ''
 
+type Stage = 'service' | 'pro' | 'time' | 'pay' | 'review'
+const stageTitles: Record<Stage, string> = {
+  service: 'Serviço',
+  pro: 'Profissional',
+  time: 'Dia e horário',
+  pay: 'Pagamento',
+  review: 'Revisão',
+}
+
 const methods: { value: PaymentMethod; label: string; hint: string; icon: IconName }[] = [
   { value: 'local', label: 'Pagar no espaço', hint: 'No dia do atendimento', icon: 'home' },
   { value: 'pix', label: 'Pix', hint: 'Pagamento simulado', icon: 'zap' },
@@ -107,6 +116,8 @@ export default function Book() {
   const [method, setMethod] = useState<PaymentMethod>('local')
   const [result, setResult] = useState<{ key: string; data: Availability | null } | null>(null)
   const [busy, setBusy] = useState(false)
+  // One window per step: service → professional → day and time → payment → review.
+  const [at, setAt] = useState<Stage>('service')
   const [error, setError] = useState('')
   const [done, setDone] = useState<{ title: string; body: string } | null>(null)
 
@@ -149,7 +160,39 @@ export default function Book() {
     service && service.priceType !== 'quote' && (service.promoPriceCents ?? service.priceCents) > 0
   const price = service ? (service.promoPriceCents ?? service.priceCents) : 0
   const start = time ? `${day}T${time}` : null
-  const dayStep = current?.choose && !moving ? 3 : 2
+  // Pix/card only when the space accepts payments in the app; otherwise it is paid there.
+  const payInApp = Boolean(priced && current?.inAppPayments && !moving)
+  const flow: Stage[] = [
+    ...(moving ? [] : (['service'] as Stage[])),
+    ...(current?.choose && !moving ? (['pro'] as Stage[]) : []),
+    'time',
+    ...(payInApp ? (['pay'] as Stage[]) : []),
+    'review',
+  ]
+  // A step the client cannot be on yet falls back to the first one still open.
+  const view: Stage =
+    !moving && !service
+      ? 'service'
+      : at === 'service' && moving
+        ? 'time'
+        : (at === 'time' || at === 'pay' || at === 'review') && agenda === null
+          ? 'pro'
+          : (at === 'pay' || at === 'review') && !start
+            ? 'time'
+            : flow.includes(at)
+              ? at
+              : 'time'
+  const position = flow.indexOf(view)
+  const number = (stage: Stage) => flow.indexOf(stage) + 1
+  const canContinue =
+    view === 'service'
+      ? Boolean(service)
+      : view === 'pro'
+        ? agenda !== null
+        : view === 'time'
+          ? Boolean(start)
+          : true
+  const who = moving?.professionalName ?? team.find((item) => item.id === agenda)?.name ?? null
 
   if (done)
     return (
@@ -228,89 +271,117 @@ export default function Book() {
           </Press>
         </View>
 
-        <Enter style={{ gap: 12 }}>
-          <StepTitle index={1}>Serviço</StepTitle>
-          {moving || service ? (
+        <View style={{ gap: 8 }}>
+          <Text style={[type.small, { color: palette.muted }]}>
+            {position + 1} de {flow.length} · {stageTitles[view]}
+          </Text>
+          <View
+            style={{
+              height: 5,
+              borderRadius: radius.pill,
+              backgroundColor: colors.line,
+              overflow: 'hidden',
+            }}
+          >
             <View
-              style={[
-                {
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                  gap: 12,
-                  padding: 16,
-                  borderRadius: 20,
-                  backgroundColor: colors.card,
-                },
-                shadow,
-              ]}
-            >
-              <View style={{ flex: 1, gap: 2 }}>
-                <Text style={type.strong}>{moving?.serviceName ?? service?.name}</Text>
-                <Text style={[type.small, { color: palette.muted }]}>
-                  {service
-                    ? `${priceLabel(service)} · ${durationLabel(service.durationMinutes)}`
-                    : durationLabel(moving!.durationMinutes)}
-                  {moving?.professionalName ? ` · com ${moving.professionalName}` : ''}
-                </Text>
+              style={{
+                height: 5,
+                width: `${((position + 1) / flow.length) * 100}%`,
+                backgroundColor: palette.deep,
+              }}
+            />
+          </View>
+        </View>
+
+        {view === 'service' && (
+          <Enter key="service" style={{ gap: 12 }}>
+            <StepTitle index={number('service')}>Serviço</StepTitle>
+            {moving || service ? (
+              <View
+                style={[
+                  {
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    gap: 12,
+                    padding: 16,
+                    borderRadius: 20,
+                    backgroundColor: colors.card,
+                  },
+                  shadow,
+                ]}
+              >
+                <View style={{ flex: 1, gap: 2 }}>
+                  <Text style={type.strong}>{moving?.serviceName ?? service?.name}</Text>
+                  <Text style={[type.small, { color: palette.muted }]}>
+                    {service
+                      ? `${priceLabel(service)} · ${durationLabel(service.durationMinutes)}`
+                      : durationLabel(moving!.durationMinutes)}
+                    {moving?.professionalName ? ` · com ${moving.professionalName}` : ''}
+                  </Text>
+                </View>
+                {!moving && (
+                  <Press
+                    onPress={() => {
+                      setServiceId(null)
+                      setAt('service')
+                      setProfessional(null)
+                      setTime(null)
+                    }}
+                  >
+                    <Text style={{ fontFamily: fonts.bodySemi, color: palette.accent }}>
+                      Trocar
+                    </Text>
+                  </Press>
+                )}
               </View>
-              {!moving && (
+            ) : services === null ? (
+              <View
+                style={{
+                  height: 120,
+                  borderRadius: 20,
+                  backgroundColor: palette.light,
+                  opacity: 0.6,
+                }}
+              />
+            ) : (
+              services.map((item) => (
                 <Press
+                  key={item.id}
                   onPress={() => {
-                    setServiceId(null)
+                    setServiceId(item.id)
+                    setAt('time')
                     setProfessional(null)
                     setTime(null)
                   }}
+                  style={{
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    gap: 12,
+                    padding: 14,
+                    borderRadius: 18,
+                    backgroundColor: colors.card,
+                    borderWidth: 1,
+                    borderColor: colors.line,
+                  }}
                 >
-                  <Text style={{ fontFamily: fonts.bodySemi, color: palette.accent }}>Trocar</Text>
-                </Press>
-              )}
-            </View>
-          ) : services === null ? (
-            <View
-              style={{
-                height: 120,
-                borderRadius: 20,
-                backgroundColor: palette.light,
-                opacity: 0.6,
-              }}
-            />
-          ) : (
-            services.map((item) => (
-              <Press
-                key={item.id}
-                onPress={() => {
-                  setServiceId(item.id)
-                  setProfessional(null)
-                  setTime(null)
-                }}
-                style={{
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                  gap: 12,
-                  padding: 14,
-                  borderRadius: 18,
-                  backgroundColor: colors.card,
-                  borderWidth: 1,
-                  borderColor: colors.line,
-                }}
-              >
-                <View style={{ flex: 1, gap: 2 }}>
-                  <Text style={type.strong}>{item.name}</Text>
-                  <Text style={[type.small, { color: palette.muted }]}>
-                    {item.category} · {durationLabel(item.durationMinutes)}
+                  <View style={{ flex: 1, gap: 2 }}>
+                    <Text style={type.strong}>{item.name}</Text>
+                    <Text style={[type.small, { color: palette.muted }]}>
+                      {item.category} · {durationLabel(item.durationMinutes)}
+                    </Text>
+                  </View>
+                  <Text style={{ fontFamily: fonts.bodyBold, fontSize: 13.5, color: palette.deep }}>
+                    {priceLabel(item)}
                   </Text>
-                </View>
-                <Text style={{ fontFamily: fonts.bodyBold, fontSize: 13.5, color: palette.deep }}>
-                  {priceLabel(item)}
-                </Text>
-              </Press>
-            ))
-          )}
-        </Enter>
+                </Press>
+              ))
+            )}
+          </Enter>
+        )}
 
-        {chosen && current?.choose && !moving && (
-          <Enter style={{ gap: 12 }}>
-            <StepTitle index={2}>Profissional</StepTitle>
+        {view === 'pro' && chosen && current?.choose && !moving && (
+          <Enter key="pro" style={{ gap: 12 }}>
+            <StepTitle index={number('pro')}>Profissional</StepTitle>
             <ScrollView
               horizontal
               showsHorizontalScrollIndicator={false}
@@ -327,6 +398,7 @@ export default function Book() {
                     key={item.id || 'any'}
                     onPress={() => {
                       setProfessional(item.id)
+                      setAt('time')
                       setTime(null)
                     }}
                     selected={active}
@@ -386,9 +458,9 @@ export default function Book() {
           </Enter>
         )}
 
-        {chosen && agenda !== null && (
-          <Enter style={{ gap: 12 }}>
-            <StepTitle index={dayStep}>Dia e horário</StepTitle>
+        {view === 'time' && chosen && agenda !== null && (
+          <Enter key="time" style={{ gap: 12 }}>
+            <StepTitle index={number('time')}>Dia e horário</StepTitle>
             {current && !current.choose && team[0] && !moving && (
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
                 <Avatar name={team[0].name} photo={team[0].photoUrl} size={30} />
@@ -499,9 +571,9 @@ export default function Book() {
           </Enter>
         )}
 
-        {start && priced && !moving && (
-          <Enter style={{ gap: 12 }}>
-            <StepTitle index={dayStep + 1}>Pagamento</StepTitle>
+        {view === 'pay' && start && payInApp && (
+          <Enter key="pay" style={{ gap: 12 }}>
+            <StepTitle index={number('pay')}>Pagamento</StepTitle>
             {methods.map((item) => {
               const active = method === item.value
               return (
@@ -534,10 +606,86 @@ export default function Book() {
           </Enter>
         )}
 
+        {view === 'review' && start && (
+          <Enter key="review" style={{ gap: 12 }}>
+            <StepTitle index={number('review')}>Confira e confirme</StepTitle>
+            <View
+              style={[
+                { borderRadius: 22, backgroundColor: colors.card, paddingHorizontal: 16 },
+                shadow,
+              ]}
+            >
+              {[
+                ['Serviço', service?.name ?? moving?.serviceName ?? ''],
+                ...(who
+                  ? [['Com', who]]
+                  : agenda === ANY && current?.choose
+                    ? [['Com', 'Primeira profissional livre']]
+                    : []),
+                ['Quando', `${dateLabel(start)} às ${time}`],
+                ...(priced && !moving ? [['Valor', money(price)]] : []),
+                ...(priced && !moving
+                  ? [
+                      [
+                        'Pagamento',
+                        payInApp
+                          ? (methods.find((item) => item.value === method)?.label ?? 'No espaço')
+                          : 'No espaço, no dia',
+                      ],
+                    ]
+                  : []),
+              ].map(([label, value], index) => (
+                <View
+                  key={label}
+                  style={{
+                    flexDirection: 'row',
+                    justifyContent: 'space-between',
+                    gap: 14,
+                    paddingVertical: 14,
+                    borderTopWidth: index ? 1 : 0,
+                    borderTopColor: colors.line,
+                  }}
+                >
+                  <Text style={[type.body, { color: palette.muted }]}>{label}</Text>
+                  <Text style={[type.strong, { flexShrink: 1, textAlign: 'right' }]}>{value}</Text>
+                </View>
+              ))}
+            </View>
+          </Enter>
+        )}
+
         {error ? <Text style={[type.small, { color: colors.danger }]}>{error}</Text> : null}
       </ScrollView>
 
-      {start && (
+      {view !== 'review' && (
+        <View
+          style={{
+            position: 'absolute',
+            left: 16,
+            right: 16,
+            bottom: insets.bottom + 16,
+            flexDirection: 'row',
+            gap: 10,
+          }}
+        >
+          {position > 0 && (
+            <View style={{ flex: 1 }}>
+              <Button label="Voltar" variant="ghost" onPress={() => setAt(flow[position - 1])} />
+            </View>
+          )}
+          <View style={{ flex: 2 }}>
+            <Button
+              label="Continuar"
+              icon="arrow-right"
+              palette={palette}
+              disabled={!canContinue}
+              onPress={() => setAt(flow[position + 1] ?? 'review')}
+            />
+          </View>
+        </View>
+      )}
+
+      {view === 'review' && start && (
         <Enter
           from={60}
           style={[

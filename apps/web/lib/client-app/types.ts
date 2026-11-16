@@ -1,3 +1,5 @@
+import type { AnamnesisRecord, Level } from '@luminix/contracts/anamnesis'
+
 // Client area model, filled from the Luminix API (`/client/*`, ADR-029). Only view preferences,
 // the active space and which notices were read stay on the device.
 
@@ -27,21 +29,13 @@ export type SpaceSummary = {
   category: string | null
   /** Text for the map lookup; null when the space publishes no address. */
   mapQuery: string | null
+  /** Record level the space will ask for (preview; the API decides after linking). */
+  anamnesisLevel: Level
   demo: boolean
 }
 
-export type Anamnesis = {
-  level: 1
-  photo: string
-  sex: Sex
-  birthDate: string
-  allergies: string
-  healthNotes: string
-  consent: true
-  answeredAt: string
-}
-
-export type AnamnesisInput = Omit<Anamnesis, 'level' | 'answeredAt' | 'consent'>
+/** Record in the shared format (packages/contracts, ADR-030). */
+export type Anamnesis = AnamnesisRecord
 
 export type AppointmentStatus = 'requested' | 'confirmed' | 'done' | 'cancelled'
 
@@ -102,6 +96,8 @@ export type SpaceLink = {
   /** True: this space reads the account record. False: it needs its own record below. */
   shareAnamnesis: boolean
   anamnesis: Anamnesis | null
+  /** Record level the space requires (I basic, II health, III complete). */
+  requiredLevel: Level
   /** False until the appointments of this space were fetched at least once. */
   loaded: boolean
   policy: BookingPolicy | null
@@ -124,6 +120,8 @@ export type Availability = {
   bookingMode: 'instant' | 'request'
   /** More than one professional can do it: the client picks (or leaves it to the space). */
   choose: boolean
+  /** Pix/card are offered only when the space accepts payments in the app. */
+  inAppPayments: boolean
   professionals: Professional[]
   /** Free start times per professional id; "" is the single agenda of a space without team. */
   slots: Record<string, string[]>

@@ -14,7 +14,11 @@ Problema:
 4. Avisos derivados no cliente: sem push, sem histórico no servidor; "lido" é por aparelho.
 5. Variáveis `NEXT_PUBLIC_FIREBASE_*` e `NEXT_PUBLIC_API_URL` configuradas só em Production na
    Vercel (`luminix-web`); Preview não tem login de cliente.
-6. Recursos (salas/equipamentos), atendimento a domicílio e feriados da profissional não entram no
+6. Nível da ficha só é derivado dos serviços: falta a escolha do gestor
+   (`clinic_profiles.anamnesis_level`) e perguntas adicionais por espaço.
+7. Lista de chaves obrigatórias por nível duplicada entre a API (`requiredKeys`) e
+   `packages/contracts` (a API não importa o pacote).
+8. Recursos (salas/equipamentos), atendimento a domicílio e feriados da profissional não entram no
    cálculo de horários livres.
 
 Impacto atual: baixo (sem clientes reais).

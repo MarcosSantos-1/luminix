@@ -12,6 +12,7 @@
     "test": "node --experimental-strip-types --test tests/*.test.ts"
   },
   "dependencies": {
+    "@luminix/contracts": "workspace:*",
     "firebase": "12.19.0",
     "lucide-react": "^1.45.0",
     "next": "16.3.5",

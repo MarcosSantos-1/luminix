@@ -14,6 +14,12 @@ import {
 } from 'firebase/auth'
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
+import {
+  normalizeRecord,
+  type AnamnesisRecord,
+  type Answers,
+  type Level,
+} from '@luminix/contracts/anamnesis'
 import { loadSpace, type SpaceSummary } from './api'
 import { clientAuth } from './firebase'
 
@@ -23,15 +29,8 @@ const API_URL = (process.env.EXPO_PUBLIC_API_URL ?? 'https://luminix-api.fly.dev
 )
 const LOCAL_KEY = 'luminix.app.v2'
 
-export type Sex = 'female' | 'male'
-export type Anamnesis = {
-  sex: Sex
-  birthDate: string
-  allergies: string
-  healthNotes: string
-  answeredAt?: string
-  photo: string
-}
+/** Record in the shared format (packages/contracts, ADR-030). */
+export type Anamnesis = AnamnesisRecord
 export type AppointmentStatus = 'requested' | 'confirmed' | 'done' | 'cancelled'
 export type PaymentMethod = 'local' | 'pix' | 'card'
 export type Appointment = {
@@ -88,6 +87,8 @@ export type Availability = {
   durationMinutes: number
   bookingMode: 'instant' | 'request'
   choose: boolean
+  /** Pix/card are offered only when the space accepts payments in the app. */
+  inAppPayments: boolean
   professionals: Professional[]
   slots: Record<string, string[]>
 }
@@ -96,6 +97,8 @@ export type LinkedSpace = {
   linkedAt: string
   shareAnamnesis: boolean
   ownAnamnesis: Anamnesis | null
+  /** Record level the space requires (I basic, II health, III complete). */
+  requiredLevel: Level
 }
 export type Account = {
   uid: string
@@ -107,7 +110,7 @@ export type Account = {
   spaces: LinkedSpace[]
 }
 
-type ApiAnamnesis = Omit<Anamnesis, 'photo'>
+type ApiAnamnesis = unknown
 type Me = {
   profile: {
     name: string | null
@@ -122,6 +125,7 @@ type Me = {
     shareAnamnesis: boolean
     ownAnamnesis: ApiAnamnesis | null
     ownPhoto: string | null
+    requiredLevel: Level
     linkedAt: string
   }[]
 }
@@ -180,6 +184,9 @@ const messages: Record<string, string> = {
   'Rescheduling closed': 'O prazo para remarcar pelo app já passou. Fale com o espaço.',
   'Too many requests': 'Muitas tentativas seguidas. Aguarde um minuto.',
   'Invalid phone': 'Confira o celular com DDD.',
+  'Record required': 'Complete a ficha que este espaço pede antes de agendar.',
+  'Record expired': 'Sua ficha venceu. Confirme seus dados para agendar de novo.',
+  'Payment unavailable': 'Este espaço recebe o pagamento no dia do atendimento.',
 }
 export function friendly(error: unknown) {
   if (error instanceof ApiError)
@@ -357,7 +364,7 @@ type Store = {
   saveProfile: (input: { name: string; phone: string }) => Promise<string | null>
   saveAnamnesis: (
     slug: string | null,
-    record: Omit<Anamnesis, 'answeredAt'>,
+    record: { level: Level; answers: Answers; photo: string },
   ) => Promise<string | null>
   joinSpace: (space: SpaceSummary, share: boolean) => Promise<string | null>
   enterSpace: (slug: string) => void
@@ -483,7 +490,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     if (!user || !me?.profile) return null
     const profile = me.profile
     const toRecord = (record: ApiAnamnesis | null, photo: string | null) =>
-      record && photo ? { ...record, photo } : null
+      normalizeRecord(record, photo)
     return {
       uid: user.uid,
       email: profile.email ?? user.email,
@@ -499,6 +506,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
                 linkedAt: item.linkedAt,
                 shareAnamnesis: item.shareAnamnesis,
                 ownAnamnesis: toRecord(item.ownAnamnesis, item.ownPhoto),
+                requiredLevel: item.requiredLevel ?? 1,
               },
             ]
           : [],
@@ -639,14 +647,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
               : '/client/me/anamnesis',
             {
               method: 'PUT',
-              body: {
-                sex: record.sex,
-                birthDate: record.birthDate,
-                allergies: record.allergies,
-                healthNotes: record.healthNotes,
-                photo: record.photo,
-                consent: true,
-              },
+              body: { ...record, consent: true },
             },
           )
           await loadMe()

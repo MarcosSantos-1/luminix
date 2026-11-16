@@ -1,3 +1,4 @@
+import { recordState } from '@luminix/contracts/anamnesis'
 import { Redirect } from 'expo-router'
 import { Tabs, type BottomTabBarProps } from 'expo-router/js-tabs'
 import { useEffect, useRef } from 'react'
@@ -157,7 +158,8 @@ function TabBar({ state, navigation }: BottomTabBarProps) {
 export default function TabsLayout() {
   const { ready, account, space, anamnesis } = useStore()
   // Deep links and reloads land here directly: anything missing goes back through the gate.
-  if (ready && (!account || !space || !anamnesis)) return <Redirect href="/" />
+  if (ready && (!account || !space || recordState(anamnesis, space.requiredLevel) !== 'ok'))
+    return <Redirect href="/" />
   return (
     <Tabs
       initialRouteName="index"

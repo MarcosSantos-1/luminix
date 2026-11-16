@@ -1,6 +1,7 @@
 import { clinicCategories, dominantClinicCategory } from '../clinic-categories.ts'
 import { clinicTheme, type PublicClinic } from '../public-clinic.ts'
 import { demoOptions, getPreviewClinic } from '../preview-clinic.ts'
+import { levelFromServices } from '@luminix/contracts/anamnesis'
 import type { SpaceSummary } from './types.ts'
 
 export function demoSpaceCode(slug: string) {
@@ -31,6 +32,9 @@ export function summarizeSpace(clinic: PublicClinic): SpaceSummary {
       : street || location?.district
         ? [street, location?.district, location?.city, location?.state].filter(Boolean).join(', ')
         : null,
+    anamnesisLevel: levelFromServices(
+      clinic.services.map((service) => `${service.category} ${service.name}`),
+    ),
     demo,
   }
 }
@@ -81,6 +85,8 @@ export function summarizeSearchResult(item: unknown): SpaceSummary | null {
         : null,
     mapQuery:
       street || district ? [street, district, city, state].filter(Boolean).join(', ') : null,
+    // Search results carry only the main category; the confirm screen refines it.
+    anamnesisLevel: levelFromServices([category ?? '']),
     demo: false,
   }
 }
