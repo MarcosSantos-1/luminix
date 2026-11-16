@@ -2130,6 +2130,73 @@
   }
 }
 
+/* ── Professional picker ───────────────────────────────────── */
+.ca-team {
+  display: flex;
+  gap: 10px;
+  overflow-x: auto;
+  margin: 0 -18px;
+  padding: 4px 18px 10px;
+  scrollbar-width: none;
+}
+.ca-team::-webkit-scrollbar {
+  display: none;
+}
+.ca-team button {
+  display: grid;
+  justify-items: center;
+  gap: 6px;
+  flex: none;
+  width: 108px;
+  padding: 14px 8px;
+  border-radius: 22px;
+  background: var(--card);
+  box-shadow: inset 0 0 0 1.5px var(--line);
+  text-align: center;
+  cursor: pointer;
+  transition:
+    transform 0.15s,
+    box-shadow 0.2s;
+}
+.ca-team button:active {
+  transform: scale(0.97);
+}
+.ca-team button strong {
+  font-size: 13.5px;
+  line-height: 1.2;
+}
+.ca-team button small {
+  font-size: 11.5px;
+}
+.ca-team button[aria-checked='true'] {
+  box-shadow:
+    inset 0 0 0 2px var(--deep),
+    0 10px 22px color-mix(in srgb, var(--deep) 18%, transparent);
+}
+.ca-team-any {
+  display: grid;
+  place-items: center;
+  width: 58px;
+  height: 58px;
+  border-radius: 50%;
+  background: var(--light);
+  color: var(--deep);
+}
+.ca-with {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--muted);
+  font-size: 14px;
+}
+.ca-with strong {
+  color: var(--ink);
+}
+.ca-time-skeleton {
+  min-height: 46px;
+  border-radius: 14px;
+}
+
 /* ── Wide screens ───────────────────────────────────────────── */
 @media (min-width: 960px) {
   .ca-auth {
@@ -2362,4 +2429,8 @@
     transition: none !important;
     scroll-behavior: auto !important;
   }
+}
+
+.ca-forgot {
+  justify-self: center;
 }

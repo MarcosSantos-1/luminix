@@ -4,7 +4,13 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useEffect, useState, type FormEvent } from 'react'
 import { ArrowRight, Eye, EyeOff } from 'lucide-react'
-import { peekPendingSpace, signIn, signUp, useClient } from '../../lib/client-app/store'
+import {
+  peekPendingSpace,
+  resetPassword,
+  signIn,
+  signUp,
+  useClient,
+} from '../../lib/client-app/store'
 import type { SpaceSummary } from '../../lib/client-app/types'
 import { fetchSpace } from './use-clinic'
 import { Lines, SpaceLogo } from './ui'
@@ -16,6 +22,7 @@ export function AuthScreen({ mode }: { mode: 'entrar' | 'cadastro' }) {
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
   const [visible, setVisible] = useState(false)
+  const [notice, setNotice] = useState('')
   const signingUp = mode === 'cadastro'
 
   useEffect(() => {
@@ -147,10 +154,31 @@ export function AuthScreen({ mode }: { mode: 'entrar' | 'cadastro' }) {
               {signingUp ? 'Entrar' : 'Criar conta'}
             </Link>
           </p>
-          <p className="ca-note">
-            Versão de avaliação: a conta fica salva só neste aparelho e ainda não há recuperação de
-            senha por e-mail.
-          </p>
+          {!signingUp && (
+            <button
+              type="button"
+              className="ca-link ca-forgot"
+              onClick={async (event) => {
+                const email = String(
+                  new FormData(event.currentTarget.form ?? undefined).get('email') ?? '',
+                )
+                const problem = await resetPassword(email)
+                setError(problem ?? '')
+                setNotice(
+                  problem
+                    ? ''
+                    : 'Se houver conta com este e-mail, enviamos o link para criar uma nova senha.',
+                )
+              }}
+            >
+              Esqueci minha senha
+            </button>
+          )}
+          {notice && (
+            <p className="ca-note" role="status">
+              {notice}
+            </p>
+          )}
         </form>
       </section>
     </div>

@@ -43,6 +43,8 @@ export default function SpacesPage() {
   const [share, setShare] = useState(true)
   const [removing, setRemoving] = useState<SpaceSummary | null>(null)
   const [entering, setEntering] = useState<SpaceSummary | null>(null)
+  const [busy, setBusy] = useState(false)
+  const [problem, setProblem] = useState('')
   const hasRecord = Boolean(account?.anamnesis)
 
   useEffect(() => {
@@ -87,10 +89,16 @@ export default function SpacesPage() {
   const current = results && results.query === term ? results.spaces : null
   const alreadyLinked = preview ? Boolean(spaces[preview.slug]) : false
 
-  function enter(space: SpaceSummary) {
+  async function enter(space: SpaceSummary) {
     const known = spaces[space.slug]
     if (known) setActiveSpace(space.slug)
-    else linkSpace(space, share)
+    else {
+      setBusy(true)
+      const failure = await linkSpace(space, share)
+      setBusy(false)
+      if (failure) return setProblem(failure)
+    }
+    setProblem('')
     setPreview(null)
     // Without permission to reuse the account record, the space asks for its own first.
     const needsOwnRecord = known ? !known.shareAnamnesis && !known.anamnesis : !share
@@ -127,7 +135,7 @@ export default function SpacesPage() {
           <ul className="ca-space-list">
             {linked.map(({ summary }) => (
               <li key={summary.slug}>
-                <button type="button" className="ca-space" onClick={() => enter(summary)}>
+                <button type="button" className="ca-space" onClick={() => void enter(summary)}>
                   <SpaceRow space={summary}>
                     {summary.slug === account.activeSlug && (
                       <span className="ca-badge" data-status="confirmed">
@@ -221,7 +229,9 @@ export default function SpacesPage() {
               </p>
             )}
             {preview.demo && (
-              <p className="ca-note">Espaço de demonstração, com dados e endereço de exemplo.</p>
+              <p className="ca-note">
+                Espaço de demonstração: serve para conhecer o site, não aceita agendamentos.
+              </p>
             )}
             <a
               className="ca-link"
@@ -247,7 +257,15 @@ export default function SpacesPage() {
               </span>
             </label>
           )}
-          <button type="button" className="ca-button" onClick={() => enter(preview)}>
+          <p className="ca-error" role="alert">
+            {problem}
+          </p>
+          <button
+            type="button"
+            className="ca-button"
+            disabled={busy || (preview.demo && !alreadyLinked)}
+            onClick={() => void enter(preview)}
+          >
             {alreadyLinked || share ? 'Entrar neste espaço' : 'Preencher ficha e entrar'}
           </button>
         </Sheet>
@@ -256,14 +274,17 @@ export default function SpacesPage() {
       {removing && (
         <Sheet title="Remover espaço" onClose={() => setRemoving(null)}>
           <p className="ca-lead">
-            Remover <strong>{removing.name}</strong> apaga deste aparelho seus horários e histórico
-            nesse espaço. Sua conta Luminix, sua ficha e os outros espaços continuam.
+            <strong>{removing.name}</strong> sai da sua lista. O espaço mantém seu cadastro e
+            histórico, e você pode adicioná-lo de novo quando quiser.
           </p>
           <button
             type="button"
             className="ca-button danger"
-            onClick={() => {
-              unlinkSpace(removing.slug)
+            disabled={busy}
+            onClick={async () => {
+              setBusy(true)
+              await unlinkSpace(removing.slug)
+              setBusy(false)
               setRemoving(null)
             }}
           >

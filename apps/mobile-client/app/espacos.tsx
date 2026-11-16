@@ -13,12 +13,14 @@ function SpaceCard({
   space,
   onPress,
   current,
+  onRemove,
 }: {
   space: SpaceSummary
   onPress: () => void
   current?: boolean
+  onRemove?: () => void
 }) {
-  return (
+  const card = (
     <Press
       onPress={onPress}
       label={space.name}
@@ -61,12 +63,32 @@ function SpaceCard({
       )}
     </Press>
   )
+  if (!onRemove) return card
+  return (
+    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+      <View style={{ flex: 1 }}>{card}</View>
+      <Press
+        onPress={onRemove}
+        label={`Remover ${space.name} da lista`}
+        style={{
+          width: 42,
+          height: 42,
+          borderRadius: 15,
+          backgroundColor: colors.card,
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}
+      >
+        <Icon name="trash-2" size={17} color={palettes.luminix.muted} />
+      </Press>
+    </View>
+  )
 }
 
 export default function FindSpace() {
   const router = useRouter()
   const insets = useSafeAreaInsets()
-  const { account, signOut } = useStore()
+  const { account, space: active, signOut, leaveSpace } = useStore()
   const [mode, setMode] = useState<Mode>('code')
   const [code, setCode] = useState('')
   const [name, setName] = useState('')
@@ -74,7 +96,7 @@ export default function FindSpace() {
     null,
   )
   const palette = palettes.luminix
-  const linked = account?.spaces ?? []
+  const linked = (account?.spaces ?? []).map((item) => item.summary)
   const firstName = account?.name.split(/\s+/)[0] ?? ''
 
   // A code is searched only when complete; a name after a short pause in typing.
@@ -118,7 +140,7 @@ export default function FindSpace() {
       }}
     >
       <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-        {linked.length > 0 && account?.activeSlug ? (
+        {linked.length > 0 && active ? (
           <Press
             onPress={() => router.replace('/(tabs)')}
             label="Voltar"
@@ -176,7 +198,8 @@ export default function FindSpace() {
             <SpaceCard
               key={space.slug}
               space={space}
-              current={space.slug === account?.activeSlug}
+              current={space.slug === active?.summary.slug}
+              onRemove={() => void leaveSpace(space.slug)}
               onPress={() => open(space)}
             />
           ))}

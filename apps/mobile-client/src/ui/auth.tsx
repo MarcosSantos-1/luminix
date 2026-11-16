@@ -9,9 +9,11 @@ import { Button, Enter, ErrorText, Field, Icon, Press, Rings, type } from './ind
 export function AuthScreen({ mode }: { mode: 'entrar' | 'cadastro' }) {
   const router = useRouter()
   const insets = useSafeAreaInsets()
-  const { signIn, signUp } = useStore()
+  const { signIn, signUp, resetPassword } = useStore()
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
+  const [phone, setPhone] = useState('')
+  const [notice, setNotice] = useState('')
   const [password, setPassword] = useState('')
   const [visible, setVisible] = useState(false)
   const [accepted, setAccepted] = useState(false)
@@ -25,7 +27,7 @@ export function AuthScreen({ mode }: { mode: 'entrar' | 'cadastro' }) {
     const problem = signingUp
       ? !accepted
         ? 'Aceite os termos para criar a conta.'
-        : await signUp({ name, email, password })
+        : await signUp({ name, email, phone, password })
       : await signIn(email, password)
     setBusy(false)
     if (problem) return setError(problem)
@@ -101,6 +103,17 @@ export function AuthScreen({ mode }: { mode: 'entrar' | 'cadastro' }) {
             autoComplete="email"
             textContentType="emailAddress"
           />
+          {signingUp && (
+            <Field
+              label="Celular (opcional)"
+              value={phone}
+              onChangeText={setPhone}
+              keyboardType="phone-pad"
+              autoComplete="tel"
+              textContentType="telephoneNumber"
+              placeholder="(11) 90000-0000"
+            />
+          )}
           <Field
             label="Senha"
             value={password}
@@ -165,8 +178,38 @@ export function AuthScreen({ mode }: { mode: 'entrar' | 'cadastro' }) {
               </Text>
             </Text>
           </Link>
+          {!signingUp && (
+            <Press
+              onPress={async () => {
+                const problem = await resetPassword(email)
+                setError(problem ?? '')
+                setNotice(
+                  problem
+                    ? ''
+                    : 'Se houver conta com este e-mail, enviamos o link para criar uma nova senha.',
+                )
+              }}
+            >
+              <Text
+                style={{
+                  textAlign: 'center',
+                  fontFamily: fonts.bodySemi,
+                  fontSize: 14,
+                  color: palette.accent,
+                  paddingVertical: 4,
+                }}
+              >
+                Esqueci minha senha
+              </Text>
+            </Press>
+          )}
+          {notice ? (
+            <Text style={[type.small, { color: palette.muted, textAlign: 'center' }]}>
+              {notice}
+            </Text>
+          ) : null}
           <Text style={[type.small, { color: palette.muted, textAlign: 'center' }]}>
-            Versão de avaliação: a conta fica salva só neste aparelho.
+            A mesma conta do site luminix.beauty: entre com ela aqui ou lá.
           </Text>
         </Enter>
       </ScrollView>

@@ -2,8 +2,8 @@
 
 import Link from 'next/link'
 import { useEffect, useMemo, useState } from 'react'
-import { ArrowRight, Check, CreditCard, QrCode, Store } from 'lucide-react'
-import { book, reschedule, useClient } from '../../../../lib/client-app/store'
+import { ArrowRight, Check, CreditCard, QrCode, Store, Users } from 'lucide-react'
+import { book, loadAvailability, reschedule, useClient } from '../../../../lib/client-app/store'
 import {
   addDays,
   dateLabel,
@@ -11,13 +11,11 @@ import {
   durationLabel,
   effectivePrice,
   formatMoney,
-  parseLocal,
   priceLabel,
-  slotsFor,
 } from '../../../../lib/client-app/format'
-import type { Payment } from '../../../../lib/client-app/types'
+import type { Availability, Payment } from '../../../../lib/client-app/types'
 import { useClinic } from '../../../../components/client-app/use-clinic'
-import { Empty, PageHeader, displayStatus } from '../../../../components/client-app/ui'
+import { Avatar, Empty, PageHeader } from '../../../../components/client-app/ui'
 
 const methods = [
   { value: 'local', label: 'Pagar no espaço', hint: 'No dia do atendimento', icon: Store },
@@ -25,15 +23,29 @@ const methods = [
   { value: 'card', label: 'Cartão', hint: 'Pagamento simulado', icon: CreditCard },
 ] as const
 
+/** "" = no preference: the space gives the time to the first professional free. */
+const ANY = ''
+
 export default function BookingPage() {
   const { space } = useClient()
   const { clinic, status } = useClinic(space?.summary.slug ?? null)
   const [params, setParams] = useState<{ service: string | null; move: string | null } | null>(null)
   const [serviceId, setServiceId] = useState<string | null>(null)
+  const [professional, setProfessional] = useState<string | null>(null)
   const [day, setDay] = useState(() => dayKey(new Date()))
   const [time, setTime] = useState<string | null>(null)
   const [method, setMethod] = useState<Payment['method']>('local')
-  const [done, setDone] = useState<{ start: string; confirmed: boolean } | null>(null)
+  const [availability, setAvailability] = useState<{
+    key: string
+    data: Availability | null
+  } | null>(null)
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState('')
+  const [done, setDone] = useState<{
+    start: string
+    confirmed: boolean
+    who: string | null
+  } | null>(null)
 
   useEffect(() => {
     const search = new URLSearchParams(window.location.search)
@@ -41,26 +53,46 @@ export default function BookingPage() {
     setParams({ service: search.get('servico'), move: search.get('remarcar') })
   }, [])
 
+  const slug = space?.summary.slug ?? null
   const moving = space?.appointments.find((item) => item.id === params?.move) ?? null
   const chosenId = serviceId ?? moving?.serviceId ?? params?.service ?? null
   const service = clinic?.services.find((item) => item.id === chosenId) ?? null
-  const duration = service?.durationMinutes ?? moving?.durationMinutes ?? 30
+  const key = slug && chosenId ? `${slug}|${chosenId}|${day}|${moving?.id ?? ''}` : null
+
+  useEffect(() => {
+    if (!slug || !chosenId || !key) return
+    let active = true
+    void loadAvailability(slug, chosenId, day, moving?.id).then((data) => {
+      if (active) setAvailability({ key, data })
+    })
+    return () => {
+      active = false
+    }
+  }, [slug, chosenId, day, moving?.id, key])
 
   const days = useMemo(
-    () => Array.from({ length: 21 }, (_, index) => addDays(new Date(), index)),
+    () => Array.from({ length: 28 }, (_, index) => addDays(new Date(), index)),
     [],
   )
-  const taken = new Set(
-    (space?.appointments ?? [])
-      .filter(
-        (item) =>
-          item.id !== moving?.id && ['confirmed', 'requested'].includes(displayStatus(item)),
-      )
-      .map((item) => item.start),
-  )
-  const slots = slotsFor(parseLocal(day), clinic?.hours ?? [], duration, taken)
 
   if (!space || !params) return null
+
+  const current = availability && availability.key === key ? availability.data : undefined
+  const team = current?.professionals ?? []
+  // Rescheduling keeps the same professional; a single professional is chosen for the client.
+  const agenda = moving
+    ? (moving.professionalId ?? ANY)
+    : current && !current.choose
+      ? (team[0]?.id ?? ANY)
+      : professional
+  const slots = !current
+    ? []
+    : agenda === null
+      ? []
+      : agenda === ANY && team.length
+        ? [...new Set(team.flatMap((item) => current.slots[item.id] ?? []))].sort()
+        : (current.slots[agenda] ?? [])
+  const freeDays = current ? current.lastDate : null
 
   if (done)
     return (
@@ -73,7 +105,8 @@ export default function BookingPage() {
         </h1>
         <p className="ca-lead">
           {service?.name ?? moving?.serviceName} · {dateLabel(done.start)} às{' '}
-          {done.start.slice(11, 16)}.
+          {done.start.slice(11, 16)}
+          {done.who ? ` com ${done.who}` : ''}.
           {!done.confirmed && !moving && ' O espaço confirma em seguida e você recebe um aviso.'}
         </p>
         <Link className="ca-button" href="/cliente/agenda">
@@ -87,29 +120,38 @@ export default function BookingPage() {
 
   const priced = service && service.priceType !== 'quote' && effectivePrice(service) > 0
   const start = time ? `${day}T${time}` : null
+  const step = { pro: 2, day: current?.choose && !moving ? 3 : 2 }
 
-  function confirm() {
+  async function confirm() {
     if (!start || !space) return
+    setBusy(true)
+    setError('')
     if (moving) {
-      reschedule(space.summary.slug, moving.id, start)
-      return setDone({ start, confirmed: moving.status === 'confirmed' })
-    }
-    if (!service) return
-    const confirmed = service.bookingMode === 'instant'
-    book(
-      space.summary.slug,
-      {
-        serviceId: service.id,
-        serviceName: service.name,
-        category: service.category,
+      const failure = await reschedule(space.summary.slug, moving.id, start)
+      setBusy(false)
+      if (failure) return setError(failure)
+      return setDone({
         start,
-        durationMinutes: service.durationMinutes,
-        priceCents: priced ? effectivePrice(service) : 0,
-        status: confirmed ? 'confirmed' : 'requested',
-      },
+        confirmed: moving.status === 'confirmed',
+        who: moving.professionalName,
+      })
+    }
+    if (!service) return setBusy(false)
+    const result = await book(
+      space.summary.slug,
+      { serviceId: service.id, professionalId: agenda || null, start },
       method,
     )
-    setDone({ start, confirmed })
+    setBusy(false)
+    if (result.error) {
+      setError(result.error)
+      // The slot list is stale: fetch it again.
+      setAvailability(null)
+      setTime(null)
+      return
+    }
+    const who = team.find((item) => item.id === agenda)?.name ?? null
+    setDone({ start, confirmed: result.status === 'confirmed', who })
   }
 
   return (
@@ -122,8 +164,13 @@ export default function BookingPage() {
         </h2>
         {moving ? (
           <div className="ca-picked">
-            <strong>{moving.serviceName}</strong>
-            <small>{durationLabel(moving.durationMinutes)}</small>
+            <span>
+              <strong>{moving.serviceName}</strong>
+              <small>
+                {durationLabel(moving.durationMinutes)}
+                {moving.professionalName ? ` · com ${moving.professionalName}` : ''}
+              </small>
+            </span>
           </div>
         ) : service ? (
           <div className="ca-picked">
@@ -138,6 +185,7 @@ export default function BookingPage() {
               className="ca-link"
               onClick={() => {
                 setServiceId('')
+                setProfessional(null)
                 setTime(null)
               }}
             >
@@ -150,7 +198,14 @@ export default function BookingPage() {
           <ul className="ca-pick-list">
             {(clinic?.services ?? []).map((item) => (
               <li key={item.id}>
-                <button type="button" onClick={() => setServiceId(item.id)}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setServiceId(item.id)
+                    setProfessional(null)
+                    setTime(null)
+                  }}
+                >
                   <span>
                     <strong>{item.name}</strong>
                     <small>
@@ -165,33 +220,90 @@ export default function BookingPage() {
         )}
       </section>
 
-      {(service || moving) && (
+      {(service || moving) && current?.choose && !moving && (
         <section className="ca-step">
           <h2>
-            <span>2</span> Dia e horário
+            <span>{step.pro}</span> Profissional
           </h2>
-          <div className="ca-days" role="group" aria-label="Dia">
-            {days.map((date) => {
-              const key = dayKey(date)
-              return (
-                <button
-                  key={key}
-                  type="button"
-                  aria-pressed={key === day}
-                  onClick={() => {
-                    setDay(key)
-                    setTime(null)
-                  }}
-                >
-                  <small>
-                    {date.toLocaleDateString('pt-BR', { weekday: 'short' }).replace('.', '')}
-                  </small>
-                  <b>{date.getDate()}</b>
-                </button>
-              )
-            })}
+          <div className="ca-team" role="radiogroup" aria-label="Profissional">
+            <button
+              type="button"
+              role="radio"
+              aria-checked={professional === ANY}
+              onClick={() => {
+                setProfessional(ANY)
+                setTime(null)
+              }}
+            >
+              <span className="ca-team-any">
+                <Users size={20} aria-hidden />
+              </span>
+              <strong>Sem preferência</strong>
+              <small>Primeira livre</small>
+            </button>
+            {team.map((item) => (
+              <button
+                key={item.id}
+                type="button"
+                role="radio"
+                aria-checked={professional === item.id}
+                onClick={() => {
+                  setProfessional(item.id)
+                  setTime(null)
+                }}
+              >
+                <Avatar name={item.name} photo={item.photoUrl} size={58} />
+                <strong>{item.name}</strong>
+                <small>{item.role ?? `${current.slots[item.id]?.length ?? 0} horários`}</small>
+              </button>
+            ))}
           </div>
-          {slots.length ? (
+        </section>
+      )}
+
+      {(service || moving) && agenda !== null && (
+        <section className="ca-step">
+          <h2>
+            <span>{step.day}</span> Dia e horário
+          </h2>
+          {current && !current.choose && team[0] && !moving && (
+            <p className="ca-with">
+              <Avatar name={team[0].name} photo={team[0].photoUrl} size={30} /> Com{' '}
+              <strong>{team[0].name}</strong>
+            </p>
+          )}
+          <div className="ca-days" role="group" aria-label="Dia">
+            {days
+              .filter((date) => !freeDays || dayKey(date) <= freeDays)
+              .map((date) => {
+                const value = dayKey(date)
+                return (
+                  <button
+                    key={value}
+                    type="button"
+                    aria-pressed={value === day}
+                    onClick={() => {
+                      setDay(value)
+                      setTime(null)
+                    }}
+                  >
+                    <small>
+                      {date.toLocaleDateString('pt-BR', { weekday: 'short' }).replace('.', '')}
+                    </small>
+                    <b>{date.getDate()}</b>
+                  </button>
+                )
+              })}
+          </div>
+          {current === undefined ? (
+            <div className="ca-times" aria-hidden>
+              {Array.from({ length: 8 }, (_, index) => (
+                <span key={index} className="ca-skeleton ca-time-skeleton" />
+              ))}
+            </div>
+          ) : current === null ? (
+            <p className="ca-muted">Não foi possível buscar os horários. Tente de novo.</p>
+          ) : slots.length ? (
             <div className="ca-times" role="group" aria-label="Horário">
               {slots.map((slot) => (
                 <button
@@ -213,7 +325,7 @@ export default function BookingPage() {
       {start && priced && !moving && (
         <section className="ca-step">
           <h2>
-            <span>3</span> Pagamento
+            <span>{step.day + 1}</span> Pagamento
           </h2>
           <div className="ca-methods" role="radiogroup" aria-label="Forma de pagamento">
             {methods.map(({ value, label, hint, icon: Icon }) => (
@@ -232,9 +344,13 @@ export default function BookingPage() {
               </button>
             ))}
           </div>
-          <p className="ca-note">Nenhuma cobrança real é feita nesta versão de avaliação.</p>
+          <p className="ca-note">Pix e cartão ainda são simulados: nenhuma cobrança é feita.</p>
         </section>
       )}
+
+      <p className="ca-error" role="alert">
+        {error}
+      </p>
 
       {start && (
         <footer className="ca-confirm">
@@ -245,8 +361,14 @@ export default function BookingPage() {
               {priced && !moving ? ` · ${formatMoney(effectivePrice(service))}` : ''}
             </strong>
           </span>
-          <button type="button" className="ca-button" onClick={confirm}>
-            {moving ? 'Remarcar' : 'Confirmar'} <ArrowRight size={18} aria-hidden />
+          <button
+            type="button"
+            className="ca-button"
+            disabled={busy}
+            onClick={() => void confirm()}
+          >
+            {busy ? 'Enviando…' : moving ? 'Remarcar' : 'Confirmar'}{' '}
+            <ArrowRight size={18} aria-hidden />
           </button>
         </footer>
       )}

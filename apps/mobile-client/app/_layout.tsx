@@ -36,6 +36,12 @@ export default function RootLayout() {
             name="espaco/[slug]"
             options={{ presentation: 'modal', animation: 'slide_from_bottom' }}
           />
+          <Stack.Screen
+            name="agendar"
+            options={{ presentation: 'modal', animation: 'slide_from_bottom' }}
+          />
+          <Stack.Screen name="notificacoes" />
+          <Stack.Screen name="anamnese" />
         </Stack>
       </StoreProvider>
     </SafeAreaProvider>

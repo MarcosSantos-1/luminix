@@ -8,7 +8,6 @@ import {
   Bell,
   ChevronRight,
   ClipboardList,
-  FlaskConical,
   Globe,
   History,
   Info,
@@ -17,19 +16,10 @@ import {
   LogOut,
   UserRound,
 } from 'lucide-react'
-import {
-  changePassword,
-  seedExamples,
-  signOut,
-  updateAccount,
-  useClient,
-  wipeDevice,
-} from '../../../../lib/client-app/store'
-import { effectivePrice } from '../../../../lib/client-app/format'
-import { useClinic } from '../../../../components/client-app/use-clinic'
+import { changePassword, signOut, updateAccount, useClient } from '../../../../lib/client-app/store'
 import { Avatar, Lines, Sheet, SpaceLogo } from '../../../../components/client-app/ui'
 
-type Panel = 'data' | 'notify' | 'language' | 'password' | 'help' | 'about' | 'demo' | null
+type Panel = 'data' | 'notify' | 'language' | 'password' | 'help' | 'about' | null
 
 const languages = [
   { value: 'pt-BR', label: 'Português (Brasil)', ready: true },
@@ -95,7 +85,6 @@ function Row({
 export default function ProfilePage() {
   const router = useRouter()
   const { account, space, anamnesis } = useClient()
-  const { clinic } = useClinic(space?.summary.slug ?? null)
   const [panel, setPanel] = useState<Panel>(null)
   const [message, setMessage] = useState('')
   if (!account || !space || !anamnesis) return null
@@ -104,12 +93,13 @@ export default function ProfilePage() {
     setMessage('')
   }
 
-  function saveData(event: FormEvent<HTMLFormElement>) {
+  async function saveData(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     const data = new FormData(event.currentTarget)
     const name = String(data.get('name') ?? '').trim()
     if (name.length < 2) return setMessage('Informe seu nome.')
-    updateAccount({ name, phone: String(data.get('phone') ?? '').trim() })
+    const failure = await updateAccount({ name, phone: String(data.get('phone') ?? '').trim() })
+    if (failure) return setMessage(failure)
     close()
   }
 
@@ -210,12 +200,6 @@ export default function ProfilePage() {
               label="Sobre o Luminix"
               hint="Versão, termos e privacidade"
               onClick={() => setPanel('about')}
-            />
-            <Row
-              icon={<FlaskConical size={18} />}
-              label="Modo de avaliação"
-              hint="Dados de exemplo e limpeza do aparelho"
-              onClick={() => setPanel('demo')}
             />
           </ul>
         </section>
@@ -363,7 +347,7 @@ export default function ProfilePage() {
             <dl>
               <div>
                 <dt>Versão</dt>
-                <dd>0.1 · avaliação</dd>
+                <dd>0.2</dd>
               </div>
               <div>
                 <dt>Conta criada em</dt>
@@ -377,48 +361,6 @@ export default function ProfilePage() {
           <a className="ca-link" href="/privacidade" target="_blank" rel="noopener noreferrer">
             Política de privacidade
           </a>
-        </Sheet>
-      )}
-
-      {panel === 'demo' && (
-        <Sheet title="Modo de avaliação" onClose={close}>
-          <p className="ca-lead">
-            Nesta versão, conta, ficha e horários ficam guardados apenas neste aparelho. Nada é
-            enviado ao espaço.
-          </p>
-          <button
-            type="button"
-            className="ca-button"
-            disabled={!clinic}
-            onClick={() => {
-              seedExamples(
-                space.summary.slug,
-                (clinic?.services ?? []).map((service) => ({
-                  id: service.id,
-                  name: service.name,
-                  category: service.category,
-                  durationMinutes: service.durationMinutes,
-                  priceCents: service.priceType === 'quote' ? 0 : effectivePrice(service),
-                })),
-              )
-              setMessage('Exemplos adicionados à agenda, ao histórico e às notificações.')
-            }}
-          >
-            Carregar dados de exemplo
-          </button>
-          <p className="ca-note" role="status">
-            {message}
-          </p>
-          <button
-            type="button"
-            className="ca-button danger"
-            onClick={() => {
-              wipeDevice()
-              router.replace('/cliente/entrar')
-            }}
-          >
-            Apagar tudo deste aparelho
-          </button>
         </Sheet>
       )}
     </div>

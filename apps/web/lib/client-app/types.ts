@@ -1,5 +1,5 @@
-// Client area model. Today it is persisted on the device (see store.ts); the same shapes are the
-// draft of the future API contract, so screens do not change when the backend arrives.
+// Client area model, filled from the Luminix API (`/client/*`, ADR-029). Only view preferences,
+// the active space and which notices were read stay on the device.
 
 export type Sex = 'female' | 'male'
 
@@ -7,9 +7,6 @@ export type Account = {
   email: string
   name: string
   phone: string
-  /** Salted SHA-256, device only. Replaced by real identity (ADR-027) when the API exists. */
-  passHash: string
-  salt: string
   createdAt: string
   language: 'pt-BR' | 'en' | 'es'
   notify: { reminders: boolean; promotions: boolean }
@@ -44,6 +41,8 @@ export type Anamnesis = {
   answeredAt: string
 }
 
+export type AnamnesisInput = Omit<Anamnesis, 'level' | 'answeredAt' | 'consent'>
+
 export type AppointmentStatus = 'requested' | 'confirmed' | 'done' | 'cancelled'
 
 export type Appointment = {
@@ -51,12 +50,21 @@ export type Appointment = {
   serviceId: string
   serviceName: string
   category: string
-  /** Local ISO without zone: 2026-11-20T14:30 */
+  /** Clinic local time: 2026-11-20T14:30 */
   start: string
   durationMinutes: number
   priceCents: number
   status: AppointmentStatus
   createdAt: string
+  updatedAt: string
+  /** Who created it: the client in the app, or the clinic. */
+  source: 'client' | 'manager' | 'import'
+  professionalId: string | null
+  professionalName: string | null
+  previousStart: string | null
+  rescheduledAt: string | null
+  paymentMethod: Payment['method'] | null
+  paid: boolean
 }
 
 export type Payment = {
@@ -81,13 +89,42 @@ export type Notice = {
   href?: string
 }
 
+export type BookingPolicy = {
+  allowCancellation: boolean
+  cancellationNoticeMinutes: number
+  reschedulingNoticeMinutes: number | null
+  instructions: string
+}
+
 export type SpaceLink = {
   summary: SpaceSummary
   linkedAt: string
   /** True: this space reads the account record. False: it needs its own record below. */
   shareAnamnesis: boolean
   anamnesis: Anamnesis | null
+  /** False until the appointments of this space were fetched at least once. */
+  loaded: boolean
+  policy: BookingPolicy | null
   appointments: Appointment[]
   payments: Payment[]
   notices: Notice[]
+}
+
+export type Professional = {
+  id: string
+  name: string
+  role: string | null
+  photoUrl: string | null
+}
+
+export type Availability = {
+  date: string
+  lastDate: string
+  durationMinutes: number
+  bookingMode: 'instant' | 'request'
+  /** More than one professional can do it: the client picks (or leaves it to the space). */
+  choose: boolean
+  professionals: Professional[]
+  /** Free start times per professional id; "" is the single agenda of a space without team. */
+  slots: Record<string, string[]>
 }

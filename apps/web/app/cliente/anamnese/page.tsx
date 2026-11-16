@@ -89,7 +89,8 @@ function AnamnesisForm({
   }
 
   const today = new Date().toISOString().slice(0, 10)
-  function next() {
+  const [saving, setSaving] = useState(false)
+  async function next() {
     const problem =
       step === 0
         ? !photo && 'Adicione uma foto do rosto para continuar.'
@@ -102,16 +103,16 @@ function AnamnesisForm({
     if (problem) return setError(problem)
     setError('')
     if (step < 2) return setStep(step + 1)
-    saveAnamnesis(own?.summary.slug ?? null, {
-      level: 1,
+    setSaving(true)
+    const failure = await saveAnamnesis(own?.summary.slug ?? null, {
       photo,
       sex: sex as Sex,
       birthDate,
       allergies: allergies.trim(),
       healthNotes: healthNotes.trim(),
-      consent: true,
-      answeredAt: new Date().toISOString(),
     })
+    setSaving(false)
+    if (failure) return setError(failure)
     if (previous) router.replace('/cliente/perfil')
     // First record of the account: next comes choosing the space.
     else if (!own) router.replace(hasSpace ? '/cliente' : '/cliente/espacos')
@@ -261,7 +262,7 @@ function AnamnesisForm({
         <p className="ca-error" role="alert">
           {error}
         </p>
-        <button type="button" className="ca-button" onClick={next}>
+        <button type="button" className="ca-button" disabled={saving} onClick={() => void next()}>
           {step < 2 ? 'Continuar' : 'Concluir ficha'} <ArrowRight size={18} aria-hidden />
         </button>
       </div>

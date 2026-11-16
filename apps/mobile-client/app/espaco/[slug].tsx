@@ -15,7 +15,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { loadSpace, type SpaceSummary } from '../../src/api'
 import { useStore } from '../../src/store'
 import { colors, fonts, paletteFor, radius } from '../../src/theme'
-import { Button, Enter, Icon, Press, Rings, SpaceLogo, type } from '../../src/ui'
+import { Button, Enter, Icon, Press, SpaceLogo, type } from '../../src/ui'
+import { Preparing } from '../../src/ui/preparing'
 
 const mapsUrl = (space: SpaceSummary) =>
   `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${space.name} ${space.mapQuery ?? ''}`)}`
@@ -146,107 +147,16 @@ function SpaceMap({ space }: { space: SpaceSummary }) {
   )
 }
 
-/** Covers the screen while the space area is assembled, then calls `onDone`. */
-function Preparing({ space, onDone }: { space: SpaceSummary; onDone: () => void }) {
-  const palette = paletteFor(space.theme)
-  const fade = useRef(new Animated.Value(0)).current
-  const bar = useRef(new Animated.Value(0)).current
-  const breathe = useRef(new Animated.Value(0)).current
-  // The caller's callback changes every render; the animation must start only once.
-  const done = useRef(onDone)
-  done.current = onDone
-  useEffect(() => {
-    Animated.timing(fade, { toValue: 1, duration: 280, useNativeDriver: true }).start()
-    const loop = Animated.loop(
-      Animated.sequence([
-        Animated.timing(breathe, {
-          toValue: 1,
-          duration: 700,
-          easing: Easing.inOut(Easing.quad),
-          useNativeDriver: true,
-        }),
-        Animated.timing(breathe, {
-          toValue: 0,
-          duration: 700,
-          easing: Easing.inOut(Easing.quad),
-          useNativeDriver: true,
-        }),
-      ]),
-    )
-    loop.start()
-    Animated.timing(bar, {
-      toValue: 1,
-      duration: 2000,
-      easing: Easing.bezier(0.3, 0.6, 0.2, 1),
-      useNativeDriver: true,
-    }).start(({ finished }) => finished && done.current())
-    return () => loop.stop()
-  }, [fade, bar, breathe])
-  return (
-    <Animated.View
-      accessibilityRole="progressbar"
-      style={[
-        StyleSheet.absoluteFill,
-        {
-          backgroundColor: palette.deep,
-          alignItems: 'center',
-          justifyContent: 'center',
-          gap: 16,
-          opacity: fade,
-        },
-      ]}
-    >
-      <Rings />
-      <Animated.View
-        style={{
-          transform: [
-            { scale: breathe.interpolate({ inputRange: [0, 1], outputRange: [1, 1.08] }) },
-          ],
-        }}
-      >
-        <SpaceLogo space={space} size={88} inverted />
-      </Animated.View>
-      <Text
-        style={[
-          type.h2,
-          { color: '#fff', fontSize: 24, textAlign: 'center', paddingHorizontal: 30 },
-        ]}
-      >
-        {space.name}
-      </Text>
-      <Text style={[type.body, { color: 'rgba(255,255,255,0.72)' }]}>Preparando o seu acesso…</Text>
-      <View
-        style={{
-          width: 180,
-          height: 4,
-          borderRadius: radius.pill,
-          overflow: 'hidden',
-          backgroundColor: 'rgba(255,255,255,0.18)',
-        }}
-      >
-        <Animated.View
-          style={{
-            width: 180,
-            height: 4,
-            borderRadius: radius.pill,
-            backgroundColor: '#fff',
-            transform: [
-              { translateX: bar.interpolate({ inputRange: [0, 1], outputRange: [-176, 0] }) },
-            ],
-          }}
-        />
-      </View>
-    </Animated.View>
-  )
-}
-
 export default function SpaceConfirm() {
   const router = useRouter()
   const insets = useSafeAreaInsets()
   const { slug } = useLocalSearchParams<{ slug: string }>()
-  const { account, enterSpace } = useStore()
+  const { account, enterSpace, joinSpace } = useStore()
   const [state, setState] = useState<{ slug: string; space: SpaceSummary | null } | null>(null)
   const [entering, setEntering] = useState(false)
+  const [share, setShare] = useState(true)
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState('')
 
   useEffect(() => {
     let active = true
@@ -261,10 +171,26 @@ export default function SpaceConfirm() {
   const space = state?.slug === slug ? state.space : undefined
   const finish = useRef(() => {})
   finish.current = () => {
-    if (!space) return
-    enterSpace(space)
     router.dismissAll()
     router.replace('/(tabs)')
+  }
+
+  async function enter() {
+    if (!space) return
+    const known = account?.spaces.find((item) => item.summary.slug === space.slug)
+    if (known) {
+      enterSpace(space.slug)
+      // Linked before without a record of its own: it still needs one.
+      if (!known.shareAnamnesis && !known.ownAnamnesis)
+        return router.replace(`/anamnese?espaco=${space.slug}`)
+      return setEntering(true)
+    }
+    setBusy(true)
+    const failure = await joinSpace(space, share)
+    setBusy(false)
+    if (failure) return setError(failure)
+    if (!share) return router.replace(`/anamnese?espaco=${space.slug}`)
+    setEntering(true)
   }
 
   if (space === undefined)
@@ -302,7 +228,7 @@ export default function SpaceConfirm() {
     )
 
   const palette = paletteFor(space.theme)
-  const known = account?.spaces.some((item) => item.slug === space.slug)
+  const known = account?.spaces.some((item) => item.summary.slug === space.slug)
   const location = [space.address, space.city].filter(Boolean).join(' · ')
 
   return (
@@ -385,12 +311,69 @@ export default function SpaceConfirm() {
         </Enter>
 
         <Enter delay={220}>
+          {!known && (
+            <Press
+              onPress={() => setShare(!share)}
+              selected={share}
+              style={{
+                flexDirection: 'row',
+                gap: 12,
+                alignItems: 'flex-start',
+                padding: 16,
+                borderRadius: 20,
+                backgroundColor: colors.card,
+                borderWidth: 1.5,
+                borderColor: share ? palette.deep : colors.line,
+                marginBottom: 14,
+              }}
+            >
+              <View
+                style={{
+                  width: 24,
+                  height: 24,
+                  borderRadius: 8,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  borderWidth: share ? 0 : 1.5,
+                  borderColor: colors.line,
+                  backgroundColor: share ? palette.deep : colors.card,
+                }}
+              >
+                {share && <Icon name="check" size={15} color="#fff" />}
+              </View>
+              <View style={{ flex: 1, gap: 3 }}>
+                <Text style={type.strong}>Permitir que {space.name} use minha ficha</Text>
+                <Text style={[type.small, { color: palette.muted }]}>
+                  {share
+                    ? 'A equipe verá a ficha e a foto que você já preencheu.'
+                    : 'Sem a permissão, você preenche uma ficha só para este espaço.'}
+                </Text>
+              </View>
+            </Press>
+          )}
+          {error ? (
+            <Text style={[type.small, { color: colors.danger, marginBottom: 10 }]}>{error}</Text>
+          ) : null}
           <Button
-            label={known ? 'Entrar neste espaço' : 'Sim, entrar neste espaço'}
+            label={
+              busy
+                ? 'Entrando…'
+                : known || share
+                  ? 'Entrar neste espaço'
+                  : 'Preencher ficha e entrar'
+            }
             icon="arrow-right"
             palette={palette}
-            onPress={() => setEntering(true)}
+            disabled={busy || space.demo}
+            onPress={() => void enter()}
           />
+          {space.demo ? (
+            <Text
+              style={[type.small, { color: palette.muted, textAlign: 'center', marginTop: 10 }]}
+            >
+              Espaços de demonstração servem só para conhecer: não dá para agendar neles.
+            </Text>
+          ) : null}
         </Enter>
       </ScrollView>
       {entering && <Preparing space={space} onDone={() => finish.current()} />}

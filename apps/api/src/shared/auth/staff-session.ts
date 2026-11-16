@@ -15,7 +15,7 @@ export type AuthDependencies = {
   tenantPool?: TenantPool
 }
 
-export function createStaffAuthenticator(dependencies: AuthDependencies) {
+export function createStaffAuthenticator(dependencies: AuthDependencies, perMinute = 30) {
   // Bounded, per-process protection. Never trust forwarding headers for the rate key.
   const attempts = new Map<string, { count: number; until: number }>()
   return async (request: FastifyRequest, reply: FastifyReply): Promise<string | null> => {
@@ -23,7 +23,7 @@ export function createStaffAuthenticator(dependencies: AuthDependencies) {
     const now = Date.now()
     for (const [key, value] of attempts) if (value.until <= now) attempts.delete(key)
     const attempt = attempts.get(request.ip)
-    if ((attempt?.count ?? 0) >= 30 || (!attempt && attempts.size >= 10_000)) {
+    if ((attempt?.count ?? 0) >= perMinute || (!attempt && attempts.size >= 10_000)) {
       reply.code(429).header('Retry-After', '60').send({ error: 'Too many requests' })
       return null
     }

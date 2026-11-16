@@ -229,24 +229,16 @@ vêm da mesma projeção da vitrine por `GET /api/espacos/<slug>`; `GET /api/esp
 endereço/código exato com `GET /public/clinic-search?q=` da API (até 8 resultados por nome, 60
 requisições/minuto por IP, cache de um minuto por termo no web) e com as demonstrações.
 
-### Estado: avaliação, sem backend de cliente
+### Estado: conta real desde 2026-11-16
 
-Conta, sessão, ficha, horários, pagamentos e avisos ficam **apenas no `localStorage` do aparelho**
-(`lib/client-app/store.ts`). Nada é enviado à clínica, não há cobrança, a senha é só um hash local
-e não existe recuperação. As telas avisam isso. Não divulgar `/cliente` a clientes reais antes de:
+Conta (Firebase), perfil, ficha, espaços e agendamentos vivem no servidor (ADR-029, migration
+0034, rotas `/client/*` da API). Web e app usam a mesma conta. O aparelho guarda só o espaço ativo,
+preferências e quais avisos foram lidos. O agendamento cai na agenda da clínica; com mais de uma
+profissional para o serviço, a cliente escolhe (foto e nome) antes dos horários.
 
-1. Identidade real (Firebase e-mail/senha + Google/Apple, conforme ADR-027) e perfil global na API.
-2. Vínculo cliente–clínica validado pela API (convite com ID da ficha, código, aceite), com testes
-   de troca de URL, IDs de outra clínica e vínculo removido.
-3. Anamnese, agendamento, pagamentos e notificações persistidos por clínica (dado de saúde é
-   sensível: consentimento versionado, validade de 180 dias, foto em bucket privado).
-4. Busca pública por localização/categoria (por nome: implementada, ADR-028) e limite distribuído.
-5. Disponibilidade real de horários (hoje: expediente publicado menos as reservas do próprio
-   aparelho; sem profissionais, salas ou regras de antecedência).
-
-Cada ação da store tem a forma do futuro contrato; a migração troca o corpo das funções por
-chamadas à API sem mudar as telas. Idiomas en/es, push e níveis II–III de anamnese estão marcados
-como pendentes na interface.
+Configuração: `NEXT_PUBLIC_API_URL` e `NEXT_PUBLIC_FIREBASE_*` no web; `EXPO_PUBLIC_API_URL`,
+`EXPO_PUBLIC_WEB_URL` e `EXPO_PUBLIC_FIREBASE_*` no app (ver `.env.example` de cada um).
+Pendências conhecidas em TD-012. Espaços de demonstração não aceitam vínculo (não existem no banco).
 
 ### Aplicativo Expo — iniciado em 2026-11-15
 

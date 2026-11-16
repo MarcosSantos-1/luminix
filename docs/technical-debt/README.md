@@ -65,3 +65,5 @@ P2
 
 Consulte os arquivos por ID para critérios de fechamento. Onboarding concluído não encerra essas
 frentes. A sequência de implementação e os caminhos de código estão em `../00-ARQUITETURA.md`.
+
+- [TD-012 — Área do cliente](TD-012-AREA-DO-CLIENTE.md)

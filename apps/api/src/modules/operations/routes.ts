@@ -49,7 +49,7 @@ function validPeriods(periods: Period[]): boolean {
   )
 }
 
-function localDateTime(value: Date, timezone: string) {
+export function localDateTime(value: Date, timezone: string) {
   const parts = new Intl.DateTimeFormat('en-CA', {
     timeZone: timezone,
     year: 'numeric',
@@ -66,7 +66,7 @@ function localDateTime(value: Date, timezone: string) {
   return { date, clock, weekday: new Date(`${date}T12:00:00.000Z`).getUTCDay() }
 }
 
-function zonedLocalToUtc(value: string, timezone: string): Date {
+export function zonedLocalToUtc(value: string, timezone: string): Date {
   const match = value.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})$/)
   if (!match) return new Date(Number.NaN)
   const [, year, month, day, hour, minute] = match

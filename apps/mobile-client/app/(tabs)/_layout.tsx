@@ -77,7 +77,7 @@ function TabItem({
 function TabBar({ state, navigation }: BottomTabBarProps) {
   const insets = useSafeAreaInsets()
   const { space } = useStore()
-  const palette = paletteFor(space?.theme)
+  const palette = paletteFor(space?.summary.theme)
   return (
     <View
       pointerEvents="box-none"
@@ -155,9 +155,9 @@ function TabBar({ state, navigation }: BottomTabBarProps) {
 }
 
 export default function TabsLayout() {
-  const { ready, account, space } = useStore()
-  // Deep links and reloads land here directly: send anyone without a space back to the gate.
-  if (ready && (!account || !space)) return <Redirect href="/" />
+  const { ready, account, space, anamnesis } = useStore()
+  // Deep links and reloads land here directly: anything missing goes back through the gate.
+  if (ready && (!account || !space || !anamnesis)) return <Redirect href="/" />
   return (
     <Tabs
       initialRouteName="index"

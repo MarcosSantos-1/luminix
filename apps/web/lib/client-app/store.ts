@@ -1,84 +1,473 @@
 'use client'
 
-// Device-only persistence for the client area. There is no client identity in the API yet
-// (ADR-027: e-mail + senha, pendente), so nothing here leaves the browser. Every screen goes
-// through these actions; replacing their bodies with API calls is the migration path.
+// Client area state backed by the Luminix API (`/client/*`) and Firebase Authentication.
+// The device keeps only conveniences: active space, view preferences and read notices.
 
 import { useSyncExternalStore } from 'react'
+import {
+  EmailAuthProvider,
+  createUserWithEmailAndPassword,
+  onAuthStateChanged,
+  reauthenticateWithCredential,
+  sendPasswordResetEmail,
+  signInWithEmailAndPassword,
+  signOut as firebaseSignOut,
+  updatePassword,
+  type User,
+} from 'firebase/auth'
+import { clientAuth } from './firebase'
 import type {
   Account,
   Anamnesis,
+  AnamnesisInput,
   Appointment,
+  Availability,
+  BookingPolicy,
   Notice,
   Payment,
   SpaceLink,
   SpaceSummary,
 } from './types'
-import { addDays, dayKey } from './format'
 
-type State = { session: string | null; accounts: Record<string, Account> }
+type ApiAnamnesis = Omit<Anamnesis, 'photo'>
+type Me = {
+  profile: {
+    name: string | null
+    email: string | null
+    phone: string | null
+    anamnesis: ApiAnamnesis | null
+    photo: string | null
+    createdAt: string
+  } | null
+  spaces: {
+    slug: string
+    shareAnamnesis: boolean
+    ownAnamnesis: ApiAnamnesis | null
+    ownPhoto: string | null
+    linkedAt: string
+  }[]
+}
+type ApiAppointment = {
+  id: string
+  start: { date: string; clock: string }
+  startsAt: string
+  endsAt: string
+  status: 'scheduled' | 'confirmed' | 'completed' | 'canceled' | 'no_show'
+  source: Appointment['source']
+  priceCents: number | null
+  previousStartsAt: string | null
+  rescheduledAt: string | null
+  updatedAt: string
+  createdAt: string
+  paymentMethod: Payment['method'] | null
+  paid: boolean
+  service: { id: string; name: string; category: string | null }
+  professional: { id: string; name: string } | null
+}
+type Prefs = Pick<Account, 'language' | 'notify'> & { activeSlug: string | null; read: string[] }
 
-const KEY = 'luminix.cliente.v1'
-const EMPTY: State = { session: null, accounts: {} }
+type State = {
+  authReady: boolean
+  user: { uid: string; email: string } | null
+  me: Me | null
+  error: string | null
+  summaries: Record<string, SpaceSummary>
+  spaceData: Record<string, { policy: BookingPolicy; appointments: Appointment[] }>
+  prefs: Prefs
+}
+
+const API_URL = (process.env.NEXT_PUBLIC_API_URL ?? 'https://luminix-api.fly.dev').replace(
+  /\/$/,
+  '',
+)
+const DEFAULT_PREFS: Prefs = {
+  language: 'pt-BR',
+  notify: { reminders: true, promotions: true },
+  activeSlug: null,
+  read: [],
+}
+const INITIAL: State = {
+  authReady: false,
+  user: null,
+  me: null,
+  error: null,
+  summaries: {},
+  spaceData: {},
+  prefs: DEFAULT_PREFS,
+}
+
+let state: State = INITIAL
 const listeners = new Set<() => void>()
-let state: State | undefined
+let started = false
+/** While sign-up writes the profile, the auth listener must not write a default one. */
+let signingUp = false
 
-function read(): State {
-  try {
-    const parsed = JSON.parse(localStorage.getItem(KEY) ?? 'null') as State | null
-    if (parsed && typeof parsed === 'object' && parsed.accounts) {
-      // Records saved before the account-level anamnesis: the first space record becomes it.
-      for (const account of Object.values(parsed.accounts)) {
-        const spaces = Object.values(account.spaces)
-        account.anamnesis ??= spaces.find((space) => space.anamnesis)?.anamnesis ?? null
-        for (const space of spaces) space.shareAnamnesis ??= !space.anamnesis
-      }
-      return parsed
-    }
-  } catch {
-    // Corrupt or blocked storage: start empty rather than break the app.
-  }
-  return EMPTY
-}
-
-function snapshot() {
-  return (state ??= read())
-}
-
-function commit(next: State) {
-  state = next
-  try {
-    localStorage.setItem(KEY, JSON.stringify(next))
-  } catch {
-    // Quota or private mode: the session keeps working in memory.
-  }
+function set(change: Partial<State>) {
+  state = { ...state, ...change }
   listeners.forEach((listener) => listener())
 }
 
-function subscribe(listener: () => void) {
-  const onStorage = (event: StorageEvent) => {
-    if (event.key !== KEY) return
-    state = read()
-    listener()
-  }
-  listeners.add(listener)
-  window.addEventListener('storage', onStorage)
-  return () => {
-    listeners.delete(listener)
-    window.removeEventListener('storage', onStorage)
+const prefsKey = (email: string) => `luminix.cliente.prefs.${email}`
+
+function readPrefs(email: string): Prefs {
+  try {
+    const raw = JSON.parse(localStorage.getItem(prefsKey(email)) ?? 'null') as Partial<Prefs> | null
+    return raw ? { ...DEFAULT_PREFS, ...raw } : DEFAULT_PREFS
+  } catch {
+    return DEFAULT_PREFS
   }
 }
 
-const noop = () => () => {}
+function savePrefs(change: Partial<Prefs>) {
+  const prefs = { ...state.prefs, ...change }
+  set({ prefs })
+  try {
+    if (state.user) localStorage.setItem(prefsKey(state.user.email), JSON.stringify(prefs))
+  } catch {
+    // Without storage the preference lasts for this visit only.
+  }
+}
+
+/** Calls the client API as the signed-in person. Returns the parsed body or throws ApiError. */
+class ApiError extends Error {
+  constructor(
+    readonly status: number,
+    readonly code: string,
+  ) {
+    super(code)
+  }
+}
+
+async function api<T>(path: string, init?: { method?: string; body?: unknown }): Promise<T> {
+  const user = clientAuth().currentUser
+  if (!user) throw new ApiError(401, 'Authentication required')
+  const response = await fetch(`${API_URL}${path}`, {
+    method: init?.method ?? 'GET',
+    headers: {
+      authorization: `Bearer ${await user.getIdToken()}`,
+      ...(init?.body ? { 'content-type': 'application/json' } : {}),
+    },
+    body: init?.body ? JSON.stringify(init.body) : undefined,
+    cache: 'no-store',
+  })
+  const data = (await response.json().catch(() => ({}))) as { error?: string }
+  if (!response.ok) throw new ApiError(response.status, data.error ?? 'Request failed')
+  return data as T
+}
+
+const messages: Record<string, string> = {
+  'Slot taken': 'Esse horário acabou de ser ocupado. Escolha outro.',
+  'Cancellation closed': 'O prazo para cancelar pelo app já passou. Fale com o espaço.',
+  'Rescheduling closed': 'O prazo para remarcar pelo app já passou. Fale com o espaço.',
+  'Too many requests': 'Muitas tentativas seguidas. Aguarde um minuto.',
+  'Space not linked': 'Este espaço não está mais na sua conta.',
+}
+
+function friendly(error: unknown) {
+  if (error instanceof ApiError)
+    return messages[error.code] ?? 'Não foi possível concluir. Tente de novo.'
+  return 'Sem conexão com o Luminix. Verifique a internet e tente de novo.'
+}
+
+function firebaseMessage(error: unknown) {
+  const code = (error as { code?: string })?.code ?? ''
+  if (/invalid-credential|wrong-password|user-not-found|invalid-email/.test(code))
+    return 'E-mail ou senha incorretos.'
+  if (code.includes('email-already-in-use'))
+    return 'Já existe uma conta com este e-mail. Entre com ela.'
+  if (code.includes('weak-password'))
+    return 'Escolha uma senha mais forte (pelo menos 8 caracteres).'
+  if (code.includes('too-many-requests')) return 'Muitas tentativas. Aguarde alguns minutos.'
+  if (code.includes('network')) return 'Sem conexão. Verifique a internet.'
+  return 'Não foi possível entrar agora. Tente de novo.'
+}
+
+async function fetchSummary(slug: string): Promise<SpaceSummary | null> {
+  try {
+    const response = await fetch(`/api/espacos/${encodeURIComponent(slug)}`)
+    if (!response.ok) return null
+    return ((await response.json()) as { summary: SpaceSummary }).summary
+  } catch {
+    return null
+  }
+}
+
+function toAnamnesis(record: ApiAnamnesis | null, photo: string | null): Anamnesis | null {
+  return record && photo ? { ...record, photo } : null
+}
+
+const statusMap: Record<ApiAppointment['status'], Appointment['status']> = {
+  scheduled: 'requested',
+  confirmed: 'confirmed',
+  completed: 'done',
+  canceled: 'cancelled',
+  no_show: 'cancelled',
+}
+
+function toLocal(iso: string) {
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'America/Sao_Paulo',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    hourCycle: 'h23',
+  }).formatToParts(new Date(iso))
+  const get = (type: string) => parts.find((part) => part.type === type)?.value ?? ''
+  return `${get('year')}-${get('month')}-${get('day')}T${get('hour')}:${get('minute')}`
+}
+
+function toAppointment(row: ApiAppointment): Appointment {
+  return {
+    id: row.id,
+    serviceId: row.service.id,
+    serviceName: row.service.name,
+    category: row.service.category ?? '',
+    start: `${row.start.date}T${row.start.clock}`,
+    durationMinutes: Math.round(
+      (new Date(row.endsAt).getTime() - new Date(row.startsAt).getTime()) / 60_000,
+    ),
+    priceCents: row.priceCents ?? 0,
+    status: statusMap[row.status],
+    createdAt: row.createdAt,
+    updatedAt: row.updatedAt,
+    source: row.source,
+    professionalId: row.professional?.id ?? null,
+    professionalName: row.professional?.name ?? null,
+    previousStart: row.previousStartsAt ? toLocal(row.previousStartsAt) : null,
+    rescheduledAt: row.rescheduledAt,
+    paymentMethod: row.paymentMethod,
+    paid: row.paid,
+  }
+}
+
+/** Simulated payments: Pix/card count as paid at booking; at the space, when the clinic records it. */
+function paymentsOf(appointments: Appointment[]): Payment[] {
+  return appointments
+    .filter((item) => item.priceCents > 0)
+    .flatMap((item): Payment[] => {
+      const method = item.paymentMethod ?? 'local'
+      const prepaid = method !== 'local'
+      if (item.status === 'cancelled' && !prepaid && !item.paid) return []
+      return [
+        {
+          id: `pay-${item.id}`,
+          appointmentId: item.id,
+          label: item.serviceName,
+          amountCents: item.priceCents,
+          method,
+          status:
+            item.status === 'cancelled' ? 'refunded' : prepaid || item.paid ? 'paid' : 'pending',
+          at: item.createdAt,
+        },
+      ]
+    })
+}
+
+const short = (start: string) =>
+  `${start.slice(8, 10)}/${start.slice(5, 7)} às ${start.slice(11, 16)}`
+
+/** Notices derived from what the space did with the client's appointments. */
+function noticesOf(link: { summary: SpaceSummary; linkedAt: string }, appointments: Appointment[]) {
+  const now = Date.now()
+  const list: Omit<Notice, 'read'>[] = [
+    {
+      id: `welcome-${link.summary.slug}`,
+      kind: 'space',
+      title: `Você entrou em ${link.summary.name}`,
+      body: 'Conheça os serviços e marque seu horário quando quiser.',
+      at: link.linkedAt,
+      href: '/cliente/servicos',
+    },
+  ]
+  for (const item of appointments) {
+    const when = new Date(`${item.start}:00-03:00`).getTime()
+    if (item.status === 'cancelled') {
+      if (now - new Date(item.updatedAt).getTime() < 30 * 86_400_000)
+        list.push({
+          id: `cancel-${item.id}`,
+          kind: 'booking',
+          title: 'Horário cancelado',
+          body: `${item.serviceName} de ${short(item.start)} foi cancelado.`,
+          at: item.updatedAt,
+          href: '/cliente/agenda',
+        })
+      continue
+    }
+    if (item.rescheduledAt)
+      list.push({
+        id: `moved-${item.id}-${item.rescheduledAt}`,
+        kind: 'booking',
+        title: 'Horário remarcado',
+        body: `${item.serviceName}: novo horário ${short(item.start)}.`,
+        at: item.rescheduledAt,
+        href: '/cliente/agenda',
+      })
+    if (when < now) continue
+    list.push({
+      id: `${item.status}-${item.id}`,
+      kind: 'booking',
+      title:
+        item.source !== 'client'
+          ? 'O espaço marcou um horário para você'
+          : item.status === 'confirmed'
+            ? 'Horário confirmado'
+            : 'Pedido enviado ao espaço',
+      body: `${item.serviceName} em ${short(item.start)}${item.professionalName ? ` com ${item.professionalName}` : ''}.`,
+      at: item.status === 'confirmed' ? item.updatedAt : item.createdAt,
+      href: '/cliente/agenda',
+    })
+    if (when - now < 48 * 3_600_000)
+      list.push({
+        id: `reminder-${item.id}-${item.start}`,
+        kind: 'booking',
+        title: 'Lembrete de horário',
+        body: `${item.serviceName} ${when - now < 24 * 3_600_000 ? 'hoje ou amanhã' : 'em breve'}, ${short(item.start)}.`,
+        at: new Date(
+          Math.max(when - 48 * 3_600_000, new Date(item.createdAt).getTime()),
+        ).toISOString(),
+        href: '/cliente/agenda',
+      })
+  }
+  return list.sort((a, b) => b.at.localeCompare(a.at))
+}
+
+let cachedAccount: { key: unknown[]; value: Account | null } | null = null
+
+/** Builds the screen model; memoized so React sees a stable object between changes. */
+function accountOf(current: State): Account | null {
+  const key = [current.user, current.me, current.summaries, current.spaceData, current.prefs]
+  if (cachedAccount && cachedAccount.key.every((value, index) => value === key[index]))
+    return cachedAccount.value
+  let value: Account | null = null
+  if (current.user && current.me?.profile) {
+    const profile = current.me.profile
+    const read = new Set(current.prefs.read)
+    const spaces: Record<string, SpaceLink> = {}
+    for (const link of current.me.spaces) {
+      const summary = current.summaries[link.slug]
+      if (!summary) continue
+      const data = current.spaceData[link.slug]
+      const appointments = data?.appointments ?? []
+      spaces[link.slug] = {
+        summary,
+        linkedAt: link.linkedAt,
+        shareAnamnesis: link.shareAnamnesis,
+        anamnesis: toAnamnesis(link.ownAnamnesis, link.ownPhoto),
+        loaded: Boolean(data),
+        policy: data?.policy ?? null,
+        appointments,
+        payments: paymentsOf(appointments),
+        notices: noticesOf({ summary, linkedAt: link.linkedAt }, appointments).map((item) => ({
+          ...item,
+          read: read.has(item.id),
+        })),
+      }
+    }
+    // A new device has no preference yet: the oldest linked space opens.
+    const activeSlug =
+      current.prefs.activeSlug && spaces[current.prefs.activeSlug]
+        ? current.prefs.activeSlug
+        : (current.me.spaces.find((item) => spaces[item.slug])?.slug ?? null)
+    value = {
+      email: profile.email ?? current.user.email,
+      name: profile.name ?? '',
+      phone: profile.phone ?? '',
+      createdAt: profile.createdAt,
+      language: current.prefs.language,
+      notify: current.prefs.notify,
+      anamnesis: toAnamnesis(profile.anamnesis, profile.photo),
+      activeSlug,
+      spaces,
+    }
+  }
+  cachedAccount = { key, value }
+  return value
+}
+
+async function refreshMe() {
+  const me = await api<Me>('/client/me')
+  const missing = me.spaces.map((item) => item.slug).filter((slug) => !state.summaries[slug])
+  const found = await Promise.all(missing.map(fetchSummary))
+  const summaries = { ...state.summaries }
+  found.forEach((summary, index) => {
+    if (summary) summaries[missing[index]] = summary
+  })
+  set({ me, summaries, error: null })
+  const active = me.spaces.some((item) => item.slug === state.prefs.activeSlug)
+    ? state.prefs.activeSlug
+    : me.spaces[0]?.slug
+  if (active) await refreshSpace(active)
+}
+
+export async function refreshSpace(slug: string) {
+  try {
+    const data = await api<{ policy: BookingPolicy; appointments: ApiAppointment[] }>(
+      `/client/spaces/${encodeURIComponent(slug)}/appointments`,
+    )
+    set({
+      spaceData: {
+        ...state.spaceData,
+        [slug]: { policy: data.policy, appointments: data.appointments.map(toAppointment) },
+      },
+    })
+  } catch {
+    // Keeps what was shown; the next action or visit tries again.
+  }
+}
+
+async function onUser(user: User | null) {
+  if (!user) {
+    cachedAccount = null
+    set({ authReady: true, user: null, me: null, spaceData: {}, prefs: DEFAULT_PREFS })
+    return
+  }
+  const email = user.email ?? ''
+  set({ user: { uid: user.uid, email }, prefs: readPrefs(email) })
+  try {
+    await refreshMe()
+    // A Luminix account without a client profile yet (e.g. staff): start one from the login.
+    if (!state.me?.profile && !signingUp) {
+      await api('/client/me', {
+        method: 'PUT',
+        body: { name: user.displayName || email.split('@')[0] || 'Cliente', email },
+      })
+      await refreshMe()
+    }
+  } catch (error) {
+    set({ error: friendly(error) })
+  }
+  set({ authReady: true })
+}
+
+function start() {
+  if (started || typeof window === 'undefined') return
+  started = true
+  try {
+    onAuthStateChanged(clientAuth(), (user) => void onUser(user))
+  } catch {
+    set({ authReady: true, error: 'Login indisponível neste ambiente.' })
+  }
+}
+
+function subscribe(listener: () => void) {
+  start()
+  listeners.add(listener)
+  return () => {
+    listeners.delete(listener)
+  }
+}
 
 export function useClient() {
-  const current = useSyncExternalStore(subscribe, snapshot, () => EMPTY)
-  const ready = useSyncExternalStore(
-    noop,
-    () => true,
-    () => false,
+  const current = useSyncExternalStore(
+    subscribe,
+    () => state,
+    () => INITIAL,
   )
-  const account = current.session ? (current.accounts[current.session] ?? null) : null
+  const ready =
+    current.authReady && (!current.user || Boolean(current.me) || Boolean(current.error))
+  const account = accountOf(current)
   const space = account?.activeSlug ? (account.spaces[account.activeSlug] ?? null) : null
   /** The record the active space reads: the account one when shared, else its own. */
   const anamnesis = !account
@@ -86,37 +475,7 @@ export function useClient() {
     : space && !space.shareAnamnesis
       ? space.anamnesis
       : account.anamnesis
-  return { ready, account, space, anamnesis }
-}
-
-const id = () => crypto.randomUUID()
-const nowIso = () => new Date().toISOString()
-
-async function hash(salt: string, password: string) {
-  const bytes = await crypto.subtle.digest(
-    'SHA-256',
-    new TextEncoder().encode(`${salt}:${password}`),
-  )
-  return [...new Uint8Array(bytes)].map((byte) => byte.toString(16).padStart(2, '0')).join('')
-}
-
-function patchAccount(change: (account: Account) => Account) {
-  const current = snapshot()
-  const account = current.session && current.accounts[current.session]
-  if (!account) return
-  commit({ ...current, accounts: { ...current.accounts, [account.email]: change(account) } })
-}
-
-function patchSpace(slug: string, change: (space: SpaceLink) => SpaceLink) {
-  patchAccount((account) =>
-    account.spaces[slug]
-      ? { ...account, spaces: { ...account.spaces, [slug]: change(account.spaces[slug]) } }
-      : account,
-  )
-}
-
-function notice(input: Omit<Notice, 'id' | 'at' | 'read'>): Notice {
-  return { ...input, id: id(), at: nowIso(), read: false }
+  return { ready, account, space, anamnesis, error: current.error }
 }
 
 export const isEmail = (value: string) => /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(value)
@@ -131,293 +490,229 @@ export async function signUp(input: {
   if (input.name.trim().length < 2) return 'Informe seu nome.'
   if (!isEmail(email)) return 'Informe um e-mail válido.'
   if (input.password.length < 8) return 'A senha precisa ter pelo menos 8 caracteres.'
-  const current = snapshot()
-  if (current.accounts[email]) return 'Já existe uma conta com este e-mail neste aparelho.'
-  const salt = id()
-  const account: Account = {
-    email,
-    name: input.name.trim(),
-    phone: input.phone.trim(),
-    passHash: await hash(salt, input.password),
-    salt,
-    createdAt: nowIso(),
-    language: 'pt-BR',
-    notify: { reminders: true, promotions: true },
-    anamnesis: null,
-    activeSlug: null,
-    spaces: {},
+  const digits = input.phone.replace(/\D/g, '')
+  if (digits && digits.length < 10) return 'Confira o celular com DDD.'
+  signingUp = true
+  try {
+    await createUserWithEmailAndPassword(clientAuth(), email, input.password)
+  } catch (error) {
+    signingUp = false
+    return firebaseMessage(error)
   }
-  commit({ session: email, accounts: { ...current.accounts, [email]: account } })
-  return null
+  try {
+    await api('/client/me', {
+      method: 'PUT',
+      body: { name: input.name.trim(), email, ...(digits ? { phone: digits } : {}) },
+    })
+    await refreshMe()
+    return null
+  } catch (error) {
+    return friendly(error)
+  } finally {
+    signingUp = false
+  }
 }
 
 export async function signIn(emailInput: string, password: string): Promise<string | null> {
+  try {
+    await signInWithEmailAndPassword(clientAuth(), emailInput.trim().toLowerCase(), password)
+    return null
+  } catch (error) {
+    return firebaseMessage(error)
+  }
+}
+
+export async function resetPassword(emailInput: string): Promise<string | null> {
   const email = emailInput.trim().toLowerCase()
-  const current = snapshot()
-  const account = current.accounts[email]
-  // Same message for unknown e-mail and wrong password.
-  if (!account || (await hash(account.salt, password)) !== account.passHash)
-    return 'E-mail ou senha incorretos.'
-  commit({ ...current, session: email })
+  if (!isEmail(email)) return 'Digite seu e-mail para receber o link.'
+  try {
+    await sendPasswordResetEmail(clientAuth(), email)
+  } catch (error) {
+    const code = (error as { code?: string })?.code ?? ''
+    // Never reveal whether an e-mail has an account.
+    if (!code.includes('user-not-found')) return firebaseMessage(error)
+  }
   return null
 }
 
 export function signOut() {
-  commit({ ...snapshot(), session: null })
+  void firebaseSignOut(clientAuth())
 }
 
-export function updateAccount(
+export async function updateAccount(
   patch: Partial<Pick<Account, 'name' | 'phone' | 'language' | 'notify'>>,
-) {
-  patchAccount((account) => ({ ...account, ...patch }))
+): Promise<string | null> {
+  if (patch.language || patch.notify)
+    savePrefs({
+      ...(patch.language ? { language: patch.language } : {}),
+      ...(patch.notify ? { notify: patch.notify } : {}),
+    })
+  if (patch.name === undefined && patch.phone === undefined) return null
+  const profile = state.me?.profile
+  const digits = (patch.phone ?? profile?.phone ?? '').replace(/\D/g, '')
+  try {
+    await api('/client/me', {
+      method: 'PUT',
+      body: {
+        name: (patch.name ?? profile?.name ?? '').trim(),
+        email: profile?.email ?? state.user?.email ?? '',
+        ...(digits ? { phone: digits } : {}),
+      },
+    })
+    await refreshMe()
+    return null
+  } catch (error) {
+    return error instanceof ApiError && error.code === 'Invalid phone'
+      ? 'Confira o celular com DDD.'
+      : friendly(error)
+  }
 }
 
 export async function changePassword(current: string, next: string): Promise<string | null> {
-  const stored = snapshot()
-  const account = stored.session && stored.accounts[stored.session]
-  if (!account) return 'Sessão encerrada.'
-  if ((await hash(account.salt, current)) !== account.passHash) return 'Senha atual incorreta.'
+  const user = clientAuth().currentUser
+  if (!user?.email) return 'Sessão encerrada. Entre de novo.'
   if (next.length < 8) return 'A nova senha precisa ter pelo menos 8 caracteres.'
-  const salt = id()
-  const passHash = await hash(salt, next)
-  patchAccount((value) => ({ ...value, salt, passHash }))
-  return null
+  try {
+    await reauthenticateWithCredential(user, EmailAuthProvider.credential(user.email, current))
+  } catch {
+    return 'Senha atual incorreta.'
+  }
+  try {
+    await updatePassword(user, next)
+    return null
+  } catch (error) {
+    return firebaseMessage(error)
+  }
 }
 
-/** Links (or refreshes) a space and makes it the active one. */
-export function linkSpace(summary: SpaceSummary, shareAnamnesis: boolean) {
-  patchAccount((account) => {
-    const existing = account.spaces[summary.slug]
-    const space: SpaceLink = existing
-      ? { ...existing, summary }
-      : {
-          summary,
-          linkedAt: nowIso(),
-          shareAnamnesis,
-          anamnesis: null,
-          appointments: [],
-          payments: [],
-          notices: [
-            notice({
-              kind: 'space',
-              title: `Você entrou em ${summary.name}`,
-              body: 'Conheça os serviços e marque seu primeiro horário quando quiser.',
-              href: '/cliente/servicos',
-            }),
-          ],
-        }
-    return {
-      ...account,
-      activeSlug: summary.slug,
-      spaces: { ...account.spaces, [summary.slug]: space },
-    }
-  })
+/** Links (or reopens) a space on the server and makes it the active one. */
+export async function linkSpace(summary: SpaceSummary, shareAnamnesis: boolean) {
+  try {
+    await api('/client/spaces', { method: 'POST', body: { slug: summary.slug, shareAnamnesis } })
+    set({ summaries: { ...state.summaries, [summary.slug]: summary } })
+    savePrefs({ activeSlug: summary.slug })
+    await refreshMe()
+    return null
+  } catch (error) {
+    return friendly(error)
+  }
 }
 
 export function setActiveSpace(slug: string) {
-  patchAccount((account) => (account.spaces[slug] ? { ...account, activeSlug: slug } : account))
+  savePrefs({ activeSlug: slug })
+  if (!state.spaceData[slug]) void refreshSpace(slug)
 }
 
-export function unlinkSpace(slug: string) {
-  patchAccount((account) => {
-    const spaces = { ...account.spaces }
-    delete spaces[slug]
-    return {
-      ...account,
-      spaces,
-      activeSlug:
-        account.activeSlug === slug ? (Object.keys(spaces)[0] ?? null) : account.activeSlug,
-    }
-  })
+export async function unlinkSpace(slug: string) {
+  try {
+    await api(`/client/spaces/${encodeURIComponent(slug)}`, { method: 'DELETE' })
+    if (state.prefs.activeSlug === slug) savePrefs({ activeSlug: null })
+    await refreshMe()
+    return null
+  } catch (error) {
+    return friendly(error)
+  }
 }
 
 /** `slug` null saves the account record; a slug saves that space's own record. */
-export function saveAnamnesis(slug: string | null, anamnesis: Anamnesis) {
-  if (slug) patchSpace(slug, (space) => ({ ...space, anamnesis, shareAnamnesis: false }))
-  else patchAccount((account) => ({ ...account, anamnesis }))
+export async function saveAnamnesis(slug: string | null, record: AnamnesisInput) {
+  try {
+    await api(
+      slug ? `/client/spaces/${encodeURIComponent(slug)}/anamnesis` : '/client/me/anamnesis',
+      {
+        method: 'PUT',
+        body: {
+          sex: record.sex,
+          birthDate: record.birthDate,
+          allergies: record.allergies,
+          healthNotes: record.healthNotes,
+          photo: record.photo,
+          consent: true,
+        },
+      },
+    )
+    await refreshMe()
+    return null
+  } catch (error) {
+    return friendly(error)
+  }
 }
 
-export function setAnamnesisSharing(slug: string, shareAnamnesis: boolean) {
-  patchSpace(slug, (space) => ({ ...space, shareAnamnesis }))
-}
-
-export function book(
+export async function loadAvailability(
   slug: string,
-  input: Pick<
-    Appointment,
-    'serviceId' | 'serviceName' | 'category' | 'start' | 'durationMinutes' | 'priceCents' | 'status'
-  >,
+  serviceId: string,
+  date: string,
+  ignore?: string,
+): Promise<Availability | null> {
+  try {
+    const query = new URLSearchParams({ serviceId, date, ...(ignore ? { ignore } : {}) })
+    return await api<Availability>(
+      `/client/spaces/${encodeURIComponent(slug)}/availability?${query}`,
+    )
+  } catch {
+    return null
+  }
+}
+
+export async function book(
+  slug: string,
+  input: { serviceId: string; professionalId: string | null; start: string },
   method: Payment['method'],
-) {
-  const appointment: Appointment = { ...input, id: id(), createdAt: nowIso() }
-  patchSpace(slug, (space) => ({
-    ...space,
-    appointments: [...space.appointments, appointment],
-    payments:
-      input.priceCents > 0
-        ? [
-            ...space.payments,
-            {
-              id: id(),
-              appointmentId: appointment.id,
-              label: input.serviceName,
-              amountCents: input.priceCents,
-              method,
-              status: method === 'local' ? 'pending' : 'paid',
-              at: nowIso(),
-            },
-          ]
-        : space.payments,
-    notices: [
-      notice({
-        kind: 'booking',
-        title: input.status === 'confirmed' ? 'Horário confirmado' : 'Pedido de horário enviado',
-        body: `${input.serviceName} em ${input.start.slice(8, 10)}/${input.start.slice(5, 7)} às ${input.start.slice(11, 16)}.`,
-        href: '/cliente/agenda',
-      }),
-      ...space.notices,
-    ],
-  }))
-  return appointment.id
+): Promise<{ error: string | null; status?: 'confirmed' | 'scheduled' }> {
+  try {
+    const result = await api<{ status: 'confirmed' | 'scheduled' }>(
+      `/client/spaces/${encodeURIComponent(slug)}/appointments`,
+      {
+        method: 'POST',
+        body: {
+          serviceId: input.serviceId,
+          ...(input.professionalId ? { professionalId: input.professionalId } : {}),
+          localStartsAt: input.start,
+          paymentMethod: method,
+        },
+      },
+    )
+    await refreshSpace(slug)
+    return { error: null, status: result.status }
+  } catch (error) {
+    return { error: friendly(error) }
+  }
 }
 
-export function reschedule(slug: string, appointmentId: string, start: string) {
-  patchSpace(slug, (space) => ({
-    ...space,
-    appointments: space.appointments.map((item) =>
-      item.id === appointmentId ? { ...item, start } : item,
-    ),
-    notices: [
-      notice({
-        kind: 'booking',
-        title: 'Horário remarcado',
-        body: `Novo horário: ${start.slice(8, 10)}/${start.slice(5, 7)} às ${start.slice(11, 16)}.`,
-        href: '/cliente/agenda',
-      }),
-      ...space.notices,
-    ],
-  }))
+export async function reschedule(slug: string, appointmentId: string, start: string) {
+  try {
+    await api(
+      `/client/spaces/${encodeURIComponent(slug)}/appointments/${appointmentId}/reschedule`,
+      {
+        method: 'POST',
+        body: { localStartsAt: start },
+      },
+    )
+    await refreshSpace(slug)
+    return null
+  } catch (error) {
+    return friendly(error)
+  }
 }
 
-export function cancelAppointment(slug: string, appointmentId: string) {
-  patchSpace(slug, (space) => {
-    const target = space.appointments.find((item) => item.id === appointmentId)
-    return {
-      ...space,
-      appointments: space.appointments.map((item) =>
-        item.id === appointmentId ? { ...item, status: 'cancelled' as const } : item,
-      ),
-      // A paid booking is refunded; one that would be paid at the space just disappears.
-      payments: space.payments
-        .filter(
-          (payment) => !(payment.appointmentId === appointmentId && payment.status === 'pending'),
-        )
-        .map((payment): Payment =>
-          payment.appointmentId === appointmentId && payment.status === 'paid'
-            ? { ...payment, status: 'refunded' }
-            : payment,
-        ),
-      notices: target
-        ? [
-            notice({
-              kind: 'booking',
-              title: 'Horário cancelado',
-              body: `${target.serviceName} foi cancelado.`,
-              href: '/cliente/agenda',
-            }),
-            ...space.notices,
-          ]
-        : space.notices,
-    }
-  })
+export async function cancelAppointment(slug: string, appointmentId: string) {
+  try {
+    await api(`/client/spaces/${encodeURIComponent(slug)}/appointments/${appointmentId}/cancel`, {
+      method: 'POST',
+    })
+    await refreshSpace(slug)
+    return null
+  } catch (error) {
+    return friendly(error)
+  }
 }
 
 export function markNoticesRead(slug: string, noticeId?: string) {
-  patchSpace(slug, (space) => ({
-    ...space,
-    notices: space.notices.map((item) =>
-      !noticeId || item.id === noticeId ? { ...item, read: true } : item,
-    ),
-  }))
-}
-
-/** Sample history so the screens can be reviewed before real data exists. */
-export function seedExamples(
-  slug: string,
-  services: {
-    id: string
-    name: string
-    category: string
-    durationMinutes: number
-    priceCents: number
-  }[],
-) {
-  if (!services.length) return
-  const today = new Date()
-  const pick = (index: number) => services[index % services.length]
-  const make = (offset: number, time: string, index: number, status: Appointment['status']) => {
-    const service = pick(index)
-    const appointment: Appointment = {
-      id: id(),
-      serviceId: service.id,
-      serviceName: service.name,
-      category: service.category,
-      start: `${dayKey(addDays(today, offset))}T${time}`,
-      durationMinutes: service.durationMinutes,
-      priceCents: service.priceCents,
-      status,
-      createdAt: addDays(today, Math.min(offset, 0) - 3).toISOString(),
-    }
-    return appointment
-  }
-  const appointments = [
-    make(-62, '10:00', 0, 'done'),
-    make(-34, '15:30', 1, 'done'),
-    make(-20, '09:30', 2, 'cancelled'),
-    make(-6, '14:00', 0, 'done'),
-    make(2, '11:00', 1, 'confirmed'),
-    make(9, '16:30', 3, 'requested'),
-  ]
-  const payments: Payment[] = appointments
-    .filter((item) => item.priceCents > 0 && item.status !== 'requested')
-    .map((item, index) => ({
-      id: id(),
-      appointmentId: item.id,
-      label: item.serviceName,
-      amountCents: item.priceCents,
-      method: index % 2 ? 'card' : 'pix',
-      status: item.status === 'cancelled' ? 'refunded' : 'paid',
-      at: item.createdAt,
-    }))
-  patchSpace(slug, (space) => ({
-    ...space,
-    appointments: [...space.appointments, ...appointments],
-    payments: [...space.payments, ...payments],
-    notices: [
-      notice({
-        kind: 'booking',
-        title: 'Lembrete de horário',
-        body: `${appointments[4].serviceName} em 2 dias, às 11:00.`,
-        href: '/cliente/agenda',
-      }),
-      notice({
-        kind: 'promo',
-        title: 'Condição especial desta semana',
-        body: 'Veja os serviços com valor promocional no espaço.',
-        href: '/cliente/servicos',
-      }),
-      notice({
-        kind: 'app',
-        title: 'Dados de exemplo carregados',
-        body: 'Atendimentos e pagamentos fictícios para você avaliar as telas.',
-      }),
-      ...space.notices,
-    ],
-  }))
-}
-
-export function wipeDevice() {
-  commit(EMPTY)
+  const space = accountOf(state)?.spaces[slug]
+  if (!space) return
+  const ids = noticeId ? [noticeId] : space.notices.map((item) => item.id)
+  // Bounded: old ids fall off; they would no longer be listed anyway.
+  savePrefs({ read: [...new Set([...state.prefs.read, ...ids])].slice(-400) })
 }
 
 /** Space the visitor came from (site button), kept until a session can link it. */

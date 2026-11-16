@@ -1,5 +1,5 @@
-// Public space data comes from the Luminix site (same projection as the clinic page).
-// Nothing private is requested yet: the client identity API does not exist (ADR-027).
+// Public space data (search, services, address) comes from the Luminix site, the same projection
+// as the clinic page. Private data (account, record, bookings) goes through src/store.tsx.
 const WEB_URL = (process.env.EXPO_PUBLIC_WEB_URL ?? 'https://luminix.beauty').replace(/\/$/, '')
 
 export type SpaceSummary = {

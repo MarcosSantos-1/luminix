@@ -30,7 +30,13 @@ export default function AgendaPage() {
   const [cursor, setCursor] = useState(
     () => new Date(today.getFullYear(), today.getMonth(), today.getDate()),
   )
-  const [open, setOpen] = useState<Appointment | null>(null)
+  const [open, setOpenState] = useState<Appointment | null>(null)
+  const [busy, setBusy] = useState(false)
+  const [problem, setProblem] = useState('')
+  const setOpen = (value: Appointment | null) => {
+    setProblem('')
+    setOpenState(value)
+  }
 
   const appointments = useMemo(
     () => [...(space?.appointments ?? [])].sort((a, b) => a.start.localeCompare(b.start)),
@@ -223,7 +229,17 @@ export default function AgendaPage() {
                 <dt>Onde</dt>
                 <dd>{space.summary.name}</dd>
               </div>
+              {open.professionalName && (
+                <div>
+                  <dt>Com</dt>
+                  <dd>{open.professionalName}</dd>
+                </div>
+              )}
             </dl>
+            {space.policy?.instructions && <p>{space.policy.instructions}</p>}
+            <p className="ca-error" role="alert">
+              {problem}
+            </p>
           </div>
           {canChange ? (
             <>
@@ -233,8 +249,12 @@ export default function AgendaPage() {
               <button
                 type="button"
                 className="ca-button danger"
-                onClick={() => {
-                  cancelAppointment(space.summary.slug, open.id)
+                disabled={busy}
+                onClick={async () => {
+                  setBusy(true)
+                  const failure = await cancelAppointment(space.summary.slug, open.id)
+                  setBusy(false)
+                  if (failure) return setProblem(failure)
                   setOpen(null)
                 }}
               >
