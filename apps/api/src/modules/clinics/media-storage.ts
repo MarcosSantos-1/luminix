@@ -8,7 +8,12 @@ import {
 } from '../../shared/integrations/r2/client.js'
 
 export type MediaKind =
-  'clinic_logo' | 'professional_photo' | 'public_photo' | 'library_photo' | 'client_photo'
+  | 'clinic_logo'
+  | 'professional_photo'
+  | 'public_photo'
+  | 'library_photo'
+  | 'client_photo'
+  | 'product_photo'
 
 /** Kinds that only the staff may see: private bucket, short-lived signed URLs. */
 export const isPrivateKind = (kind: MediaKind) =>
@@ -65,7 +70,9 @@ export function mediaObjectKey(
         ? 'showcase'
         : kind === 'client_photo'
           ? `clients/${subjectRef}`
-          : `team/${subjectRef}`
+          : kind === 'product_photo'
+            ? `inventory/${subjectRef}`
+            : `team/${subjectRef}`
   return `${clinicId}/${module}/${assetId}/${variant}-${dimensions[variant]}.webp`
 }
 

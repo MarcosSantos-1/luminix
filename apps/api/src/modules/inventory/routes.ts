@@ -5,7 +5,8 @@ import {
   type Authenticate,
 } from '../../shared/tenant/authorized-route.js'
 import type { TenantPool } from '../../shared/tenant/clinic-transaction.js'
-import { clinicItemParams, toNumber } from '../../shared/tenant/route-helpers.js'
+import { clinicItemParams, toNumber, uuidSchema } from '../../shared/tenant/route-helpers.js'
+import { publicMediaUrl } from '../clinics/media-storage.js'
 
 const quantity = { type: 'number', minimum: 0, maximum: 99999999, multipleOf: 0.01 }
 
@@ -24,10 +25,14 @@ export async function inventoryRoutes(
       authorized(request, reply, 'inventory:manage', async (connection, tenant) => {
         const [items, movements] = await Promise.all([
           connection.query(
-            `SELECT id, name, category, unit, quantity, min_quantity, cost_cents, updated_at
-               FROM luminix.inventory_items
-              WHERE clinic_id = $1 AND status = 'active'
-              ORDER BY (quantity <= min_quantity) DESC, lower(name) LIMIT 500`,
+            `SELECT i.id, i.name, i.category, i.unit, i.quantity, i.min_quantity, i.cost_cents,
+                    i.package_size, i.package_unit, i.updated_at, i.photo_asset_id,
+                    photo.small_object_key AS photo_key, photo.large_object_key AS photo_large_key
+               FROM luminix.inventory_items i
+               LEFT JOIN luminix.media_assets photo ON photo.clinic_id = i.clinic_id
+                AND photo.id = i.photo_asset_id AND photo.status = 'ready'
+              WHERE i.clinic_id = $1 AND i.status = 'active'
+              ORDER BY (i.quantity <= i.min_quantity) DESC, lower(i.name) LIMIT 500`,
             [tenant.clinicId],
           ),
           connection.query(
@@ -46,6 +51,11 @@ export async function inventoryRoutes(
           quantity: toNumber(row.quantity),
           minQuantity: toNumber(row.min_quantity),
           costCents: row.cost_cents == null ? null : Number(row.cost_cents),
+          packageSize: row.package_size == null ? null : toNumber(row.package_size),
+          packageUnit: row.package_unit ? String(row.package_unit) : null,
+          photoAssetId: row.photo_key ? String(row.photo_asset_id) : '',
+          photoUrl: row.photo_key ? publicMediaUrl(String(row.photo_key)) : null,
+          photoLargeUrl: row.photo_large_key ? publicMediaUrl(String(row.photo_large_key)) : null,
           updatedAt: new Date(String(row.updated_at)).toISOString(),
         }))
         return {
@@ -87,6 +97,10 @@ export async function inventoryRoutes(
             costCents: {
               anyOf: [{ type: 'integer', minimum: 0, maximum: 100000000 }, { type: 'null' }],
             },
+            // What one unit holds ("pote de 400 g"); both or neither.
+            packageSize: { anyOf: [{ ...quantity, exclusiveMinimum: 0 }, { type: 'null' }] },
+            packageUnit: { anyOf: [{ type: 'string', enum: ['ml', 'g', 'un'] }, { type: 'null' }] },
+            photoAssetId: { anyOf: [uuidSchema, { type: 'string', maxLength: 0 }] },
           },
         },
       },
@@ -104,6 +118,9 @@ export async function inventoryRoutes(
               ? {}
               : { initialQuantity: String(body.initialQuantity) }),
             costCents: body.costCents == null ? '' : String(body.costCents),
+            packageSize: body.packageSize == null ? '' : String(body.packageSize),
+            packageUnit: body.packageUnit ?? '',
+            photoAssetId: body.photoAssetId ?? '',
           }),
         ])
         return { id: request.params.itemId }

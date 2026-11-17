@@ -157,7 +157,9 @@ function mediaPermission(kind: MediaKind) {
       ? 'media:manage'
       : kind === 'client_photo'
         ? 'client:manage'
-        : 'settings:manage'
+        : kind === 'product_photo'
+          ? 'inventory:manage'
+          : 'settings:manage'
 }
 
 function validPayload(payload: OnboardingPayload): boolean {
@@ -623,6 +625,7 @@ export async function clinicRoutes(
                 'public_photo',
                 'library_photo',
                 'client_photo',
+                'product_photo',
               ],
             },
             subjectRef: { type: 'string', format: 'uuid' },

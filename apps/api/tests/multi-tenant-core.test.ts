@@ -147,6 +147,7 @@ describe('versioned core migration', () => {
       { name: '0035_anamnesis_levels.sql' },
       { name: '0036_client_photo_and_finance_bills.sql' },
       { name: '0037_account_and_client_account_photo.sql' },
+      { name: '0038_inventory_photo_and_package.sql' },
     ])
   })
 

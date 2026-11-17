@@ -451,8 +451,24 @@ describe('inventory and marketing', () => {
       minQuantity: 2,
       initialQuantity: 5,
       costCents: 3500,
+      packageSize: 1000,
+      packageUnit: 'ml',
     })
     expect(save.statusCode).toBe(200)
+    // A photo that was never uploaded for this product is refused.
+    expect(
+      (
+        await call('reception-a', 'PUT', `/clinics/${c('a').id}/inventory/items/${item}`, {
+          name: 'Shampoo 1L',
+          unit: 'fr',
+          minQuantity: 2,
+          photoAssetId: crypto.randomUUID(),
+        })
+      ).statusCode,
+    ).toBe(400)
+    expect(
+      (await call('owner-a', 'GET', `/clinics/${c('a').id}/inventory`)).json().items[0],
+    ).toMatchObject({ packageSize: 1000, packageUnit: 'ml', photoUrl: null })
     const move = (kind: string, quantity: number) =>
       call('reception-a', 'POST', `/clinics/${c('a').id}/inventory/items/${item}/movements`, {
         kind,
