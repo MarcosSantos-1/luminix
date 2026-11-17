@@ -25,6 +25,7 @@ const readable = [
   'activity',
   'notices',
   'search',
+  'account',
 ] as const
 const writable = [
   'onboarding',
@@ -33,6 +34,7 @@ const writable = [
   'profile',
   'booking-rules',
   'slug',
+  'account',
 ] as const
 
 export async function GET(

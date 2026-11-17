@@ -13,7 +13,7 @@ import {
   RotateCcw,
 } from 'lucide-react'
 import { useState } from 'react'
-import { useClinicApi, useClinicResource } from '../settings/clinic-api'
+import { useClinicApi, useClinicResource, type ClinicApi } from '../settings/clinic-api'
 import { LoadError, SettingsSkeleton } from '../settings/settings-kit'
 import { managerNavigation, type ManagerSectionId } from '../demo-data'
 import { appointmentStatus, money } from './format'
@@ -54,8 +54,10 @@ function AppointmentRow({
   item,
   showDay,
   onOpen,
+  api,
 }: {
   item: AppointmentView
+  api: ClinicApi
   showDay?: boolean
   onOpen: (item: AppointmentView) => void
 }) {
@@ -76,7 +78,11 @@ function AppointmentRow({
         ) : null}
         {clock(item.startsAt)}
       </time>
-      <ClientAvatar name={item.client} photoUrl={item.photoUrl} />
+      <ClientAvatar
+        name={item.client}
+        photoUrl={item.photoUrl}
+        account={item.accountPhoto ? { api, clientId: item.clientId } : null}
+      />
       <span className="apt-row-copy">
         <strong>{item.client}</strong>
         <span>
@@ -250,7 +256,7 @@ export function HomeDashboard({
             {data.appointments.length ? (
               <div className="apt-rows">
                 {data.appointments.map((item) => (
-                  <AppointmentRow key={item.id} item={item} onOpen={setOpened} />
+                  <AppointmentRow key={item.id} item={item} api={api} onOpen={setOpened} />
                 ))}
               </div>
             ) : (
@@ -274,7 +280,13 @@ export function HomeDashboard({
                 <h3>Próximos dias</h3>
                 <div className="apt-rows">
                   {upcoming.slice(0, data.appointments.length > 3 ? 3 : 6).map((item) => (
-                    <AppointmentRow key={item.id} item={item} showDay onOpen={setOpened} />
+                    <AppointmentRow
+                      key={item.id}
+                      item={item}
+                      api={api}
+                      showDay
+                      onOpen={setOpened}
+                    />
                   ))}
                 </div>
               </section>

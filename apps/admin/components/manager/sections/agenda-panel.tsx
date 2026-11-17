@@ -48,6 +48,8 @@ type Row = {
   client_phone: string | null
   client_notes: string | null
   client_photo_url?: string | null
+  client_photo_large_url?: string | null
+  account_photo?: boolean
   price_type?: string
   service_name: string
   professional_name: string | null
@@ -109,6 +111,8 @@ function toView(row: Row): AppointmentView {
     priceType: row.price_type,
     paid: row.paid === true,
     photoUrl: row.client_photo_url,
+    photoLargeUrl: row.client_photo_large_url,
+    accountPhoto: row.account_photo === true,
   }
 }
 

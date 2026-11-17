@@ -1260,3 +1260,45 @@ button.ag-empty:hover {
     transition: none;
   }
 }
+
+/* ---------- Photo: "ver foto" on hover and the enlarged view ---------- */
+.apt-avatar.is-viewable {
+  position: relative;
+  padding: 0;
+  font: inherit;
+  font-weight: 700;
+  cursor: zoom-in;
+}
+.apt-avatar-view {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: 1px;
+  color: #fff;
+  background: #000000a6;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+.apt-avatar-view small {
+  font-size: 9.5px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+.apt-avatar.is-viewable:hover .apt-avatar-view,
+.apt-avatar.is-viewable:focus-visible .apt-avatar-view {
+  opacity: 1;
+}
+.apt-avatar.is-viewable:focus-visible {
+  outline: 2px solid var(--space-highlight, #ffb5d3);
+  outline-offset: 2px;
+}
+.photo-view-image {
+  display: block;
+  width: min(100%, 512px);
+  max-height: 70vh;
+  margin: 0 auto;
+  border-radius: 18px;
+  object-fit: contain;
+}

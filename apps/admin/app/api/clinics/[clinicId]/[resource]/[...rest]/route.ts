@@ -3,7 +3,7 @@ import { staffApiGet, staffApiWrite } from '@/lib/staff-api-proxy'
 
 const id = '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}'
 // Closed list of nested read paths. Only the client detail (full CPF + history) today.
-const reads = [new RegExp(`^clients/${id}$`, 'i')]
+const reads = [new RegExp(`^clients/${id}$`, 'i'), new RegExp(`^clients/${id}/photo$`, 'i')]
 // Closed list of nested write paths (after /clinics/:clinicId/). Anything else is 404.
 const writes: Record<'PUT' | 'POST', RegExp[]> = {
   PUT: [

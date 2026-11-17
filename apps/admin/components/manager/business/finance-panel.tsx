@@ -334,6 +334,14 @@ export function FinancePanel({
         >
           <ChevronRight size={18} />
         </Button>
+        <div className="biz-month-actions">
+          <Button onPress={() => setForm('income')}>
+            <ArrowUpCircle size={17} aria-hidden /> Entrada
+          </Button>
+          <Button variant="secondary" onPress={() => setForm('expense')}>
+            <ArrowDownCircle size={17} aria-hidden /> Saída
+          </Button>
+        </div>
       </div>
 
       <KpiCards
@@ -627,16 +635,6 @@ export function FinancePanel({
         icon={<Wallet size={20} />}
         title="Lançamentos do mês"
         description="Tudo que entrou e saiu. Um lançamento errado pode ser desfeito."
-        badge={
-          <div className="biz-actions">
-            <Button size="sm" onPress={() => setForm('income')}>
-              <ArrowUpCircle size={15} aria-hidden /> Nova entrada
-            </Button>
-            <Button size="sm" variant="secondary" onPress={() => setForm('expense')}>
-              <ArrowDownCircle size={15} aria-hidden /> Nova saída
-            </Button>
-          </div>
-        }
       >
         <div className="biz-chips" role="group" aria-label="Mostrar lançamentos">
           {(

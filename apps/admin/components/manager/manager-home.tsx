@@ -15,6 +15,7 @@ import {
 } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import './data-kit.css'
+import { AccountModal, type OwnAccount } from './account-modal'
 import { useManagerMessages } from '@/hooks/use-manager-messages'
 import { useManagerLayout } from '@/hooks/use-manager-layout'
 import { useManagerSpotlight } from '@/hooks/use-manager-spotlight'
@@ -55,7 +56,8 @@ function normalize(value: string) {
 
 export function ManagerHome({
   clinicName = 'Clínica de demonstração',
-  userName = 'Marcos',
+  userName: givenName = 'Marcos',
+  onAccountSaved,
   canManageSettings = true,
   sections,
   settingsTabs,
@@ -77,6 +79,8 @@ export function ManagerHome({
 }: {
   clinicName?: string
   userName?: string
+  /** Runs after "Minha conta" is saved (keeps the sign-in profile name in step). */
+  onAccountSaved?: (name: string) => void | Promise<void>
   canManageSettings?: boolean
   /** Sections allowed by the person's access level; all when omitted (demo). */
   sections?: ManagerSectionId[]
@@ -144,6 +148,22 @@ export function ManagerHome({
     if (create.section && create.section !== sectionId) setCreate({ section: '', count: 0 })
   }
   const createSignal = create.section === sectionId ? create.count : 0
+  // "Minha conta": the name and photo the person keeps in this space win over the sign-in name.
+  const [account, setAccount] = useState<OwnAccount | null>(null)
+  const [accountOpen, setAccountOpen] = useState(false)
+  const accountApi = workspace?.api
+  useEffect(() => {
+    if (!accountApi?.ready) return
+    let active = true
+    void accountApi
+      .get<OwnAccount>('account')
+      .then((data) => active && setAccount(data))
+      .catch(() => undefined)
+    return () => {
+      active = false
+    }
+  }, [accountApi])
+  const userName = account?.name || givenName
   const firstName = userName.trim().split(/\s+/)[0] || 'Gestor'
   const initials =
     userName
@@ -364,6 +384,7 @@ export function ManagerHome({
             <Dropdown>
               <Dropdown.Trigger className="manager-profile" aria-label={`Conta: ${userName}`}>
                 <Avatar size="sm">
+                  {account?.photo ? <Avatar.Image src={account.photo} alt="" /> : null}
                   <Avatar.Fallback>{initials}</Avatar.Fallback>
                 </Avatar>
                 <span>
@@ -378,7 +399,10 @@ export function ManagerHome({
                 <Dropdown.Menu
                   aria-label="Conta"
                   onAction={(key) => {
-                    if (key === 'account') openNotice('Minha conta')
+                    if (key === 'account') {
+                      if (workspace) setAccountOpen(true)
+                      else openNotice('Minha conta')
+                    }
                     if (key === 'settings') select('configuracoes')
                     if (key === 'logout') {
                       if (onLogout) onLogout()
@@ -424,6 +448,17 @@ export function ManagerHome({
             <span>{demoDetail}</span>
           </div>
         )}
+        {workspace ? (
+          <AccountModal
+            api={workspace.api}
+            isOpen={accountOpen}
+            onOpenChange={setAccountOpen}
+            onSaved={async (saved) => {
+              setAccount(saved)
+              await onAccountSaved?.(saved.name)
+            }}
+          />
+        ) : null}
         {workspace ? <NoticeCarousel go={go} /> : null}
         {section.id !== 'configuracoes' && banner}
         {realClinic && isHome && (

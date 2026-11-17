@@ -24,6 +24,10 @@ export type AppointmentView = {
   paid: boolean
   /** Signed photo of the client when the record has one. */
   photoUrl?: string | null
+  /** Larger copy of the same photo, for the enlarged view. */
+  photoLargeUrl?: string | null
+  /** The client sent a photo through the client area; it is loaded on demand. */
+  accountPhoto?: boolean
 }
 
 export type AppointmentAccess = {

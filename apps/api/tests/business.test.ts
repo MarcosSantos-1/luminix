@@ -357,6 +357,43 @@ describe('appointments, finance and reports', () => {
   })
 })
 
+describe('own account and client account photo', () => {
+  const photo = 'data:image/jpeg;base64,/9j/4AAQSkZJRg=='
+  it('lets any member edit only their own name and photo', async () => {
+    const base = `/clinics/${c('a').id}/account`
+    expect(
+      (await call('reception-a', 'PUT', base, { name: 'Ana Recepção', photo })).statusCode,
+    ).toBe(200)
+    expect((await call('reception-a', 'GET', base)).json()).toMatchObject({
+      name: 'Ana Recepção',
+      photo,
+    })
+    // The owner's record is untouched, and a non-JPEG payload is refused.
+    expect((await call('owner-a', 'GET', base)).json().photo).toBeNull()
+    expect(
+      (await call('owner-a', 'PUT', base, { name: 'Dona', photo: 'data:text/html;base64,AAAA' }))
+        .statusCode,
+    ).toBe(400)
+    expect((await call('owner-b', 'GET', base)).statusCode).toBe(403)
+  })
+
+  it('reports no account photo for a client that never sent one', async () => {
+    const list = (await call('owner-a', 'GET', `/clinics/${c('a').id}/clients?status=all`)).json()
+    expect(list.clients.length).toBeGreaterThan(0)
+    expect(list.clients[0]).toMatchObject({ account_photo: false, photo_url: null })
+    const one = await call(
+      'owner-a',
+      'GET',
+      `/clinics/${c('a').id}/clients/${list.clients[0].id}/photo`,
+    )
+    expect(one.json()).toEqual({ photo: null })
+    expect(
+      (await call('owner-b', 'GET', `/clinics/${c('a').id}/clients/${list.clients[0].id}/photo`))
+        .statusCode,
+    ).toBe(403)
+  })
+})
+
 describe('inventory and marketing', () => {
   const item = '9d8c7b60-3333-4e5f-8a9b-000000000001'
   it('keeps recurring bills, settles one per month and isolates them by clinic', async () => {

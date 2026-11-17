@@ -62,6 +62,9 @@ type Client = {
   next_visit_at: string | null
   /** Signed, short-lived URL of the client's photo. */
   photo_url?: string | null
+  photo_large_url?: string | null
+  /** Sent by the client through the client area; loaded on demand. */
+  account_photo?: boolean
 }
 
 type ClientDetail = { tax_id: string | null }
@@ -532,7 +535,11 @@ export function ClientsPanel({
                   }
                 >
                   <span className="cli-head">
-                    <ClientAvatar name={client.display_name} photoUrl={client.photo_url} />
+                    <ClientAvatar
+                      name={client.display_name}
+                      photoUrl={client.photo_url}
+                      account={client.account_photo ? { api, clientId: client.id } : null}
+                    />
                     <span className="cli-name">
                       <strong>{client.display_name}</strong>
                       <span>
@@ -603,7 +610,14 @@ export function ClientsPanel({
         title={
           selected ? (
             <span className="cli-sheet-head">
-              <ClientAvatar name={selected.display_name} photoUrl={selected.photo_url} size="lg" />
+              <ClientAvatar
+                name={selected.display_name}
+                photoUrl={selected.photo_url}
+                largeUrl={selected.photo_large_url}
+                account={selected.account_photo ? { api, clientId: selected.id } : null}
+                size="lg"
+                viewable
+              />
               <span>
                 {selected.display_name}
                 <small>
@@ -719,7 +733,9 @@ export function ClientsPanel({
               ) : null}
               <Action
                 icon={Camera}
-                title={selected.photo_url ? 'Trocar foto' : 'Adicionar foto'}
+                title={
+                  selected.photo_url || selected.account_photo ? 'Trocar foto' : 'Adicionar foto'
+                }
                 hint={photoBusy ? 'Enviando…' : 'Só a sua equipe vê'}
                 disabled={photoBusy}
                 onPress={() => photoInput.current?.click()}

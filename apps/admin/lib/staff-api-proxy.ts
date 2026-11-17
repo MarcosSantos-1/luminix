@@ -8,6 +8,7 @@ export async function staffApiGet(
     | `/clinics/${string}/profile`
     | `/clinics/${string}/booking-rules`
     | `/clinics/${string}/slug`
+    | `/clinics/${string}/account`
     | `/clinics/${string}/team`
     | `/clinics/${string}/staff`
     | `/clinics/${string}/library`
@@ -137,6 +138,7 @@ export async function staffApiWrite(
     | `/clinics/${string}/profile`
     | `/clinics/${string}/booking-rules`
     | `/clinics/${string}/slug`
+    | `/clinics/${string}/account`
     | `/clinics/${string}/staff`
     | `/clinics/${string}/staff/${string}`
     | `/clinics/${string}/team/${string}`

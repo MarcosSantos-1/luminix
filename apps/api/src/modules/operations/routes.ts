@@ -189,6 +189,10 @@ const clientDetailColumns = `id, display_name, contact_phone, contact_email, bir
   status, created_at, tax_id, sex, source, marketing_opt_in, marketing_opt_in_at,
   client_profile_id IS NOT NULL AS linked`
 
+/** The 512px copy of a client photo, from the key of its 128px copy. */
+const largeKey = (key: unknown) =>
+  key ? String(key).replace(/small-128\.webp$/, 'large-512.webp') : null
+
 function normalizeClient(body: ClientBody) {
   const email = body.email?.trim().toLowerCase() || null
   if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return { error: 'Invalid email' }
@@ -309,6 +313,7 @@ export async function operationRoutes(
                   (SELECT m.small_object_key FROM luminix.media_assets m
                    WHERE m.clinic_id = c.clinic_id AND m.id = c.photo_asset_id
                      AND m.status = 'ready') AS photo_key,
+                      luminix.clinic_client_has_account_photo(c.clinic_id, c.id) AS account_photo,
                   CASE WHEN c.tax_id IS NULL THEN NULL
                        ELSE '***.***.***-' || right(c.tax_id, 2) END AS tax_id_masked,
                   count(a.id)::integer AS appointment_count,
@@ -346,6 +351,8 @@ export async function operationRoutes(
               ...row,
               spent_cents: canSeeMoney ? row.spent_cents : null,
               photo_url: await clientPhotoUrl(photo_key),
+              photo_large_url: await clientPhotoUrl(largeKey(photo_key)),
+              account_photo: !photo_key && row.account_photo === true,
             })),
           ),
         }
@@ -528,6 +535,23 @@ export async function operationRoutes(
       }),
   )
 
+  // Photo the client sent through the client area (a small JPEG kept with the account record).
+  // Loaded one by one, on demand, so lists never carry the image bytes.
+  app.get<{ Params: { clinicId: string; clientId: string } }>(
+    '/clinics/:clinicId/clients/:clientId/photo',
+    { schema: { params: clientParams } },
+    async (request, reply) =>
+      authorized(request, reply, 'client:read', async (connection, tenant) => {
+        const row = (
+          await connection.query(
+            'SELECT luminix.clinic_client_account_photo($1::uuid, $2::uuid) AS photo',
+            [tenant.clinicId, request.params.clientId],
+          )
+        ).rows[0]
+        return { photo: row?.photo ? String(row.photo) : null }
+      }),
+  )
+
   // The photo is sent through the media upload (kind client_photo); this only removes it.
   app.put<{ Params: { clinicId: string; clientId: string }; Body: { remove: true } }>(
     '/clinics/:clinicId/clients/:clientId/photo',
@@ -596,6 +620,7 @@ export async function operationRoutes(
                       (SELECT m.small_object_key FROM luminix.media_assets m
                        WHERE m.clinic_id = c.clinic_id AND m.id = c.photo_asset_id
                          AND m.status = 'ready') AS photo_key,
+                      luminix.clinic_client_has_account_photo(c.clinic_id, c.id) AS account_photo,
                       s.id AS service_id, s.name AS service_name, s.price_type,
                       s.duration_minutes, p.id AS professional_id, p.display_name AS professional_name,
                       EXISTS (SELECT 1 FROM luminix.finance_entries e
@@ -659,6 +684,10 @@ export async function operationRoutes(
               client_phone: seesClients ? row.client_phone : null,
               client_notes: seesClients ? row.client_notes : null,
               client_photo_url: seesClients ? await clientPhotoUrl(photo_key) : null,
+              client_photo_large_url: seesClients
+                ? await clientPhotoUrl(largeKey(photo_key))
+                : null,
+              account_photo: seesClients && !photo_key && row.account_photo === true,
             })),
           ),
           canManage: can.has('agenda:manage'),

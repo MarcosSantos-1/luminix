@@ -755,6 +755,12 @@ const qaSearch: Record<string, { id: string; title: string; detail: string }[]> 
   finance: [{ id: 'f1', title: 'Tintura Lumière', detail: 'Despesa · R$ 120,00' }],
   media: [],
 }
+// Stand-in for a photo sent through the client area.
+const qaPhoto =
+  'data:image/svg+xml;utf8,' +
+  encodeURIComponent(
+    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><rect width="64" height="64" fill="#c9a27e"/><circle cx="32" cy="26" r="12" fill="#5b3a2a"/><rect x="12" y="42" width="40" height="30" rx="16" fill="#5b3a2a"/></svg>',
+  )
 const qaAgo = (days: number) => new Date(Date.now() - days * 86400000).toISOString()
 const qaClients = [
   [
@@ -785,6 +791,7 @@ const qaClients = [
   sex: 'female',
   marketing_opt_in: index % 2 === 0,
   linked: index === 0,
+  account_photo: index === 0,
   tax_id_masked: null,
   appointment_count: (completed as number) + (next == null ? 0 : 1),
   completed_count: completed as number,
@@ -847,6 +854,14 @@ export default function QASettings({
         }
         if (path.startsWith('library/items') && !fixtures[path]) return { items: [] } as T
         if (path === 'agenda') return qaAgenda() as T
+        if (path === 'account')
+          return {
+            name: 'Maria Aparecida',
+            email: 'maria@example.com',
+            role: 'owner',
+            photo: null,
+          } as T
+        if (/^clients\/[^/]+\/photo$/.test(path)) return { photo: qaPhoto } as T
         if (path === 'clients') {
           const rows = qaClients.filter(
             (client) =>

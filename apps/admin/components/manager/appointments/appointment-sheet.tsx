@@ -18,16 +18,10 @@ import {
   type LucideIcon,
 } from 'lucide-react'
 import { useEffect, useState, type ReactNode } from 'react'
+import { ClientAvatar } from '../client-photo'
 import { DateInputField, MoneyField, SelectField, TimeInputField } from '@/components/ui/fields'
 import { formatBrPhone } from '@/lib/phone'
-import {
-  appointmentStatus,
-  dateBr,
-  initials,
-  money,
-  moneyInput,
-  parseMoney,
-} from '../business/format'
+import { appointmentStatus, dateBr, money, moneyInput, parseMoney } from '../business/format'
 import { whatsapp } from '../business/format'
 import { ClinicApiError, type ClinicApi } from '../settings/clinic-api'
 import { QuickModal } from '../quick-modal'
@@ -73,28 +67,6 @@ function age(birth: string) {
 }
 
 /** Avatar with the client's photo when there is one, initials otherwise. */
-export function ClientAvatar({
-  name,
-  photoUrl,
-  size = 'md',
-}: {
-  name: string
-  photoUrl?: string | null
-  size?: 'md' | 'lg'
-}) {
-  const tone = [...name].reduce((sum, letter) => sum + letter.charCodeAt(0), 0) % 4
-  return (
-    <span className={`apt-avatar apt-avatar-${size} tone-${tone}`} aria-hidden>
-      {photoUrl ? (
-        // eslint-disable-next-line @next/next/no-img-element -- signed, short-lived private URL
-        <img src={photoUrl} alt="" />
-      ) : (
-        initials(name)
-      )}
-    </span>
-  )
-}
-
 export function Action({
   icon: Icon,
   title,
@@ -187,7 +159,14 @@ export function AppointmentSheet({
       title={
         shown ? (
           <span className="apt-title">
-            <ClientAvatar name={shown.client} photoUrl={shown.photoUrl} size="lg" />
+            <ClientAvatar
+              name={shown.client}
+              photoUrl={shown.photoUrl}
+              largeUrl={shown.photoLargeUrl}
+              account={shown.accountPhoto ? { api, clientId: shown.clientId } : null}
+              size="lg"
+              viewable
+            />
             <span>
               {shown.client}
               <small>
@@ -625,3 +604,5 @@ function SheetBody({
     </div>
   )
 }
+
+export { ClientAvatar }

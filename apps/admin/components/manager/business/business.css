@@ -257,11 +257,28 @@
   accent-color: var(--space-accent, #ec287a);
 }
 .biz-month {
+  position: relative;
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: center;
   gap: 10px;
+  min-height: 44px;
   font-size: 18px;
+}
+/* Entrada / Saída sit at the right of the month switcher, which stays centred. */
+.biz-month-actions {
+  position: absolute;
+  right: 0;
+  display: flex;
+  gap: 8px;
+}
+@media (max-width: 900px) {
+  .biz-month-actions {
+    position: static;
+    flex-basis: 100%;
+    justify-content: center;
+  }
 }
 .biz-method,
 .biz-date {
@@ -849,4 +866,34 @@
   .fin-donut-body {
     justify-content: center;
   }
+}
+
+/* Setup step 2: name, expected amount and due day never overlap. */
+.fin-setup.is-values li {
+  grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr) minmax(0, 1fr);
+  gap: 12px;
+}
+.fin-setup.is-values li > * {
+  min-width: 0;
+}
+.fin-setup.is-values .lx-field,
+.fin-setup.is-values .lx-field > * {
+  width: 100%;
+  min-width: 0;
+}
+@media (max-width: 650px) {
+  .fin-setup.is-values li {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+.account-photo {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 16px;
+}
+.account-photo-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
 }

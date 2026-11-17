@@ -40,6 +40,57 @@ export async function workspaceRoutes(
 ) {
   const authorized = createAuthorizedRoute(authenticate, pool)
 
+  // "Minha conta": the signed-in person's own name and photo in this clinic (any active member).
+  app.get<{ Params: { clinicId: string } }>(
+    '/clinics/:clinicId/account',
+    { schema: { params: clinicRefParams } },
+    async (request, reply) =>
+      authorized(request, reply, null, async (connection, tenant) => {
+        const row = (
+          await connection.query('SELECT * FROM luminix.own_account($1::uuid)', [tenant.clinicId])
+        ).rows[0]
+        if (!row) return reply.code(404).send({ error: 'Account not found' })
+        return {
+          name: row.display_name ? String(row.display_name) : '',
+          email: row.contact_email ? String(row.contact_email) : '',
+          role: String(row.role_name),
+          photo: row.photo_data ? String(row.photo_data) : null,
+        }
+      }),
+  )
+  app.put<{ Params: { clinicId: string }; Body: { name: string; photo: string | null } }>(
+    '/clinics/:clinicId/account',
+    {
+      bodyLimit: 260_000,
+      schema: {
+        params: clinicRefParams,
+        body: {
+          type: 'object',
+          additionalProperties: false,
+          required: ['name', 'photo'],
+          properties: {
+            name: { type: 'string', minLength: 1, maxLength: 120 },
+            photo: {
+              anyOf: [
+                { type: 'string', maxLength: 200000, pattern: '^data:image/jpeg;base64,' },
+                { type: 'null' },
+              ],
+            },
+          },
+        },
+      },
+    },
+    async (request, reply) =>
+      authorized(request, reply, null, async (connection, tenant) => {
+        await connection.query('SELECT luminix.save_own_account($1::uuid, $2::text, $3::text)', [
+          tenant.clinicId,
+          request.body.name,
+          request.body.photo,
+        ])
+        return { saved: true }
+      }),
+  )
+
   app.get<{
     Params: { clinicId: string }
     Querystring: { view?: 'inbox' | 'archived'; entity?: string; before?: string }

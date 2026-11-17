@@ -43,6 +43,7 @@ export async function insightsRoutes(
                     (SELECT m.small_object_key FROM luminix.media_assets m
                      WHERE m.clinic_id = c.clinic_id AND m.id = c.photo_asset_id
                        AND m.status = 'ready') AS photo_key,
+                    luminix.clinic_client_has_account_photo(c.clinic_id, c.id) AS account_photo,
                     s.name AS service, s.price_type, p.display_name AS professional,
                     EXISTS (SELECT 1 FROM luminix.finance_entries e
                              WHERE e.clinic_id = a.clinic_id AND e.appointment_id = a.id
@@ -69,6 +70,7 @@ export async function insightsRoutes(
                     (SELECT m.small_object_key FROM luminix.media_assets m
                      WHERE m.clinic_id = c.clinic_id AND m.id = c.photo_asset_id
                        AND m.status = 'ready') AS photo_key,
+                    luminix.clinic_client_has_account_photo(c.clinic_id, c.id) AS account_photo,
                     s.name AS service, s.price_type, p.display_name AS professional,
                     EXISTS (SELECT 1 FROM luminix.finance_entries e
                              WHERE e.clinic_id = a.clinic_id AND e.appointment_id = a.id
@@ -97,6 +99,14 @@ export async function insightsRoutes(
           phone: row.phone ? String(row.phone) : null,
           clientNotes: seesClients && row.client_notes ? String(row.client_notes) : null,
           photoUrl: seesClients ? await clientPhotoUrl(row.photo_key) : null,
+          photoLargeUrl: seesClients
+            ? await clientPhotoUrl(
+                row.photo_key
+                  ? String(row.photo_key).replace(/small-128\.webp$/, 'large-512.webp')
+                  : null,
+              )
+            : null,
+          accountPhoto: seesClients && !row.photo_key && row.account_photo === true,
           priceType: String(row.price_type),
           notes: row.notes ? String(row.notes) : null,
           warnings: (row.override_reasons ?? []) as string[],

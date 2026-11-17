@@ -1,6 +1,7 @@
 'use client'
 
 import { Button, Card } from '@heroui/react'
+import { updateProfile } from 'firebase/auth'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { signOut } from 'firebase/auth'
@@ -80,6 +81,9 @@ export function ClinicHome({
       clinicName={clinic.name}
       userName={staff.user?.displayName || 'Gestor'}
       userEmail={staff.user?.email || undefined}
+      onAccountSaved={async (name) => {
+        if (staff.user) await updateProfile(staff.user, { displayName: name })
+      }}
       workspace={
         clinic.status === 'active'
           ? { api, clinicId: clinic.id, canAudit: permissions.includes('audit:read') }
