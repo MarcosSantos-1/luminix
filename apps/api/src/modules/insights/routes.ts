@@ -5,6 +5,7 @@ import {
   type Authenticate,
 } from '../../shared/tenant/authorized-route.js'
 import type { TenantPool } from '../../shared/tenant/clinic-transaction.js'
+import { clientPhotoUrl } from '../clinics/media-storage.js'
 import {
   dateSchema,
   isoDate,
@@ -39,7 +40,10 @@ export async function insightsRoutes(
             `SELECT a.id, a.starts_at, a.ends_at, a.status, a.price_cents, a.promotion_id,
                     a.notes, a.override_reasons, a.previous_starts_at, c.id AS client_id,
                     c.display_name AS client, c.contact_phone AS phone, c.notes AS client_notes,
-                    s.name AS service, p.display_name AS professional,
+                    (SELECT m.small_object_key FROM luminix.media_assets m
+                     WHERE m.clinic_id = c.clinic_id AND m.id = c.photo_asset_id
+                       AND m.status = 'ready') AS photo_key,
+                    s.name AS service, s.price_type, p.display_name AS professional,
                     EXISTS (SELECT 1 FROM luminix.finance_entries e
                              WHERE e.clinic_id = a.clinic_id AND e.appointment_id = a.id
                                AND e.status = 'active') AS paid
@@ -62,7 +66,10 @@ export async function insightsRoutes(
             `SELECT a.id, a.starts_at, a.ends_at, a.status, a.price_cents, a.promotion_id,
                     a.notes, a.override_reasons, a.previous_starts_at, c.id AS client_id,
                     c.display_name AS client, c.contact_phone AS phone, c.notes AS client_notes,
-                    s.name AS service, p.display_name AS professional,
+                    (SELECT m.small_object_key FROM luminix.media_assets m
+                     WHERE m.clinic_id = c.clinic_id AND m.id = c.photo_asset_id
+                       AND m.status = 'ready') AS photo_key,
+                    s.name AS service, s.price_type, p.display_name AS professional,
                     EXISTS (SELECT 1 FROM luminix.finance_entries e
                              WHERE e.clinic_id = a.clinic_id AND e.appointment_id = a.id
                                AND e.status = 'active') AS paid
@@ -77,7 +84,7 @@ export async function insightsRoutes(
           ),
         ])
         const seesClients = can.has('client:read')
-        const view = (row: Record<string, unknown>) => ({
+        const view = async (row: Record<string, unknown>) => ({
           id: String(row.id),
           startsAt: new Date(String(row.starts_at)).toISOString(),
           endsAt: new Date(String(row.ends_at)).toISOString(),
@@ -89,6 +96,8 @@ export async function insightsRoutes(
           client: String(row.client),
           phone: row.phone ? String(row.phone) : null,
           clientNotes: seesClients && row.client_notes ? String(row.client_notes) : null,
+          photoUrl: seesClients ? await clientPhotoUrl(row.photo_key) : null,
+          priceType: String(row.price_type),
           notes: row.notes ? String(row.notes) : null,
           warnings: (row.override_reasons ?? []) as string[],
           service: String(row.service),
@@ -99,8 +108,8 @@ export async function insightsRoutes(
         })
         const result: Record<string, unknown> = {
           today,
-          appointments: appointments.rows.map(view),
-          upcoming: upcoming.rows.map(view),
+          appointments: await Promise.all(appointments.rows.map(view)),
+          upcoming: await Promise.all(upcoming.rows.map(view)),
           upcomingWeek: toNumber(week.rows[0]?.upcoming),
           canManageAgenda: can.has('agenda:manage'),
           canCharge: can.has('finance:manage'),

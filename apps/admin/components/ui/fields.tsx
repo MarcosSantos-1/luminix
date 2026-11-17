@@ -134,6 +134,41 @@ export function TextInputField({
   )
 }
 
+const moneyText = new Intl.NumberFormat('pt-BR', {
+  minimumFractionDigits: 2,
+  maximumFractionDigits: 2,
+})
+
+/** Typed digits fill the cents from the right: "545000" shows as "5.450,00". */
+export function maskMoney(text: string) {
+  const digits = text.replace(/\D/g, '').replace(/^0+/, '').slice(0, 11)
+  return digits ? moneyText.format(Number(digits) / 100) : ''
+}
+
+/** Money input, always shown as "R$ 5.450,00". The value is the masked text. */
+export function MoneyField({
+  value,
+  onChange,
+  placeholder = '0,00',
+  ...rest
+}: Common & {
+  value: string
+  onChange: (value: string) => void
+  placeholder?: string
+  autoFocus?: boolean
+}) {
+  return (
+    <TextInputField
+      {...rest}
+      prefix="R$"
+      inputMode="numeric"
+      placeholder={placeholder}
+      value={value}
+      onChange={(text) => onChange(maskMoney(text))}
+    />
+  )
+}
+
 export function TextAreaField({
   value,
   onChange,

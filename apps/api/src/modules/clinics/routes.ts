@@ -10,6 +10,7 @@ import { saveOnboardingDraft } from './onboarding-persist.js'
 import { clinicSettingsRoutes } from './settings-routes.js'
 import { isValidBrazilianTaxId } from './tax-id.js'
 import {
+  isPrivateKind,
   privateMediaUrl,
   publicMediaUrl,
   uploadMediaVariant,
@@ -154,7 +155,9 @@ function mediaPermission(kind: MediaKind) {
     ? 'professional:manage'
     : kind === 'library_photo'
       ? 'media:manage'
-      : 'settings:manage'
+      : kind === 'client_photo'
+        ? 'client:manage'
+        : 'settings:manage'
 }
 
 function validPayload(payload: OnboardingPayload): boolean {
@@ -614,7 +617,13 @@ export async function clinicRoutes(
           properties: {
             kind: {
               type: 'string',
-              enum: ['clinic_logo', 'professional_photo', 'public_photo', 'library_photo'],
+              enum: [
+                'clinic_logo',
+                'professional_photo',
+                'public_photo',
+                'library_photo',
+                'client_photo',
+              ],
             },
             subjectRef: { type: 'string', format: 'uuid' },
           },
@@ -711,7 +720,7 @@ export async function clinicRoutes(
           asset: {
             id: String(ready.asset_id),
             status: String(ready.asset_status),
-            ...(asset.kind === 'library_photo'
+            ...(isPrivateKind(asset.kind as MediaKind)
               ? {
                   smallUrl: await privateMediaUrl(String(ready.small_object_key)),
                   largeUrl: await privateMediaUrl(String(ready.large_object_key)),

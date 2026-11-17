@@ -12,7 +12,8 @@ const writes: Record<'PUT' | 'POST', RegExp[]> = {
     new RegExp(`^inventory/items/${id}$`, 'i'),
     new RegExp(`^appointments/${id}/(status|reschedule)$`, 'i'),
     new RegExp(`^clients/${id}$`, 'i'),
-    new RegExp(`^clients/${id}/status$`, 'i'),
+    new RegExp(`^clients/${id}/(status|photo)$`, 'i'),
+    new RegExp(`^finance/bills/${id}$`, 'i'),
   ],
   POST: [
     new RegExp(`^catalog/services/${id}/status$`, 'i'),

@@ -3,6 +3,7 @@
 import { Button, Chip, Modal } from '@heroui/react'
 import {
   Cake,
+  Camera,
   CalendarClock,
   CalendarPlus,
   Gift,
@@ -18,7 +19,7 @@ import {
   UserRoundX,
   UsersRound,
 } from 'lucide-react'
-import { useEffect, useMemo, useState, type FormEvent } from 'react'
+import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
 import { formatBrPhone, toE164Phone } from '@/lib/phone'
 import { isValidBrazilianTaxId } from '@/lib/tax-id'
 import {
@@ -59,6 +60,8 @@ type Client = {
   spent_cents: number | null
   last_visit_at: string | null
   next_visit_at: string | null
+  /** Signed, short-lived URL of the client's photo. */
+  photo_url?: string | null
 }
 
 type ClientDetail = { tax_id: string | null }
@@ -172,6 +175,28 @@ export function ClientsPanel({
   const [sheet, setSheet] = useState<{ id: string; from: DOMRect | null } | null>(null)
   const [history, setHistory] = useState<HistoryItem[] | null>(null)
   const [booking, setBooking] = useState<string | null>(null)
+  const photoInput = useRef<HTMLInputElement>(null)
+  const [photoBusy, setPhotoBusy] = useState(false)
+  const [photoError, setPhotoError] = useState('')
+
+  async function changePhoto(clientId: string, file: File | null) {
+    if (photoBusy) return
+    setPhotoBusy(true)
+    setPhotoError('')
+    try {
+      if (file) await api.upload('client_photo', file, clientId)
+      else await api.put(`clients/${clientId}/photo`, { remove: true })
+      await load()
+    } catch (caught) {
+      setPhotoError(
+        caught instanceof Error && !(caught instanceof ClinicApiError) && file
+          ? caught.message
+          : 'Não foi possível atualizar a foto. Tente de novo.',
+      )
+    } finally {
+      setPhotoBusy(false)
+    }
+  }
 
   const statuses = filters.status ?? []
   const status = statuses.length === 1 ? statuses[0] : 'all'
@@ -507,7 +532,7 @@ export function ClientsPanel({
                   }
                 >
                   <span className="cli-head">
-                    <ClientAvatar name={client.display_name} />
+                    <ClientAvatar name={client.display_name} photoUrl={client.photo_url} />
                     <span className="cli-name">
                       <strong>{client.display_name}</strong>
                       <span>
@@ -578,7 +603,7 @@ export function ClientsPanel({
         title={
           selected ? (
             <span className="cli-sheet-head">
-              <ClientAvatar name={selected.display_name} size="lg" />
+              <ClientAvatar name={selected.display_name} photoUrl={selected.photo_url} size="lg" />
               <span>
                 {selected.display_name}
                 <small>
@@ -639,6 +664,32 @@ export function ClientsPanel({
               )}
             </section>
 
+            <input
+              ref={photoInput}
+              type="file"
+              accept="image/png,image/jpeg,image/webp"
+              hidden
+              onChange={(event) => {
+                const file = event.target.files?.[0]
+                event.target.value = ''
+                if (file) void changePhoto(selected.id, file)
+              }}
+            />
+            {photoError ? (
+              <p className="apt-error" role="alert">
+                {photoError}
+              </p>
+            ) : null}
+            {selected.photo_url ? (
+              <button
+                type="button"
+                className="team-link"
+                disabled={photoBusy}
+                onClick={() => void changePhoto(selected.id, null)}
+              >
+                Remover foto
+              </button>
+            ) : null}
             <div className="apt-actions">
               {selected.status === 'active' ? (
                 <Action
@@ -666,6 +717,13 @@ export function ClientsPanel({
                   }
                 />
               ) : null}
+              <Action
+                icon={Camera}
+                title={selected.photo_url ? 'Trocar foto' : 'Adicionar foto'}
+                hint={photoBusy ? 'Enviando…' : 'Só a sua equipe vê'}
+                disabled={photoBusy}
+                onPress={() => photoInput.current?.click()}
+              />
               <Action
                 icon={Gift}
                 title="Voucher ou presente"

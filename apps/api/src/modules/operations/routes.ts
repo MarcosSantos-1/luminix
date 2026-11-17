@@ -3,6 +3,7 @@ import type { SqlConnection } from '../../shared/database/migrations.js'
 import { withClinicTransaction, type TenantPool } from '../../shared/tenant/clinic-transaction.js'
 import { rolePermissions } from '../../shared/tenant/route-helpers.js'
 import type { TenantContext } from '../../shared/tenant/tenant-context.js'
+import { clientPhotoUrl } from '../clinics/media-storage.js'
 import { isValidBrazilianTaxId } from '../clinics/tax-id.js'
 
 type Period = { start: string; end: string }
@@ -305,6 +306,9 @@ export async function operationRoutes(
           `SELECT c.id, c.display_name, c.contact_phone, c.contact_email, c.birth_date,
                   c.notes, c.status, c.created_at, c.sex, c.source, c.marketing_opt_in,
                   c.client_profile_id IS NOT NULL AS linked,
+                  (SELECT m.small_object_key FROM luminix.media_assets m
+                   WHERE m.clinic_id = c.clinic_id AND m.id = c.photo_asset_id
+                     AND m.status = 'ready') AS photo_key,
                   CASE WHEN c.tax_id IS NULL THEN NULL
                        ELSE '***.***.***-' || right(c.tax_id, 2) END AS tax_id_masked,
                   count(a.id)::integer AS appointment_count,
@@ -337,9 +341,13 @@ export async function operationRoutes(
         const canSeeMoney = (await rolePermissions(connection, tenant)).has('finance:manage')
         return {
           canSeeMoney,
-          clients: canSeeMoney
-            ? result.rows
-            : result.rows.map((row) => ({ ...row, spent_cents: null })),
+          clients: await Promise.all(
+            result.rows.map(async ({ photo_key, ...row }) => ({
+              ...row,
+              spent_cents: canSeeMoney ? row.spent_cents : null,
+              photo_url: await clientPhotoUrl(photo_key),
+            })),
+          ),
         }
       }),
   )
@@ -520,6 +528,30 @@ export async function operationRoutes(
       }),
   )
 
+  // The photo is sent through the media upload (kind client_photo); this only removes it.
+  app.put<{ Params: { clinicId: string; clientId: string }; Body: { remove: true } }>(
+    '/clinics/:clinicId/clients/:clientId/photo',
+    {
+      schema: {
+        params: clientParams,
+        body: {
+          type: 'object',
+          additionalProperties: false,
+          required: ['remove'],
+          properties: { remove: { type: 'boolean', const: true } },
+        },
+      },
+    },
+    async (request, reply) =>
+      authorized(request, reply, 'client:manage', async (connection, tenant) => {
+        await connection.query('SELECT luminix.remove_client_photo($1::uuid, $2::uuid)', [
+          tenant.clinicId,
+          request.params.clientId,
+        ])
+        return { removed: true }
+      }),
+  )
+
   app.get<{
     Params: { clinicId: string }
     Querystring: { from: string; to: string }
@@ -561,7 +593,10 @@ export async function operationRoutes(
                       a.override_reasons, a.notes, a.previous_starts_at, a.price_cents,
                       c.id AS client_id, c.display_name AS client_name,
                       c.contact_phone AS client_phone, c.notes AS client_notes,
-                      s.id AS service_id, s.name AS service_name,
+                      (SELECT m.small_object_key FROM luminix.media_assets m
+                       WHERE m.clinic_id = c.clinic_id AND m.id = c.photo_asset_id
+                         AND m.status = 'ready') AS photo_key,
+                      s.id AS service_id, s.name AS service_name, s.price_type,
                       s.duration_minutes, p.id AS professional_id, p.display_name AS professional_name,
                       EXISTS (SELECT 1 FROM luminix.finance_entries e
                                WHERE e.clinic_id = a.clinic_id AND e.appointment_id = a.id
@@ -617,12 +652,15 @@ export async function operationRoutes(
         const seesMoney = can.has('finance:manage')
         const seesClients = can.has('client:read')
         return {
-          appointments: appointments.rows.map((row) => ({
-            ...row,
-            price_cents: seesMoney ? row.price_cents : null,
-            client_phone: seesClients ? row.client_phone : null,
-            client_notes: seesClients ? row.client_notes : null,
-          })),
+          appointments: await Promise.all(
+            appointments.rows.map(async ({ photo_key, ...row }) => ({
+              ...row,
+              price_cents: seesMoney ? row.price_cents : null,
+              client_phone: seesClients ? row.client_phone : null,
+              client_notes: seesClients ? row.client_notes : null,
+              client_photo_url: seesClients ? await clientPhotoUrl(photo_key) : null,
+            })),
+          ),
           canManage: can.has('agenda:manage'),
           canManageHours: can.has('clinic:manage'),
           canManageTeam: can.has('professional:manage'),

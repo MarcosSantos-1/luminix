@@ -128,10 +128,22 @@ export function ManagerHome({
   const allowedIds = useMemo(() => navigation.map((item) => item.id), [navigation])
   const { section: sectionId, select } = useManagerSection(allowedIds, initialSection)
   const section = navigation.find((item) => item.id === sectionId) ?? navigation[0]
+  // "+" asks one page to open its creation form. It is tied to that page, so opening the
+  // page later through the menu never reopens the form.
+  const [create, setCreate] = useState({ section: '', count: 0 })
+  const requestCreate = (target: string) =>
+    setCreate((current) => ({ section: target, count: current.count + 1 }))
   // Every page starts at the top, wherever the previous one was scrolled to.
   useEffect(() => {
     window.scrollTo({ top: 0 })
   }, [sectionId])
+  // A request made for another page is spent once the person leaves it.
+  const [seenSection, setSeenSection] = useState(sectionId)
+  if (seenSection !== sectionId) {
+    setSeenSection(sectionId)
+    if (create.section && create.section !== sectionId) setCreate({ section: '', count: 0 })
+  }
+  const createSignal = create.section === sectionId ? create.count : 0
   const firstName = userName.trim().split(/\s+/)[0] || 'Gestor'
   const initials =
     userName
@@ -161,12 +173,10 @@ export function ManagerHome({
   const [announcement, setAnnouncement] = useState(true)
   const [forceGlass, setForceGlass] = useState(false)
   const [copied, setCopied] = useState(false)
-  const [createSignal, setCreateSignal] = useState(0)
   const [focus, setFocus] = useState<SearchFocus | null>(null)
   const [copyError, setCopyError] = useState(false)
   const realClinic = shareCode !== undefined
   const isHome = section.id === 'inicio'
-  const showDemoLabel = section.id !== 'agenda' && !(payments && section.id === 'financeiro')
 
   function startTour() {
     setTourOpen(true)
@@ -201,12 +211,12 @@ export function ManagerHome({
   function navigate(label: string) {
     if (label === 'Novo agendamento') {
       select('agenda')
-      setCreateSignal((value) => value + 1)
+      requestCreate('agenda')
       return
     }
     if (label === 'Adicionar cliente') {
       select('clientes')
-      setCreateSignal((value) => value + 1)
+      requestCreate('clientes')
       return
     }
     if (label === 'Agenda semanal' || label === 'Agenda completa') {
@@ -226,7 +236,7 @@ export function ManagerHome({
     }
     // The "+" action of a real section opens its own creation form.
     if (panels?.[section.id] && label === section.createLabel) {
-      setCreateSignal((value) => value + 1)
+      requestCreate(section.id)
       return
     }
     openNotice(label)
@@ -241,7 +251,7 @@ export function ManagerHome({
       const tab = managerSettingsSections.find(({ id }) => id === target.tab)?.id
       if (tab && (!settingsTabs || settingsTabs.includes(tab))) setSettingsTab(tab)
     }
-    if (target.create) setCreateSignal((value) => value + 1)
+    if (target.create) requestCreate(target.section)
     setFocus(
       target.query ? { section: target.section, query: target.query, nonce: Date.now() } : null,
     )
@@ -266,30 +276,6 @@ export function ManagerHome({
 
   const realPanel = panels?.[section.id]
   const panelFocus = focus?.section === section.id ? focus : null
-  const demoLabel = realClinic
-    ? realPanel && section.id !== 'inicio'
-      ? 'DADOS DO SEU ESPAÇO'
-      : section.id === 'configuracoes'
-        ? 'CONFIGURAÇÕES'
-        : section.id === 'midia'
-          ? 'ACERVO PRIVADO'
-          : isHome
-            ? 'HOME DO GESTOR'
-            : 'ESBOÇO'
-    : 'PRÉVIA DO GESTOR'
-  const demoDetail = realPanel
-    ? section.id === 'inicio'
-      ? 'Dados reais do seu espaço'
-      : 'Atualizado agora'
-    : section.id === 'midia'
-      ? 'Só a sua equipe vê estas fotos'
-      : section.id === 'configuracoes'
-        ? realClinic
-          ? 'Dados reais da clínica'
-          : 'Dados reais após o login'
-        : isHome
-          ? 'Agenda e indicadores demonstrativos'
-          : 'Exemplos ilustrativos desta seção'
   const sketch =
     realPanel ||
     (payments && section.id === 'financeiro') ||
@@ -299,6 +285,12 @@ export function ManagerHome({
     (realClinic && (section.id === 'agenda' || section.id === 'clientes'))
       ? null
       : sectionSketches[section.id]
+  // Only example content is labelled; real pages need no caption.
+  const showDemoLabel = !realClinic || Boolean(sketch)
+  const demoLabel = realClinic ? 'ESBOÇO' : 'PRÉVIA DO GESTOR'
+  const demoDetail = isHome
+    ? 'Agenda e indicadores demonstrativos'
+    : 'Exemplos ilustrativos desta seção'
 
   const shellContent = (
     <div
@@ -322,7 +314,6 @@ export function ManagerHome({
           <div className="manager-greeting">
             {isHome ? (
               <>
-                <p>Seu espaço de cuidado ✦</p>
                 <h1 ref={sectionHeading} tabIndex={-1} data-manager-spotlight="section-heading">
                   Olá, {firstName}!
                 </h1>
@@ -334,7 +325,6 @@ export function ManagerHome({
                 <h1 ref={sectionHeading} tabIndex={-1} data-manager-spotlight="section-heading">
                   {section.label}
                 </h1>
-                <span>{section.subtitle}</span>
               </>
             )}
           </div>

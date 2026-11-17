@@ -19,6 +19,8 @@ export type AppointmentView = {
   professional: string | null
   /** null when the person's level does not show money. */
   priceCents: number | null
+  /** fixed | from | quote ("a combinar": the amount is agreed and typed at payment). */
+  priceType?: string
   paid: boolean
   /** Signed photo of the client when the record has one. */
   photoUrl?: string | null
@@ -40,6 +42,16 @@ export const warningCopy: Record<string, string> = {
   past: 'Marcado em um horário que já tinha passado.',
   outside_availability: 'Marcado fora do horário de atendimento.',
   overlap: 'Marcado junto com outro atendimento.',
+}
+
+/** Free on purpose (avaliação, cortesia): nothing to receive. Unknown without money access. */
+export function isFree(item: Pick<AppointmentView, 'priceCents' | 'priceType'>) {
+  return item.priceCents === 0 && item.priceType !== 'quote'
+}
+
+/** "A combinar" and still without an agreed amount. */
+export function isQuote(item: Pick<AppointmentView, 'priceCents' | 'priceType'>) {
+  return item.priceType === 'quote' && !item.priceCents
 }
 
 export function isOpen(status: string) {

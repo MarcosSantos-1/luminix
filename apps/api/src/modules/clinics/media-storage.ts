@@ -7,7 +7,12 @@ import {
   type R2Config,
 } from '../../shared/integrations/r2/client.js'
 
-export type MediaKind = 'clinic_logo' | 'professional_photo' | 'public_photo' | 'library_photo'
+export type MediaKind =
+  'clinic_logo' | 'professional_photo' | 'public_photo' | 'library_photo' | 'client_photo'
+
+/** Kinds that only the staff may see: private bucket, short-lived signed URLs. */
+export const isPrivateKind = (kind: MediaKind) =>
+  kind === 'library_photo' || kind === 'client_photo'
 export type MediaVariant = 'small' | 'large'
 
 const dimensions: Record<MediaVariant, number> = { small: 128, large: 512 }
@@ -18,9 +23,9 @@ function sizeFor(kind: MediaKind, variant: MediaVariant) {
   return (kind === 'library_photo' ? libraryDimensions : dimensions)[variant]
 }
 
-/** Public kinds use the public bucket; library photos only the private one (never a fallback). */
+/** Public kinds use the public bucket; private kinds only the private one (never a fallback). */
 function storageFor(kind: MediaKind): R2Config {
-  if (kind !== 'library_photo') return readR2Config()
+  if (!isPrivateKind(kind)) return readR2Config()
   const config = readPrivateR2Config()
   if (!config) throw Object.assign(new Error('Private storage unavailable'), { statusCode: 503 })
   return config
@@ -58,7 +63,9 @@ export function mediaObjectKey(
       ? 'branding/logo'
       : kind === 'public_photo'
         ? 'showcase'
-        : `team/${subjectRef}`
+        : kind === 'client_photo'
+          ? `clients/${subjectRef}`
+          : `team/${subjectRef}`
   return `${clinicId}/${module}/${assetId}/${variant}-${dimensions[variant]}.webp`
 }
 
@@ -120,10 +127,9 @@ export async function uploadMediaVariant(options: {
       Key: key,
       Body: options.body,
       ContentType: 'image/webp',
-      CacheControl:
-        options.kind === 'library_photo'
-          ? 'private, max-age=900'
-          : 'public, max-age=31536000, immutable',
+      CacheControl: isPrivateKind(options.kind)
+        ? 'private, max-age=900'
+        : 'public, max-age=31536000, immutable',
       Metadata: { asset: options.assetId, variant: options.variant },
     }),
   )
@@ -169,4 +175,17 @@ export function publicMediaUrl(key: string) {
   if (base.protocol !== 'https:' || base.search || base.hash)
     throw new Error('R2_PUBLIC_BASE_URL must be an HTTPS origin')
   return `${base.toString().replace(/\/$/, '')}/${key}`
+}
+
+/**
+ * Signed URL of a client photo, or null without one (or without private storage configured):
+ * a missing photo must never break the list that carries it.
+ */
+export async function clientPhotoUrl(key: unknown) {
+  if (!key) return null
+  try {
+    return await privateMediaUrl(String(key))
+  } catch {
+    return null
+  }
 }

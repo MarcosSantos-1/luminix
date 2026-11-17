@@ -16,7 +16,8 @@ import {
 const monthPattern = '^[0-9]{4}-(0[1-9]|1[0-2])$'
 
 /**
- * Manual ledger (entradas e saídas) plus estimates from appointments. Card/Pix charges through
+ * Manual ledger (entradas e saídas), recurring bills (contas fixas) and estimates crossed from
+ * the agenda and the stock. Card/Pix charges through
  * Stripe are not reconciled here yet (TD-008); the ledger is what the clinic records.
  */
 export async function financeRoutes(
@@ -45,10 +46,22 @@ export async function financeRoutes(
         )!
         const month = request.query.month ?? today.slice(0, 7)
         const first = `${month}-01`
-        const [entries, totals, pending, forecast] = await Promise.all([
+        const [
+          entries,
+          totals,
+          pending,
+          forecast,
+          bills,
+          categories,
+          trend,
+          topClients,
+          courtesy,
+          stock,
+          stockUsed,
+        ] = await Promise.all([
           connection.query(
             `SELECT e.id, e.kind, e.amount_cents, e.occurred_on, e.description, e.category, e.method,
-                    e.appointment_id, e.created_at
+                    e.appointment_id, e.bill_id, e.created_at
                FROM luminix.finance_entries e
               WHERE e.clinic_id = $1 AND e.status = 'active'
                 AND e.occurred_on >= $2::date AND e.occurred_on < ($2::date + interval '1 month')
@@ -57,20 +70,27 @@ export async function financeRoutes(
           ),
           connection.query(
             `SELECT coalesce(sum(amount_cents) FILTER (WHERE kind = 'income'), 0) AS income,
-                    coalesce(sum(amount_cents) FILTER (WHERE kind = 'expense'), 0) AS expense
+                    coalesce(sum(amount_cents) FILTER (WHERE kind = 'income'
+                      AND appointment_id IS NOT NULL), 0) AS income_appointments,
+                    coalesce(sum(amount_cents) FILTER (WHERE kind = 'expense'), 0) AS expense,
+                    coalesce(sum(amount_cents) FILTER (WHERE kind = 'expense'
+                      AND bill_id IS NOT NULL), 0) AS expense_fixed
                FROM luminix.finance_entries
               WHERE clinic_id = $1 AND status = 'active'
                 AND occurred_on >= $2::date AND occurred_on < ($2::date + interval '1 month')`,
             [tenant.clinicId, first],
           ),
-          // Completed appointments without an income entry yet ("a lançar").
+          // Completed appointments without an income entry yet ("a lançar"). Free ones (avaliação,
+          // cortesia) have nothing to receive; "a combinar" ones ask the amount when recorded.
           connection.query(
-            `SELECT a.id, a.starts_at, a.price_cents, c.display_name AS client, s.name AS service
+            `SELECT a.id, a.starts_at, a.price_cents, s.price_type, c.display_name AS client,
+                    s.name AS service
                FROM luminix.appointments a
                JOIN luminix.clinic_clients c ON c.clinic_id = a.clinic_id AND c.id = a.clinic_client_id
                JOIN luminix.services s ON s.clinic_id = a.clinic_id AND s.id = a.service_id
               WHERE a.clinic_id = $1 AND a.status = 'completed'
                 AND a.starts_at > now() - interval '60 days'
+                AND (coalesce(a.price_cents, 0) > 0 OR s.price_type = 'quote')
                 AND NOT EXISTS (SELECT 1 FROM luminix.finance_entries e WHERE e.clinic_id = a.clinic_id
                   AND e.appointment_id = a.id AND e.status = 'active')
               ORDER BY a.starts_at DESC LIMIT 50`,
@@ -83,13 +103,88 @@ export async function financeRoutes(
                 AND (starts_at AT TIME ZONE 'America/Sao_Paulo') < ($2::date + interval '1 month')`,
             [tenant.clinicId, first],
           ),
+          connection.query(
+            `SELECT b.id, b.name, b.category, b.amount_cents, b.due_day,
+                    e.id AS entry_id, e.amount_cents AS paid_cents, e.occurred_on AS paid_on
+               FROM luminix.finance_bills b
+               LEFT JOIN luminix.finance_entries e ON e.clinic_id = b.clinic_id AND e.bill_id = b.id
+                AND e.bill_month = $2::date AND e.status = 'active'
+              WHERE b.clinic_id = $1 AND b.status = 'active'
+              ORDER BY b.due_day NULLS LAST, lower(b.name) LIMIT 60`,
+            [tenant.clinicId, first],
+          ),
+          connection.query(
+            `SELECT coalesce(nullif(btrim(category), ''), 'Outros') AS category,
+                    sum(amount_cents) AS cents,
+                    coalesce(sum(amount_cents) FILTER (WHERE bill_id IS NOT NULL), 0) AS fixed_cents
+               FROM luminix.finance_entries
+              WHERE clinic_id = $1 AND status = 'active' AND kind = 'expense'
+                AND occurred_on >= $2::date AND occurred_on < ($2::date + interval '1 month')
+              GROUP BY 1 ORDER BY 2 DESC LIMIT 12`,
+            [tenant.clinicId, first],
+          ),
+          // The selected month and the five before it.
+          connection.query(
+            `SELECT to_char(m.month, 'YYYY-MM') AS month,
+                    coalesce(sum(e.amount_cents) FILTER (WHERE e.kind = 'income'), 0) AS income,
+                    coalesce(sum(e.amount_cents) FILTER (WHERE e.kind = 'expense'), 0) AS expense
+               FROM generate_series($2::date - interval '5 months', $2::date, interval '1 month') AS m(month)
+               LEFT JOIN luminix.finance_entries e ON e.clinic_id = $1 AND e.status = 'active'
+                AND e.occurred_on >= m.month AND e.occurred_on < m.month + interval '1 month'
+              GROUP BY m.month ORDER BY m.month`,
+            [tenant.clinicId, first],
+          ),
+          connection.query(
+            `SELECT c.display_name AS client, sum(e.amount_cents) AS cents, count(*) AS visits
+               FROM luminix.finance_entries e
+               JOIN luminix.appointments a ON a.clinic_id = e.clinic_id AND a.id = e.appointment_id
+               JOIN luminix.clinic_clients c ON c.clinic_id = a.clinic_id AND c.id = a.clinic_client_id
+              WHERE e.clinic_id = $1 AND e.status = 'active' AND e.kind = 'income'
+                AND e.occurred_on >= $2::date AND e.occurred_on < ($2::date + interval '1 month')
+              GROUP BY c.id ORDER BY 2 DESC LIMIT 5`,
+            [tenant.clinicId, first],
+          ),
+          connection.query(
+            `SELECT count(*) AS total FROM luminix.appointments a
+               JOIN luminix.services s ON s.clinic_id = a.clinic_id AND s.id = a.service_id
+              WHERE a.clinic_id = $1 AND a.status = 'completed' AND coalesce(a.price_cents, 0) = 0
+                AND s.price_type <> 'quote'
+                AND (a.starts_at AT TIME ZONE 'America/Sao_Paulo') >= $2::date
+                AND (a.starts_at AT TIME ZONE 'America/Sao_Paulo') < ($2::date + interval '1 month')`,
+            [tenant.clinicId, first],
+          ),
+          // Stock crossed with money: what is on the shelf and what restocking would cost.
+          connection.query(
+            `SELECT coalesce(sum(quantity * cost_cents), 0) AS value,
+                    coalesce(sum(greatest(min_quantity - quantity, 0) * cost_cents), 0) AS restock,
+                    count(*) FILTER (WHERE min_quantity > 0 AND quantity <= min_quantity) AS low,
+                    count(*) FILTER (WHERE cost_cents IS NULL) AS without_cost,
+                    count(*) AS items
+               FROM luminix.inventory_items WHERE clinic_id = $1 AND status = 'active'`,
+            [tenant.clinicId],
+          ),
+          connection.query(
+            `SELECT coalesce(sum(m.quantity * i.cost_cents), 0) AS used
+               FROM luminix.inventory_movements m
+               JOIN luminix.inventory_items i ON i.clinic_id = m.clinic_id AND i.id = m.item_id
+              WHERE m.clinic_id = $1 AND m.kind = 'out'
+                AND (m.created_at AT TIME ZONE 'America/Sao_Paulo') >= $2::date
+                AND (m.created_at AT TIME ZONE 'America/Sao_Paulo') < ($2::date + interval '1 month')`,
+            [tenant.clinicId, first],
+          ),
         ])
         const income = toNumber(totals.rows[0]?.income)
         const expense = toNumber(totals.rows[0]?.expense)
         return {
           month,
           today,
-          totals: { incomeCents: income, expenseCents: expense, balanceCents: income - expense },
+          totals: {
+            incomeCents: income,
+            incomeAppointmentsCents: toNumber(totals.rows[0]?.income_appointments),
+            expenseCents: expense,
+            expenseFixedCents: toNumber(totals.rows[0]?.expense_fixed),
+            balanceCents: income - expense,
+          },
           forecast: {
             cents: toNumber(forecast.rows[0]?.cents),
             appointments: toNumber(forecast.rows[0]?.appointments),
@@ -103,14 +198,51 @@ export async function financeRoutes(
             category: row.category ? String(row.category) : '',
             method: row.method ?? null,
             appointmentId: row.appointment_id ? String(row.appointment_id) : null,
+            billId: row.bill_id ? String(row.bill_id) : null,
           })),
           pending: pending.rows.map((row) => ({
             appointmentId: String(row.id),
             startsAt: new Date(String(row.starts_at)).toISOString(),
             priceCents: toNumber(row.price_cents),
+            // "A combinar": there is no agreed price yet, the amount is typed when recording.
+            quote: row.price_type === 'quote' && toNumber(row.price_cents) === 0,
             client: String(row.client),
             service: String(row.service),
           })),
+          bills: bills.rows.map((row) => ({
+            id: String(row.id),
+            name: String(row.name),
+            category: String(row.category),
+            amountCents: toNumber(row.amount_cents),
+            dueDay: row.due_day == null ? null : Number(row.due_day),
+            entryId: row.entry_id ? String(row.entry_id) : null,
+            paidCents: row.entry_id ? toNumber(row.paid_cents) : null,
+            paidOn: row.entry_id ? isoDate(row.paid_on) : null,
+          })),
+          expenseCategories: categories.rows.map((row) => ({
+            category: String(row.category),
+            cents: toNumber(row.cents),
+            fixedCents: toNumber(row.fixed_cents),
+          })),
+          trend: trend.rows.map((row) => ({
+            month: String(row.month),
+            incomeCents: toNumber(row.income),
+            expenseCents: toNumber(row.expense),
+          })),
+          topClients: topClients.rows.map((row) => ({
+            client: String(row.client),
+            cents: toNumber(row.cents),
+            visits: toNumber(row.visits),
+          })),
+          courtesyAppointments: toNumber(courtesy.rows[0]?.total),
+          stock: {
+            items: toNumber(stock.rows[0]?.items),
+            valueCents: Math.round(toNumber(stock.rows[0]?.value)),
+            restockCents: Math.round(toNumber(stock.rows[0]?.restock)),
+            usedCents: Math.round(toNumber(stockUsed.rows[0]?.used)),
+            low: toNumber(stock.rows[0]?.low),
+            withoutCost: toNumber(stock.rows[0]?.without_cost),
+          },
         }
       }),
   )
@@ -135,6 +267,8 @@ export async function financeRoutes(
               enum: ['pix', 'cash', 'credit', 'debit', 'transfer', 'other'],
             },
             appointmentId: uuidSchema,
+            billId: uuidSchema,
+            billMonth: { type: 'string', pattern: monthPattern },
           },
         },
       },
@@ -148,6 +282,36 @@ export async function financeRoutes(
           ])
         ).rows[0]?.id
         return { id: String(id) }
+      }),
+  )
+
+  // Recurring bill (conta fixa): expected amount and due day. Archiving keeps past entries.
+  app.put<{ Params: { clinicId: string; billId: string }; Body: Record<string, unknown> }>(
+    '/clinics/:clinicId/finance/bills/:billId',
+    {
+      schema: {
+        params: clinicItemParams('billId'),
+        body: {
+          type: 'object',
+          additionalProperties: false,
+          required: ['name', 'category', 'amountCents', 'dueDay', 'status'],
+          properties: {
+            name: { type: 'string', minLength: 1, maxLength: 80 },
+            category: { type: 'string', minLength: 1, maxLength: 60 },
+            amountCents: { type: 'integer', minimum: 0, maximum: 100000000 },
+            dueDay: { anyOf: [{ type: 'integer', minimum: 1, maximum: 31 }, { type: 'null' }] },
+            status: { type: 'string', enum: ['active', 'archived'] },
+          },
+        },
+      },
+    },
+    async (request, reply) =>
+      authorized(request, reply, 'finance:manage', async (connection, tenant) => {
+        await connection.query('SELECT luminix.save_finance_bill($1::uuid, $2::jsonb)', [
+          tenant.clinicId,
+          JSON.stringify({ ...request.body, id: request.params.billId }),
+        ])
+        return { id: request.params.billId }
       }),
   )
 

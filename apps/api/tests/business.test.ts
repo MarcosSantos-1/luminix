@@ -326,7 +326,12 @@ describe('appointments, finance and reports', () => {
       ).statusCode,
     ).toBe(200)
     const after = (await call('owner-a', 'GET', `/clinics/${c('a').id}/finance`)).json()
-    expect(after.totals).toEqual({ incomeCents: 10000, expenseCents: 2500, balanceCents: 7500 })
+    expect(after.totals).toMatchObject({
+      incomeCents: 10000,
+      incomeAppointmentsCents: 10000,
+      expenseCents: 2500,
+      balanceCents: 7500,
+    })
     expect(after.pending.some((item: { appointmentId: string }) => item.appointmentId === id)).toBe(
       false,
     )
@@ -354,6 +359,53 @@ describe('appointments, finance and reports', () => {
 
 describe('inventory and marketing', () => {
   const item = '9d8c7b60-3333-4e5f-8a9b-000000000001'
+  it('keeps recurring bills, settles one per month and isolates them by clinic', async () => {
+    const bill = crypto.randomUUID()
+    const base = `/clinics/${c('a').id}/finance`
+    const body = {
+      name: 'Aluguel',
+      category: 'Aluguel',
+      amountCents: 150000,
+      dueDay: 10,
+      status: 'active',
+    }
+    expect((await call('reception-a', 'PUT', `${base}/bills/${bill}`, body)).statusCode).toBe(403)
+    expect((await call('owner-a', 'PUT', `${base}/bills/${bill}`, body)).statusCode).toBe(200)
+    // Another clinic can neither take over the id nor settle it.
+    expect(
+      (await call('owner-b', 'PUT', `/clinics/${c('b').id}/finance/bills/${bill}`, body))
+        .statusCode,
+    ).toBe(400)
+    const today = (await call('owner-a', 'GET', base)).json().today as string
+    const entry = {
+      kind: 'expense',
+      amountCents: 152000,
+      occurredOn: today,
+      description: 'Aluguel',
+      category: 'Aluguel',
+      billId: bill,
+      billMonth: today.slice(0, 7),
+    }
+    expect(
+      (await call('owner-b', 'POST', `/clinics/${c('b').id}/finance/entries`, entry)).statusCode,
+    ).toBe(400)
+    expect((await call('owner-a', 'POST', `${base}/entries`, entry)).statusCode).toBe(200)
+    // Paid once per month.
+    expect((await call('owner-a', 'POST', `${base}/entries`, entry)).statusCode).toBe(409)
+    const finance = (await call('owner-a', 'GET', base)).json()
+    expect(finance.bills).toEqual([
+      expect.objectContaining({ id: bill, amountCents: 150000, dueDay: 10, paidCents: 152000 }),
+    ])
+    expect(finance.totals.expenseFixedCents).toBe(152000)
+    expect(finance.expenseCategories).toContainEqual({
+      category: 'Aluguel',
+      cents: 152000,
+      fixedCents: 152000,
+    })
+    expect(finance.trend).toHaveLength(6)
+    expect((await call('owner-b', 'GET', `/clinics/${c('b').id}/finance`)).json().bills).toEqual([])
+  })
+
   it('tracks stock with movements and never goes below zero', async () => {
     const save = await call('reception-a', 'PUT', `/clinics/${c('a').id}/inventory/items/${item}`, {
       name: 'Shampoo 1L',

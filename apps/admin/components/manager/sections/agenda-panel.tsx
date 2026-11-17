@@ -47,6 +47,8 @@ type Row = {
   client_name: string
   client_phone: string | null
   client_notes: string | null
+  client_photo_url?: string | null
+  price_type?: string
   service_name: string
   professional_name: string | null
 }
@@ -104,7 +106,9 @@ function toView(row: Row): AppointmentView {
     service: row.service_name,
     professional: row.professional_name,
     priceCents: row.price_cents == null ? null : Number(row.price_cents),
+    priceType: row.price_type,
     paid: row.paid === true,
+    photoUrl: row.client_photo_url,
   }
 }
 

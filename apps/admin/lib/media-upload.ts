@@ -1,4 +1,5 @@
-type ImageKind = 'clinic_logo' | 'professional_photo' | 'public_photo' | 'library_photo'
+type ImageKind =
+  'clinic_logo' | 'professional_photo' | 'public_photo' | 'library_photo' | 'client_photo'
 
 // Must match the API (media-storage.ts): the library keeps larger copies for records.
 const sizes: Record<ImageKind, { small: number; large: number }> = {
@@ -6,6 +7,7 @@ const sizes: Record<ImageKind, { small: number; large: number }> = {
   professional_photo: { small: 128, large: 512 },
   public_photo: { small: 128, large: 512 },
   library_photo: { small: 480, large: 1600 },
+  client_photo: { small: 128, large: 512 },
 }
 
 const allowedTypes = new Set(['image/png', 'image/jpeg', 'image/webp'])
@@ -17,7 +19,7 @@ async function canvasBlob(bitmap: ImageBitmap, size: number, kind: ImageKind): P
   const context = canvas.getContext('2d')
   if (!context) throw new Error('Seu navegador não conseguiu preparar a imagem.')
   const scale =
-    kind !== 'professional_photo'
+    kind !== 'professional_photo' && kind !== 'client_photo'
       ? Math.min(size / bitmap.width, size / bitmap.height)
       : Math.max(size / bitmap.width, size / bitmap.height)
   const width = bitmap.width * scale

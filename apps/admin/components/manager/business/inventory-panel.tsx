@@ -13,7 +13,7 @@ import {
   SlidersHorizontal,
 } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
-import { SearchInput, SelectField } from '@/components/ui/fields'
+import { MoneyField, SearchInput, SelectField } from '@/components/ui/fields'
 import {
   useClinicApi,
   useClinicResource,
@@ -89,7 +89,8 @@ export function InventoryPanel({
   const [query, setQuery] = useState('')
   useSearchFocus(focus, setQuery)
   const [notice, setNotice] = useState<{ kind: 'ok' | 'error'; text: string } | null>(null)
-  const lastSignal = useRef(createSignal)
+  // Starts at 0: arriving here through a "+" elsewhere must open the form on mount.
+  const lastSignal = useRef(0)
   const blank = (): Item => ({
     id: crypto.randomUUID(),
     name: '',
@@ -412,11 +413,10 @@ function ItemEditor({
             onChange={setStart}
           />
         ) : null}
-        <TextInput
+        <MoneyField
           label="Custo por unidade (opcional)"
-          inputMode="numeric"
+          description="Usado no Financeiro para estimar o gasto com produtos."
           value={cost}
-          placeholder="0,00"
           onChange={setCost}
         />
       </div>

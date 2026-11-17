@@ -18,7 +18,7 @@ import {
   type LucideIcon,
 } from 'lucide-react'
 import { useEffect, useState, type ReactNode } from 'react'
-import { DateInputField, SelectField, TextInputField, TimeInputField } from '@/components/ui/fields'
+import { DateInputField, MoneyField, SelectField, TimeInputField } from '@/components/ui/fields'
 import { formatBrPhone } from '@/lib/phone'
 import {
   appointmentStatus,
@@ -35,7 +35,9 @@ import {
   clock,
   confirmationText,
   dayLabel,
+  isFree,
   isOpen,
+  isQuote,
   localDate,
   reminderText,
   warningCopy,
@@ -356,10 +358,20 @@ function SheetBody({
         <Fact label="Situação" tone={status.tone}>
           {status.label}
         </Fact>
-        {item.priceCents != null ? <Fact label="Valor">{money(item.priceCents)}</Fact> : null}
-        <Fact label="Pagamento" tone={item.paid ? 'on' : 'pending'}>
-          {item.paid ? 'Pago' : 'A receber'}
-        </Fact>
+        {item.priceCents != null ? (
+          <Fact label="Valor">
+            {isQuote(item) ? 'A combinar' : isFree(item) ? 'Gratuito' : money(item.priceCents)}
+          </Fact>
+        ) : null}
+        {isFree(item) && !item.paid ? (
+          <Fact label="Pagamento" tone="on">
+            Sem cobrança
+          </Fact>
+        ) : (
+          <Fact label="Pagamento" tone={item.paid ? 'on' : 'pending'}>
+            {item.paid ? 'Pago' : 'A receber'}
+          </Fact>
+        )}
       </div>
 
       {item.previousStartsAt ? (
@@ -436,7 +448,7 @@ function SheetBody({
               onPress={() => void setStatus('completed', `${item.client} · atendimento concluído.`)}
             />
           ) : null}
-          {!item.paid && access.charge && item.status !== 'canceled' ? (
+          {!item.paid && !isFree(item) && access.charge && item.status !== 'canceled' ? (
             <Action
               icon={CircleDollarSign}
               title="Registrar pagamento"
@@ -586,10 +598,12 @@ function SheetBody({
           {back}
           <h3>Registrar pagamento</h3>
           <div className="apt-step-fields">
-            <TextInputField
+            <MoneyField
               label="Valor recebido"
-              prefix="R$"
-              inputMode="decimal"
+              autoFocus={isQuote(item)}
+              description={
+                isQuote(item) ? 'Serviço a combinar: digite o valor que foi acertado.' : undefined
+              }
               value={pay.amount}
               onChange={(amount) => setPay({ ...pay, amount })}
             />

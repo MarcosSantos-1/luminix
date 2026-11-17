@@ -31,6 +31,7 @@ import {
   CheckboxField,
   ComboField,
   DateInputField,
+  MoneyField,
   SearchInput,
   SelectField,
   TextAreaField,
@@ -232,7 +233,8 @@ export function ServicesPanel({
   const [sort, setSort] = useState('category')
   const [notice, setNotice] = useState('')
   const [busy, setBusy] = useState('')
-  const lastSignal = useRef(createSignal)
+  // Starts at 0: arriving here through a "+" elsewhere must open the form on mount.
+  const lastSignal = useRef(0)
   const data = catalog.data
 
   const blank = (): Service => ({
@@ -937,11 +939,9 @@ function ServiceEditor({
         </div>
         <div className="settings-grid">
           {service.priceType !== 'quote' ? (
-            <TextInput
-              label={service.priceType === 'from' ? 'Valor inicial (R$)' : 'Valor (R$)'}
-              inputMode="numeric"
+            <MoneyField
+              label={service.priceType === 'from' ? 'Valor inicial' : 'Valor'}
               value={price}
-              placeholder="0,00"
               error={showErrors ? errors.price : undefined}
               onChange={setPrice}
             />
@@ -1300,12 +1300,9 @@ function PromotionEditor({
                   {custom ? (
                     <span className="biz-price biz-promo-custom">
                       <s>{money(service.priceCents)}</s>
-                      <TextInputField
+                      <MoneyField
                         className="biz-promo-input"
                         ariaLabel={`Valor promocional de ${service.name}`}
-                        inputMode="numeric"
-                        placeholder="0,00"
-                        prefix="R$"
                         value={priceText[service.id] ?? ''}
                         error={invalid ? 'Menor que o normal' : undefined}
                         onChange={(text) => {

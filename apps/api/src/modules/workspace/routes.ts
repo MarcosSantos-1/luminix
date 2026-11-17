@@ -198,7 +198,9 @@ export async function workspaceRoutes(
             (
               await connection.query(
                 `SELECT count(*) AS total FROM luminix.appointments a
+                   JOIN luminix.services s ON s.clinic_id = a.clinic_id AND s.id = a.service_id
                   WHERE a.clinic_id = $1 AND a.status = 'completed' AND a.starts_at > now() - interval '60 days'
+                    AND (coalesce(a.price_cents, 0) > 0 OR s.price_type = 'quote')
                     AND NOT EXISTS (SELECT 1 FROM luminix.finance_entries e WHERE e.clinic_id = a.clinic_id
                       AND e.appointment_id = a.id AND e.status = 'active')`,
                 [tenant.clinicId],
@@ -213,6 +215,32 @@ export async function workspaceRoutes(
               text: 'Um clique registra o valor recebido.',
               action: { label: 'Abrir Financeiro', target: 'financeiro' },
             })
+          // Bills of this month still open: overdue, or due within three days.
+          const due = (
+            await connection.query(
+              `SELECT b.name, b.due_day FROM luminix.finance_bills b
+                WHERE b.clinic_id = $1 AND b.status = 'active' AND b.due_day IS NOT NULL
+                  AND b.due_day <= extract(day FROM $2::date)::integer + 3
+                  AND NOT EXISTS (SELECT 1 FROM luminix.finance_entries e WHERE e.clinic_id = b.clinic_id
+                    AND e.bill_id = b.id AND e.status = 'active'
+                    AND e.bill_month = date_trunc('month', $2::date)::date)
+                ORDER BY b.due_day LIMIT 6`,
+              [tenant.clinicId, today],
+            )
+          ).rows
+          if (due.length) {
+            const day = Number(today.slice(8, 10))
+            const late = due.filter((row) => Number(row.due_day) < day).length
+            notices.push({
+              id: `finance-bills-${today}`,
+              tone: late ? 'warning' : 'info',
+              title: late
+                ? `${late} ${late === 1 ? 'conta atrasada' : 'contas atrasadas'} neste mês`
+                : `${due.length} ${due.length === 1 ? 'conta vence' : 'contas vencem'} nos próximos dias`,
+              text: due.map((row) => `${String(row.name)} (dia ${Number(row.due_day)})`).join(', '),
+              action: { label: 'Abrir Financeiro', target: 'financeiro' },
+            })
+          }
         }
         if (can.has('inventory:manage')) {
           const low = (

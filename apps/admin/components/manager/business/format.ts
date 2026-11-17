@@ -17,9 +17,11 @@ export function parseMoney(value: string): number | null {
   return Number.isFinite(number) && number >= 0 ? Math.round(number * 100) : null
 }
 
-/** Cents → editable text ("120,00"). */
+const plain = new Intl.NumberFormat('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+
+/** Cents → editable text with thousands ("5.450,00"). */
 export function moneyInput(cents: number) {
-  return (cents / 100).toFixed(2).replace('.', ',')
+  return plain.format(cents / 100)
 }
 
 export function dateBr(iso: string | null | undefined) {
