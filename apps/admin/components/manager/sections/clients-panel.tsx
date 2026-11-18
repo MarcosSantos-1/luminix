@@ -3,10 +3,12 @@
 import { Button, Chip, Modal } from '@heroui/react'
 import {
   Cake,
-  Camera,
   CalendarClock,
   CalendarPlus,
+  Camera,
+  ChevronDown,
   Gift,
+  History,
   IdCard,
   MessageCircle,
   NotebookPen,
@@ -30,7 +32,7 @@ import {
   TextAreaField,
   TextInputField,
 } from '@/components/ui/fields'
-import { Action, ClientAvatar, Fact } from '../appointments/appointment-sheet'
+import { ClientAvatar } from '../appointments/appointment-sheet'
 import { BookingModal } from '../appointments/booking-modal'
 import { money, whatsapp } from '../business/format'
 import { FilterMenu, KpiCards, type FilterValue } from '../data-kit'
@@ -76,6 +78,13 @@ type HistoryItem = {
   service_name: string
   professional_name: string | null
   price_cents: number | null
+  price_type?: string
+  paid?: boolean
+  paid_cents?: number | null
+  paid_method?: string | null
+  status_note?: string | null
+  /** Receipt of an in-app (Stripe) payment, when there is one. */
+  receipt_url?: string | null
 }
 
 type Duplicate = { id: string; display_name: string; status: string }
@@ -607,9 +616,10 @@ export function ClientsPanel({
         onOpenChange={(next) => !next && setSheet(null)}
         size="lg"
         morph={sheet?.from}
+        className="sh cli-sheet"
         title={
           selected ? (
-            <span className="cli-sheet-head">
+            <span className="sh-head">
               <ClientAvatar
                 name={selected.display_name}
                 photoUrl={selected.photo_url}
@@ -618,7 +628,7 @@ export function ClientsPanel({
                 size="lg"
                 viewable
               />
-              <span>
+              <span className="sh-who">
                 {selected.display_name}
                 <small>
                   {[
@@ -629,6 +639,22 @@ export function ClientsPanel({
                     .join(' · ') || 'Sem contato informado'}
                 </small>
               </span>
+              {selected.contact_phone ? (
+                <a
+                  className="button button--ghost button--icon-only sh-whats cli-whats"
+                  aria-label={`Conversar com ${selected.display_name} no WhatsApp`}
+                  href={
+                    whatsapp(
+                      selected.contact_phone,
+                      `Oi, ${selected.display_name.split(' ')[0]}! `,
+                    ) ?? undefined
+                  }
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  <MessageCircle size={21} aria-hidden />
+                </a>
+              ) : null}
             </span>
           ) : (
             ''
@@ -636,174 +662,37 @@ export function ClientsPanel({
         }
       >
         {selected ? (
-          <div className="apt-sheet-body">
-            <ClientTags client={selected} checks={checks} />
-            <div className="apt-facts">
-              <Fact label="Atendimentos">{selected.completed_count}</Fact>
-              {selected.spent_cents != null ? (
-                <Fact label="Total gasto">{money(selected.spent_cents)}</Fact>
-              ) : null}
-              <Fact label="Última visita">
-                {selected.last_visit_at ? shortDate(selected.last_visit_at) : 'Ainda não veio'}
-              </Fact>
-              <Fact label="Próximo horário" tone={selected.next_visit_at ? 'on' : undefined}>
-                {selected.next_visit_at
-                  ? new Intl.DateTimeFormat('pt-BR', {
-                      day: '2-digit',
-                      month: '2-digit',
-                      hour: '2-digit',
-                      minute: '2-digit',
-                    }).format(new Date(selected.next_visit_at))
-                  : 'Nenhum marcado'}
-              </Fact>
-              <Fact label="Cliente desde">{shortDate(selected.created_at)}</Fact>
-              {selected.birth_date ? (
-                <Fact label="Nascimento">
-                  {selected.birth_date.slice(0, 10).split('-').reverse().join('/')}
-                </Fact>
-              ) : null}
-            </div>
-
-            <section className="apt-attention" aria-label="Cuidados e observações">
-              <h3>
-                <NotebookPen size={17} aria-hidden /> Cuidados e observações
-              </h3>
-              {selected.notes ? (
-                <p className="cli-notes">{selected.notes}</p>
-              ) : (
-                <p>
-                  Nada anotado. Use “Editar cadastro” para registrar alergias, gestação,
-                  medicamentos e outros cuidados.
-                </p>
-              )}
-            </section>
-
-            <input
-              ref={photoInput}
-              type="file"
-              accept="image/png,image/jpeg,image/webp"
-              hidden
-              onChange={(event) => {
-                const file = event.target.files?.[0]
-                event.target.value = ''
-                if (file) void changePhoto(selected.id, file)
-              }}
-            />
-            {photoError ? (
-              <p className="apt-error" role="alert">
-                {photoError}
-              </p>
-            ) : null}
-            {selected.photo_url ? (
-              <button
-                type="button"
-                className="team-link"
-                disabled={photoBusy}
-                onClick={() => void changePhoto(selected.id, null)}
-              >
-                Remover foto
-              </button>
-            ) : null}
-            <div className="apt-actions">
-              {selected.status === 'active' ? (
-                <Action
-                  icon={CalendarPlus}
-                  title="Agendar"
-                  hint="Marcar um horário para ela"
-                  tone="good"
-                  onPress={() => {
-                    setSheet(null)
-                    setBooking(selected.id)
-                  }}
-                />
-              ) : null}
-              {selected.contact_phone ? (
-                <Action
-                  icon={MessageCircle}
-                  title="Mandar mensagem"
-                  hint="Abre a conversa no WhatsApp"
-                  tone="whats"
-                  href={
-                    whatsapp(
-                      selected.contact_phone,
-                      `Oi, ${selected.display_name.split(' ')[0]}! `,
-                    ) ?? undefined
-                  }
-                />
-              ) : null}
-              <Action
-                icon={Camera}
-                title={
-                  selected.photo_url || selected.account_photo ? 'Trocar foto' : 'Adicionar foto'
-                }
-                hint={photoBusy ? 'Enviando…' : 'Só a sua equipe vê'}
-                disabled={photoBusy}
-                onPress={() => photoInput.current?.click()}
-              />
-              <Action
-                icon={Gift}
-                title="Voucher ou presente"
-                hint="Dar um mimo ou vale"
-                onPress={() => setVoucherOpen(true)}
-              />
-              <Action
-                icon={Pencil}
-                title="Editar cadastro"
-                hint="Dados, contato e observações"
-                onPress={() => void openEdit(selected)}
-              />
-              <Action
-                icon={selected.status === 'active' ? UserRoundX : UserRound}
-                title={selected.status === 'active' ? 'Arquivar' : 'Reativar'}
-                hint={
-                  selected.status === 'active'
-                    ? 'Sai da lista, o histórico fica'
-                    : 'Volta para a lista de ativas'
-                }
-                tone={selected.status === 'active' ? 'danger' : undefined}
-                disabled={saving}
-                onPress={() =>
-                  void changeStatus(
-                    selected.id,
-                    selected.status === 'active' ? 'archived' : 'active',
-                  )
-                }
-              />
-            </div>
-
-            <section aria-labelledby="cli-history-title" className="biz-stack">
-              <h3 id="cli-history-title" className="cli-section-title">
-                <CalendarClock size={17} aria-hidden /> Histórico
-              </h3>
-              {history === null ? (
-                <p className="apt-hint">Carregando histórico…</p>
-              ) : history.length ? (
-                <ul className="cli-history">
-                  {history.slice(0, 12).map((item) => (
-                    <li key={item.id}>
-                      <div>
-                        <span>{item.service_name}</span>
-                        <small>
-                          {new Intl.DateTimeFormat('pt-BR', {
-                            dateStyle: 'short',
-                            timeStyle: 'short',
-                          }).format(new Date(item.starts_at))}
-                          {item.professional_name ? ` · ${item.professional_name}` : ''}
-                        </small>
-                      </div>
-                      {item.price_cents != null ? <b>{money(item.price_cents)}</b> : null}
-                      <Chip size="sm" variant="soft">
-                        {statusLabels[item.status] ?? item.status}
-                      </Chip>
-                    </li>
-                  ))}
-                </ul>
-              ) : (
-                <p className="apt-hint">Nenhum atendimento registrado ainda.</p>
-              )}
-            </section>
-          </div>
+          <ClientProfile
+            client={selected}
+            checks={checks}
+            history={history}
+            photoBusy={photoBusy}
+            photoError={photoError}
+            saving={saving}
+            onBook={() => {
+              setSheet(null)
+              setBooking(selected.id)
+            }}
+            onEdit={() => void openEdit(selected)}
+            onVoucher={() => setVoucherOpen(true)}
+            onPhoto={() => photoInput.current?.click()}
+            onRemovePhoto={() => void changePhoto(selected.id, null)}
+            onStatus={() =>
+              void changeStatus(selected.id, selected.status === 'active' ? 'archived' : 'active')
+            }
+          />
         ) : null}
+        <input
+          ref={photoInput}
+          type="file"
+          accept="image/png,image/jpeg,image/webp"
+          hidden
+          onChange={(event) => {
+            const file = event.target.files?.[0]
+            event.target.value = ''
+            if (file && selected) void changePhoto(selected.id, file)
+          }}
+        />
       </QuickModal>
 
       <BookingModal
@@ -1056,5 +945,297 @@ function ClientTags({
         </span>
       ))}
     </span>
+  )
+}
+
+const methodLabels: Record<string, string> = {
+  pix: 'Pix',
+  cash: 'Dinheiro',
+  credit: 'Crédito',
+  debit: 'Débito',
+  transfer: 'Transferência',
+  other: 'Outro',
+}
+
+function ageOf(birth: string) {
+  const [year, month, day] = birth.slice(0, 10).split('-').map(Number)
+  const now = new Date()
+  const had = now.getMonth() + 1 > month || (now.getMonth() + 1 === month && now.getDate() >= day)
+  return now.getFullYear() - year - (had ? 0 : 1)
+}
+
+/** One visit of the timeline: date badge, service, status and how it was paid. */
+function Visit({ item }: { item: HistoryItem }) {
+  const date = new Date(item.starts_at)
+  const price = item.price_cents
+  const paid = item.paid_cents ?? 0
+  const pay =
+    item.status === 'canceled' || item.status === 'no_show'
+      ? null
+      : item.paid
+        ? {
+            tone: 'on',
+            text: `Pago${item.paid_method ? ` · ${methodLabels[item.paid_method] ?? ''}` : ''}`,
+          }
+        : price === 0 && item.price_type !== 'quote'
+          ? { tone: 'off', text: 'Sem cobrança' }
+          : paid > 0 && price != null
+            ? { tone: 'part', text: `Parcial · faltam ${money(price - paid)}` }
+            : item.status === 'completed'
+              ? { tone: 'pending', text: 'A receber' }
+              : null
+  return (
+    <li className="cli-visit">
+      <span className="cli-date" aria-hidden>
+        <strong>{date.toLocaleDateString('pt-BR', { day: '2-digit' })}</strong>
+        <small>{date.toLocaleDateString('pt-BR', { month: 'short' }).replace('.', '')}</small>
+      </span>
+      <div className="cli-visit-copy">
+        <span>{item.service_name}</span>
+        <small>
+          {date.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+          {item.professional_name ? ` · ${item.professional_name}` : ''}
+          {item.status === 'canceled' && item.status_note ? ` · ${item.status_note}` : ''}
+        </small>
+        <span className="cli-visit-tags">
+          <span className={`sh-mini is-${item.status}`}>
+            {statusLabels[item.status] ?? item.status}
+          </span>
+          {pay ? <span className={`sh-mini is-pay-${pay.tone}`}>{pay.text}</span> : null}
+          {item.receipt_url ? (
+            <a
+              className="sh-mini is-receipt"
+              href={item.receipt_url}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              Comprovante
+            </a>
+          ) : null}
+        </span>
+      </div>
+      {price != null ? <b>{money(price)}</b> : null}
+    </li>
+  )
+}
+
+/** The client as a profile: numbers, next visit, care notes, actions, data and visits. */
+function ClientProfile({
+  client,
+  checks,
+  history,
+  photoBusy,
+  photoError,
+  saving,
+  onBook,
+  onEdit,
+  onVoucher,
+  onPhoto,
+  onRemovePhoto,
+  onStatus,
+}: {
+  client: Client
+  checks: ReturnType<typeof clientChecks>
+  history: HistoryItem[] | null
+  photoBusy: boolean
+  photoError: string
+  saving: boolean
+  onBook: () => void
+  onEdit: () => void
+  onVoucher: () => void
+  onPhoto: () => void
+  onRemovePhoto: () => void
+  onStatus: () => void
+}) {
+  const [tab, setTab] = useState<'next' | 'past'>('past')
+  // Opening time of the sheet: what is still ahead and what already happened.
+  const [now] = useState(() => Date.now())
+  const upcoming = (history ?? [])
+    .filter(
+      (item) =>
+        new Date(item.starts_at).getTime() >= now &&
+        ['scheduled', 'confirmed'].includes(item.status),
+    )
+    .reverse()
+  const past = (history ?? []).filter((item) => !upcoming.includes(item))
+  const shown = tab === 'next' ? upcoming : past
+  const hasPhoto = Boolean(client.photo_url || client.account_photo)
+  const birth = client.birth_date?.slice(0, 10)
+
+  return (
+    <div className="apt-sheet-body sh-body">
+      <ClientTags client={client} checks={checks} />
+
+      <dl className="cli-strip">
+        <div>
+          <dt>Atendimentos</dt>
+          <dd>{client.completed_count}</dd>
+        </div>
+        {client.spent_cents != null ? (
+          <div>
+            <dt>Total gasto</dt>
+            <dd>{money(client.spent_cents)}</dd>
+          </div>
+        ) : null}
+        <div>
+          <dt>Última visita</dt>
+          <dd>{client.last_visit_at ? shortDate(client.last_visit_at) : '—'}</dd>
+        </div>
+        <div>
+          <dt>Cliente desde</dt>
+          <dd>{shortDate(client.created_at)}</dd>
+        </div>
+      </dl>
+
+      <div className={`sh-summary cli-next${client.next_visit_at ? '' : ' is-empty'}`}>
+        <span className="sh-summary-icon" aria-hidden>
+          <CalendarClock size={22} />
+        </span>
+        <span className="cli-next-copy">
+          <small>Próximo horário</small>
+          <strong>
+            {client.next_visit_at
+              ? new Intl.DateTimeFormat('pt-BR', {
+                  weekday: 'short',
+                  day: '2-digit',
+                  month: '2-digit',
+                  hour: '2-digit',
+                  minute: '2-digit',
+                }).format(new Date(client.next_visit_at))
+              : 'Nenhum marcado'}
+          </strong>
+        </span>
+        {client.status === 'active' ? (
+          <Button
+            size="sm"
+            variant={client.next_visit_at ? 'secondary' : 'primary'}
+            onPress={onBook}
+          >
+            <CalendarPlus size={16} aria-hidden /> Agendar
+          </Button>
+        ) : null}
+      </div>
+
+      {client.notes ? (
+        <p className="sh-attention">
+          <NotebookPen size={16} aria-hidden />
+          <span className="cli-notes">{client.notes}</span>
+        </p>
+      ) : (
+        <button type="button" className="cli-add-note" onClick={onEdit}>
+          <NotebookPen size={16} aria-hidden /> Sem cuidados anotados. Registrar alergias, gestação
+          ou medicamentos
+        </button>
+      )}
+
+      <div className="sh-folds">
+        <details className="sh-fold">
+          <summary>
+            <IdCard size={19} aria-hidden />
+            <span>Dados pessoais</span>
+            <ChevronDown className="sh-chevron" size={18} aria-hidden />
+          </summary>
+          <div className="sh-fold-body">
+            <dl className="apt-client">
+              <div>
+                <dt>WhatsApp</dt>
+                <dd>
+                  {client.contact_phone ? formatBrPhone(client.contact_phone) : 'Não informado'}
+                </dd>
+              </div>
+              <div>
+                <dt>E-mail</dt>
+                <dd>{client.contact_email ?? 'Não informado'}</dd>
+              </div>
+              {birth ? (
+                <div>
+                  <dt>Nascimento</dt>
+                  <dd>
+                    {birth.split('-').reverse().join('/')} · {ageOf(birth)} anos
+                  </dd>
+                </div>
+              ) : null}
+              {client.tax_id_masked ? (
+                <div>
+                  <dt>CPF</dt>
+                  <dd>{client.tax_id_masked}</dd>
+                </div>
+              ) : null}
+              <div>
+                <dt>Mensagens</dt>
+                <dd>{client.marketing_opt_in ? 'Aceita receber' : 'Não autorizou'}</dd>
+              </div>
+              <div>
+                <dt>Conta Luminix</dt>
+                <dd>{client.linked ? 'Conectada' : 'Não tem'}</dd>
+              </div>
+            </dl>
+          </div>
+        </details>
+      </div>
+
+      <section className="sh-actions" aria-labelledby="cli-actions-title">
+        <h3 id="cli-actions-title">Ações</h3>
+        <div className="sh-row">
+          <Button variant="secondary" onPress={onEdit}>
+            <Pencil size={17} aria-hidden /> Editar cadastro
+          </Button>
+          <Button variant="secondary" onPress={onVoucher}>
+            <Gift size={17} aria-hidden /> Voucher
+          </Button>
+          <Button variant="secondary" isDisabled={photoBusy} onPress={onPhoto}>
+            <Camera size={17} aria-hidden />{' '}
+            {photoBusy ? 'Enviando…' : hasPhoto ? 'Trocar foto' : 'Foto'}
+          </Button>
+        </div>
+        {photoError ? (
+          <p className="apt-error" role="alert">
+            {photoError}
+          </p>
+        ) : null}
+        <div className="cli-quiet-actions">
+          {client.photo_url ? (
+            <button
+              type="button"
+              className="team-link"
+              disabled={photoBusy}
+              onClick={onRemovePhoto}
+            >
+              Remover foto
+            </button>
+          ) : null}
+          <button type="button" className="team-link" disabled={saving} onClick={onStatus}>
+            {client.status === 'active' ? 'Arquivar cliente' : 'Reativar cliente'}
+          </button>
+        </div>
+      </section>
+
+      <section className="sh-actions" aria-labelledby="cli-history-title">
+        <div className="cli-history-head">
+          <h3 id="cli-history-title">Atendimentos</h3>
+          <div className="biz-chips" role="group" aria-label="Quais atendimentos">
+            <button type="button" aria-pressed={tab === 'past'} onClick={() => setTab('past')}>
+              <History size={14} aria-hidden /> Anteriores ({past.length})
+            </button>
+            <button type="button" aria-pressed={tab === 'next'} onClick={() => setTab('next')}>
+              <CalendarClock size={14} aria-hidden /> Próximos ({upcoming.length})
+            </button>
+          </div>
+        </div>
+        {history === null ? (
+          <p className="apt-hint">Carregando…</p>
+        ) : shown.length ? (
+          <ul className="cli-timeline">
+            {shown.slice(0, 20).map((item) => (
+              <Visit key={item.id} item={item} />
+            ))}
+          </ul>
+        ) : (
+          <p className="apt-hint">
+            {tab === 'next' ? 'Nenhum horário marcado.' : 'Nenhum atendimento ainda.'}
+          </p>
+        )}
+      </section>
+    </div>
   )
 }

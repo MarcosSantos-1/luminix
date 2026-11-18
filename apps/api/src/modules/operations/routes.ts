@@ -448,8 +448,14 @@ export async function operationRoutes(
         ).rows[0]
         if (!client) return reply.code(404).send({ error: 'Client not found' })
         const history = await connection.query(
-          `SELECT a.id, a.starts_at, a.status, s.name AS service_name,
-                  a.price_cents, p.display_name AS professional_name
+          `SELECT a.id, a.starts_at, a.status, s.name AS service_name, s.price_type,
+                  a.price_cents, p.display_name AS professional_name, a.booking_source,
+                  a.status_note, a.client_payment_method,
+                  luminix.appointment_paid_cents(a.clinic_id, a.id) AS paid_cents,
+                  (SELECT e.method FROM luminix.finance_entries e
+                    WHERE e.clinic_id = a.clinic_id AND e.appointment_id = a.id
+                      AND e.status = 'active' AND e.kind = 'income'
+                    ORDER BY e.created_at DESC LIMIT 1) AS paid_method
              FROM luminix.appointments a
              JOIN luminix.services s ON s.clinic_id = a.clinic_id AND s.id = a.service_id
              LEFT JOIN luminix.professionals p
@@ -462,9 +468,16 @@ export async function operationRoutes(
         return {
           client,
           canSeeMoney,
-          history: canSeeMoney
-            ? history.rows
-            : history.rows.map((row) => ({ ...row, price_cents: null })),
+          // Payment state per appointment; amounts only for who sees money. A receipt link
+          // (in-app payments) joins here once Stripe charges are reconciled (TD-008).
+          history: history.rows.map(({ paid_cents, ...row }) => ({
+            ...row,
+            paid: isPaid({ paid_cents, price_cents: row.price_cents }),
+            paid_cents: canSeeMoney ? toNumber(paid_cents) : null,
+            price_cents: canSeeMoney ? row.price_cents : null,
+            paid_method: canSeeMoney ? row.paid_method : null,
+            receipt_url: null,
+          })),
         }
       }),
   )

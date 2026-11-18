@@ -149,6 +149,7 @@ describe('versioned core migration', () => {
       { name: '0037_account_and_client_account_photo.sql' },
       { name: '0038_inventory_photo_and_package.sql' },
       { name: '0039_smart_stock_and_checkin.sql' },
+      { name: '0040_inventory_categories.sql' },
     ])
   })
 

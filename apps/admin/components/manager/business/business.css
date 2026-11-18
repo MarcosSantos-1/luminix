@@ -63,7 +63,8 @@
   font-weight: 700;
   cursor: pointer;
 }
-.biz-chips button[aria-pressed='true'] {
+.biz-chips button[aria-pressed='true'],
+.biz-chips button[aria-checked='true'] {
   border-color: var(--space-highlight, #ffb5d3);
   background: color-mix(in srgb, var(--space-accent, #ec287a) 55%, transparent);
 }
@@ -1117,9 +1118,14 @@
   font-size: 14px;
 }
 .inv-setup-group {
+  /* No overflow here: in the modal's scrolling grid it would let the group be squeezed. */
+  flex: none;
+  min-height: min-content;
   border: 1px solid #ffffff1f;
   border-radius: 16px;
-  overflow: hidden;
+}
+.inv-setup-head {
+  border-radius: 16px;
 }
 .inv-setup-head {
   display: flex;
@@ -1164,9 +1170,9 @@
 }
 .inv-setup-fields {
   display: grid;
-  grid-template-columns: minmax(0, 0.9fr) minmax(0, 1fr) minmax(0, 1fr);
-  gap: 8px;
-  padding: 0 8px 0 38px;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 12px;
+  padding: 2px 8px 0 38px;
 }
 .inv-setup-fields > * {
   min-width: 0;
@@ -1191,4 +1197,76 @@
   grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr) auto;
   gap: 8px;
   align-items: center;
+}
+
+/* Quantity in plain words: "Vem em [caixa] com [100] un", "[5] caixas fechadas + [10] un soltos". */
+.inv-count,
+.inv-sentence,
+.inv-categories {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+.inv-count-label {
+  font-size: 14px;
+  font-weight: 600;
+}
+.inv-count small,
+.inv-sentence small {
+  color: var(--manager-muted);
+  font-size: 13px;
+}
+.inv-count-fields {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 8px;
+}
+.inv-count-fields.is-single {
+  grid-template-columns: minmax(0, 1fr);
+}
+.inv-sentence-row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto minmax(0, 1fr);
+  gap: 8px;
+  align-items: center;
+}
+.inv-sentence-row > span {
+  color: var(--manager-muted);
+  font-size: 14px;
+}
+.inv-categories .inv-sentence-row {
+  grid-template-columns: minmax(0, 1fr) auto auto;
+}
+.inv-chip-add {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  border-style: dashed !important;
+}
+.inv-cat-list {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.inv-cat-list li {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  gap: 8px;
+  align-items: center;
+}
+.qm .qm-body {
+  overflow-x: hidden;
+}
+@media (max-width: 760px) {
+  .inv-setup-fields {
+    grid-template-columns: minmax(0, 1fr);
+    padding-left: 8px;
+  }
+}
+@media (max-width: 480px) {
+  .inv-sentence-row {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
 }

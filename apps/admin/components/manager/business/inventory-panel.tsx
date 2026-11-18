@@ -22,13 +22,7 @@ import {
   Wallet,
 } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
-import {
-  ComboField,
-  MoneyField,
-  SearchInput,
-  SelectField,
-  TextInputField,
-} from '@/components/ui/fields'
+import { MoneyField, SearchInput, SelectField, TextInputField } from '@/components/ui/fields'
 import {
   amount,
   daysLeft,
@@ -137,6 +131,7 @@ export function InventoryPanel({
   const [editing, setEditing] = useState<Item | null>(null)
   const [moving, setMoving] = useState<{ item: Item; kind: 'in' | 'out' | 'adjust' } | null>(null)
   const [setup, setSetup] = useState(false)
+  const [managing, setManaging] = useState(false)
   const [query, setQuery] = useState('')
   useSearchFocus(focus, setQuery)
   const [view, setView] = useState('all')
@@ -353,6 +348,11 @@ export function InventoryPanel({
                 ))}
               </div>
             ) : null}
+            {categories.length ? (
+              <Button size="sm" variant="ghost" onPress={() => setManaging(true)}>
+                <Pencil size={14} aria-hidden /> Categorias
+              </Button>
+            ) : null}
           </div>
         ) : null}
         {items.length ? (
@@ -544,7 +544,14 @@ export function InventoryPanel({
           api={api}
           initial={editing}
           isNew={!data.items.some((item) => item.id === editing.id)}
-          categories={categories}
+          categories={[
+            ...new Set([
+              ...categories,
+              ...services.map((service) => service.category),
+              'Descartáveis',
+              'Limpeza',
+            ]),
+          ]}
           services={services}
           onClose={done}
         />
@@ -558,9 +565,88 @@ export function InventoryPanel({
           onClose={done}
         />
       ) : null}
+      {managing ? (
+        <CategoryManager
+          api={api}
+          items={data.items}
+          onClose={(message) => {
+            setManaging(false)
+            setCategory('')
+            if (message) done(message)
+          }}
+        />
+      ) : null}
       {setup ? (
         <StockSetup api={api} groups={suggestions} services={services} onClose={done} />
       ) : null}
+    </div>
+  )
+}
+
+/** "Tenho 5 caixas fechadas + 10 un soltas": what someone counts on the shelf, as base units. */
+function countTotal(packs: string, loose: string, size: number | null) {
+  const closed = packs.trim() ? parseQty(packs) : 0
+  const open = loose.trim() ? parseQty(loose) : 0
+  if (closed == null || open == null) return null
+  return Math.round(((size ? closed * size : 0) + open) * 100) / 100
+}
+
+/**
+ * The count of a product in plain words. With a package: closed packages plus what is loose or
+ * open, and the total; without one, just the amount.
+ */
+function StockCount({
+  name,
+  unit,
+  size,
+  label,
+  packs,
+  loose,
+  onPacks,
+  onLoose,
+}: {
+  name: string
+  unit: string
+  size: number | null
+  label: string
+  packs: string
+  loose: string
+  onPacks: (value: string) => void
+  onLoose: (value: string) => void
+}) {
+  const total = countTotal(packs, loose, size)
+  return (
+    <div className="inv-count">
+      <span className="inv-count-label">Quanto tem agora</span>
+      <div className={`inv-count-fields${size ? '' : ' is-single'}`}>
+        {size ? (
+          <TextInputField
+            ariaLabel={`${pluralize(label, 2)} fechados de ${name}`}
+            inputMode="numeric"
+            placeholder="0"
+            value={packs}
+            suffix={`${pluralize(label, 2)} fechad${label === 'caixa' || label === 'bisnaga' ? 'as' : 'os'}`}
+            onChange={onPacks}
+          />
+        ) : null}
+        <TextInputField
+          ariaLabel={size ? `${unitShort(unit)} soltos de ${name}` : `Quanto tem de ${name}`}
+          inputMode="decimal"
+          placeholder="0"
+          value={loose}
+          suffix={size ? `${unitShort(unit)} soltos` : unitShort(unit)}
+          onChange={onLoose}
+        />
+      </div>
+      <small>
+        {total == null
+          ? 'Confira os números.'
+          : size
+            ? total
+              ? `Total: ${amount(total)} ${unitShort(unit)}. Abertos ou avulsos entram em “soltos”.`
+              : `Ex.: 5 ${pluralize(label, 2)} + 10 ${unitShort(unit)} soltos. Pode deixar em branco.`
+            : 'Pode deixar em branco e contar depois.'}
+      </small>
     </div>
   )
 }
@@ -591,8 +677,9 @@ function ItemEditor({
   const [item, setItem] = useState(initial)
   const [size, setSize] = useState(initial.packageSize ? plain(initial.packageSize) : '')
   const packageSize = size.trim() ? parseQty(size) : null
-  const shape = { unit: item.unit, packageSize: packageSize || null }
-  const start = useAmountInput(shape, '')
+  const [packs, setPacks] = useState('')
+  const [loose, setLoose] = useState('')
+  const startTotal = countTotal(packs, loose, packageSize || null)
   const [alert, setAlert] = useState<string>(
     initial.alertPercent ? String(initial.alertPercent) : isNew ? '25' : 'qty',
   )
@@ -633,7 +720,7 @@ function ItemEditor({
     const costCents = cost.trim() ? parseMoney(cost) : null
     if (
       !item.name.trim() ||
-      start.base == null ||
+      startTotal == null ||
       (size.trim() && !packageSize) ||
       (alert === 'qty' && minText == null) ||
       (cost.trim() && costCents == null)
@@ -650,7 +737,7 @@ function ItemEditor({
         unit: item.unit,
         minQuantity: Math.round((minText ?? 0) * (packageSize ?? 1) * 100) / 100,
         alertPercent: alert === 'qty' ? null : Number(alert),
-        ...(isNew ? { initialQuantity: Math.round(start.base * 100) / 100 } : {}),
+        ...(isNew ? { initialQuantity: startTotal ?? 0 } : {}),
         costCents,
         packageSize: packageSize || null,
         packageLabel: packageSize ? label : '',
@@ -782,51 +869,41 @@ function ItemEditor({
           placeholder="Ex.: Cera quente"
           onChange={(name) => setItem({ ...item, name })}
         />
-        <ComboField
-          label="Categoria"
-          value={item.category}
-          maxLength={60}
-          suggestions={categories}
-          placeholder="Ex.: Depilação"
-          onChange={(category) => setItem({ ...item, category })}
-        />
         <SelectField
           label="Medido em"
           value={item.unit}
-          description="A medida que os atendimentos gastam."
+          description="A medida que cada atendimento gasta."
           onChange={(unit) => setItem({ ...item, unit })}
           options={unitOptions.map(({ id, label: text }) => ({ id, label: text }))}
         />
-        <div className="inv-package">
-          <SelectField
-            label="Vem em"
-            value={label}
-            onChange={(packageLabel) => setItem({ ...item, packageLabel })}
-            options={packageLabels.map((id) => ({ id, label: id }))}
-          />
-          <TextInputField
-            label={`Cada ${label} tem`}
-            inputMode="decimal"
-            value={size}
-            placeholder="Ex.: 400"
-            suffix={unitShort(item.unit)}
-            onChange={setSize}
-          />
-        </div>
+        <CategoryPicker
+          className="manager-field-wide"
+          value={item.category}
+          options={categories}
+          onChange={(category) => setItem({ ...item, category })}
+        />
+        <PackageSentence
+          className="manager-field-wide"
+          name={item.name || 'o produto'}
+          unit={item.unit}
+          label={label}
+          size={size}
+          onLabel={(packageLabel) => setItem({ ...item, packageLabel })}
+          onSize={setSize}
+        />
         {isNew ? (
-          <TextInputField
-            label="Quanto tem agora"
-            inputMode="decimal"
-            value={start.text}
-            placeholder="0"
-            suffix={packageSize ? pluralize(label, 2) : unitShort(item.unit)}
-            description={
-              packageSize && start.base
-                ? `= ${amount(start.base)} ${unitShort(item.unit)}`
-                : 'Pode usar decimal, como 2,5.'
-            }
-            onChange={start.setText}
-          />
+          <div className="manager-field-wide">
+            <StockCount
+              name={item.name || 'o produto'}
+              unit={item.unit}
+              size={packageSize || null}
+              label={label}
+              packs={packs}
+              loose={loose}
+              onPacks={setPacks}
+              onLoose={setLoose}
+            />
+          </div>
         ) : null}
         <MoneyField
           label={packageSize ? `Custo de cada ${label}` : 'Custo por unidade'}
@@ -1033,7 +1110,7 @@ function MovementForm({
   )
 }
 
-type SetupRow = { selected: boolean; size: string; label: string; have: string }
+type SetupRow = { selected: boolean; size: string; label: string; packs: string; loose: string }
 
 /**
  * "Montar estoque": the suggested products of the space's categories in one list. Each chosen
@@ -1059,7 +1136,8 @@ function StockSetup({
             selected: false,
             size: product.embalagem ? plain(product.embalagem) : '',
             label: defaultPackageLabel(product.unidade),
-            have: '',
+            packs: '',
+            loose: '',
           },
         ]),
       ),
@@ -1084,7 +1162,7 @@ function StockSetup({
     for (const [index, { product, group }] of chosen.entries()) {
       const row = rows[product.id]
       const size = row.size.trim() ? parseQty(row.size) : null
-      const have = row.have.trim() ? parseQty(row.have) : 0
+      const total = countTotal(row.packs, row.loose, size || null) ?? 0
       const supplies = recipesFor(product.id, services)
       try {
         await api.put(`inventory/items/${crypto.randomUUID()}`, {
@@ -1093,7 +1171,7 @@ function StockSetup({
           unit: product.unidade,
           minQuantity: 0,
           alertPercent: product.aviso_percentual,
-          initialQuantity: Math.round((have ?? 0) * (size || 1) * 100) / 100,
+          initialQuantity: total,
           costCents: null,
           packageSize: size || null,
           packageLabel: size ? row.label : '',
@@ -1182,31 +1260,23 @@ function StockSetup({
                         </button>
                         {row.selected ? (
                           <div className="inv-setup-fields">
-                            <SelectField
-                              ariaLabel={`Embalagem de ${product.nome}`}
-                              value={row.label}
-                              onChange={(label) => set(product.id, { label })}
-                              options={packageLabels.map((id) => ({ id, label: id }))}
+                            <PackageSentence
+                              name={product.nome}
+                              unit={product.unidade}
+                              label={row.label}
+                              size={row.size}
+                              onLabel={(label) => set(product.id, { label })}
+                              onSize={(value) => set(product.id, { size: value })}
                             />
-                            <TextInputField
-                              ariaLabel={`Conteúdo de cada embalagem de ${product.nome}`}
-                              inputMode="decimal"
-                              placeholder="Tamanho"
-                              value={row.size}
-                              suffix={unitShort(product.unidade)}
-                              onChange={(size) => set(product.id, { size })}
-                            />
-                            <TextInputField
-                              ariaLabel={`Quanto tem de ${product.nome}`}
-                              inputMode="decimal"
-                              placeholder="Tenho"
-                              value={row.have}
-                              suffix={
-                                row.size.trim()
-                                  ? pluralize(row.label, 2)
-                                  : unitShort(product.unidade)
-                              }
-                              onChange={(have) => set(product.id, { have })}
+                            <StockCount
+                              name={product.nome}
+                              unit={product.unidade}
+                              size={row.size.trim() ? parseQty(row.size) || null : null}
+                              label={row.label}
+                              packs={row.packs}
+                              loose={row.loose}
+                              onPacks={(packs) => set(product.id, { packs })}
+                              onLoose={(loose) => set(product.id, { loose })}
                             />
                           </div>
                         ) : null}
@@ -1224,6 +1294,215 @@ function StockSetup({
           estão no estoque.
         </Empty>
       )}
+      {error ? (
+        <p className="apt-error" role="alert">
+          {error}
+        </p>
+      ) : null}
+    </QuickModal>
+  )
+}
+
+/** "Vem em [caixa] com [100] un": the package, read as a sentence. */
+function PackageSentence({
+  name,
+  unit,
+  label,
+  size,
+  onLabel,
+  onSize,
+  className,
+}: {
+  name: string
+  unit: string
+  label: string
+  size: string
+  onLabel: (value: string) => void
+  onSize: (value: string) => void
+  className?: string
+}) {
+  return (
+    <div className={['inv-sentence', className].filter(Boolean).join(' ')}>
+      <span className="inv-count-label">Como você compra</span>
+      <div className="inv-sentence-row">
+        <span>Vem em</span>
+        <SelectField
+          ariaLabel={`Embalagem de ${name}`}
+          value={label}
+          onChange={onLabel}
+          options={packageLabels.map((id) => ({ id, label: id }))}
+        />
+        <span>com</span>
+        <TextInputField
+          ariaLabel={`Quanto vem em cada embalagem de ${name}`}
+          inputMode="decimal"
+          placeholder="Ex.: 100"
+          value={size}
+          suffix={unitShort(unit)}
+          onChange={onSize}
+        />
+      </div>
+      <small>Opcional. Assim você conta por {label} e o sistema converte sozinho.</small>
+    </div>
+  )
+}
+
+/**
+ * Category as chips (easy with a thumb): the ones in use, the space's service categories, and
+ * "Nova" to type another.
+ */
+function CategoryPicker({
+  value,
+  options,
+  onChange,
+  className,
+}: {
+  value: string
+  options: string[]
+  onChange: (value: string) => void
+  className?: string
+}) {
+  const list = [...new Set([...options, ...(value ? [value] : [])].filter(Boolean))].sort((a, b) =>
+    a.localeCompare(b, 'pt-BR'),
+  )
+  const [adding, setAdding] = useState(false)
+  const [draft, setDraft] = useState('')
+  return (
+    <div className={['inv-categories', className].filter(Boolean).join(' ')}>
+      <span className="inv-count-label">Categoria</span>
+      <div className="biz-chips" role="radiogroup" aria-label="Categoria">
+        {list.map((name) => (
+          <button
+            key={name}
+            type="button"
+            role="radio"
+            aria-checked={value === name}
+            onClick={() => onChange(value === name ? '' : name)}
+          >
+            {name}
+          </button>
+        ))}
+        {adding ? null : (
+          <button type="button" className="inv-chip-add" onClick={() => setAdding(true)}>
+            <Plus size={13} aria-hidden /> Nova
+          </button>
+        )}
+      </div>
+      {adding ? (
+        <div className="inv-sentence-row">
+          <TextInputField
+            ariaLabel="Nome da nova categoria"
+            autoFocus
+            maxLength={60}
+            placeholder="Ex.: Higiene"
+            value={draft}
+            onEnter={() => {
+              if (!draft.trim()) return
+              onChange(draft.trim())
+              setDraft('')
+              setAdding(false)
+            }}
+            onChange={setDraft}
+          />
+          <Button
+            size="sm"
+            isDisabled={!draft.trim()}
+            onPress={() => {
+              onChange(draft.trim())
+              setDraft('')
+              setAdding(false)
+            }}
+          >
+            Usar
+          </Button>
+          <Button size="sm" variant="ghost" onPress={() => setAdding(false)}>
+            Cancelar
+          </Button>
+        </div>
+      ) : null}
+    </div>
+  )
+}
+
+/** Rename (or merge, by giving an existing name) and remove stock categories. */
+function CategoryManager({
+  api,
+  items,
+  onClose,
+}: {
+  api: ClinicApi
+  items: Item[]
+  onClose: (message?: string) => void
+}) {
+  const counts = items.reduce<Record<string, number>>((all, item) => {
+    if (item.category) all[item.category] = (all[item.category] ?? 0) + 1
+    return all
+  }, {})
+  const names = Object.keys(counts).sort((a, b) => a.localeCompare(b, 'pt-BR'))
+  const [drafts, setDrafts] = useState<Record<string, string>>(() =>
+    Object.fromEntries(names.map((name) => [name, name])),
+  )
+  const [busy, setBusy] = useState('')
+  const [error, setError] = useState('')
+  const [changed, setChanged] = useState(false)
+
+  async function apply(from: string, to: string) {
+    setBusy(from)
+    setError('')
+    try {
+      await api.post('inventory/categories', { from, to })
+      setChanged(true)
+      onClose(
+        to
+          ? `“${from}” agora é “${to}”.`
+          : `“${from}” foi removida; os produtos ficaram sem categoria.`,
+      )
+    } catch {
+      setError('Não foi possível alterar. Tente de novo.')
+      setBusy('')
+    }
+  }
+
+  return (
+    <QuickModal
+      isOpen
+      onOpenChange={(open) => !open && onClose(changed ? 'Categorias atualizadas.' : undefined)}
+      title="Categorias do estoque"
+      subtitle="Renomeie para corrigir ou juntar (use o nome de outra existente). Remover não apaga produtos."
+    >
+      <ul className="inv-cat-list">
+        {names.map((name) => {
+          const draft = drafts[name] ?? name
+          return (
+            <li key={name}>
+              <TextInputField
+                ariaLabel={`Nome da categoria ${name}`}
+                maxLength={60}
+                value={draft}
+                suffix={`${counts[name]}`}
+                onChange={(value) => setDrafts({ ...drafts, [name]: value })}
+              />
+              <Button
+                size="sm"
+                isDisabled={Boolean(busy) || !draft.trim() || draft.trim() === name}
+                onPress={() => void apply(name, draft.trim())}
+              >
+                <Check size={14} aria-hidden /> Salvar
+              </Button>
+              <Button
+                size="sm"
+                variant="ghost"
+                isIconOnly
+                aria-label={`Remover a categoria ${name}`}
+                isDisabled={Boolean(busy)}
+                onPress={() => void apply(name, '')}
+              >
+                <Trash2 size={15} />
+              </Button>
+            </li>
+          )
+        })}
+      </ul>
       {error ? (
         <p className="apt-error" role="alert">
           {error}

@@ -234,4 +234,33 @@ export async function inventoryRoutes(
         return { archived: true }
       }),
   )
+
+  // Renames a category on every product, or removes it (to: "").
+  app.post<{ Params: { clinicId: string }; Body: { from: string; to: string } }>(
+    '/clinics/:clinicId/inventory/categories',
+    {
+      schema: {
+        params: clinicRefParams,
+        body: {
+          type: 'object',
+          additionalProperties: false,
+          required: ['from', 'to'],
+          properties: {
+            from: { type: 'string', minLength: 1, maxLength: 60 },
+            to: { type: 'string', maxLength: 60 },
+          },
+        },
+      },
+    },
+    async (request, reply) =>
+      authorized(request, reply, 'inventory:manage', async (connection, tenant) => {
+        const changed = (
+          await connection.query(
+            'SELECT luminix.rename_inventory_category($1::uuid, $2::text, $3::text) AS n',
+            [tenant.clinicId, request.body.from, request.body.to],
+          )
+        ).rows[0]?.n
+        return { changed: toNumber(changed) }
+      }),
+  )
 }

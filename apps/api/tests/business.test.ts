@@ -489,6 +489,35 @@ describe('inventory and marketing', () => {
     expect((await call('owner-b', 'GET', `/clinics/${c('a').id}/inventory`)).statusCode).toBe(403)
   })
 
+  it('renames and removes a stock category on every product', async () => {
+    const base = `/clinics/${c('a').id}/inventory`
+    for (const name of ['Luva P', 'Luva M'])
+      await call('owner-a', 'PUT', `${base}/items/${crypto.randomUUID()}`, {
+        name,
+        category: 'EPI',
+        unit: 'un',
+        minQuantity: 0,
+      })
+    const rename = await call('owner-a', 'POST', `${base}/categories`, {
+      from: 'EPI',
+      to: 'Proteção',
+    })
+    expect(rename.json()).toEqual({ changed: 2 })
+    expect(
+      (
+        await call('reception-b', 'POST', `/clinics/${c('a').id}/inventory/categories`, {
+          from: 'Proteção',
+          to: '',
+        })
+      ).statusCode,
+    ).toBe(403)
+    expect(
+      (await call('owner-a', 'POST', `${base}/categories`, { from: 'Proteção', to: '' })).json(),
+    ).toEqual({
+      changed: 2,
+    })
+  })
+
   it('alerts at a percent of the last restock', async () => {
     const wax = crypto.randomUUID()
     const base = `/clinics/${c('a').id}/inventory`

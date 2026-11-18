@@ -27,6 +27,7 @@ const writes: Record<'PUT' | 'POST', RegExp[]> = {
     /^activity\/state$/,
     new RegExp(`^finance/entries/${id}/void$`, 'i'),
     new RegExp(`^inventory/items/${id}/(movements|archive)$`, 'i'),
+    /^inventory\/categories$/,
   ],
 }
 
