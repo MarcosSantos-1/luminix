@@ -96,7 +96,9 @@ function call(
   return app.inject({
     method,
     url: `/clinics/${clinic}/${resource}`,
-    headers: { authorization: `Bearer ${uid}`, 'content-type': 'application/json' },
+    headers: payload
+      ? { authorization: `Bearer ${uid}`, 'content-type': 'application/json' }
+      : { authorization: `Bearer ${uid}` },
     payload: payload ? JSON.stringify(payload) : undefined,
   })
 }
@@ -460,5 +462,90 @@ describe('client registry: CPF, consent, duplicates, edit and archive', () => {
         })
       ).statusCode,
     ).toBe(201)
+  })
+})
+
+describe('closures (férias, fechamento por período)', () => {
+  it('warns the manager inside a closure, scopes it per clinic and removes it', async () => {
+    await app.close()
+    app = await makeApp()
+    const created = await call('agenda-a', 'POST', clinicA, 'closures', {
+      startsOn: '2030-01-21',
+      endsOn: '2030-01-22',
+      kind: 'collective_vacation',
+      note: 'Recesso',
+    })
+    expect(created.statusCode).toBe(201)
+    const closure = created.json().closure
+    expect(closure).toMatchObject({
+      starts_on: '2030-01-21',
+      ends_on: '2030-01-22',
+      kind: 'collective_vacation',
+      professional_id: null,
+    })
+    expect(
+      (
+        await call('agenda-a', 'POST', clinicA, 'closures', {
+          startsOn: '2030-01-23',
+          endsOn: '2030-01-21',
+          kind: 'other',
+        })
+      ).statusCode,
+    ).toBe(400)
+    expect(
+      (
+        await call('agenda-b', 'POST', clinicA, 'closures', {
+          startsOn: '2030-01-21',
+          endsOn: '2030-01-21',
+          kind: 'other',
+        })
+      ).statusCode,
+    ).toBe(403)
+    expect(
+      (await call('agenda-b', 'POST', clinicB, `closures/${closure.id}/remove`)).statusCode,
+    ).toBe(404)
+
+    const inside = await call('agenda-a', 'POST', clinicA, 'appointments', {
+      clientId: clientA,
+      serviceId: serviceA,
+      localStartsAt: '2030-01-21T10:00',
+    })
+    expect(inside.statusCode).toBe(409)
+    expect(inside.json().warnings.map((warning: { code: string }) => warning.code)).toContain(
+      'closure',
+    )
+    const confirmed = await call('agenda-a', 'POST', clinicA, 'appointments', {
+      clientId: clientA,
+      serviceId: serviceA,
+      localStartsAt: '2030-01-21T10:00',
+      confirmedWarnings: ['closure'],
+    })
+    expect(confirmed.statusCode).toBe(201)
+    expect(confirmed.json().appointment.override_reasons).toEqual(['closure'])
+
+    const agenda = (
+      await call(
+        'agenda-a',
+        'GET',
+        clinicA,
+        'agenda?from=2030-01-20T00:00:00.000Z&to=2030-01-26T23:59:59.999Z',
+      )
+    ).json()
+    expect(agenda.closures).toHaveLength(1)
+    expect(agenda.location).toEqual({ city: null, state: null })
+    expect((await call('agenda-b', 'GET', clinicB, 'closures')).json().closures).toEqual([])
+
+    const edited = await call('agenda-a', 'PUT', clinicA, `closures/${closure.id}`, {
+      startsOn: '2030-01-21',
+      endsOn: '2030-01-25',
+      kind: 'maintenance',
+    })
+    expect(edited.statusCode).toBe(200)
+    expect(edited.json().closure.ends_on).toBe('2030-01-25')
+    expect(edited.json().affectedAppointments).toBe(1)
+    expect(
+      (await call('agenda-a', 'POST', clinicA, `closures/${closure.id}/remove`)).statusCode,
+    ).toBe(200)
+    expect((await call('agenda-a', 'GET', clinicA, 'closures')).json().closures).toEqual([])
   })
 })

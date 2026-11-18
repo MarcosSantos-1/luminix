@@ -46,6 +46,7 @@ Cadastro de clientes (CPF, consentimento, duplicidade, edição/arquivo) e regra
 Conta do cliente, vínculo pelo app, profissionais e agendamento pelo cliente: [ADR-029](decisions/ADR-029-CONTA-DO-CLIENTE-E-AGENDAMENTO.md).
 Ficha de anamnese por níveis I–III, reaproveitamento e validade anual: [ADR-030](decisions/ADR-030-FICHA-DE-ANAMNESE-POR-NIVEIS.md).
 Diretório público de espaços por nome para a área do cliente: [ADR-028](decisions/ADR-028-DIRETORIO-PUBLICO-POR-NOME.md).
+Agendamento em etapas, feriados (alerta "vai abrir?") e férias/fechamentos por período: [ADR-031](decisions/ADR-031-AGENDA-FERIADOS-E-FECHAMENTOS.md).
 
 ## Diretórios
 

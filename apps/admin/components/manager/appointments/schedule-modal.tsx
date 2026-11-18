@@ -8,6 +8,7 @@ import {
   Copy,
   DoorClosed,
   DoorOpen,
+  Palmtree,
   Plus,
   Store,
   Trash2,
@@ -18,6 +19,8 @@ import { DateInputField, TextInputField, TimeInputField } from '@/components/ui/
 import { dateBr, initials } from '../business/format'
 import type { ClinicApi } from '../settings/clinic-api'
 import { QuickModal } from '../quick-modal'
+import type { BookingProfessional } from './booking-modal'
+import { ClosuresEditor } from './closures-editor'
 import { localDate } from './model'
 
 type Period = { start: string; end: string }
@@ -257,6 +260,7 @@ export function ScheduleModal({
   canManageHours,
   canManageTeam,
   initialDate,
+  initialTab,
   onSaved,
 }: {
   api: ClinicApi
@@ -264,16 +268,18 @@ export function ScheduleModal({
   onOpenChange: (open: boolean) => void
   weekly: WeeklyRow[]
   overrides: OverrideRow[]
-  professionals: { id: string; display_name: string }[]
+  professionals: BookingProfessional[]
   professionalAvailability: ProfessionalDayRow[]
   canManageHours: boolean
   canManageTeam: boolean
   /** Opens straight on "Datas especiais" for this day. */
   initialDate?: string | null
+  /** Opens on this tab (e.g. "Férias e fechamentos" from a closed day). */
+  initialTab?: 'week' | 'dates' | 'closures'
   onSaved: (message: string) => void
 }) {
   const [who, setWho] = useState('clinic')
-  const [tab, setTab] = useState<'week' | 'dates'>('week')
+  const [tab, setTab] = useState<'week' | 'dates' | 'closures'>('week')
   const [clinicDays, setClinicDays] = useState<Day[]>(() => weekFrom(weekly))
   const [team, setTeam] = useState<TeamMember[] | null>(null)
   const [personDays, setPersonDays] = useState<Record<string, Day[]>>({})
@@ -294,7 +300,7 @@ export function ScheduleModal({
     setClinicDays(weekFrom(weekly))
     setPersonDays({})
     setWho('clinic')
-    setTab(initialDate ? 'dates' : 'week')
+    setTab(initialTab ?? (initialDate ? 'dates' : 'week'))
     setSpecial((current) => ({
       ...current,
       date: initialDate ?? localDate(new Date()),
@@ -471,7 +477,18 @@ export function ScheduleModal({
             setError('')
           }}
         >
-          <CalendarOff size={17} aria-hidden /> Feriados e datas especiais
+          <CalendarOff size={17} aria-hidden /> Feriados e datas
+        </button>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={tab === 'closures'}
+          onClick={() => {
+            setTab('closures')
+            setError('')
+          }}
+        >
+          <Palmtree size={17} aria-hidden /> Férias e fechamentos
         </button>
       </div>
 
@@ -534,6 +551,15 @@ export function ScheduleModal({
             <p className="sch-note">Só quem gerencia a equipe pode mudar estes horários.</p>
           ) : null}
         </>
+      ) : tab === 'closures' ? (
+        <ClosuresEditor
+          api={api}
+          professionals={professionals}
+          photos={Object.fromEntries((team ?? []).map((item) => [item.id, item.photoUrl]))}
+          canManageSpace={canManageHours}
+          canManageTeam={canManageTeam}
+          onSaved={onSaved}
+        />
       ) : (
         <div className="sch-dates">
           <section className="sch-special">

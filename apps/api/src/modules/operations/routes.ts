@@ -3,11 +3,11 @@ import type { SqlConnection } from '../../shared/database/migrations.js'
 import { withClinicTransaction, type TenantPool } from '../../shared/tenant/clinic-transaction.js'
 import { isoDate, isPaid, rolePermissions, toNumber } from '../../shared/tenant/route-helpers.js'
 import type { TenantContext } from '../../shared/tenant/tenant-context.js'
-import { clientPhotoUrl } from '../clinics/media-storage.js'
+import { clientPhotoUrl, publicMediaUrl } from '../clinics/media-storage.js'
 import { isValidBrazilianTaxId } from '../clinics/tax-id.js'
 
 type Period = { start: string; end: string }
-type WarningCode = 'past' | 'outside_availability' | 'overlap'
+type WarningCode = 'past' | 'outside_availability' | 'overlap' | 'closure'
 // Biological sex (waxing, intimate treatments), not gender identity.
 type ClientSex = 'female' | 'male'
 type ClientBody = {
@@ -93,6 +93,28 @@ function fitsPeriod(start: Date, end: Date, timezone: string, periods: Period[])
 
 type BookingWarning = { code: WarningCode; title: string; detail: string }
 
+type ClosureKind =
+  | 'vacation'
+  | 'collective_vacation'
+  | 'bereavement'
+  | 'maintenance'
+  | 'renovation'
+  | 'sick_leave'
+  | 'training'
+  | 'event'
+  | 'other'
+const closureLabel: Record<string, string> = {
+  vacation: 'Férias',
+  collective_vacation: 'Férias coletivas',
+  bereavement: 'Luto',
+  maintenance: 'Manutenção',
+  renovation: 'Reforma',
+  sick_leave: 'Licença / atestado',
+  training: 'Curso ou treinamento',
+  event: 'Evento',
+  other: 'Período sem atendimento',
+}
+
 /** What the manager must confirm before a time is accepted (clients are simply refused). */
 async function bookingWarnings(
   connection: SqlConnection,
@@ -135,7 +157,25 @@ async function bookingWarnings(
       ignoreAppointmentId,
     ],
   )
+  const closures = await connection.query(
+    `SELECT c.kind, c.professional_id, p.display_name
+       FROM luminix.schedule_closures c
+       LEFT JOIN luminix.professionals p ON p.clinic_id = c.clinic_id AND p.id = c.professional_id
+      WHERE c.clinic_id = $1 AND $2::date BETWEEN c.starts_on AND c.ends_on
+        AND (c.professional_id IS NULL OR c.professional_id = $3::uuid)
+      ORDER BY c.professional_id NULLS FIRST LIMIT 1`,
+    [clinicId, local.date, slot.professionalId],
+  )
   const warnings: BookingWarning[] = []
+  const closure = closures.rows[0]
+  if (closure)
+    warnings.push({
+      code: 'closure',
+      title: closure.professional_id
+        ? `${String(closure.display_name ?? 'A profissional')} está ausente`
+        : 'Espaço fechado neste período',
+      detail: `${closureLabel[String(closure.kind)] ?? 'Período sem atendimento'}. Clientes não conseguem agendar neste dia.`,
+    })
   if (slot.startsAt.getTime() < Date.now())
     warnings.push({
       code: 'past',
@@ -164,7 +204,7 @@ const localStartPattern = '^\\d{4}-\\d{2}-\\d{2}T(?:[01][0-9]|2[0-3]):[0-5][0-9]
 const confirmedWarningsSchema = {
   type: 'array',
   uniqueItems: true,
-  items: { type: 'string', enum: ['past', 'outside_availability', 'overlap'] },
+  items: { type: 'string', enum: ['past', 'outside_availability', 'overlap', 'closure'] },
 } as const
 
 const clientBodySchema = {
@@ -624,6 +664,8 @@ export async function operationRoutes(
           overrides,
           settings,
           professionalDays,
+          closures,
+          location,
         ] = await Promise.all([
           connection.query(
             `SELECT a.id, a.starts_at, a.ends_at, a.status, a.booking_source, a.checked_in_at,
@@ -659,8 +701,12 @@ export async function operationRoutes(
             [tenant.clinicId],
           ),
           connection.query(
-            `SELECT id, display_name FROM luminix.professionals
-                WHERE clinic_id = $1 AND status = 'active' ORDER BY lower(display_name) LIMIT 100`,
+            `SELECT p.id, p.display_name, photo.small_object_key AS photo_key
+                 FROM luminix.professionals p
+                 LEFT JOIN luminix.media_assets photo ON photo.clinic_id = p.clinic_id
+                   AND photo.id = p.photo_asset_id AND photo.status = 'ready'
+                WHERE p.clinic_id = $1 AND p.status = 'active'
+                ORDER BY lower(p.display_name) LIMIT 100`,
             [tenant.clinicId],
           ),
           connection.query(
@@ -682,6 +728,19 @@ export async function operationRoutes(
                  JOIN luminix.professionals p ON p.clinic_id = w.clinic_id AND p.id = w.professional_id
                 WHERE w.clinic_id = $1 AND p.status = 'active'
                 ORDER BY w.professional_id, w.weekday`,
+            [tenant.clinicId],
+          ),
+          // Closures reach back a year so a long vacation that started earlier still shows.
+          connection.query(
+            `SELECT id, professional_id, starts_on::text AS starts_on, ends_on::text AS ends_on, kind, note
+                 FROM luminix.schedule_closures
+                WHERE clinic_id = $1 AND ends_on >= $2::date AND starts_on <= $3::date
+                ORDER BY starts_on, id LIMIT 200`,
+            [tenant.clinicId, request.query.from.slice(0, 10), request.query.to.slice(0, 10)],
+          ),
+          connection.query(
+            `SELECT city, state FROM luminix.locations
+                WHERE clinic_id = $1 AND is_primary LIMIT 1`,
             [tenant.clinicId],
           ),
         ])
@@ -712,9 +771,22 @@ export async function operationRoutes(
           professionalAvailability: professionalDays.rows,
           clients: clients.rows,
           services: services.rows,
-          professionals: professionals.rows,
+          professionals: professionals.rows.map(({ photo_key, ...row }) => {
+            let photo_url: string | null = null
+            try {
+              photo_url = photo_key ? publicMediaUrl(String(photo_key)) : null
+            } catch {
+              photo_url = null
+            }
+            return { ...row, photo_url }
+          }),
           weeklyAvailability: weekly.rows,
           overrides: overrides.rows,
+          closures: closures.rows,
+          location: {
+            city: location.rows[0]?.city ?? null,
+            state: location.rows[0]?.state ?? null,
+          },
           timezone: settings.rows[0]?.timezone ?? 'America/Sao_Paulo',
         }
       }),
@@ -1234,6 +1306,142 @@ export async function operationRoutes(
             reason: request.body.reason?.trim() || null,
           },
         }
+      }),
+  )
+
+  const closureBody = {
+    type: 'object',
+    additionalProperties: false,
+    required: ['startsOn', 'endsOn', 'kind'],
+    properties: {
+      professionalId: { type: ['string', 'null'], pattern: uuid },
+      startsOn: { type: 'string', pattern: ymd },
+      endsOn: { type: 'string', pattern: ymd },
+      kind: { type: 'string', enum: Object.keys(closureLabel) },
+      note: { type: 'string', maxLength: 240 },
+    },
+  } as const
+  type ClosureBody = {
+    professionalId?: string | null
+    startsOn: string
+    endsOn: string
+    kind: ClosureKind
+    note?: string
+  }
+  const closureColumns = `id, professional_id, starts_on::text AS starts_on,
+    ends_on::text AS ends_on, kind, note`
+
+  async function saveClosure(
+    request: FastifyRequest<{
+      Params: { clinicId: string; closureId?: string }
+      Body: ClosureBody
+    }>,
+    reply: FastifyReply,
+  ) {
+    const body = request.body
+    const days = (Date.parse(body.endsOn) - Date.parse(body.startsOn)) / 86_400_000
+    if (!(days >= 0 && days <= 366)) return reply.code(400).send({ error: 'Invalid period' })
+    // The function re-checks the scope (space: clinic:manage, one professional: professional:manage).
+    return authorized(
+      request,
+      reply,
+      body.professionalId ? 'professional:manage' : 'clinic:manage',
+      async (connection, tenant) => {
+        const saved = await connection.query(
+          `SELECT ${closureColumns}
+             FROM luminix.save_schedule_closure($1, $2, $3, $4::date, $5::date, $6, $7)`,
+          [
+            tenant.clinicId,
+            request.params.closureId ?? null,
+            body.professionalId || null,
+            body.startsOn,
+            body.endsOn,
+            body.kind,
+            body.note?.trim() || null,
+          ],
+        )
+        // Appointments already inside the period stay; the manager decides what to do with them.
+        const affected = await connection.query(
+          `SELECT count(*)::int AS total FROM luminix.appointments a
+             JOIN luminix.clinic_settings s ON s.clinic_id = a.clinic_id
+            WHERE a.clinic_id = $1 AND a.status = ANY($2::text[])
+              AND (a.starts_at AT TIME ZONE s.timezone)::date BETWEEN $3::date AND $4::date
+              AND ($5::uuid IS NULL OR a.professional_id = $5::uuid)`,
+          [
+            tenant.clinicId,
+            activeAppointmentStatuses,
+            body.startsOn,
+            body.endsOn,
+            body.professionalId || null,
+          ],
+        )
+        return reply.code(request.params.closureId ? 200 : 201).send({
+          closure: saved.rows[0],
+          affectedAppointments: Number(affected.rows[0]?.total ?? 0),
+        })
+      },
+    )
+  }
+
+  app.get<{ Params: { clinicId: string } }>(
+    '/clinics/:clinicId/closures',
+    { schema: { params: clinicParams } },
+    async (request, reply) =>
+      authorized(request, reply, 'agenda:read', async (connection, tenant) => {
+        const result = await connection.query(
+          `SELECT ${closureColumns} FROM luminix.schedule_closures
+             WHERE clinic_id = $1 AND ends_on >= (now() AT TIME ZONE 'UTC')::date - 31
+             ORDER BY starts_on, id LIMIT 200`,
+          [tenant.clinicId],
+        )
+        return { closures: result.rows }
+      }),
+  )
+
+  app.post<{ Params: { clinicId: string }; Body: ClosureBody }>(
+    '/clinics/:clinicId/closures',
+    { bodyLimit: 4096, schema: { params: clinicParams, body: closureBody } },
+    saveClosure,
+  )
+
+  app.put<{ Params: { clinicId: string; closureId: string }; Body: ClosureBody }>(
+    '/clinics/:clinicId/closures/:closureId',
+    {
+      bodyLimit: 4096,
+      schema: {
+        params: {
+          type: 'object',
+          additionalProperties: false,
+          required: ['clinicId', 'closureId'],
+          properties: { ...clinicParams.properties, closureId: { type: 'string', pattern: uuid } },
+        },
+        body: closureBody,
+      },
+    },
+    saveClosure,
+  )
+
+  // POST (not DELETE) like the other removals that go through the admin proxy.
+  app.post<{ Params: { clinicId: string; closureId: string } }>(
+    '/clinics/:clinicId/closures/:closureId/remove',
+    {
+      schema: {
+        params: {
+          type: 'object',
+          additionalProperties: false,
+          required: ['clinicId', 'closureId'],
+          properties: { ...clinicParams.properties, closureId: { type: 'string', pattern: uuid } },
+        },
+      },
+    },
+    async (request, reply) =>
+      authorized(request, reply, 'agenda:read', async (connection, tenant) => {
+        const result = await connection.query(
+          'SELECT luminix.delete_schedule_closure($1, $2) AS deleted',
+          [tenant.clinicId, request.params.closureId],
+        )
+        if (!result.rows[0]?.deleted) return reply.code(404).send({ error: 'Closure not found' })
+        return { deleted: true }
       }),
   )
 }

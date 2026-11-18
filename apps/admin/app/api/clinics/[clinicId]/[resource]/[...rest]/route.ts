@@ -20,6 +20,7 @@ const writes: Record<'PUT' | 'POST', RegExp[]> = {
     new RegExp(`^clients/${id}$`, 'i'),
     new RegExp(`^clients/${id}/(status|photo)$`, 'i'),
     new RegExp(`^finance/bills/${id}$`, 'i'),
+    new RegExp(`^closures/${id}$`, 'i'),
   ],
   POST: [
     new RegExp(`^catalog/services/${id}/status$`, 'i'),
@@ -28,6 +29,7 @@ const writes: Record<'PUT' | 'POST', RegExp[]> = {
     new RegExp(`^finance/entries/${id}/void$`, 'i'),
     new RegExp(`^inventory/items/${id}/(movements|archive)$`, 'i'),
     /^inventory\/categories$/,
+    new RegExp(`^closures/${id}/remove$`, 'i'),
   ],
 }
 

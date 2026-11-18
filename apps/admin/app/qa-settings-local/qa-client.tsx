@@ -620,6 +620,19 @@ const qaPeople = [
   { id: 'a1b2c3d4-0000-4000-8000-000000000202', name: 'Maria Aparecida' },
 ]
 
+function qaClosures(at: (offset: number, time: string) => string) {
+  return [
+    {
+      id: 'a1b2c3d4-0000-4000-8000-000000000901',
+      professional_id: qaPeople[1].id,
+      starts_on: at(7, '00:00').slice(0, 10),
+      ends_on: at(11, '00:00').slice(0, 10),
+      kind: 'vacation',
+      note: null,
+    },
+  ]
+}
+
 /** Agenda of the current week: confirmed, pending, paid, canceled and rescheduled examples. */
 function qaAgenda() {
   const monday = new Date()
@@ -652,7 +665,10 @@ function qaAgenda() {
     appointments: rows.map(([offset, time, client, service, status, paid, previous], index) => ({
       id: `a1b2c3d4-0000-4000-8000-0000000003${index}0`,
       starts_at: at(offset, time),
-      ends_at: at(offset, time),
+      ends_at: at(
+        offset,
+        `${String(Number(time.slice(0, 2)) + 1).padStart(2, '0')}${time.slice(2)}`,
+      ),
       previous_starts_at: previous,
       status,
       override_reasons: index === 1 ? ['overlap'] : [],
@@ -671,7 +687,13 @@ function qaAgenda() {
       display_name,
     })),
     services: services.map(([id, name]) => ({ id, name, duration_minutes: 60 })),
-    professionals: qaPeople.map(({ id, name }) => ({ id, display_name: name })),
+    professionals: qaPeople.map(({ id, name }, index) => ({
+      id,
+      display_name: name,
+      photo_url: index === 0 ? qaPhoto : null,
+    })),
+    closures: qaClosures(at),
+    location: { city: 'São Paulo', state: 'SP' },
     weeklyAvailability: [0, 1, 2, 3, 4, 5, 6].map((weekday) => ({
       weekday,
       is_available: weekday > 0 && weekday < 6,
@@ -865,6 +887,7 @@ export default function QASettings({
         }
         if (path.startsWith('library/items') && !fixtures[path]) return { items: [] } as T
         if (path === 'agenda') return qaAgenda() as T
+        if (path === 'closures') return { closures: qaAgenda().closures } as T
         if (path === 'account')
           return {
             name: 'Maria Aparecida',
@@ -1000,7 +1023,11 @@ export default function QASettings({
           return { changed: 1 } as T
         }
         return (
-          path === 'staff' ? { accountCreated: true, member: { id: 'x' } } : { archived: true }
+          path === 'staff'
+            ? { accountCreated: true, member: { id: 'x' } }
+            : path === 'closures'
+              ? { closure: { id: 'x' }, affectedAppointments: 1 }
+              : { archived: true }
         ) as T
       },
       async sendAccessEmail() {

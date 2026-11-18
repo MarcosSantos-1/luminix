@@ -500,7 +500,7 @@ export async function clientRoutes(app: FastifyInstance, dependencies: AuthDepen
     ignoreAppointmentId: string | null,
   ) {
     const weekday = new Date(`${date}T12:00:00Z`).getUTCDay()
-    const [override, weekly, professionalDays, policy, busy] = await Promise.all([
+    const [override, weekly, professionalDays, policy, busy, closures] = await Promise.all([
       connection.query(
         'SELECT is_available, periods FROM luminix.schedule_overrides WHERE clinic_id = $1 AND local_date = $2',
         [scope.clinicId, date],
@@ -525,7 +525,19 @@ export async function clientRoutes(app: FastifyInstance, dependencies: AuthDepen
             AND ($4::uuid IS NULL OR id <> $4::uuid)`,
         [scope.clinicId, active, date, ignoreAppointmentId],
       ),
+      // Space closures (férias coletivas, luto…) and each professional's leave.
+      connection.query(
+        `SELECT professional_id FROM luminix.schedule_closures
+          WHERE clinic_id = $1 AND $2::date BETWEEN starts_on AND ends_on`,
+        [scope.clinicId, date],
+      ),
     ])
+    const spaceClosed = closures.rows.some((row) => row.professional_id == null)
+    const away = new Set(
+      closures.rows
+        .filter((row) => row.professional_id != null)
+        .map((row) => String(row.professional_id)),
+    )
     const clinicDay = override.rows[0] ?? weekly.rows[0]
     const clinicPeriods = (clinicDay?.is_available ? clinicDay.periods : []) as Period[]
     const notice = Number(policy.rows[0]?.booking_notice_minutes ?? 0)
@@ -538,7 +550,7 @@ export async function clientRoutes(app: FastifyInstance, dependencies: AuthDepen
     const result: Record<string, string[]> = {}
     for (const professionalId of professionalIds) {
       result[professionalId] = []
-      if (date < today || date > last) continue
+      if (date < today || date > last || spaceClosed || away.has(professionalId)) continue
       const own = professionalDays.rows.find(
         (row) => String(row.professional_id) === professionalId,
       )

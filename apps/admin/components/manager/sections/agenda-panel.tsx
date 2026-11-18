@@ -13,9 +13,16 @@ import {
   RotateCcw,
   Settings2,
 } from 'lucide-react'
+import { holidaysBetween, type Holiday } from '@/lib/holidays'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { AppointmentSheet } from '../appointments/appointment-sheet'
-import { BookingModal } from '../appointments/booking-modal'
+import {
+  BookingModal,
+  closureKinds,
+  type BookingProfessional,
+  type ClosureRow,
+} from '../appointments/booking-modal'
+import { HolidayPrompt } from '../appointments/holiday-prompt'
 import {
   clock,
   dayLabel,
@@ -62,9 +69,11 @@ type AgendaData = {
   appointments: Row[]
   clients: { id: string; display_name: string }[]
   services: { id: string; name: string; duration_minutes: number }[]
-  professionals: { id: string; display_name: string }[]
+  professionals: BookingProfessional[]
   weeklyAvailability: WeeklyRow[]
   overrides: OverrideRow[]
+  closures?: ClosureRow[]
+  location?: { city: string | null; state: string | null }
   professionalAvailability?: ProfessionalDayRow[]
   timezone: string
   canManage?: boolean
@@ -195,7 +204,11 @@ export function AgendaPanel({
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
   const [booking, setBooking] = useState<{ open: boolean; date?: string }>({ open: false })
-  const [schedule, setSchedule] = useState<{ open: boolean; date?: string | null }>({ open: false })
+  const [schedule, setSchedule] = useState<{
+    open: boolean
+    date?: string | null
+    tab?: 'week' | 'dates' | 'closures'
+  }>({ open: false })
   const [opened, setOpened] = useState<AppointmentView | null>(null)
   const [reload, setReload] = useState(0)
   const selectedDayRef = useRef<HTMLDivElement>(null)
@@ -244,6 +257,34 @@ export function AgendaPanel({
   const timezone = data?.timezone ?? 'America/Sao_Paulo'
   const today = localDate(new Date(), timezone)
   const views = useMemo(() => (data?.appointments ?? []).map(toView), [data])
+  const holidayByDate = useMemo(() => {
+    const first = view === 'week' ? ymd(days[0]) : ymd(monthDays[0])
+    const last = view === 'week' ? ymd(days[6]) : ymd(monthDays[41])
+    return new Map<string, Holiday>(
+      holidaysBetween(first, last, {
+        state: data?.location?.state,
+        city: data?.location?.city,
+      }).map((item) => [item.date, item]),
+    )
+  }, [view, days, monthDays, data?.location?.state, data?.location?.city])
+  // Heat scale for the month (GitHub-like): relative to the busiest day shown.
+  const monthCounts = useMemo(() => {
+    const counts = new Map<string, number>()
+    for (const item of views)
+      if (item.status !== 'canceled') {
+        const date = localDate(item.startsAt, timezone)
+        counts.set(date, (counts.get(date) ?? 0) + 1)
+      }
+    return counts
+  }, [views, timezone])
+  const busiest = Math.max(
+    0,
+    ...monthDays
+      .filter((day) => day.getMonth() === month.getMonth())
+      .map((day) => monthCounts.get(ymd(day)) ?? 0),
+  )
+  const heat = (count: number) =>
+    count && busiest ? Math.max(1, Math.ceil((count / busiest) * 4)) : 0
 
   /** What happens on a day: who comes, and what left it (canceled or moved away). */
   function dayItems(date: string) {
@@ -261,11 +302,28 @@ export function AgendaPanel({
   }
   function dayRule(date: string, weekday: number) {
     const exception = data?.overrides.find((item) => item.local_date.slice(0, 10) === date)
-    const open = exception
-      ? exception.is_available
-      : (data?.weeklyAvailability.find((item) => Number(item.weekday) === weekday)?.is_available ??
-        false)
-    return { exception, open }
+    const closures = (data?.closures ?? []).filter(
+      (item) => item.starts_on <= date && item.ends_on >= date,
+    )
+    const closure = closures.find((item) => item.professional_id === null)
+    const away = closures.filter((item) => item.professional_id !== null)
+    const open =
+      !closure &&
+      (exception
+        ? exception.is_available
+        : (data?.weeklyAvailability.find((item) => Number(item.weekday) === weekday)
+            ?.is_available ?? false))
+    const holiday = holidayByDate.get(date)
+    return { exception, open, closure, away, holiday }
+  }
+  /** "Ana · Férias" for the professionals away on a day. */
+  function awayLabel(away: ClosureRow[]) {
+    return away
+      .map((item) => {
+        const name = data?.professionals.find((person) => person.id === item.professional_id)
+        return `${name?.display_name.split(' ')[0] ?? 'Profissional'} · ${closureKinds[item.kind] ?? 'ausente'}`
+      })
+      .join(', ')
   }
 
   function selectMonthDay(day: Date) {
@@ -402,6 +460,18 @@ export function AgendaPanel({
           <Check size={16} aria-hidden /> {notice}
         </p>
       ) : null}
+      {data && data.canManageHours !== false && !embedded ? (
+        <HolidayPrompt
+          api={api}
+          clinicId={clinicId}
+          today={today}
+          location={data.location}
+          weekly={data.weeklyAvailability}
+          onCustom={(date) => setSchedule({ open: true, date })}
+          onSaved={changed}
+          refresh={reload}
+        />
+      ) : null}
       {!data ? (
         error ? null : (
           <div className="manager-agenda-skeleton" role="status" aria-label="Carregando agenda">
@@ -429,35 +499,62 @@ export function AgendaPanel({
                   const count = dayItems(date).active.length
                   const rule = dayRule(date, day.getDay())
                   const isSelected = date === selectedDate
+                  const tag = rule.closure
+                    ? (closureKinds[rule.closure.kind] ?? 'Fechado')
+                    : rule.holiday
+                      ? rule.holiday.name
+                      : rule.exception
+                        ? rule.exception.reason || (rule.open ? 'Horário especial' : 'Fechado')
+                        : rule.away.length
+                          ? awayLabel(rule.away)
+                          : ''
                   return (
                     <button
                       type="button"
                       role="gridcell"
-                      className="manager-month-day"
+                      className="manager-month-day ag-heat"
                       data-outside={day.getMonth() !== month.getMonth() || undefined}
                       data-today={date === today || undefined}
                       data-selected={isSelected || undefined}
                       data-closed={!rule.open || undefined}
+                      data-heat={heat(count)}
+                      data-holiday={rule.holiday ? rule.holiday.scope : undefined}
                       aria-selected={isSelected}
-                      aria-label={`${new Intl.DateTimeFormat('pt-BR', { dateStyle: 'full' }).format(day)}, ${count} ${count === 1 ? 'agendamento' : 'agendamentos'}${rule.open ? '' : ', fechado'}`}
+                      aria-label={`${new Intl.DateTimeFormat('pt-BR', { dateStyle: 'full' }).format(day)}, ${count} ${count === 1 ? 'agendamento' : 'agendamentos'}${rule.open ? '' : ', fechado'}${tag ? `, ${tag}` : ''}`}
                       key={date}
                       onClick={() => selectMonthDay(day)}
                     >
-                      <span className="manager-month-day-number">
-                        {day.getDate()}
-                        {rule.exception && <i title="Data especial" />}
+                      <span className="ag-heat-top">
+                        {tag ? (
+                          <em className="ag-heat-tag" title={tag}>
+                            {tag}
+                          </em>
+                        ) : (
+                          <span />
+                        )}
+                        <span className="manager-month-day-number">{day.getDate()}</span>
                       </span>
                       <strong>{count || (rule.open ? 0 : '—')}</strong>
                       <small>
-                        {count || rule.open
-                          ? count === 1
-                            ? 'agendamento'
-                            : 'agendamentos'
-                          : 'fechado'}
+                        {date === today
+                          ? 'hoje'
+                          : count || rule.open
+                            ? count === 1
+                              ? 'agendamento'
+                              : 'agendamentos'
+                            : 'fechado'}
                       </small>
                     </button>
                   )
                 })}
+              </div>
+              <div className="ag-heat-legend" aria-hidden>
+                <span>Menos</span>
+                {[0, 1, 2, 3, 4].map((level) => (
+                  <i key={level} data-heat={level} />
+                ))}
+                <span>Mais</span>
+                <span className="ag-heat-legend-holiday">Feriado</span>
               </div>
             </Card.Content>
           </Card>
@@ -535,7 +632,26 @@ export function AgendaPanel({
                   </div>
                   <div className="ag-day-tags">
                     {item.date === today ? <em>Hoje</em> : null}
-                    {item.exception || !item.open ? (
+                    {item.holiday && !item.exception ? (
+                      <em className="ag-day-holiday" title={item.holiday.name}>
+                        {item.holiday.name}
+                      </em>
+                    ) : null}
+                    {item.away.length ? (
+                      <em className="ag-day-away" title={awayLabel(item.away)}>
+                        {awayLabel(item.away)}
+                      </em>
+                    ) : null}
+                    {item.closure ? (
+                      <button
+                        type="button"
+                        className="ag-day-rule"
+                        title="Ver fechamentos"
+                        onClick={() => setSchedule({ open: true, tab: 'closures' })}
+                      >
+                        {closureKinds[item.closure.kind] ?? 'Fechado'}
+                      </button>
+                    ) : item.exception || !item.open ? (
                       <button
                         type="button"
                         className="ag-day-rule"
@@ -629,6 +745,7 @@ export function AgendaPanel({
           canManageHours={data.canManageHours !== false}
           canManageTeam={data.canManageTeam !== false}
           initialDate={schedule.date}
+          initialTab={schedule.tab}
           onSaved={changed}
         />
       ) : null}
