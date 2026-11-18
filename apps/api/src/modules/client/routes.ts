@@ -97,7 +97,7 @@ const requiredKeys: Record<Level, string[]> = {
   ],
 }
 
-function missingKeys(level: number, answers: Record<string, unknown>) {
+export function missingKeys(level: number, answers: Record<string, unknown>) {
   const keys = ([1, 2, 3] as const)
     .filter((item) => item <= level)
     .flatMap((item) => requiredKeys[item])
@@ -498,8 +498,25 @@ export async function clientRoutes(app: FastifyInstance, dependencies: AuthDepen
     durationMinutes: number,
     professionalIds: string[],
     ignoreAppointmentId: string | null,
+    serviceId: string,
   ) {
     const weekday = new Date(`${date}T12:00:00Z`).getUTCDay()
+    // A service that depends on a device (manual_release) is only bookable on its rental days;
+    // without a linked device it stays off the client agenda, as before.
+    const device = (
+      await connection.query(
+        `SELECT s.booking_mode = 'manual_release' AS needs,
+                EXISTS (SELECT 1 FROM luminix.service_resources sr
+                          JOIN luminix.resources r ON r.clinic_id = sr.clinic_id AND r.id = sr.resource_id
+                          JOIN luminix.resource_rentals rr ON rr.clinic_id = r.clinic_id AND rr.resource_id = r.id
+                         WHERE sr.clinic_id = s.clinic_id AND sr.service_id = s.id
+                           AND r.type = 'equipment' AND r.status = 'active'
+                           AND $3::date BETWEEN rr.starts_on AND rr.ends_on) AS rented
+           FROM luminix.services s WHERE s.clinic_id = $1 AND s.id = $2`,
+        [scope.clinicId, serviceId, date],
+      )
+    ).rows[0]
+    const deviceMissing = device?.needs === true && device.rented !== true
     const [override, weekly, professionalDays, policy, busy, closures] = await Promise.all([
       connection.query(
         'SELECT is_available, periods FROM luminix.schedule_overrides WHERE clinic_id = $1 AND local_date = $2',
@@ -550,7 +567,8 @@ export async function clientRoutes(app: FastifyInstance, dependencies: AuthDepen
     const result: Record<string, string[]> = {}
     for (const professionalId of professionalIds) {
       result[professionalId] = []
-      if (date < today || date > last || spaceClosed || away.has(professionalId)) continue
+      if (date < today || date > last || spaceClosed || deviceMissing || away.has(professionalId))
+        continue
       const own = professionalDays.rows.find(
         (row) => String(row.professional_id) === professionalId,
       )
@@ -599,6 +617,18 @@ export async function clientRoutes(app: FastifyInstance, dependencies: AuthDepen
     return row?.accept_in_app === true
   }
 
+  /** A rented device linked to the service (its rental days open the client agenda). */
+  async function hasDevice(connection: SqlConnection, scope: Scope, serviceId: string) {
+    const result = await connection.query(
+      `SELECT 1 FROM luminix.service_resources sr
+         JOIN luminix.resources r ON r.clinic_id = sr.clinic_id AND r.id = sr.resource_id
+        WHERE sr.clinic_id = $1 AND sr.service_id = $2 AND r.type = 'equipment'
+          AND r.status = 'active' LIMIT 1`,
+      [scope.clinicId, serviceId],
+    )
+    return result.rows.length > 0
+  }
+
   async function serviceFor(connection: SqlConnection, scope: Scope, serviceId: string) {
     return (
       await connection.query(
@@ -632,7 +662,11 @@ export async function clientRoutes(app: FastifyInstance, dependencies: AuthDepen
     async (request, reply) =>
       asClient(request, reply, request.params.slug, async (connection, scope) => {
         const service = await serviceFor(connection, scope!, request.query.serviceId)
-        if (!service || service.booking_mode === 'manual_release')
+        if (
+          !service ||
+          (service.booking_mode === 'manual_release' &&
+            !(await hasDevice(connection, scope!, String(service.id))))
+        )
           return reply.code(404).send({ error: 'Service unavailable' })
         const professionals = await professionalsFor(connection, scope!, String(service.id))
         const { slots, lastDate } = await freeSlots(
@@ -642,6 +676,7 @@ export async function clientRoutes(app: FastifyInstance, dependencies: AuthDepen
           Number(service.duration_minutes),
           professionals.length ? professionals.map((item) => item.id) : [''],
           request.query.ignore ?? null,
+          String(service.id),
         )
         return {
           date: request.query.date,
@@ -711,6 +746,7 @@ export async function clientRoutes(app: FastifyInstance, dependencies: AuthDepen
           Number(service.duration_minutes),
           candidates,
           null,
+          String(service.id),
         )
         const professionalId = candidates.find((id) => slots[id]?.includes(time))
         if (professionalId === undefined) return reply.code(409).send({ error: 'Slot taken' })
@@ -769,7 +805,7 @@ export async function clientRoutes(app: FastifyInstance, dependencies: AuthDepen
       asClient(request, reply, request.params.slug, async (connection, scope) => {
         const current = (
           await connection.query(
-            `SELECT a.professional_id, s.duration_minutes FROM luminix.appointments a
+            `SELECT a.professional_id, a.service_id, s.duration_minutes FROM luminix.appointments a
                JOIN luminix.services s ON s.clinic_id = a.clinic_id AND s.id = a.service_id
               WHERE a.clinic_id = $1 AND a.id = $2 AND a.clinic_client_id = $3`,
             [scope!.clinicId, request.params.appointmentId, scope!.clientId],
@@ -785,6 +821,7 @@ export async function clientRoutes(app: FastifyInstance, dependencies: AuthDepen
           Number(current.duration_minutes),
           [agenda],
           request.params.appointmentId,
+          String(current.service_id),
         )
         if (!slots[agenda]?.includes(request.body.localStartsAt.slice(11)))
           return reply.code(409).send({ error: 'Slot taken' })

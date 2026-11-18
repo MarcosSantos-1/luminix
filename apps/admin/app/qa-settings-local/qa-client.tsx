@@ -334,7 +334,7 @@ const fixtures: Record<string, unknown> = {
       bookingMode,
       audience: 'all',
       sensitive: false,
-      status: 'active',
+      status: index === 3 ? 'archived' : 'active',
       professionals: index === 2 ? 0 : 1,
       bookings90d: 12 - index * 2,
       promotion:
@@ -831,7 +831,88 @@ const qaClients = [
   spent_cents: spent as number,
   last_visit_at: last == null ? null : qaAgo(last as number),
   next_visit_at: next == null ? null : qaAgo(next as number),
+  anamnesis:
+    index === 0
+      ? { level: 2, answeredAt: qaAgo(40), by: 'staff' }
+      : index === 4
+        ? { level: 2, answeredAt: qaAgo(500), by: 'client' }
+        : null,
 }))
+
+const qaAnamnesis = {
+  version: 2,
+  level: 2,
+  answeredAt: qaAgo(40),
+  answers: {
+    sex: 'female',
+    birthDate: '1991-04-18',
+    allergies: 'yes',
+    allergiesDetails: 'Amônia',
+    cosmeticAllergy: 'no',
+    diagnosedDisease: 'no',
+    medicalTreatment: 'no',
+    continuousMedications: 'no',
+    pregnant: 'yes',
+    aestheticReaction: 'no',
+  },
+}
+
+const qaExtras = {
+  canManage: true,
+  canFinance: true,
+  packages: [
+    {
+      id: 'a1b2c3d4-0000-4000-8000-000000000701',
+      serviceId: 'a1b2c3d4-0000-4000-8000-000000000003',
+      name: 'Limpeza de pele · 4 sessões',
+      sessions: 4,
+      priceCents: 60000,
+      validityDays: 180,
+      status: 'active',
+      sold: 6,
+      activeSold: 3,
+    },
+    {
+      id: 'a1b2c3d4-0000-4000-8000-000000000702',
+      serviceId: 'a1b2c3d4-0000-4000-8000-000000000005',
+      name: 'Laser CO2 · 3 sessões',
+      sessions: 3,
+      priceCents: 135000,
+      validityDays: 120,
+      status: 'active',
+      sold: 2,
+      activeSold: 1,
+    },
+  ],
+  equipment: [
+    {
+      id: 'a1b2c3d4-0000-4000-8000-000000000801',
+      name: 'Laser CO2 fracionado',
+      supplier: 'Locadora Bella Tech',
+      defaultCostCents: 90000,
+      status: 'active',
+      serviceIds: ['a1b2c3d4-0000-4000-8000-000000000005'],
+      rentals: [
+        {
+          id: 'a1b2c3d4-0000-4000-8000-000000000811',
+          startsOn: qaAgo(-8).slice(0, 10),
+          endsOn: qaAgo(-8).slice(0, 10),
+          costCents: 90000,
+          note: '',
+          inFinance: true,
+        },
+        {
+          id: 'a1b2c3d4-0000-4000-8000-000000000812',
+          startsOn: qaAgo(-22).slice(0, 10),
+          endsOn: qaAgo(-23).slice(0, 10),
+          costCents: 160000,
+          note: 'Dois dias',
+          inFinance: false,
+        },
+      ],
+    },
+  ],
+}
 const qaFold = (value: string) =>
   value
     .normalize('NFD')
@@ -925,8 +1006,32 @@ export default function QASettings({
               },
             ],
           } as T
+        if (path === 'catalog/extras') return structuredClone(qaExtras) as T
+        if (/^clients\/[^/]+\/packages$/.test(path))
+          return {
+            packages: [
+              {
+                id: 'cp1',
+                serviceId: 'a1b2c3d4-0000-4000-8000-000000000003',
+                name: 'Limpeza de pele · 4 sessões',
+                sessionsTotal: 4,
+                used: 3,
+                done: 2,
+                left: 1,
+                priceCents: 60000,
+                soldOn: qaAgo(60).slice(0, 10),
+                expiresOn: qaAgo(-120).slice(0, 10),
+                status: 'active',
+              },
+            ],
+          } as T
         if (path.startsWith('clients/'))
           return {
+            anamnesis: {
+              record: path.includes('qa-client-0') ? qaAnamnesis : null,
+              shared: false,
+              requiredLevel: 2,
+            },
             client: {
               contact_phone: '+5511987654321',
               contact_email: 'cliente@example.com',
@@ -1094,6 +1199,8 @@ export default function QASettings({
                   createSignal={createSignal}
                   focus={focus}
                   onOpenTeam={() => navigate('Equipe e horários')}
+                  onOpenMarketing={() => navigate('Marketing')}
+                  clinicName={clinic.name}
                 />
               ),
               financeiro: ({ createSignal }) => (

@@ -6,22 +6,26 @@ import {
   CalendarClock,
   CalendarPlus,
   Camera,
-  ChevronDown,
+  ClipboardCheck,
   Gift,
   History,
   IdCard,
   MessageCircle,
   NotebookPen,
+  Package,
   Pencil,
   Phone,
   Plus,
+  ShieldCheck,
+  Sparkles,
   TicketPercent,
   UserRound,
   UserRoundPlus,
   UserRoundX,
   UsersRound,
 } from 'lucide-react'
-import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
+import { useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from 'react'
+import type { Answers, Level } from '@luminix/contracts/anamnesis'
 import { formatBrPhone, toE164Phone } from '@/lib/phone'
 import { isValidBrazilianTaxId } from '@/lib/tax-id'
 import {
@@ -34,10 +38,21 @@ import {
 } from '@/components/ui/fields'
 import { ClientAvatar } from '../appointments/appointment-sheet'
 import { BookingModal } from '../appointments/booking-modal'
-import { money, whatsapp } from '../business/format'
+import { dateBr, money, whatsapp } from '../business/format'
+import {
+  AnamnesisBadge,
+  AnamnesisStep,
+  AnamnesisView,
+  anamnesisState,
+  levelNames,
+  staffStepComplete,
+  staffSteps,
+  type AnamnesisSummary,
+  type StaffAnamnesis,
+} from '../clients/anamnesis'
 import { FilterMenu, KpiCards, type FilterValue } from '../data-kit'
 import { QuickModal } from '../quick-modal'
-import { ClinicApiError, useClinicApi } from '../settings/clinic-api'
+import { ClinicApiError, useClinicApi, type ClinicApi } from '../settings/clinic-api'
 import { useSearchFocus, type SearchFocus } from '../workspace/workspace-signals'
 
 // Biological sex (waxing, intimate treatments), not gender identity.
@@ -67,6 +82,8 @@ type Client = {
   photo_large_url?: string | null
   /** Sent by the client through the client area; loaded on demand. */
   account_photo?: boolean
+  /** Level, date and who filled the anamnese (no answers in the list). */
+  anamnesis?: AnamnesisSummary
 }
 
 type ClientDetail = { tax_id: string | null }
@@ -186,6 +203,18 @@ export function ClientsPanel({
   const [mountedAt] = useState(() => Date.now())
   const [sheet, setSheet] = useState<{ id: string; from: DOMRect | null } | null>(null)
   const [history, setHistory] = useState<HistoryItem[] | null>(null)
+  const [sheetDetail, setSheetDetail] = useState<{
+    record: StaffAnamnesis | null
+    shared: boolean
+  } | null>(null)
+  const [requiredLevel, setRequiredLevel] = useState<Level>(1)
+  // Optional anamnese inside "Adicionar cliente": -1 = personal data, then one step per screen.
+  const [intake, setIntake] = useState<{
+    on: boolean
+    index: number
+    answers: Answers
+    consent: boolean
+  }>({ on: false, index: -1, answers: {}, consent: false })
   const [booking, setBooking] = useState<string | null>(null)
   const photoInput = useRef<HTMLInputElement>(null)
   const [photoBusy, setPhotoBusy] = useState(false)
@@ -218,13 +247,18 @@ export function ClientsPanel({
     setLoading(true)
     setError('')
     try {
-      const body = await api.get<{ clients: Client[]; canSeeMoney?: boolean }>('clients', {
+      const body = await api.get<{
+        clients: Client[]
+        canSeeMoney?: boolean
+        anamnesisLevel?: number
+      }>('clients', {
         status,
         ...(query.trim() ? { q: query.trim() } : {}),
       })
       if (!active()) return
       setClients(body.clients)
       setCanSeeMoney(body.canSeeMoney === true)
+      setRequiredLevel(Math.min(3, Math.max(1, body.anamnesisLevel ?? 1)) as Level)
     } catch {
       if (active()) setError('Não foi possível carregar os clientes deste espaço.')
     } finally {
@@ -249,6 +283,7 @@ export function ClientsPanel({
     setDuplicates(null)
     setFieldErrors({})
     setError('')
+    setIntake({ on: false, index: -1, answers: {}, consent: false })
     setOpen(true)
   }
 
@@ -261,11 +296,24 @@ export function ClientsPanel({
   async function openSheet(client: Client, from: DOMRect | null) {
     setSheet({ id: client.id, from })
     setHistory(null)
+    setSheetDetail(null)
+    await loadDetail(client.id)
+  }
+
+  async function loadDetail(id: string) {
     try {
-      const body = await api.get<{ history: HistoryItem[] }>(`clients/${client.id}`)
+      const body = await api.get<{
+        history: HistoryItem[]
+        anamnesis?: { record: StaffAnamnesis | null; shared: boolean; requiredLevel?: number }
+      }>(`clients/${id}`)
       setHistory(body.history)
+      setSheetDetail({
+        record: body.anamnesis?.record ?? null,
+        shared: body.anamnesis?.shared === true,
+      })
     } catch {
       setHistory([])
+      setSheetDetail({ record: null, shared: false })
     }
   }
 
@@ -324,11 +372,26 @@ export function ClientsPanel({
       ? 'Não foi possível salvar as alterações.'
       : 'Não foi possível cadastrar a cliente.'
     try {
+      let message = editing ? 'Cadastro atualizado.' : `${form.name.trim()} cadastrada.`
       if (editing) await api.put(`clients/${editing.id}`, payload)
-      else await api.post('clients', payload)
+      else {
+        const created = await api.post<{ client: { id: string } }>('clients', payload)
+        if (intake.on) {
+          try {
+            await api.put(`clients/${created.client.id}/anamnesis`, {
+              level: requiredLevel,
+              answers: intake.answers,
+              consent: true,
+            })
+            message = `${form.name.trim()} cadastrada com anamnese preenchida.`
+          } catch {
+            message = `${form.name.trim()} cadastrada. A anamnese não foi salva: preencha pela ficha.`
+          }
+        }
+      }
       setOpen(false)
       setDuplicates(null)
-      setNotice(editing ? 'Cadastro atualizado.' : `${form.name.trim()} cadastrada.`)
+      setNotice(message)
       await load()
     } catch (caught) {
       const body =
@@ -395,6 +458,26 @@ export function ClientsPanel({
       only: id === 'all' ? [] : current.only?.length === 1 && current.only[0] === id ? [] : [id],
     }))
   const selected = sheet ? clients.find((client) => client.id === sheet.id) : null
+  const intakeSteps = intake.on ? staffSteps(requiredLevel, intake.answers) : []
+  const intakeStep = intake.index >= 0 ? intakeSteps[intake.index] : undefined
+  const intakeAtEnd = intake.on && intake.index >= intakeSteps.length
+  function startIntake() {
+    if (!form.name.trim()) {
+      setError('Escreva o nome da cliente para continuar.')
+      return
+    }
+    setError('')
+    // Sex and birth date typed in the form already answer the first step.
+    setIntake((current) => ({
+      ...current,
+      index: 0,
+      answers: {
+        ...current.answers,
+        ...(form.sex ? { sex: form.sex } : {}),
+        ...(form.birthDate ? { birthDate: form.birthDate } : {}),
+      },
+    }))
+  }
   const totalSpent = clients.reduce((sum, client) => sum + (client.spent_cents ?? 0), 0)
 
   return (
@@ -663,9 +746,18 @@ export function ClientsPanel({
       >
         {selected ? (
           <ClientProfile
+            key={selected.id}
+            api={api}
             client={selected}
             checks={checks}
             history={history}
+            detail={sheetDetail}
+            requiredLevel={requiredLevel}
+            onChanged={(message) => {
+              setNotice(message)
+              void load()
+              void loadDetail(selected.id)
+            }}
             photoBusy={photoBusy}
             photoError={photoError}
             saving={saving}
@@ -755,7 +847,54 @@ export function ClientsPanel({
                   </div>
                 </div>
               )}
-              <form id="manager-client-form" className="manager-client-form" onSubmit={submit}>
+              {intake.on && intake.index >= 0 ? (
+                <div className="anm anm-intake">
+                  <div
+                    className="anm-progress"
+                    aria-label={`Anamnese: etapa ${intake.index + 1} de ${intakeSteps.length + 1}`}
+                  >
+                    <span
+                      style={{
+                        transform: `scaleX(${(intake.index + 1) / (intakeSteps.length + 1)})`,
+                      }}
+                    />
+                  </div>
+                  <p className="anm-kicker">
+                    {levelNames[requiredLevel]} · {form.name.trim()}
+                  </p>
+                  {intakeStep ? (
+                    <AnamnesisStep
+                      step={intakeStep}
+                      answers={intake.answers}
+                      onChange={(answers) => setIntake({ ...intake, answers })}
+                    />
+                  ) : (
+                    <div className="anm-step">
+                      <h3>Tudo certo!</h3>
+                      <p>Confirme com a cliente antes de salvar.</p>
+                      <CheckboxField
+                        isSelected={intake.consent}
+                        onChange={(consent) => setIntake({ ...intake, consent })}
+                        label="A cliente confirmou as respostas"
+                        description="E autorizou o registro para cuidar do atendimento."
+                      />
+                    </div>
+                  )}
+                </div>
+              ) : null}
+              <form
+                id="manager-client-form"
+                className="manager-client-form"
+                hidden={intake.on && intake.index >= 0}
+                onSubmit={(event) => {
+                  if (intake.on && !editing && !intakeAtEnd) {
+                    event.preventDefault()
+                    startIntake()
+                    return
+                  }
+                  void submit(event)
+                }}
+              >
                 <section className="manager-client-section" aria-labelledby="client-sec-person">
                   <h3 id="client-sec-person" className="manager-client-section-title">
                     <IdCard size={18} aria-hidden="true" /> Dados pessoais
@@ -860,6 +999,27 @@ export function ClientsPanel({
                     onChange={(notes) => setForm({ ...form, notes })}
                   />
                 </section>
+                {!editing ? (
+                  <button
+                    type="button"
+                    className={`anm-offer${intake.on ? ' is-on' : ''}`}
+                    aria-pressed={intake.on}
+                    onClick={() => setIntake({ ...intake, on: !intake.on })}
+                  >
+                    <span className="anm-offer-icon" aria-hidden>
+                      {intake.on ? <ShieldCheck size={20} /> : <ClipboardCheck size={20} />}
+                    </span>
+                    <span>
+                      <strong>Preencher a anamnese agora</strong>
+                      <small>
+                        Opcional · {levelNames[requiredLevel]} ·{' '}
+                        {staffSteps(requiredLevel, intake.answers).length} etapas rápidas. Dá para
+                        fazer depois pela ficha.
+                      </small>
+                    </span>
+                    <i aria-hidden />
+                  </button>
+                ) : null}
               </form>
             </Modal.Body>
             <Modal.Footer>
@@ -877,12 +1037,48 @@ export function ClientsPanel({
                   {editing.status === 'active' ? 'Arquivar' : 'Reativar'}
                 </Button>
               )}
-              <Button variant="secondary" onPress={() => setOpen(false)}>
-                Cancelar
-              </Button>
-              <Button type="submit" form="manager-client-form" isDisabled={saving || loadingDetail}>
-                {saving ? 'Salvando…' : editing ? 'Salvar alterações' : 'Salvar cliente'}
-              </Button>
+              {intake.on && intake.index >= 0 ? (
+                <>
+                  <Button
+                    variant="secondary"
+                    onPress={() => setIntake({ ...intake, index: intake.index - 1 })}
+                  >
+                    Voltar
+                  </Button>
+                  {intakeAtEnd ? (
+                    <Button isDisabled={saving || !intake.consent} onPress={() => void submit()}>
+                      <ShieldCheck size={16} aria-hidden />{' '}
+                      {saving ? 'Salvando…' : 'Salvar cliente e anamnese'}
+                    </Button>
+                  ) : (
+                    <Button
+                      isDisabled={!intakeStep || !staffStepComplete(intakeStep, intake.answers)}
+                      onPress={() => setIntake({ ...intake, index: intake.index + 1 })}
+                    >
+                      Continuar
+                    </Button>
+                  )}
+                </>
+              ) : (
+                <>
+                  <Button variant="secondary" onPress={() => setOpen(false)}>
+                    Cancelar
+                  </Button>
+                  <Button
+                    type="submit"
+                    form="manager-client-form"
+                    isDisabled={saving || loadingDetail}
+                  >
+                    {saving
+                      ? 'Salvando…'
+                      : editing
+                        ? 'Salvar alterações'
+                        : intake.on
+                          ? 'Continuar para a anamnese'
+                          : 'Salvar cliente'}
+                  </Button>
+                </>
+              )}
             </Modal.Footer>
           </Modal.Dialog>
         </Modal.Container>
@@ -1019,11 +1215,46 @@ function Visit({ item }: { item: HistoryItem }) {
   )
 }
 
-/** The client as a profile: numbers, next visit, care notes, actions, data and visits. */
+type ProfileTab = 'cover' | 'data' | 'anamnesis' | 'packages' | 'history'
+type ClientPackage = {
+  id: string
+  serviceId: string
+  name: string
+  sessionsTotal: number
+  used: number
+  done: number
+  left: number
+  priceCents: number | null
+  soldOn: string
+  expiresOn: string | null
+  status: 'active' | 'finished' | 'expired' | 'canceled'
+}
+type CatalogPackage = {
+  id: string
+  name: string
+  sessions: number
+  priceCents: number
+  validityDays: number | null
+  status: string
+}
+const packageStatus: Record<ClientPackage['status'], string> = {
+  active: 'Em uso',
+  finished: 'Concluído',
+  expired: 'Vencido',
+  canceled: 'Cancelado',
+}
+
+/**
+ * The client as a profile, in tabs: the cover (numbers, next visit, care and actions), personal
+ * data, anamnese, packages and the history of visits.
+ */
 function ClientProfile({
+  api,
   client,
   checks,
   history,
+  detail,
+  requiredLevel,
   photoBusy,
   photoError,
   saving,
@@ -1033,10 +1264,15 @@ function ClientProfile({
   onPhoto,
   onRemovePhoto,
   onStatus,
+  onChanged,
 }: {
+  api: ClinicApi
   client: Client
   checks: ReturnType<typeof clientChecks>
   history: HistoryItem[] | null
+  /** Health record (null while loading or when there is none). */
+  detail: { record: StaffAnamnesis | null; shared: boolean } | null
+  requiredLevel: Level
   photoBusy: boolean
   photoError: string
   saving: boolean
@@ -1046,10 +1282,14 @@ function ClientProfile({
   onPhoto: () => void
   onRemovePhoto: () => void
   onStatus: () => void
+  onChanged: (message: string) => void
 }) {
-  const [tab, setTab] = useState<'next' | 'past'>('past')
+  const [tab, setTab] = useState<ProfileTab>('cover')
+  const [visits, setVisits] = useState<'next' | 'past'>('past')
   // Opening time of the sheet: what is still ahead and what already happened.
   const [now] = useState(() => Date.now())
+  const [packages, setPackages] = useState<ClientPackage[] | null>(null)
+  const [reloadPackages, setReloadPackages] = useState(0)
   const upcoming = (history ?? [])
     .filter(
       (item) =>
@@ -1058,184 +1298,662 @@ function ClientProfile({
     )
     .reverse()
   const past = (history ?? []).filter((item) => !upcoming.includes(item))
-  const shown = tab === 'next' ? upcoming : past
+  const shown = visits === 'next' ? upcoming : past
   const hasPhoto = Boolean(client.photo_url || client.account_photo)
   const birth = client.birth_date?.slice(0, 10)
+  const activePackages = (packages ?? []).filter((item) => item.status === 'active')
+
+  useEffect(() => {
+    let active = true
+    void api
+      .get<{ packages: ClientPackage[] }>(`clients/${client.id}/packages`)
+      .then((body) => active && setPackages(body.packages))
+      .catch(() => active && setPackages([]))
+    return () => {
+      active = false
+    }
+  }, [api, client.id, reloadPackages])
+
+  const tabs: { id: ProfileTab; label: string; icon: ReactNode; count?: number }[] = [
+    { id: 'cover', label: 'Resumo', icon: <Sparkles size={15} aria-hidden /> },
+    { id: 'data', label: 'Dados', icon: <IdCard size={15} aria-hidden /> },
+    { id: 'anamnesis', label: 'Anamnese', icon: <ClipboardCheck size={15} aria-hidden /> },
+    {
+      id: 'packages',
+      label: 'Pacotes',
+      icon: <Package size={15} aria-hidden />,
+      count: activePackages.length || undefined,
+    },
+    {
+      id: 'history',
+      label: 'Histórico',
+      icon: <History size={15} aria-hidden />,
+      count: history?.length || undefined,
+    },
+  ]
 
   return (
-    <div className="apt-sheet-body sh-body">
-      <ClientTags client={client} checks={checks} />
-
-      <dl className="cli-strip">
-        <div>
-          <dt>Atendimentos</dt>
-          <dd>{client.completed_count}</dd>
-        </div>
-        {client.spent_cents != null ? (
-          <div>
-            <dt>Total gasto</dt>
-            <dd>{money(client.spent_cents)}</dd>
-          </div>
-        ) : null}
-        <div>
-          <dt>Última visita</dt>
-          <dd>{client.last_visit_at ? shortDate(client.last_visit_at) : '—'}</dd>
-        </div>
-        <div>
-          <dt>Cliente desde</dt>
-          <dd>{shortDate(client.created_at)}</dd>
-        </div>
-      </dl>
-
-      <div className={`sh-summary cli-next${client.next_visit_at ? '' : ' is-empty'}`}>
-        <span className="sh-summary-icon" aria-hidden>
-          <CalendarClock size={22} />
-        </span>
-        <span className="cli-next-copy">
-          <small>Próximo horário</small>
-          <strong>
-            {client.next_visit_at
-              ? new Intl.DateTimeFormat('pt-BR', {
-                  weekday: 'short',
-                  day: '2-digit',
-                  month: '2-digit',
-                  hour: '2-digit',
-                  minute: '2-digit',
-                }).format(new Date(client.next_visit_at))
-              : 'Nenhum marcado'}
-          </strong>
-        </span>
-        {client.status === 'active' ? (
-          <Button
-            size="sm"
-            variant={client.next_visit_at ? 'secondary' : 'primary'}
-            onPress={onBook}
+    <div className="apt-sheet-body sh-body cpf">
+      <div className="cpf-tabs lx-scroll" role="tablist" aria-label="Partes da ficha">
+        {tabs.map((item) => (
+          <button
+            key={item.id}
+            type="button"
+            role="tab"
+            aria-selected={tab === item.id}
+            onClick={() => setTab(item.id)}
           >
-            <CalendarPlus size={16} aria-hidden /> Agendar
-          </Button>
-        ) : null}
+            {item.icon} {item.label}
+            {item.count ? <em>{item.count}</em> : null}
+          </button>
+        ))}
       </div>
 
-      {client.notes ? (
-        <p className="sh-attention">
-          <NotebookPen size={16} aria-hidden />
-          <span className="cli-notes">{client.notes}</span>
-        </p>
-      ) : (
-        <button type="button" className="cli-add-note" onClick={onEdit}>
-          <NotebookPen size={16} aria-hidden /> Sem cuidados anotados. Registrar alergias, gestação
-          ou medicamentos
-        </button>
-      )}
+      {tab === 'cover' ? (
+        <>
+          <span className="cpf-badges">
+            <ClientTags client={client} checks={checks} />
+            <AnamnesisBadge summary={client.anamnesis ?? null} required={requiredLevel} />
+          </span>
+          <dl className="cli-strip">
+            <div>
+              <dt>Atendimentos</dt>
+              <dd>{client.completed_count}</dd>
+            </div>
+            {client.spent_cents != null ? (
+              <div>
+                <dt>Total gasto</dt>
+                <dd>{money(client.spent_cents)}</dd>
+              </div>
+            ) : null}
+            <div>
+              <dt>Última visita</dt>
+              <dd>{client.last_visit_at ? shortDate(client.last_visit_at) : '—'}</dd>
+            </div>
+            <div>
+              <dt>Cliente desde</dt>
+              <dd>{shortDate(client.created_at)}</dd>
+            </div>
+          </dl>
 
-      <div className="sh-folds">
-        <details className="sh-fold">
-          <summary>
-            <IdCard size={19} aria-hidden />
-            <span>Dados pessoais</span>
-            <ChevronDown className="sh-chevron" size={18} aria-hidden />
-          </summary>
-          <div className="sh-fold-body">
-            <dl className="apt-client">
-              <div>
-                <dt>WhatsApp</dt>
-                <dd>
-                  {client.contact_phone ? formatBrPhone(client.contact_phone) : 'Não informado'}
-                </dd>
-              </div>
-              <div>
-                <dt>E-mail</dt>
-                <dd>{client.contact_email ?? 'Não informado'}</dd>
-              </div>
-              {birth ? (
-                <div>
-                  <dt>Nascimento</dt>
-                  <dd>
-                    {birth.split('-').reverse().join('/')} · {ageOf(birth)} anos
-                  </dd>
-                </div>
-              ) : null}
-              {client.tax_id_masked ? (
-                <div>
-                  <dt>CPF</dt>
-                  <dd>{client.tax_id_masked}</dd>
-                </div>
-              ) : null}
-              <div>
-                <dt>Mensagens</dt>
-                <dd>{client.marketing_opt_in ? 'Aceita receber' : 'Não autorizou'}</dd>
-              </div>
-              <div>
-                <dt>Conta Luminix</dt>
-                <dd>{client.linked ? 'Conectada' : 'Não tem'}</dd>
-              </div>
-            </dl>
+          <div className={`sh-summary cli-next${client.next_visit_at ? '' : ' is-empty'}`}>
+            <span className="sh-summary-icon" aria-hidden>
+              <CalendarClock size={22} />
+            </span>
+            <span className="cli-next-copy">
+              <small>Próximo horário</small>
+              <strong>
+                {client.next_visit_at
+                  ? new Intl.DateTimeFormat('pt-BR', {
+                      weekday: 'short',
+                      day: '2-digit',
+                      month: '2-digit',
+                      hour: '2-digit',
+                      minute: '2-digit',
+                    }).format(new Date(client.next_visit_at))
+                  : 'Nenhum marcado'}
+              </strong>
+            </span>
+            {client.status === 'active' ? (
+              <Button
+                size="sm"
+                variant={client.next_visit_at ? 'secondary' : 'primary'}
+                onPress={onBook}
+              >
+                <CalendarPlus size={16} aria-hidden /> Agendar
+              </Button>
+            ) : null}
           </div>
-        </details>
-      </div>
 
-      <section className="sh-actions" aria-labelledby="cli-actions-title">
-        <h3 id="cli-actions-title">Ações</h3>
-        <div className="sh-row">
-          <Button variant="secondary" onPress={onEdit}>
-            <Pencil size={17} aria-hidden /> Editar cadastro
-          </Button>
-          <Button variant="secondary" onPress={onVoucher}>
-            <Gift size={17} aria-hidden /> Voucher
-          </Button>
-          <Button variant="secondary" isDisabled={photoBusy} onPress={onPhoto}>
-            <Camera size={17} aria-hidden />{' '}
-            {photoBusy ? 'Enviando…' : hasPhoto ? 'Trocar foto' : 'Foto'}
-          </Button>
-        </div>
-        {photoError ? (
-          <p className="apt-error" role="alert">
-            {photoError}
-          </p>
-        ) : null}
-        <div className="cli-quiet-actions">
-          {client.photo_url ? (
-            <button
-              type="button"
-              className="team-link"
-              disabled={photoBusy}
-              onClick={onRemovePhoto}
-            >
-              Remover foto
+          {activePackages.length ? (
+            <button type="button" className="cpf-pack-strip" onClick={() => setTab('packages')}>
+              <Package size={18} aria-hidden />
+              {activePackages.map((item) => (
+                <span key={item.id}>
+                  <strong>{item.name}</strong> · {item.left === 1 ? 'resta' : 'restam'} {item.left}{' '}
+                  de {item.sessionsTotal}
+                </span>
+              ))}
             </button>
           ) : null}
-          <button type="button" className="team-link" disabled={saving} onClick={onStatus}>
-            {client.status === 'active' ? 'Arquivar cliente' : 'Reativar cliente'}
-          </button>
+
+          {client.notes ? (
+            <p className="sh-attention">
+              <NotebookPen size={16} aria-hidden />
+              <span className="cli-notes">{client.notes}</span>
+            </p>
+          ) : (
+            <button type="button" className="cli-add-note" onClick={onEdit}>
+              <NotebookPen size={16} aria-hidden /> Sem cuidados anotados. Registrar alergias,
+              gestação ou medicamentos
+            </button>
+          )}
+
+          <section className="sh-actions" aria-labelledby="cli-actions-title">
+            <h3 id="cli-actions-title">Ações</h3>
+            <div className="cpf-actions">
+              <button type="button" onClick={onBook} disabled={client.status !== 'active'}>
+                <CalendarPlus size={20} aria-hidden /> Agendar
+              </button>
+              <button type="button" onClick={() => setTab('packages')}>
+                <Package size={20} aria-hidden /> Vender pacote
+              </button>
+              <button type="button" onClick={() => setTab('anamnesis')}>
+                <ClipboardCheck size={20} aria-hidden /> Anamnese
+              </button>
+              <button type="button" onClick={onEdit}>
+                <Pencil size={20} aria-hidden /> Editar
+              </button>
+              <button type="button" onClick={onVoucher}>
+                <Gift size={20} aria-hidden /> Voucher
+              </button>
+              <button type="button" disabled={photoBusy} onClick={onPhoto}>
+                <Camera size={20} aria-hidden />{' '}
+                {photoBusy ? 'Enviando…' : hasPhoto ? 'Trocar foto' : 'Foto'}
+              </button>
+            </div>
+            {photoError ? (
+              <p className="apt-error" role="alert">
+                {photoError}
+              </p>
+            ) : null}
+            <div className="cli-quiet-actions">
+              {client.photo_url ? (
+                <button
+                  type="button"
+                  className="team-link"
+                  disabled={photoBusy}
+                  onClick={onRemovePhoto}
+                >
+                  Remover foto
+                </button>
+              ) : null}
+              <button type="button" className="team-link" disabled={saving} onClick={onStatus}>
+                {client.status === 'active' ? 'Arquivar cliente' : 'Reativar cliente'}
+              </button>
+            </div>
+          </section>
+        </>
+      ) : null}
+
+      {tab === 'data' ? (
+        <section className="sh-actions">
+          <dl className="apt-client">
+            <div>
+              <dt>WhatsApp</dt>
+              <dd>
+                {client.contact_phone ? formatBrPhone(client.contact_phone) : 'Não informado'}
+              </dd>
+            </div>
+            <div>
+              <dt>E-mail</dt>
+              <dd>{client.contact_email ?? 'Não informado'}</dd>
+            </div>
+            <div>
+              <dt>Nascimento</dt>
+              <dd>
+                {birth
+                  ? `${birth.split('-').reverse().join('/')} · ${ageOf(birth)} anos`
+                  : 'Não informado'}
+              </dd>
+            </div>
+            <div>
+              <dt>Sexo biológico</dt>
+              <dd>
+                {client.sex === 'female'
+                  ? 'Feminino'
+                  : client.sex === 'male'
+                    ? 'Masculino'
+                    : 'Não informado'}
+              </dd>
+            </div>
+            <div>
+              <dt>CPF</dt>
+              <dd>{client.tax_id_masked ?? 'Não informado'}</dd>
+            </div>
+            <div>
+              <dt>Mensagens</dt>
+              <dd>{client.marketing_opt_in ? 'Aceita receber' : 'Não autorizou'}</dd>
+            </div>
+            <div>
+              <dt>Conta Luminix</dt>
+              <dd>{client.linked ? 'Conectada' : 'Não tem'}</dd>
+            </div>
+            <div>
+              <dt>Cuidados</dt>
+              <dd>{client.notes || 'Nada anotado'}</dd>
+            </div>
+          </dl>
+          <div className="sh-row">
+            <Button variant="secondary" onPress={onEdit}>
+              <Pencil size={17} aria-hidden /> Editar dados
+            </Button>
+          </div>
+        </section>
+      ) : null}
+
+      {tab === 'anamnesis' ? (
+        <AnamnesisTab
+          api={api}
+          client={client}
+          detail={detail}
+          requiredLevel={requiredLevel}
+          onSaved={onChanged}
+        />
+      ) : null}
+
+      {tab === 'packages' ? (
+        <PackagesTab
+          api={api}
+          client={client}
+          packages={packages}
+          onChanged={(message) => {
+            setReloadPackages((value) => value + 1)
+            onChanged(message)
+          }}
+        />
+      ) : null}
+
+      {tab === 'history' ? (
+        <section className="sh-actions" aria-labelledby="cli-history-title">
+          <div className="cli-history-head">
+            <h3 id="cli-history-title">Atendimentos</h3>
+            <div className="biz-chips" role="group" aria-label="Quais atendimentos">
+              <button
+                type="button"
+                aria-pressed={visits === 'past'}
+                onClick={() => setVisits('past')}
+              >
+                <History size={14} aria-hidden /> Anteriores ({past.length})
+              </button>
+              <button
+                type="button"
+                aria-pressed={visits === 'next'}
+                onClick={() => setVisits('next')}
+              >
+                <CalendarClock size={14} aria-hidden /> Próximos ({upcoming.length})
+              </button>
+            </div>
+          </div>
+          {history === null ? (
+            <p className="apt-hint">Carregando…</p>
+          ) : shown.length ? (
+            <ul className="cli-timeline">
+              {shown.slice(0, 30).map((item) => (
+                <Visit key={item.id} item={item} />
+              ))}
+            </ul>
+          ) : (
+            <p className="apt-hint">
+              {visits === 'next' ? 'Nenhum horário marcado.' : 'Nenhum atendimento ainda.'}
+            </p>
+          )}
+        </section>
+      ) : null}
+    </div>
+  )
+}
+
+/** Status of the record and, from here, the same script the client answers in the app. */
+function AnamnesisTab({
+  api,
+  client,
+  detail,
+  requiredLevel,
+  onSaved,
+}: {
+  api: ClinicApi
+  client: Client
+  detail: { record: StaffAnamnesis | null; shared: boolean } | null
+  requiredLevel: Level
+  onSaved: (message: string) => void
+}) {
+  const record = detail?.record ?? null
+  const [filling, setFilling] = useState<{
+    index: number
+    answers: Answers
+    consent: boolean
+  } | null>(null)
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState('')
+  if (!detail) return <p className="apt-hint">Carregando a ficha…</p>
+  const level = Math.max(requiredLevel, record?.level ?? 1) as Level
+  const state = anamnesisState(client.anamnesis ?? null, requiredLevel)
+
+  if (filling) {
+    const list = staffSteps(level, filling.answers)
+    const step = list[filling.index]
+    const atEnd = filling.index >= list.length
+    async function save() {
+      setSaving(true)
+      setError('')
+      try {
+        await api.put(`clients/${client.id}/anamnesis`, {
+          level,
+          answers: filling!.answers,
+          consent: true,
+        })
+        setFilling(null)
+        onSaved(`Anamnese de ${client.display_name.split(' ')[0]} salva.`)
+      } catch {
+        setError('Não foi possível salvar. Confira as respostas e tente de novo.')
+      } finally {
+        setSaving(false)
+      }
+    }
+    return (
+      <section className="anm">
+        <div
+          className="anm-progress"
+          aria-label={`Etapa ${filling.index + 1} de ${list.length + 1}`}
+        >
+          <span style={{ transform: `scaleX(${(filling.index + 1) / (list.length + 1)})` }} />
+        </div>
+        {step ? (
+          <AnamnesisStep
+            step={step}
+            answers={filling.answers}
+            onChange={(answers) => setFilling({ ...filling, answers })}
+          />
+        ) : null}
+        {atEnd ? (
+          <CheckboxField
+            isSelected={filling.consent}
+            onChange={(consent) => setFilling({ ...filling, consent })}
+            label="A cliente confirmou as respostas"
+            description="E autorizou o registro para cuidar do atendimento. Fica marcado que a equipe preencheu."
+          />
+        ) : null}
+        {error ? (
+          <p className="apt-error" role="alert">
+            {error}
+          </p>
+        ) : null}
+        <div className="anm-nav">
+          <Button
+            variant="ghost"
+            onPress={() =>
+              filling.index === 0
+                ? setFilling(null)
+                : setFilling({ ...filling, index: filling.index - 1 })
+            }
+          >
+            {filling.index === 0 ? 'Cancelar' : 'Voltar'}
+          </Button>
+          {atEnd ? (
+            <Button isDisabled={!filling.consent || saving} onPress={() => void save()}>
+              <ShieldCheck size={16} aria-hidden /> {saving ? 'Salvando…' : 'Salvar anamnese'}
+            </Button>
+          ) : (
+            <Button
+              isDisabled={!step || !staffStepComplete(step, filling.answers)}
+              onPress={() => setFilling({ ...filling, index: filling.index + 1 })}
+            >
+              Continuar
+            </Button>
+          )}
         </div>
       </section>
+    )
+  }
 
-      <section className="sh-actions" aria-labelledby="cli-history-title">
-        <div className="cli-history-head">
-          <h3 id="cli-history-title">Atendimentos</h3>
-          <div className="biz-chips" role="group" aria-label="Quais atendimentos">
-            <button type="button" aria-pressed={tab === 'past'} onClick={() => setTab('past')}>
-              <History size={14} aria-hidden /> Anteriores ({past.length})
-            </button>
-            <button type="button" aria-pressed={tab === 'next'} onClick={() => setTab('next')}>
-              <CalendarClock size={14} aria-hidden /> Próximos ({upcoming.length})
-            </button>
+  return (
+    <section className="anm">
+      <div className={`anm-status is-${state}`}>
+        {state === 'ok' ? (
+          <ShieldCheck size={22} aria-hidden />
+        ) : (
+          <ClipboardCheck size={22} aria-hidden />
+        )}
+        <div>
+          <strong>
+            {state === 'ok'
+              ? 'Anamnese preenchida'
+              : state === 'expired'
+                ? 'Anamnese vencida'
+                : state === 'incomplete'
+                  ? 'Anamnese incompleta'
+                  : 'Sem anamnese'}
+          </strong>
+          <small>
+            {record && client.anamnesis
+              ? `${levelNames[record.level]} · ${dateBr(record.answeredAt)} · ${
+                  client.anamnesis.by === 'staff'
+                    ? 'preenchida pela equipe'
+                    : 'preenchida pela cliente'
+                }`
+              : `Este espaço pede a ${levelNames[requiredLevel].toLowerCase()}.`}
+          </small>
+        </div>
+        {detail.shared ? null : (
+          <Button
+            size="sm"
+            variant={state === 'ok' ? 'secondary' : 'primary'}
+            onPress={() =>
+              setFilling({
+                index: 0,
+                consent: false,
+                answers: {
+                  ...(record?.answers ?? {}),
+                  ...(client.sex && !record ? { sex: client.sex } : {}),
+                  ...(client.birth_date && !record
+                    ? { birthDate: client.birth_date.slice(0, 10) }
+                    : {}),
+                },
+              })
+            }
+          >
+            {record ? 'Atualizar' : 'Preencher agora'}
+          </Button>
+        )}
+      </div>
+      {detail.shared ? (
+        <p className="apt-hint">
+          A cliente usa a ficha da própria conta Luminix: ela atualiza pelo app.
+        </p>
+      ) : null}
+      {record ? <AnamnesisView record={record} /> : null}
+    </section>
+  )
+}
+
+/** Packages of the client: balance of sessions and selling a new one. */
+function PackagesTab({
+  api,
+  client,
+  packages,
+  onChanged,
+}: {
+  api: ClinicApi
+  client: Client
+  packages: ClientPackage[] | null
+  onChanged: (message: string) => void
+}) {
+  const [catalog, setCatalog] = useState<{
+    packages: CatalogPackage[]
+    canFinance: boolean
+  } | null>(null)
+  const [selling, setSelling] = useState<{
+    packageId: string
+    soldOn: string
+    registerIncome: boolean
+    method: string
+  } | null>(null)
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState('')
+
+  useEffect(() => {
+    let active = true
+    void api
+      .get<{ packages: CatalogPackage[]; canFinance: boolean }>('catalog/extras')
+      .then((body) => active && setCatalog(body))
+      .catch(() => active && setCatalog({ packages: [], canFinance: false }))
+    return () => {
+      active = false
+    }
+  }, [api])
+
+  const offer = (catalog?.packages ?? []).filter((item) => item.status === 'active')
+  const chosen = offer.find((item) => item.id === selling?.packageId)
+
+  async function sell() {
+    if (!selling?.packageId) return setError('Escolha o pacote.')
+    setBusy(true)
+    setError('')
+    try {
+      await api.post(`clients/${client.id}/packages`, {
+        packageId: selling.packageId,
+        soldOn: selling.soldOn,
+        ...(selling.registerIncome
+          ? { registerIncome: true, method: selling.method || undefined }
+          : {}),
+      })
+      setSelling(null)
+      onChanged(`${chosen?.name ?? 'Pacote'} vendido para ${client.display_name.split(' ')[0]}.`)
+    } catch {
+      setError('Não foi possível registrar a venda.')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  async function cancel(item: ClientPackage) {
+    setBusy(true)
+    setError('')
+    try {
+      await api.post(`client-packages/${item.id}/cancel`, {})
+      onChanged(`${item.name} cancelado. As sessões já usadas continuam no histórico.`)
+    } catch {
+      setError('Não foi possível cancelar.')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <section className="cpf-packs">
+      {packages === null ? (
+        <p className="apt-hint">Carregando…</p>
+      ) : packages.length ? (
+        <ul>
+          {packages.map((item) => (
+            <li key={item.id} className={`cpf-pack is-${item.status}`}>
+              <div className="cpf-pack-head">
+                <strong>{item.name}</strong>
+                <span className={`sh-mini is-pack-${item.status}`}>
+                  {packageStatus[item.status]}
+                </span>
+              </div>
+              <div
+                className="cpf-dots"
+                aria-label={`${item.used} de ${item.sessionsTotal} sessões usadas`}
+              >
+                {Array.from({ length: item.sessionsTotal }, (_, index) => (
+                  <i
+                    key={index}
+                    data-state={index < item.done ? 'done' : index < item.used ? 'booked' : 'free'}
+                  />
+                ))}
+              </div>
+              <small>
+                {item.left === 1 ? 'Resta' : 'Restam'} {item.left} de {item.sessionsTotal}{' '}
+                {item.sessionsTotal === 1 ? 'sessão' : 'sessões'} · vendido em {dateBr(item.soldOn)}
+                {item.expiresOn ? ` · vale até ${dateBr(item.expiresOn)}` : ''}
+                {item.priceCents != null ? ` · ${money(item.priceCents)}` : ''}
+              </small>
+              {item.status === 'active' ? (
+                <button
+                  type="button"
+                  className="team-link"
+                  disabled={busy}
+                  onClick={() => void cancel(item)}
+                >
+                  Cancelar pacote
+                </button>
+              ) : null}
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p className="apt-hint">Nenhum pacote ainda.</p>
+      )}
+
+      {selling ? (
+        <div className="cpf-sell">
+          <h4>Vender pacote</h4>
+          {offer.length ? (
+            <div className="cpf-offer" role="radiogroup" aria-label="Pacote">
+              {offer.map((item) => (
+                <button
+                  key={item.id}
+                  type="button"
+                  role="radio"
+                  aria-checked={selling.packageId === item.id}
+                  onClick={() => setSelling({ ...selling, packageId: item.id })}
+                >
+                  <strong>{item.name}</strong>
+                  <small>
+                    {item.sessions} sessões · {money(item.priceCents)}
+                    {item.validityDays ? ` · ${item.validityDays} dias` : ''}
+                  </small>
+                </button>
+              ))}
+            </div>
+          ) : (
+            <p className="apt-hint">Crie pacotes em Serviços → Pacotes para vender aqui.</p>
+          )}
+          <DateInputField
+            label="Data da venda"
+            value={selling.soldOn}
+            onChange={(soldOn) => setSelling({ ...selling, soldOn })}
+          />
+          {catalog?.canFinance ? (
+            <>
+              <CheckboxField
+                isSelected={selling.registerIncome}
+                onChange={(registerIncome) => setSelling({ ...selling, registerIncome })}
+                label={`Lançar ${chosen ? money(chosen.priceCents) : 'o valor'} como recebido`}
+                description="Entra no Financeiro como receita de pacote."
+              />
+              {selling.registerIncome ? (
+                <SelectField
+                  label="Forma de pagamento"
+                  value={selling.method || 'pix'}
+                  onChange={(method) => setSelling({ ...selling, method })}
+                  options={Object.entries(methodLabels).map(([id, label]) => ({ id, label }))}
+                />
+              ) : null}
+            </>
+          ) : null}
+          <div className="anm-nav">
+            <Button variant="ghost" onPress={() => setSelling(null)}>
+              Cancelar
+            </Button>
+            <Button isDisabled={busy || !selling.packageId} onPress={() => void sell()}>
+              {busy ? 'Salvando…' : 'Confirmar venda'}
+            </Button>
           </div>
         </div>
-        {history === null ? (
-          <p className="apt-hint">Carregando…</p>
-        ) : shown.length ? (
-          <ul className="cli-timeline">
-            {shown.slice(0, 20).map((item) => (
-              <Visit key={item.id} item={item} />
-            ))}
-          </ul>
-        ) : (
-          <p className="apt-hint">
-            {tab === 'next' ? 'Nenhum horário marcado.' : 'Nenhum atendimento ainda.'}
-          </p>
-        )}
-      </section>
-    </div>
+      ) : client.status === 'active' ? (
+        <Button
+          variant="secondary"
+          onPress={() =>
+            setSelling({
+              packageId: offer[0]?.id ?? '',
+              soldOn: new Date().toLocaleDateString('en-CA'),
+              registerIncome: true,
+              method: 'pix',
+            })
+          }
+        >
+          <Plus size={16} aria-hidden /> Vender pacote
+        </Button>
+      ) : null}
+      {error ? (
+        <p className="apt-error" role="alert">
+          {error}
+        </p>
+      ) : null}
+    </section>
   )
 }

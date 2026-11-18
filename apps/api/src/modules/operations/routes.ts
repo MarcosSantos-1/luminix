@@ -5,9 +5,10 @@ import { isoDate, isPaid, rolePermissions, toNumber } from '../../shared/tenant/
 import type { TenantContext } from '../../shared/tenant/tenant-context.js'
 import { clientPhotoUrl, publicMediaUrl } from '../clinics/media-storage.js'
 import { isValidBrazilianTaxId } from '../clinics/tax-id.js'
+import { missingKeys } from '../client/routes.js'
 
 type Period = { start: string; end: string }
-type WarningCode = 'past' | 'outside_availability' | 'overlap' | 'closure'
+type WarningCode = 'past' | 'outside_availability' | 'overlap' | 'closure' | 'equipment'
 // Biological sex (waxing, intimate treatments), not gender identity.
 type ClientSex = 'female' | 'male'
 type ClientBody = {
@@ -119,7 +120,13 @@ const closureLabel: Record<string, string> = {
 async function bookingWarnings(
   connection: SqlConnection,
   clinicId: string,
-  slot: { startsAt: Date; endsAt: Date; timezone: string; professionalId: string | null },
+  slot: {
+    startsAt: Date
+    endsAt: Date
+    timezone: string
+    professionalId: string | null
+    serviceId?: string
+  },
   ignoreAppointmentId: string | null,
 ): Promise<BookingWarning[]> {
   const local = localDateTime(slot.startsAt, slot.timezone)
@@ -166,7 +173,30 @@ async function bookingWarnings(
       ORDER BY c.professional_id NULLS FIRST LIMIT 1`,
     [clinicId, local.date, slot.professionalId],
   )
+  // Services that need a rented device: only on the days it is rented.
+  const equipment = slot.serviceId
+    ? (
+        await connection.query(
+          `SELECT r.name,
+                  EXISTS (SELECT 1 FROM luminix.resource_rentals rr
+                           WHERE rr.clinic_id = r.clinic_id AND rr.resource_id = r.id
+                             AND $3::date BETWEEN rr.starts_on AND rr.ends_on) AS rented
+             FROM luminix.services s
+             JOIN luminix.service_resources sr ON sr.clinic_id = s.clinic_id AND sr.service_id = s.id
+             JOIN luminix.resources r ON r.clinic_id = sr.clinic_id AND r.id = sr.resource_id
+            WHERE s.clinic_id = $1 AND s.id = $2 AND s.booking_mode = 'manual_release'
+              AND r.type = 'equipment' AND r.status = 'active'`,
+          [clinicId, slot.serviceId, local.date],
+        )
+      ).rows
+    : []
   const warnings: BookingWarning[] = []
+  if (equipment.length && !equipment.some((row) => row.rented))
+    warnings.push({
+      code: 'equipment',
+      title: 'Aparelho não alugado neste dia',
+      detail: `${equipment.map((row) => String(row.name)).join(' ou ')} não tem aluguel marcado nesta data.`,
+    })
   const closure = closures.rows[0]
   if (closure)
     warnings.push({
@@ -204,7 +234,10 @@ const localStartPattern = '^\\d{4}-\\d{2}-\\d{2}T(?:[01][0-9]|2[0-3]):[0-5][0-9]
 const confirmedWarningsSchema = {
   type: 'array',
   uniqueItems: true,
-  items: { type: 'string', enum: ['past', 'outside_availability', 'overlap', 'closure'] },
+  items: {
+    type: 'string',
+    enum: ['past', 'outside_availability', 'overlap', 'closure', 'equipment'],
+  },
 } as const
 
 const clientBodySchema = {
@@ -317,6 +350,9 @@ export async function operationRoutes(
         return reply.code(403).send({ error: 'Clinic access denied' })
       if (code === '23503') return reply.code(400).send({ error: 'Invalid clinic resource' })
       if (code === '23505') return reply.code(409).send({ error: 'Record already exists' })
+      if (code === 'P0002') return reply.code(404).send({ error: 'Not found' })
+      if (code === '55000')
+        return reply.code(409).send({ error: (error as Error).message || 'Not allowed now' })
       if (code === '22023' || code === '23514')
         return reply.code(400).send({ error: 'Invalid data' })
       request.log.warn({ event: 'clinic_operation_unavailable' })
@@ -354,6 +390,7 @@ export async function operationRoutes(
                    WHERE m.clinic_id = c.clinic_id AND m.id = c.photo_asset_id
                      AND m.status = 'ready') AS photo_key,
                       luminix.clinic_client_has_account_photo(c.clinic_id, c.id) AS account_photo,
+                  luminix.clinic_client_anamnesis_summary(c.clinic_id, c.id) AS anamnesis,
                   CASE WHEN c.tax_id IS NULL THEN NULL
                        ELSE '***.***.***-' || right(c.tax_id, 2) END AS tax_id_masked,
                   count(a.id)::integer AS appointment_count,
@@ -384,8 +421,12 @@ export async function operationRoutes(
         )
         // Money follows the Financeiro permission, like the agenda prices.
         const canSeeMoney = (await rolePermissions(connection, tenant)).has('finance:manage')
+        const level = await connection.query('SELECT luminix.clinic_anamnesis_level($1) AS level', [
+          tenant.clinicId,
+        ])
         return {
           canSeeMoney,
+          anamnesisLevel: Number(level.rows[0]?.level ?? 1),
           clients: await Promise.all(
             result.rows.map(async ({ photo_key, ...row }) => ({
               ...row,
@@ -505,9 +546,23 @@ export async function operationRoutes(
           [tenant.clinicId, request.params.clientId],
         )
         const canSeeMoney = (await rolePermissions(connection, tenant)).has('finance:manage')
+        const anamnesis = (
+          await connection.query(
+            `SELECT luminix.staff_client_anamnesis($1, $2) AS record,
+                    luminix.clinic_anamnesis_level($1) AS required_level,
+                    (SELECT anamnesis_shared FROM luminix.clinic_clients
+                      WHERE clinic_id = $1 AND id = $2) AS shared`,
+            [tenant.clinicId, request.params.clientId],
+          )
+        ).rows[0]
         return {
           client,
           canSeeMoney,
+          anamnesis: {
+            record: anamnesis?.record ?? null,
+            requiredLevel: Number(anamnesis?.required_level ?? 1),
+            shared: anamnesis?.shared === true,
+          },
           // Payment state per appointment; amounts only for who sees money. A receipt link
           // (in-app payments) joins here once Stripe charges are reconciled (TD-008).
           history: history.rows.map(({ paid_cents, ...row }) => ({
@@ -519,6 +574,66 @@ export async function operationRoutes(
             receipt_url: null,
           })),
         }
+      }),
+  )
+
+  // Anamnese filled by the team (ADR-032): same script as the client area, without the photo
+  // (the client's photo lives in the record's media). Never overwrites a shared account record.
+  app.put<{
+    Params: { clinicId: string; clientId: string }
+    Body: {
+      level: 1 | 2 | 3
+      answers: Record<string, string | boolean | number | string[]>
+      consent: true
+    }
+  }>(
+    '/clinics/:clinicId/clients/:clientId/anamnesis',
+    {
+      bodyLimit: 32_768,
+      schema: {
+        params: clientParams,
+        body: {
+          type: 'object',
+          additionalProperties: false,
+          required: ['level', 'answers', 'consent'],
+          properties: {
+            level: { type: 'integer', enum: [1, 2, 3] },
+            answers: {
+              type: 'object',
+              maxProperties: 80,
+              propertyNames: { pattern: '^[a-zA-Z]{1,40}$' },
+              additionalProperties: {
+                anyOf: [
+                  { type: 'string', maxLength: 500 },
+                  { type: 'boolean' },
+                  { type: 'integer', minimum: 0, maximum: 100 },
+                  { type: 'array', maxItems: 20, items: { type: 'string', maxLength: 40 } },
+                ],
+              },
+            },
+            consent: { type: 'boolean', const: true },
+          },
+        },
+      },
+    },
+    async (request, reply) =>
+      authorized(request, reply, 'client:manage', async (connection, tenant) => {
+        const { level, answers } = request.body
+        const birth = typeof answers.birthDate === 'string' ? answers.birthDate : ''
+        if (
+          !['female', 'male'].includes(String(answers.sex)) ||
+          !/^\d{4}-\d{2}-\d{2}$/.test(birth) ||
+          Date.parse(`${birth}T12:00:00Z`) >= Date.now() ||
+          missingKeys(level, answers).length
+        )
+          return reply.code(400).send({ error: 'Incomplete anamnesis' })
+        const record = { version: 2, level, answeredAt: new Date().toISOString(), answers }
+        await connection.query('SELECT luminix.staff_save_client_anamnesis($1, $2, $3::jsonb)', [
+          tenant.clinicId,
+          request.params.clientId,
+          JSON.stringify(record),
+        ])
+        return { anamnesis: { level, answeredAt: record.answeredAt, by: 'staff' } }
       }),
   )
 
@@ -801,6 +916,7 @@ export async function operationRoutes(
       localStartsAt: string
       notes?: string
       confirmedWarnings?: WarningCode[]
+      clientPackageId?: string
     }
   }>(
     '/clinics/:clinicId/appointments',
@@ -819,6 +935,7 @@ export async function operationRoutes(
             localStartsAt: { type: 'string', pattern: localStartPattern },
             notes: { type: 'string', maxLength: 4000 },
             confirmedWarnings: confirmedWarningsSchema,
+            clientPackageId: { type: 'string', pattern: uuid },
           },
         },
       },
@@ -865,7 +982,13 @@ export async function operationRoutes(
         const warnings = await bookingWarnings(
           connection,
           tenant.clinicId,
-          { startsAt, endsAt, timezone, professionalId: request.body.professionalId ?? null },
+          {
+            startsAt,
+            endsAt,
+            timezone,
+            professionalId: request.body.professionalId ?? null,
+            serviceId: request.body.serviceId,
+          },
           null,
         )
         const confirmed = new Set(request.body.confirmedWarnings ?? [])
@@ -885,6 +1008,14 @@ export async function operationRoutes(
             request.body.notes?.trim() || null,
           ],
         )
+        // A session of the client's package: checked and locked by the function (same client
+        // and service, valid, with a session left); the appointment is not charged again.
+        if (request.body.clientPackageId)
+          await connection.query('SELECT luminix.use_client_package($1, $2, $3)', [
+            tenant.clinicId,
+            result.rows[0].id,
+            request.body.clientPackageId,
+          ])
         return reply.code(201).send({ appointment: result.rows[0], warnings })
       }),
   )
@@ -1145,7 +1276,7 @@ export async function operationRoutes(
       authorized(request, reply, 'agenda:manage', async (connection, tenant) => {
         const current = (
           await connection.query(
-            `SELECT a.professional_id, a.status, s.duration_minutes
+            `SELECT a.professional_id, a.status, s.duration_minutes, a.service_id
                FROM luminix.appointments a
                JOIN luminix.services s ON s.clinic_id = a.clinic_id AND s.id = a.service_id
               WHERE a.clinic_id = $1 AND a.id = $2`,
@@ -1175,6 +1306,7 @@ export async function operationRoutes(
             endsAt,
             timezone,
             professionalId: current.professional_id ? String(current.professional_id) : null,
+            serviceId: String(current.service_id),
           },
           request.params.appointmentId,
         )

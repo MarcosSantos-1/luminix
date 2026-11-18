@@ -2,7 +2,6 @@
 
 import { Button } from '@heroui/react'
 import {
-  BadgePercent,
   Cake,
   Check,
   Copy,
@@ -17,7 +16,8 @@ import { publicSiteUrl } from '@/lib/public-site'
 import { useClinicApi, useClinicResource } from '../settings/clinic-api'
 import { LoadError, SettingsCard, SettingsSkeleton, StatusPill } from '../settings/settings-kit'
 import { dateBr, whatsapp } from './format'
-import { promotionState } from './services-panel'
+import type { Catalog } from './catalog-model'
+import { PromotionsSection } from './promotions'
 import './business.css'
 
 type Person = { id: string; name: string; phone: string | null }
@@ -27,20 +27,6 @@ type Marketing = {
   birthdays: (Person & { day: number })[]
   inactive: (Person & { lastVisit: string | null })[]
 }
-type Catalog = {
-  today: string
-  promotions: {
-    id: string
-    name: string
-    percent: number
-    startsOn: string
-    endsOn: string | null
-    status: 'active' | 'paused' | 'archived'
-    showOnSite: boolean
-    serviceIds: string[]
-  }[]
-}
-
 function first(name: string) {
   return name.trim().split(/\s+/)[0]
 }
@@ -83,11 +69,11 @@ function ContactList({
 export function MarketingPanel({
   clinicId,
   clinicName,
-  onOpen,
 }: {
   clinicId: string
   clinicName: string
-  onOpen: (label: string) => void
+  /** Kept for callers that pass navigation; promotions now live here. */
+  onOpen?: (label: string) => void
 }) {
   const api = useClinicApi(clinicId)
   const marketing = useClinicResource<Marketing>(api, 'marketing')
@@ -98,9 +84,6 @@ export function MarketingPanel({
   if (!marketing.data) return <SettingsSkeleton cards={3} />
   const data = marketing.data
   const url = publicSiteUrl(data.site.slug)
-  const promotions = (catalog.data?.promotions ?? []).filter((item) =>
-    ['Ativa', 'Agendada'].includes(promotionState(item, catalog.data!.today).label),
-  )
   const shareText = `Conheça o ${clinicName}! Veja nossos serviços e horários: ${url}`
 
   return (
@@ -149,55 +132,13 @@ export function MarketingPanel({
         </div>
       </SettingsCard>
 
-      <div className="biz-columns">
-        <SettingsCard
-          icon={<BadgePercent size={20} />}
-          title="Promoções"
-          description="Descontos que aparecem no site com o preço riscado."
-          badge={
-            <Button size="sm" variant="secondary" onPress={() => onOpen('Serviços')}>
-              Gerenciar em Serviços
-            </Button>
-          }
-        >
-          {promotions.length ? (
-            <ul className="biz-list is-compact">
-              {promotions.map((item) => {
-                const state = promotionState(item, catalog.data!.today)
-                const promoText = `${item.name}: ${item.percent}% de desconto${item.endsOn ? ` até ${dateBr(item.endsOn)}` : ''} no ${clinicName}! Agende: ${url}`
-                return (
-                  <li key={item.id}>
-                    <div className="biz-row-main">
-                      <strong>
-                        {item.name} · -{item.percent}%
-                      </strong>
-                      <span className="biz-row-meta">
-                        {item.serviceIds.length} serviços ·{' '}
-                        {item.endsOn ? `até ${dateBr(item.endsOn)}` : 'sem data para acabar'}
-                      </span>
-                    </div>
-                    <div className="biz-actions">
-                      <StatusPill tone={state.tone}>{state.label}</StatusPill>
-                      <a
-                        className="biz-whatsapp"
-                        href={`https://wa.me/?text=${encodeURIComponent(promoText)}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                      >
-                        <Send size={15} aria-hidden /> Divulgar
-                      </a>
-                    </div>
-                  </li>
-                )
-              })}
-            </ul>
-          ) : (
-            <p className="settings-muted">
-              Nenhuma promoção ativa. Crie uma em Serviços → Promoções.
-            </p>
-          )}
-        </SettingsCard>
+      {catalog.data ? (
+        <PromotionsSection api={api} data={catalog.data} onChanged={catalog.reload} />
+      ) : (
+        <SettingsSkeleton cards={1} />
+      )}
 
+      <div className="biz-columns">
         <SettingsCard
           icon={<Cake size={20} />}
           title="Aniversariantes do mês"

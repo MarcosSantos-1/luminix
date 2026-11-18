@@ -54,6 +54,9 @@ importers:
       '@internationalized/date':
         specifier: 3.12.4
         version: 3.12.4
+      '@luminix/contracts':
+        specifier: workspace:*
+        version: link:../../packages/contracts
       '@paper-design/shaders-react':
         specifier: ^0.0.71
         version: 0.0.71(@types/react@19.3.0)(react@19.3.0)

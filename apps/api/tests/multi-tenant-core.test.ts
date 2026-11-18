@@ -151,6 +151,7 @@ describe('versioned core migration', () => {
       { name: '0039_smart_stock_and_checkin.sql' },
       { name: '0040_inventory_categories.sql' },
       { name: '0041_schedule_closures.sql' },
+      { name: '0042_anamnesis_packages_rentals.sql' },
     ])
   })
 
@@ -358,7 +359,7 @@ describe('authorized database scope', () => {
     }>(
       "SELECT relname, relrowsecurity, relforcerowsecurity FROM pg_class WHERE relnamespace = 'luminix'::regnamespace AND relkind = 'r' AND relname NOT IN ('identities', 'client_profiles', 'permissions')",
     )
-    expect(tables.rows).toHaveLength(39)
+    expect(tables.rows).toHaveLength(42)
     expect(tables.rows.every((row) => row.relrowsecurity && row.relforcerowsecurity)).toBe(true)
   })
 

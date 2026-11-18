@@ -8,6 +8,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Clock,
+  Layers,
   Moon,
   Pencil,
   Sparkles,
@@ -214,6 +215,11 @@ export function BookingModal({
   const [query, setQuery] = useState('')
   const [agendaWindow, setAgendaWindow] = useState<{ key: string; data: WindowData } | null>(null)
   const [warnings, setWarnings] = useState<BookingWarning[]>([])
+  // Active packages of the chosen client for the chosen service; one session can pay the visit.
+  const [packs, setPacks] = useState<
+    { id: string; serviceId: string; name: string; left: number; status: string }[]
+  >([])
+  const [usePack, setUsePack] = useState(true)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
 
@@ -239,6 +245,8 @@ export function BookingModal({
     setStripStart(mondayOf(start))
     // Fresh occupancy each time: an appointment may have been created since.
     setAgendaWindow(null)
+    setPacks([])
+    setUsePack(true)
     setQuery('')
     setWarnings([])
     setError('')
@@ -266,6 +274,20 @@ export function BookingModal({
     // eslint-disable-next-line react-hooks/set-state-in-effect -- the only professional is implied
     setProfessionalId(professionals[0].id)
   }, [professionals, asksProfessional, professionalId])
+
+  useEffect(() => {
+    if (!isOpen || !clientId) return
+    let active = true
+    void api
+      .get<{
+        packages: { id: string; serviceId: string; name: string; left: number; status: string }[]
+      }>(`clients/${clientId}/packages`)
+      .then((body) => active && setPacks(body.packages.filter((item) => item.status === 'active')))
+      .catch(() => active && setPacks([]))
+    return () => {
+      active = false
+    }
+  }, [isOpen, clientId, api])
 
   const client = lists?.clients.find((item) => item.id === clientId)
   const service = lists?.services.find((item) => item.id === serviceId)
@@ -352,6 +374,7 @@ export function BookingModal({
         professionalId: professionalId || undefined,
         localStartsAt: `${date}T${time}`,
         confirmedWarnings: confirm ? warnings.map((warning) => warning.code) : [],
+        ...(pack && usePack ? { clientPackageId: pack.id } : {}),
       })
       onOpenChange(false)
       onCreated(
@@ -368,6 +391,7 @@ export function BookingModal({
     }
   }
 
+  const pack = packs.find((item) => item.serviceId === serviceId && item.left > 0)
   const dayHoliday = holidays.find((item) => item.date === date)
   const dayClosure = data ? closureOn(data, date, professionalId) : undefined
   const groups = [
@@ -745,6 +769,26 @@ export function BookingModal({
             </span>
             <Pencil size={15} aria-label="Trocar" />
           </button>
+          {pack ? (
+            <button
+              type="button"
+              className="bk-pack"
+              aria-pressed={usePack}
+              onClick={() => setUsePack(!usePack)}
+            >
+              <span className="bk-icon">
+                <Layers size={18} aria-hidden />
+              </span>
+              <span>
+                <small>Pacote da cliente</small>
+                <strong>
+                  {usePack ? 'Usar 1 sessão' : 'Cobrar à parte'} · {pack.name} (
+                  {pack.left === 1 ? 'resta 1' : `restam ${pack.left}`})
+                </strong>
+              </span>
+              <i aria-hidden />
+            </button>
+          ) : null}
         </div>
       ) : null}
 

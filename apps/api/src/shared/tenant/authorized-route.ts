@@ -86,6 +86,10 @@ export function createAuthorizedRoute(
         request.log.info({ event: 'clinic_access_denied' })
         return reply.code(403).send({ error: 'Clinic access denied' })
       }
+      if ((error as { code?: string })?.code === 'P0002')
+        return reply.code(404).send({ error: 'Not found' })
+      if ((error as { code?: string })?.code === '55000')
+        return reply.code(409).send({ error: (error as Error).message || 'Not allowed now' })
       if ((error as { code?: string })?.code === '23505')
         return reply.code(409).send({ error: 'Onboarding changed; reload before retrying' })
       if (['22023', '22P02', '23514'].includes((error as { code?: string })?.code ?? ''))

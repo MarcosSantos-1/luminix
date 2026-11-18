@@ -141,6 +141,8 @@ export function ClinicHome({
                   createSignal={createSignal}
                   focus={focus}
                   onOpenTeam={() => navigate('Equipe e horários')}
+                  onOpenMarketing={() => navigate('Marketing')}
+                  clinicName={clinic.name}
                 />
               ),
               ...(permissions.includes('finance:manage')
