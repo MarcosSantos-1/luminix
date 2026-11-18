@@ -84,15 +84,16 @@ export async function financeRoutes(
           // cortesia) have nothing to receive; "a combinar" ones ask the amount when recorded.
           connection.query(
             `SELECT a.id, a.starts_at, a.price_cents, s.price_type, c.display_name AS client,
-                    s.name AS service
+                    s.name AS service, luminix.appointment_paid_cents(a.clinic_id, a.id) AS paid_cents
                FROM luminix.appointments a
                JOIN luminix.clinic_clients c ON c.clinic_id = a.clinic_id AND c.id = a.clinic_client_id
                JOIN luminix.services s ON s.clinic_id = a.clinic_id AND s.id = a.service_id
               WHERE a.clinic_id = $1 AND a.status = 'completed'
                 AND a.starts_at > now() - interval '60 days'
                 AND (coalesce(a.price_cents, 0) > 0 OR s.price_type = 'quote')
-                AND NOT EXISTS (SELECT 1 FROM luminix.finance_entries e WHERE e.clinic_id = a.clinic_id
-                  AND e.appointment_id = a.id AND e.status = 'active')
+                -- Not paid yet, or paid in part ("a combinar": until something is received).
+                AND luminix.appointment_paid_cents(a.clinic_id, a.id)
+                  < greatest(coalesce(a.price_cents, 0), 1)
               ORDER BY a.starts_at DESC LIMIT 50`,
             [tenant.clinicId],
           ),
@@ -155,8 +156,9 @@ export async function financeRoutes(
           ),
           // Stock crossed with money: what is on the shelf and what restocking would cost.
           connection.query(
-            `SELECT coalesce(sum(quantity * cost_cents), 0) AS value,
-                    coalesce(sum(greatest(min_quantity - quantity, 0) * cost_cents), 0) AS restock,
+            `SELECT coalesce(sum(quantity / coalesce(package_size, 1) * cost_cents), 0) AS value,
+                    coalesce(sum(greatest(min_quantity - quantity, 0) / coalesce(package_size, 1)
+                      * cost_cents), 0) AS restock,
                     count(*) FILTER (WHERE min_quantity > 0 AND quantity <= min_quantity) AS low,
                     count(*) FILTER (WHERE cost_cents IS NULL) AS without_cost,
                     count(*) AS items
@@ -164,7 +166,7 @@ export async function financeRoutes(
             [tenant.clinicId],
           ),
           connection.query(
-            `SELECT coalesce(sum(m.quantity * i.cost_cents), 0) AS used
+            `SELECT coalesce(sum(m.quantity / coalesce(i.package_size, 1) * i.cost_cents), 0) AS used
                FROM luminix.inventory_movements m
                JOIN luminix.inventory_items i ON i.clinic_id = m.clinic_id AND i.id = m.item_id
               WHERE m.clinic_id = $1 AND m.kind = 'out'
@@ -203,7 +205,9 @@ export async function financeRoutes(
           pending: pending.rows.map((row) => ({
             appointmentId: String(row.id),
             startsAt: new Date(String(row.starts_at)).toISOString(),
-            priceCents: toNumber(row.price_cents),
+            // What is still missing (the whole price, or the rest of a partial payment).
+            priceCents: toNumber(row.price_cents) - toNumber(row.paid_cents),
+            paidCents: toNumber(row.paid_cents),
             // "A combinar": there is no agreed price yet, the amount is typed when recording.
             quote: row.price_type === 'quote' && toNumber(row.price_cents) === 0,
             client: String(row.client),

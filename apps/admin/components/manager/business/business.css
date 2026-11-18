@@ -1071,15 +1071,124 @@
 }
 .inv-package {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 124px;
+  grid-template-columns: minmax(0, 0.8fr) minmax(0, 1fr);
   gap: 8px;
   align-items: start;
-}
-.inv-package > :last-child {
-  margin-top: 27px;
 }
 @media (max-width: 650px) {
   .inv-grid {
     grid-template-columns: minmax(0, 1fr);
   }
+}
+
+/* Estoque inteligente: setup call, linked note and the "Montar estoque" list. */
+.inv-setup-cta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 14px 16px;
+  padding: 16px 18px;
+  border: 1px solid color-mix(in srgb, var(--space-highlight, #ffb5d3) 45%, transparent);
+  border-radius: 20px;
+  background: color-mix(in srgb, var(--space-accent, #ec287a) 14%, #ffffff08);
+}
+.inv-setup-cta > div {
+  display: grid;
+  flex: 1 1 280px;
+  gap: 3px;
+}
+.inv-setup-cta span:not(.kpi-icon) {
+  color: var(--manager-muted);
+  font-size: 14px;
+}
+.inv-linked {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: 12px;
+  color: #a9d4ff;
+  background: #a9d4ff17;
+  font-size: 14px;
+}
+.inv-setup-count {
+  color: var(--manager-muted);
+  font-size: 14px;
+}
+.inv-setup-group {
+  border: 1px solid #ffffff1f;
+  border-radius: 16px;
+  overflow: hidden;
+}
+.inv-setup-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 52px;
+  padding: 0 16px;
+  border: 0;
+  color: inherit;
+  background: #ffffff0a;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.inv-setup-head small {
+  margin-left: auto;
+  color: var(--manager-muted);
+}
+.inv-setup-head[aria-expanded='true'] svg {
+  transform: rotate(180deg);
+}
+.inv-setup-list {
+  display: grid;
+  gap: 2px;
+  margin: 0;
+  padding: 6px;
+  list-style: none;
+}
+.inv-setup-list li {
+  display: grid;
+  gap: 6px;
+  padding: 2px;
+  border-radius: 12px;
+}
+.inv-setup-list li.is-on {
+  padding-bottom: 10px;
+  background: #ffffff0a;
+}
+.inv-setup-list .filter-option {
+  width: 100%;
+}
+.inv-setup-fields {
+  display: grid;
+  grid-template-columns: minmax(0, 0.9fr) minmax(0, 1fr) minmax(0, 1fr);
+  gap: 8px;
+  padding: 0 8px 0 38px;
+}
+.inv-setup-fields > * {
+  min-width: 0;
+}
+@media (max-width: 650px) {
+  .inv-setup-fields {
+    grid-template-columns: minmax(0, 1fr);
+    padding-left: 8px;
+  }
+}
+
+/* Service recipe ("Produtos usados"). */
+.svc-supplies {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.svc-supplies li {
+  display: grid;
+  grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: center;
 }

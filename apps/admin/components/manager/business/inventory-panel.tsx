@@ -5,20 +5,23 @@ import {
   Archive,
   Camera,
   Check,
+  ChevronDown,
   CircleAlert,
   History,
   ImagePlus,
   Minus,
   Package,
   PackageCheck,
+  PackageOpen,
   PackageX,
   Pencil,
   Plus,
+  Scissors,
   SlidersHorizontal,
   Trash2,
   Wallet,
 } from 'lucide-react'
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import {
   ComboField,
   MoneyField,
@@ -26,6 +29,20 @@ import {
   SelectField,
   TextInputField,
 } from '@/components/ui/fields'
+import {
+  amount,
+  daysLeft,
+  defaultPackageLabel,
+  describeStock,
+  fold,
+  packageLabels,
+  pluralize,
+  recipesFor,
+  suggestionsFor,
+  unitOptions,
+  unitShort,
+  type CatalogProduct,
+} from '@/lib/stock'
 import { KpiCards } from '../data-kit'
 import { QuickModal } from '../quick-modal'
 import {
@@ -47,12 +64,16 @@ type Item = {
   quantity: number
   minQuantity: number
   costCents: number | null
-  /** What one unit holds, e.g. 400 + "g" for a "pote de 400 g". */
+  /** How much one package holds, in `unit` ("pote de 400 g"). */
   packageSize?: number | null
-  packageUnit?: string | null
+  packageLabel?: string | null
+  alertPercent?: number | null
+  referenceQuantity?: number | null
+  catalogId?: string | null
+  used30?: number
+  services?: number
   photoAssetId?: string
   photoUrl?: string | null
-  photoLargeUrl?: string | null
 }
 type Inventory = {
   items: Item[]
@@ -69,276 +90,14 @@ type Inventory = {
     createdAt: string
   }[]
 }
-type Template = {
-  name: string
-  category: string
-  unit: string
-  min: number
-  packageSize?: number
-  packageUnit?: 'ml' | 'g' | 'un'
-}
+type ClinicService = { id: string; name: string; category: string; status: string }
 
-const units: Record<string, string> = {
-  un: 'unidades',
-  ml: 'ml',
-  l: 'litros',
-  g: 'gramas',
-  kg: 'kg',
-  cx: 'caixas',
-  fr: 'frascos',
-  par: 'pares',
-}
-const unitOne: Record<string, string> = {
-  un: 'unidade',
-  ml: 'ml',
-  l: 'litro',
-  g: 'grama',
-  kg: 'kg',
-  cx: 'caixa',
-  fr: 'frasco',
-  par: 'par',
-}
 const kinds = { in: 'Entrada', out: 'Saída', adjust: 'Contagem' } as const
-const qty = (value: number) => value.toLocaleString('pt-BR', { maximumFractionDigits: 2 })
 const parseQty = (value: string) => {
-  const number = Number(value.replace(',', '.'))
+  const number = Number(value.replace(/\./g, '').replace(',', '.'))
   return Number.isFinite(number) && number >= 0 ? Math.round(number * 100) / 100 : null
 }
-const fold = (value: string) => value.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase()
-
-// Ready-made products by the kind of work the space does. A group is offered when one of its
-// keywords appears in the service categories; "geral" is always offered.
-const templateGroups: { keys: string[]; items: Template[] }[] = [
-  {
-    keys: ['depil'],
-    items: [
-      {
-        name: 'Cera quente',
-        category: 'Depilação',
-        unit: 'un',
-        min: 2,
-        packageSize: 400,
-        packageUnit: 'g',
-      },
-      {
-        name: 'Cera roll-on',
-        category: 'Depilação',
-        unit: 'un',
-        min: 6,
-        packageSize: 100,
-        packageUnit: 'g',
-      },
-      {
-        name: 'Espátulas descartáveis',
-        category: 'Depilação',
-        unit: 'cx',
-        min: 1,
-        packageSize: 100,
-        packageUnit: 'un',
-      },
-      { name: 'Lenço pós-depilatório', category: 'Depilação', unit: 'cx', min: 1 },
-      {
-        name: 'Papel para depilação',
-        category: 'Depilação',
-        unit: 'cx',
-        min: 1,
-        packageSize: 100,
-        packageUnit: 'un',
-      },
-    ],
-  },
-  {
-    keys: ['tatu', 'tattoo', 'pierc'],
-    items: [
-      {
-        name: 'Tinta preta',
-        category: 'Tatuagem',
-        unit: 'fr',
-        min: 2,
-        packageSize: 30,
-        packageUnit: 'ml',
-      },
-      {
-        name: 'Agulhas (cartucho)',
-        category: 'Tatuagem',
-        unit: 'cx',
-        min: 2,
-        packageSize: 20,
-        packageUnit: 'un',
-      },
-      { name: 'Filme protetor', category: 'Tatuagem', unit: 'un', min: 1 },
-      {
-        name: 'Vaselina',
-        category: 'Tatuagem',
-        unit: 'un',
-        min: 1,
-        packageSize: 500,
-        packageUnit: 'g',
-      },
-      {
-        name: 'Batoque descartável',
-        category: 'Tatuagem',
-        unit: 'cx',
-        min: 1,
-        packageSize: 100,
-        packageUnit: 'un',
-      },
-    ],
-  },
-  {
-    keys: ['unha', 'manic', 'pedic', 'nail'],
-    items: [
-      { name: 'Esmalte', category: 'Unhas', unit: 'fr', min: 3, packageSize: 8, packageUnit: 'ml' },
-      {
-        name: 'Acetona',
-        category: 'Unhas',
-        unit: 'fr',
-        min: 1,
-        packageSize: 500,
-        packageUnit: 'ml',
-      },
-      { name: 'Algodão', category: 'Unhas', unit: 'un', min: 2 },
-      {
-        name: 'Lixa descartável',
-        category: 'Unhas',
-        unit: 'cx',
-        min: 1,
-        packageSize: 100,
-        packageUnit: 'un',
-      },
-      {
-        name: 'Gel construtor',
-        category: 'Unhas',
-        unit: 'un',
-        min: 1,
-        packageSize: 24,
-        packageUnit: 'g',
-      },
-    ],
-  },
-  {
-    keys: ['cabel', 'hair', 'barb', 'color', 'escova'],
-    items: [
-      {
-        name: 'Shampoo profissional',
-        category: 'Cabelo',
-        unit: 'fr',
-        min: 1,
-        packageSize: 1000,
-        packageUnit: 'ml',
-      },
-      {
-        name: 'Condicionador',
-        category: 'Cabelo',
-        unit: 'fr',
-        min: 1,
-        packageSize: 1000,
-        packageUnit: 'ml',
-      },
-      {
-        name: 'Coloração',
-        category: 'Cabelo',
-        unit: 'un',
-        min: 4,
-        packageSize: 60,
-        packageUnit: 'g',
-      },
-      {
-        name: 'Água oxigenada',
-        category: 'Cabelo',
-        unit: 'fr',
-        min: 1,
-        packageSize: 900,
-        packageUnit: 'ml',
-      },
-      {
-        name: 'Pó descolorante',
-        category: 'Cabelo',
-        unit: 'un',
-        min: 1,
-        packageSize: 500,
-        packageUnit: 'g',
-      },
-    ],
-  },
-  {
-    keys: ['facial', 'pele', 'estet', 'limpeza', 'massag', 'corporal'],
-    items: [
-      {
-        name: 'Sabonete de limpeza',
-        category: 'Estética',
-        unit: 'fr',
-        min: 1,
-        packageSize: 250,
-        packageUnit: 'ml',
-      },
-      {
-        name: 'Máscara facial',
-        category: 'Estética',
-        unit: 'un',
-        min: 2,
-        packageSize: 250,
-        packageUnit: 'g',
-      },
-      {
-        name: 'Creme de massagem',
-        category: 'Estética',
-        unit: 'un',
-        min: 1,
-        packageSize: 1000,
-        packageUnit: 'g',
-      },
-      { name: 'Gaze', category: 'Estética', unit: 'cx', min: 1 },
-    ],
-  },
-  {
-    keys: ['sobranc', 'cilio', 'lash', 'brow'],
-    items: [
-      { name: 'Henna para sobrancelha', category: 'Sobrancelhas', unit: 'un', min: 1 },
-      {
-        name: 'Cola para cílios',
-        category: 'Cílios',
-        unit: 'fr',
-        min: 1,
-        packageSize: 5,
-        packageUnit: 'ml',
-      },
-      { name: 'Fios para extensão', category: 'Cílios', unit: 'cx', min: 2 },
-      { name: 'Linha para design', category: 'Sobrancelhas', unit: 'un', min: 1 },
-    ],
-  },
-  {
-    keys: [],
-    items: [
-      {
-        name: 'Luvas descartáveis',
-        category: 'Descartáveis',
-        unit: 'cx',
-        min: 1,
-        packageSize: 100,
-        packageUnit: 'un',
-      },
-      {
-        name: 'Máscaras descartáveis',
-        category: 'Descartáveis',
-        unit: 'cx',
-        min: 1,
-        packageSize: 50,
-        packageUnit: 'un',
-      },
-      {
-        name: 'Álcool 70%',
-        category: 'Limpeza',
-        unit: 'fr',
-        min: 1,
-        packageSize: 1000,
-        packageUnit: 'ml',
-      },
-      { name: 'Papel toalha', category: 'Descartáveis', unit: 'un', min: 2 },
-      { name: 'Lençol descartável', category: 'Descartáveis', unit: 'un', min: 1 },
-    ],
-  },
-]
+const plain = (value: number) => String(value).replace('.', ',')
 
 /** How full the shelf is, for the bar: the alert level sits at one third of the bar. */
 function level(item: Item) {
@@ -347,14 +106,21 @@ function level(item: Item) {
     const percent = item.minQuantity ? Math.max(8, (item.quantity / item.minQuantity) * 33) : 33
     return { percent, tone: 'low', label: 'Acabando' }
   }
-  const full = Math.max(item.minQuantity * 3, 1)
+  const full = Math.max(item.referenceQuantity ?? 0, item.minQuantity * 3, 1)
   return { percent: Math.min(100, (item.quantity / full) * 100), tone: 'ok', label: '' }
 }
 
-const packageText = (item: Pick<Item, 'packageSize' | 'packageUnit'>) =>
-  item.packageSize && item.packageUnit
-    ? `${qty(item.packageSize)} ${item.packageUnit === 'un' ? 'un' : item.packageUnit} cada`
-    : ''
+/** One package, or one unit for things counted one by one. */
+function quickStep(item: Item) {
+  if (item.packageSize) return item.packageSize
+  return ['un', 'fr', 'cx', 'par', 'folha'].includes(item.unit) ? 1 : null
+}
+
+function stepLabel(item: Item) {
+  return item.packageSize
+    ? item.packageLabel || defaultPackageLabel(item.unit)
+    : (unitOptions.find((option) => option.id === item.unit)?.one ?? item.unit)
+}
 
 export function InventoryPanel({
   clinicId,
@@ -367,9 +133,10 @@ export function InventoryPanel({
 }) {
   const api = useClinicApi(clinicId)
   const inventory = useClinicResource<Inventory>(api, 'inventory')
-  const catalog = useClinicResource<{ services: { category: string }[] }>(api, 'catalog')
+  const catalog = useClinicResource<{ services: ClinicService[] }>(api, 'catalog')
   const [editing, setEditing] = useState<Item | null>(null)
   const [moving, setMoving] = useState<{ item: Item; kind: 'in' | 'out' | 'adjust' } | null>(null)
+  const [setup, setSetup] = useState(false)
   const [query, setQuery] = useState('')
   useSearchFocus(focus, setQuery)
   const [view, setView] = useState('all')
@@ -395,11 +162,31 @@ export function InventoryPanel({
     setEditing(blank())
   }, [createSignal])
 
+  const services = useMemo(
+    () => (catalog.data?.services ?? []).filter((service) => service.status === 'active'),
+    [catalog.data],
+  )
+  const suggestions = useMemo(
+    () =>
+      suggestionsFor(
+        services.map((service) => service.category),
+        {
+          names: new Set((inventory.data?.items ?? []).map((item) => fold(item.name))),
+          ids: new Set(
+            (inventory.data?.items ?? []).flatMap((item) =>
+              item.catalogId ? [item.catalogId] : [],
+            ),
+          ),
+        },
+      ),
+    [services, inventory.data],
+  )
+
   if (inventory.error && !inventory.data)
     return <LoadError message={inventory.error} onRetry={inventory.reload} />
   if (!inventory.data) return <SettingsSkeleton cards={2} />
   const data = inventory.data
-  const needle = fold(query.trim())
+  const needle = fold(query)
   const categories = [...new Set(data.items.map((item) => item.category).filter(Boolean))].sort()
   const isLow = (item: Item) => item.quantity <= item.minQuantity
   const items = data.items.filter(
@@ -411,39 +198,43 @@ export function InventoryPanel({
       (!needle || fold(`${item.name} ${item.category}`).includes(needle)),
   )
   const withoutCost = data.items.filter((item) => item.costCents == null).length
-  const serviceCategories = fold(
-    (catalog.data?.services ?? []).map((service) => service.category).join(' '),
-  )
-  const existing = new Set(data.items.map((item) => fold(item.name)))
-  const suggestions = templateGroups
-    .filter(
-      (group) => !group.keys.length || group.keys.some((key) => serviceCategories.includes(key)),
-    )
-    .flatMap((group) => group.items)
-    .filter((template) => !existing.has(fold(template.name)))
+  const linked = data.items.filter((item) => item.services).length
   const done = (message?: string) => {
     setEditing(null)
     setMoving(null)
+    setSetup(false)
     if (message) {
       setNotice({ kind: 'ok', text: message })
       inventory.reload()
     }
   }
+  const fromCatalog = (product: CatalogProduct, group: string): Item => ({
+    ...blank(),
+    name: product.nome,
+    category: group === 'Descartáveis e higiene' ? 'Descartáveis' : group,
+    unit: product.unidade,
+    packageSize: product.embalagem ?? null,
+    packageLabel: product.embalagem ? defaultPackageLabel(product.unidade) : null,
+    alertPercent: product.aviso_percentual,
+    catalogId: product.id,
+  })
 
-  /** One tap, no form: "usei 1" or "chegou 1". */
+  /** One tap: one package (or one unit) used up or arrived. */
   async function quick(item: Item, kind: 'in' | 'out') {
-    if (busy) return
+    const step = quickStep(item)
+    if (busy || !step) return
     setBusy(item.id)
     setNotice(null)
     try {
       const result = await api.post<{ balance: number }>(`inventory/items/${item.id}/movements`, {
         kind,
-        quantity: 1,
-        note: kind === 'out' ? 'Uso nos atendimentos' : 'Reposição',
+        quantity: step,
+        note: kind === 'out' ? `Usou 1 ${stepLabel(item)}` : 'Reposição',
       })
+      const now = describeStock({ ...item, quantity: result.balance })
       setNotice({
         kind: 'ok',
-        text: `${item.name}: ${kind === 'out' ? 'baixa de' : 'entrada de'} 1 ${unitOne[item.unit]}. Agora são ${qty(result.balance)}.`,
+        text: `${item.name}: ${kind === 'out' ? 'baixa de' : 'entrada de'} 1 ${stepLabel(item)}. Agora: ${now.main} ${now.label}.`,
       })
       inventory.reload()
     } catch {
@@ -458,7 +249,7 @@ export function InventoryPanel({
       <KpiCards
         label="Resumo do estoque"
         active={view}
-        onSelect={(id) => setView(view === id || id === 'value' ? 'all' : id)}
+        onSelect={(id) => setView(view === id || id === 'value' || id === 'linked' ? 'all' : id)}
         items={[
           {
             id: 'all',
@@ -476,18 +267,18 @@ export function InventoryPanel({
             tone: data.lowStock ? 'warn' : 'good',
           },
           {
-            id: 'nocost',
-            label: 'Sem custo',
-            value: withoutCost,
-            hint: withoutCost ? 'Ficam fora do Financeiro' : 'Todos com custo',
-            icon: <PackageCheck size={22} />,
+            id: 'linked',
+            label: 'Baixa automática',
+            value: linked,
+            hint: 'Descontados ao concluir atendimentos',
+            icon: <Scissors size={22} />,
             tone: 'info',
           },
           {
             id: 'value',
             label: 'Valor em estoque',
             value: money(data.stockValueCents),
-            hint: 'Pelo custo informado',
+            hint: withoutCost ? `${withoutCost} sem custo informado` : 'Pelo custo informado',
             icon: <Wallet size={22} />,
             tone: 'good',
           },
@@ -504,13 +295,31 @@ export function InventoryPanel({
         </p>
       ) : null}
 
+      {!data.items.length || suggestions.length ? (
+        <div className="inv-setup-cta">
+          <span className="kpi-icon" aria-hidden>
+            <PackageOpen size={22} />
+          </span>
+          <div>
+            <strong>
+              {data.items.length ? 'Complete o seu estoque' : 'Monte o seu estoque em minutos'}
+            </strong>
+            <span>
+              Escolha os produtos que você usa nos seus serviços. Cada um já vem com a medida e o
+              quanto cada atendimento gasta, para descontar sozinho.
+            </span>
+          </div>
+          <Button onPress={() => setSetup(true)}>Montar estoque</Button>
+        </div>
+      ) : null}
+
       <SettingsCard
         icon={<Package size={20} />}
         title="Seus produtos"
-        description="Um toque para dar baixa ou repor. O sistema avisa quando algo está acabando."
+        description="Concluir um atendimento desconta o que o serviço usa. Aqui você repõe e confere."
         help={{
-          title: 'Como funciona o aviso?',
-          text: 'Cada produto tem um nível de aviso. Quando a quantidade chega nele, o produto aparece como “acabando” aqui, no Início e no Financeiro, para você comprar a tempo.',
+          title: 'Como o estoque desconta sozinho?',
+          text: 'Cada serviço tem uma estimativa do que gasta (ex.: depilação de meia perna usa 70 g de cera). Ao concluir o atendimento, o sistema desconta e mostra quanto resta. Você confere e ajusta quando quiser, e o aviso chega quando o produto passa do nível escolhido.',
         }}
         badge={
           <Button size="sm" onPress={() => setEditing(blank())}>
@@ -550,6 +359,9 @@ export function InventoryPanel({
           <ul className="inv-grid">
             {items.map((item) => {
               const state = level(item)
+              const stock = describeStock(item)
+              const step = quickStep(item)
+              const days = daysLeft(item.quantity, item.used30 ?? 0)
               return (
                 <li key={item.id} className={`inv-card is-${state.tone}`}>
                   <button
@@ -569,35 +381,69 @@ export function InventoryPanel({
                     <span className="inv-copy">
                       <strong>{item.name}</strong>
                       <small>
-                        {[item.category, packageText(item)].filter(Boolean).join(' · ') ||
-                          'Sem categoria'}
+                        {[
+                          item.category,
+                          item.packageSize
+                            ? `${stepLabel(item)} de ${amount(item.packageSize)} ${unitShort(item.unit)}`
+                            : '',
+                        ]
+                          .filter(Boolean)
+                          .join(' · ') || 'Sem categoria'}
                       </small>
                     </span>
                     <Pencil className="inv-edit" size={15} aria-hidden />
                   </button>
                   <div className="inv-level">
                     <div className="inv-amount">
-                      <strong>{qty(item.quantity)}</strong>
-                      <span>{item.quantity === 1 ? unitOne[item.unit] : units[item.unit]}</span>
+                      <strong>{stock.main}</strong>
+                      <span>{stock.label}</span>
                       {state.label ? <em>{state.label}</em> : null}
                     </div>
                     <div
                       className="inv-bar"
                       role="img"
-                      aria-label={`${qty(item.quantity)} ${units[item.unit]}, aviso em ${qty(item.minQuantity)}`}
+                      aria-label={`${stock.main} ${stock.label}, aviso em ${amount(item.minQuantity)} ${unitShort(item.unit)}`}
                     >
                       <i style={{ width: `${state.percent}%` }} />
                     </div>
-                    <small>Aviso em {qty(item.minQuantity)}</small>
+                    <small>
+                      {[
+                        stock.base,
+                        item.alertPercent
+                          ? `aviso em ${item.alertPercent}%`
+                          : `aviso em ${amount(item.minQuantity)} ${unitShort(item.unit)}`,
+                        days != null
+                          ? days <= 60
+                            ? `acaba em ~${days} ${days === 1 ? 'dia' : 'dias'}`
+                            : ''
+                          : '',
+                        item.services
+                          ? `em ${item.services} ${item.services === 1 ? 'serviço' : 'serviços'}`
+                          : '',
+                      ]
+                        .filter(Boolean)
+                        .join(' · ')}
+                    </small>
                   </div>
                   <div className="inv-actions">
-                    <Button
-                      variant="secondary"
-                      isDisabled={item.quantity < 1 || busy === item.id}
-                      onPress={() => void quick(item, 'out')}
-                    >
-                      <Minus size={16} aria-hidden /> Usei 1
-                    </Button>
+                    {step ? (
+                      <Button
+                        variant="secondary"
+                        isDisabled={item.quantity <= 0 || busy === item.id}
+                        onPress={() => void quick(item, 'out')}
+                      >
+                        <Minus size={16} aria-hidden /> Usei 1{' '}
+                        {item.packageSize ? stepLabel(item) : ''}
+                      </Button>
+                    ) : (
+                      <Button
+                        variant="secondary"
+                        isDisabled={item.quantity <= 0}
+                        onPress={() => setMoving({ item, kind: 'out' })}
+                      >
+                        <Minus size={16} aria-hidden /> Saída
+                      </Button>
+                    )}
                     <Button
                       variant="secondary"
                       isDisabled={busy === item.id}
@@ -623,62 +469,73 @@ export function InventoryPanel({
         ) : (
           <div className="biz-empty">
             <Package size={24} aria-hidden />
-            <p>Comece pelos produtos que você mais usa. Toque em um para cadastrar em segundos.</p>
+            <p>Nenhum produto ainda. Use “Montar estoque” para começar pelos sugeridos.</p>
           </div>
         )}
-        {suggestions.length && view === 'all' && !needle && !category ? (
+        {suggestions.length && data.items.length && view === 'all' && !needle && !category ? (
           <div className="inv-suggest">
             <span>Sugestões para o seu espaço</span>
             <div className="biz-chips">
-              {suggestions.slice(0, 10).map((template) => (
-                <button
-                  key={template.name}
-                  type="button"
-                  onClick={() =>
-                    setEditing({
-                      ...blank(),
-                      name: template.name,
-                      category: template.category,
-                      unit: template.unit,
-                      minQuantity: template.min,
-                      packageSize: template.packageSize ?? null,
-                      packageUnit: template.packageUnit ?? null,
-                    })
-                  }
-                >
-                  <Plus size={13} aria-hidden /> {template.name}
-                </button>
-              ))}
+              {suggestions
+                .flatMap((group) =>
+                  group.products.map((product) => ({ product, group: group.category })),
+                )
+                .slice(0, 12)
+                .map(({ product, group }) => (
+                  <button
+                    key={product.id}
+                    type="button"
+                    onClick={() => setEditing(fromCatalog(product, group))}
+                  >
+                    <Plus size={13} aria-hidden /> {product.nome}
+                  </button>
+                ))}
             </div>
           </div>
         ) : null}
       </SettingsCard>
 
       {data.movements.length ? (
-        <SettingsCard icon={<History size={20} />} title="Últimas movimentações">
-          <ul className="biz-list is-compact">
-            {data.movements.map((movement) => (
-              <li key={movement.id}>
-                <div className="biz-row-main">
-                  <strong>
-                    {kinds[movement.kind as keyof typeof kinds]} · {movement.name}
-                  </strong>
-                  <span className="biz-row-meta">
-                    {shortDateBr(movement.createdAt)} às {timeBr(movement.createdAt)}
-                    {movement.note ? ` · ${movement.note}` : ''}
-                  </span>
-                </div>
-                <div className="biz-price">
-                  <strong>
-                    {movement.kind === 'in' ? '+' : movement.kind === 'out' ? '−' : '='}{' '}
-                    {qty(movement.quantity)}
-                  </strong>
-                  <small>saldo {qty(movement.balance)}</small>
-                </div>
-              </li>
-            ))}
-          </ul>
-        </SettingsCard>
+        <details className="fold">
+          <summary>
+            <span className="kpi-icon tone-info" aria-hidden>
+              <History size={20} />
+            </span>
+            <span className="fold-copy">
+              <strong>Últimas movimentações</strong>
+              <small>
+                {data.movements.length} registros · entradas, baixas dos atendimentos e contagens
+              </small>
+            </span>
+            <ChevronDown className="fold-chevron" size={20} aria-hidden />
+          </summary>
+          <div className="fold-body">
+            <ul className="biz-list is-compact">
+              {data.movements.map((movement) => (
+                <li key={movement.id}>
+                  <div className="biz-row-main">
+                    <strong>
+                      {kinds[movement.kind as keyof typeof kinds]} · {movement.name}
+                    </strong>
+                    <span className="biz-row-meta">
+                      {shortDateBr(movement.createdAt)} às {timeBr(movement.createdAt)}
+                      {movement.note ? ` · ${movement.note}` : ''}
+                    </span>
+                  </div>
+                  <div className="biz-price">
+                    <strong>
+                      {movement.kind === 'in' ? '+' : movement.kind === 'out' ? '−' : '='}{' '}
+                      {amount(movement.quantity)} {unitShort(movement.unit)}
+                    </strong>
+                    <small>
+                      saldo {amount(movement.balance)} {unitShort(movement.unit)}
+                    </small>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </details>
       ) : null}
 
       {editing ? (
@@ -688,6 +545,7 @@ export function InventoryPanel({
           initial={editing}
           isNew={!data.items.some((item) => item.id === editing.id)}
           categories={categories}
+          services={services}
           onClose={done}
         />
       ) : null}
@@ -700,8 +558,19 @@ export function InventoryPanel({
           onClose={done}
         />
       ) : null}
+      {setup ? (
+        <StockSetup api={api} groups={suggestions} services={services} onClose={done} />
+      ) : null}
     </div>
   )
+}
+
+/** Packages (when it has one) or base units typed by the person, as base units. */
+function useAmountInput(item: Pick<Item, 'packageSize' | 'unit'>, initial: string) {
+  const [text, setText] = useState(initial)
+  const parsed = text.trim() ? parseQty(text) : 0
+  const base = parsed == null ? null : item.packageSize ? parsed * item.packageSize : parsed
+  return { text, setText, parsed, base }
 }
 
 function ItemEditor({
@@ -709,19 +578,28 @@ function ItemEditor({
   initial,
   isNew,
   categories,
+  services,
   onClose,
 }: {
   api: ClinicApi
   initial: Item
   isNew: boolean
   categories: string[]
+  services: ClinicService[]
   onClose: (message?: string) => void
 }) {
   const [item, setItem] = useState(initial)
-  const [min, setMin] = useState(String(initial.minQuantity).replace('.', ','))
-  const [start, setStart] = useState('')
-  const [size, setSize] = useState(
-    initial.packageSize ? String(initial.packageSize).replace('.', ',') : '',
+  const [size, setSize] = useState(initial.packageSize ? plain(initial.packageSize) : '')
+  const packageSize = size.trim() ? parseQty(size) : null
+  const shape = { unit: item.unit, packageSize: packageSize || null }
+  const start = useAmountInput(shape, '')
+  const [alert, setAlert] = useState<string>(
+    initial.alertPercent ? String(initial.alertPercent) : isNew ? '25' : 'qty',
+  )
+  const [min, setMin] = useState(
+    initial.packageSize
+      ? plain(Math.round((initial.minQuantity / initial.packageSize) * 100) / 100)
+      : plain(initial.minQuantity),
   )
   const [cost, setCost] = useState(initial.costCents == null ? '' : moneyInput(initial.costCents))
   const [error, setError] = useState('')
@@ -729,6 +607,8 @@ function ItemEditor({
   const [uploading, setUploading] = useState(false)
   const camera = useRef<HTMLInputElement>(null)
   const gallery = useRef<HTMLInputElement>(null)
+  const label = item.packageLabel || defaultPackageLabel(item.unit)
+  const supplies = isNew && item.catalogId ? recipesFor(item.catalogId, services) : []
 
   async function pickPhoto(file: File | undefined) {
     if (!file) return
@@ -749,15 +629,13 @@ function ItemEditor({
   }
 
   async function save() {
-    const minQuantity = parseQty(min || '0')
-    const initialQuantity = parseQty(start || '0')
-    const packageSize = size.trim() ? parseQty(size) : null
+    const minText = parseQty(min || '0')
     const costCents = cost.trim() ? parseMoney(cost) : null
     if (
       !item.name.trim() ||
-      minQuantity == null ||
-      initialQuantity == null ||
+      start.base == null ||
       (size.trim() && !packageSize) ||
+      (alert === 'qty' && minText == null) ||
       (cost.trim() && costCents == null)
     ) {
       setError('Confira o nome e os números.')
@@ -770,14 +648,21 @@ function ItemEditor({
         name: item.name.trim(),
         category: item.category.trim(),
         unit: item.unit,
-        minQuantity,
-        ...(isNew ? { initialQuantity } : {}),
+        minQuantity: Math.round((minText ?? 0) * (packageSize ?? 1) * 100) / 100,
+        alertPercent: alert === 'qty' ? null : Number(alert),
+        ...(isNew ? { initialQuantity: Math.round(start.base * 100) / 100 } : {}),
         costCents,
-        packageSize,
-        packageUnit: packageSize ? (item.packageUnit ?? 'ml') : null,
+        packageSize: packageSize || null,
+        packageLabel: packageSize ? label : '',
         photoAssetId: item.photoAssetId ?? '',
+        ...(item.catalogId ? { catalogId: item.catalogId } : {}),
+        ...(supplies.length ? { supplies } : {}),
       })
-      onClose(isNew ? `${item.name.trim()} cadastrado.` : 'Produto atualizado.')
+      onClose(
+        isNew
+          ? `${item.name.trim()} cadastrado${supplies.length ? ` e ligado a ${supplies.length} ${supplies.length === 1 ? 'serviço' : 'serviços'}` : ''}.`
+          : 'Produto atualizado.',
+      )
     } catch (cause) {
       setError(
         cause instanceof ClinicApiError && cause.status === 409
@@ -906,54 +791,93 @@ function ItemEditor({
           onChange={(category) => setItem({ ...item, category })}
         />
         <SelectField
-          label="Conto em"
+          label="Medido em"
           value={item.unit}
+          description="A medida que os atendimentos gastam."
           onChange={(unit) => setItem({ ...item, unit })}
-          options={Object.entries(units).map(([id, label]) => ({ id, label }))}
+          options={unitOptions.map(({ id, label: text }) => ({ id, label: text }))}
         />
         <div className="inv-package">
+          <SelectField
+            label="Vem em"
+            value={label}
+            onChange={(packageLabel) => setItem({ ...item, packageLabel })}
+            options={packageLabels.map((id) => ({ id, label: id }))}
+          />
           <TextInputField
-            label="Cada um tem (opcional)"
+            label={`Cada ${label} tem`}
             inputMode="decimal"
             value={size}
             placeholder="Ex.: 400"
-            description="Tamanho da embalagem, como um pote de 400 g."
+            suffix={unitShort(item.unit)}
             onChange={setSize}
-          />
-          <SelectField
-            ariaLabel="Medida da embalagem"
-            value={item.packageUnit ?? 'ml'}
-            onChange={(packageUnit) => setItem({ ...item, packageUnit })}
-            options={[
-              { id: 'ml', label: 'ml' },
-              { id: 'g', label: 'g' },
-              { id: 'un', label: 'unidades' },
-            ]}
           />
         </div>
         {isNew ? (
           <TextInputField
             label="Quanto tem agora"
             inputMode="decimal"
-            value={start}
+            value={start.text}
             placeholder="0"
-            onChange={setStart}
+            suffix={packageSize ? pluralize(label, 2) : unitShort(item.unit)}
+            description={
+              packageSize && start.base
+                ? `= ${amount(start.base)} ${unitShort(item.unit)}`
+                : 'Pode usar decimal, como 2,5.'
+            }
+            onChange={start.setText}
           />
         ) : null}
-        <TextInputField
-          label="Avisar quando chegar a"
-          inputMode="decimal"
-          value={min}
-          description="Nesse número o produto aparece como “acabando”."
-          onChange={setMin}
-        />
         <MoneyField
-          label="Custo por unidade (opcional)"
-          description="Usado no Financeiro para estimar o gasto com produtos."
+          label={packageSize ? `Custo de cada ${label}` : 'Custo por unidade'}
+          description="Opcional. Usado no Financeiro."
           value={cost}
           onChange={setCost}
         />
+        <div className="settings-field manager-field-wide">
+          <span className="settings-field-label">
+            <label>Avisar quando restar</label>
+          </span>
+          <div className="team-choice" role="radiogroup" aria-label="Quando avisar">
+            {[
+              ['50', '50%'],
+              ['25', '25%'],
+              ['10', '10%'],
+              ['qty', 'Uma quantidade'],
+            ].map(([id, text]) => (
+              <button
+                key={id}
+                type="button"
+                role="radio"
+                aria-checked={alert === id}
+                onClick={() => setAlert(id)}
+              >
+                {text}
+              </button>
+            ))}
+          </div>
+          {alert === 'qty' ? (
+            <TextInputField
+              ariaLabel="Quantidade para avisar"
+              inputMode="decimal"
+              value={min}
+              suffix={packageSize ? pluralize(label, 2) : unitShort(item.unit)}
+              onChange={setMin}
+            />
+          ) : (
+            <small className="settings-muted">
+              A porcentagem conta a partir da última reposição.
+            </small>
+          )}
+        </div>
       </div>
+      {supplies.length ? (
+        <p className="inv-linked">
+          <Scissors size={15} aria-hidden /> Já entra na baixa automática de {supplies.length}{' '}
+          {supplies.length === 1 ? 'serviço' : 'serviços'} seus. Ajuste o gasto de cada um em
+          Serviços.
+        </p>
+      ) : null}
       {error ? (
         <p className="apt-error" role="alert">
           {error}
@@ -974,8 +898,16 @@ function MovementForm({
   kind: 'in' | 'out' | 'adjust'
   onClose: (message?: string) => void
 }) {
-  const [amount, setAmount] = useState(
-    kind === 'adjust' ? String(item.quantity).replace('.', ',') : '1',
+  const packed = Boolean(item.packageSize)
+  const label = stepLabel(item)
+  const current = describeStock(item)
+  const input = useAmountInput(
+    item,
+    kind === 'adjust'
+      ? plain(Math.round((item.quantity / (item.packageSize ?? 1)) * 100) / 100)
+      : packed || quickStep(item)
+        ? '1'
+        : '',
   )
   const [note, setNote] = useState('')
   const [error, setError] = useState('')
@@ -985,9 +917,17 @@ function MovementForm({
     out: `Saída de ${item.name}`,
     adjust: `Contagem de ${item.name}`,
   }[kind]
+  const after =
+    input.base == null
+      ? null
+      : kind === 'in'
+        ? item.quantity + input.base
+        : kind === 'out'
+          ? item.quantity - input.base
+          : input.base
 
-  async function save(value = amount) {
-    const quantity = parseQty(value)
+  async function save(override?: number) {
+    const quantity = override ?? (input.base == null ? null : Math.round(input.base * 100) / 100)
     if (quantity == null || (kind !== 'adjust' && quantity <= 0)) {
       setError('Informe uma quantidade válida.')
       return
@@ -1000,7 +940,8 @@ function MovementForm({
         quantity,
         ...(note.trim() ? { note: note.trim() } : {}),
       })
-      onClose(`${item.name}: agora são ${qty(result.balance)} ${units[item.unit]}.`)
+      const now = describeStock({ ...item, quantity: result.balance })
+      onClose(`${item.name}: agora ${now.main} ${now.label}${now.base ? ` (${now.base})` : ''}.`)
     } catch {
       setError(
         kind === 'out' ? 'Não tem essa quantidade em estoque.' : 'Não foi possível registrar.',
@@ -1014,11 +955,7 @@ function MovementForm({
       isOpen
       onOpenChange={(open) => !open && onClose()}
       title={title}
-      subtitle={
-        kind === 'adjust'
-          ? 'Contou a prateleira? Informe quanto tem de verdade.'
-          : `Hoje há ${qty(item.quantity)} ${units[item.unit]}.`
-      }
+      subtitle={`Hoje: ${current.main} ${current.label}${current.base ? ` (${current.base})` : ''}.`}
       footer={
         <>
           {kind === 'adjust' && item.quantity > 0 ? (
@@ -1026,7 +963,7 @@ function MovementForm({
               variant="ghost"
               className="qm-foot-start"
               isDisabled={saving}
-              onPress={() => void save('0')}
+              onPress={() => void save(0)}
             >
               <PackageX size={15} aria-hidden /> Acabou
             </Button>
@@ -1040,29 +977,44 @@ function MovementForm({
         </>
       }
     >
-      {kind !== 'adjust' ? (
+      {kind !== 'adjust' && (packed || quickStep(item)) ? (
         <div className="biz-chips" role="group" aria-label="Quantidade rápida">
-          {[1, 2, 5, 10, 20].map((value) => (
+          {[1, 2, 3, 5, 10].map((value) => (
             <button
               key={value}
               type="button"
-              aria-pressed={amount === String(value)}
-              onClick={() => setAmount(String(value))}
+              aria-pressed={input.text === String(value)}
+              onClick={() => input.setText(String(value))}
             >
               {kind === 'in' ? '+' : '−'}
-              {value}
+              {value} {pluralize(label, value)}
             </button>
           ))}
         </div>
       ) : null}
       <div className="manager-form-grid">
         <TextInputField
-          label={kind === 'adjust' ? 'Quantidade contada' : 'Quantidade'}
+          label={
+            kind === 'adjust'
+              ? packed
+                ? `Quantos ${pluralize(label, 2)} tem`
+                : 'Quanto tem'
+              : packed
+                ? `Quantos ${pluralize(label, 2)}`
+                : 'Quantidade'
+          }
           inputMode="decimal"
           isRequired
-          value={amount}
-          suffix={units[item.unit]}
-          onChange={setAmount}
+          value={input.text}
+          suffix={packed ? pluralize(label, 2) : unitShort(item.unit)}
+          description={
+            after != null
+              ? `${packed && input.base ? `= ${amount(input.base)} ${unitShort(item.unit)} · ` : ''}fica com ${amount(Math.max(after, 0))} ${unitShort(item.unit)}`
+              : packed
+                ? 'Pode usar decimal: 2,5 = dois e meio.'
+                : undefined
+          }
+          onChange={input.setText}
         />
         <TextInputField
           label="Observação (opcional)"
@@ -1072,6 +1024,206 @@ function MovementForm({
           onChange={setNote}
         />
       </div>
+      {error ? (
+        <p className="apt-error" role="alert">
+          {error}
+        </p>
+      ) : null}
+    </QuickModal>
+  )
+}
+
+type SetupRow = { selected: boolean; size: string; label: string; have: string }
+
+/**
+ * "Montar estoque": the suggested products of the space's categories in one list. Each chosen
+ * product is created with its package and already linked to the services that use it.
+ */
+function StockSetup({
+  api,
+  groups,
+  services,
+  onClose,
+}: {
+  api: ClinicApi
+  groups: { category: string; products: CatalogProduct[] }[]
+  services: ClinicService[]
+  onClose: (message?: string) => void
+}) {
+  const [rows, setRows] = useState<Record<string, SetupRow>>(() =>
+    Object.fromEntries(
+      groups.flatMap((group) =>
+        group.products.map((product) => [
+          product.id,
+          {
+            selected: false,
+            size: product.embalagem ? plain(product.embalagem) : '',
+            label: defaultPackageLabel(product.unidade),
+            have: '',
+          },
+        ]),
+      ),
+    ),
+  )
+  const [open, setOpen] = useState(groups[0]?.category ?? '')
+  const [saving, setSaving] = useState<{ done: number; total: number } | null>(null)
+  const [error, setError] = useState('')
+  const chosen = groups.flatMap((group) =>
+    group.products
+      .filter((product) => rows[product.id]?.selected)
+      .map((product) => ({ product, group: group.category })),
+  )
+  const set = (id: string, patch: Partial<SetupRow>) =>
+    setRows((current) => ({ ...current, [id]: { ...current[id], ...patch } }))
+
+  async function save() {
+    setError('')
+    let failed = 0
+    let linked = 0
+    setSaving({ done: 0, total: chosen.length })
+    for (const [index, { product, group }] of chosen.entries()) {
+      const row = rows[product.id]
+      const size = row.size.trim() ? parseQty(row.size) : null
+      const have = row.have.trim() ? parseQty(row.have) : 0
+      const supplies = recipesFor(product.id, services)
+      try {
+        await api.put(`inventory/items/${crypto.randomUUID()}`, {
+          name: product.nome,
+          category: group === 'Descartáveis e higiene' ? 'Descartáveis' : group,
+          unit: product.unidade,
+          minQuantity: 0,
+          alertPercent: product.aviso_percentual,
+          initialQuantity: Math.round((have ?? 0) * (size || 1) * 100) / 100,
+          costCents: null,
+          packageSize: size || null,
+          packageLabel: size ? row.label : '',
+          photoAssetId: '',
+          catalogId: product.id,
+          ...(supplies.length ? { supplies } : {}),
+        })
+        if (supplies.length) linked += 1
+      } catch {
+        failed += 1
+      }
+      setSaving({ done: index + 1, total: chosen.length })
+    }
+    setSaving(null)
+    if (failed) {
+      setError(
+        `${failed} ${failed === 1 ? 'produto não foi salvo' : 'produtos não foram salvos'}. Tente de novo.`,
+      )
+      return
+    }
+    onClose(
+      `${chosen.length} ${chosen.length === 1 ? 'produto cadastrado' : 'produtos cadastrados'}; ${linked} já descontam sozinhos nos atendimentos.`,
+    )
+  }
+
+  return (
+    <QuickModal
+      isOpen
+      onOpenChange={(next) => !next && !saving && onClose()}
+      size="xl"
+      title="Montar estoque"
+      subtitle="Marque o que você usa. A embalagem e o quanto tem são opcionais e podem ser ajustados depois."
+      footer={
+        <>
+          <span className="qm-foot-start inv-setup-count">
+            {saving
+              ? `Salvando ${saving.done} de ${saving.total}…`
+              : `${chosen.length} ${chosen.length === 1 ? 'produto escolhido' : 'produtos escolhidos'}`}
+          </span>
+          <Button variant="secondary" isDisabled={Boolean(saving)} onPress={() => onClose()}>
+            Cancelar
+          </Button>
+          <Button isDisabled={!chosen.length || Boolean(saving)} onPress={() => void save()}>
+            Cadastrar {chosen.length || ''}
+          </Button>
+        </>
+      }
+    >
+      {groups.length ? (
+        groups.map((group) => {
+          const count = group.products.filter((product) => rows[product.id]?.selected).length
+          return (
+            <section key={group.category} className="inv-setup-group">
+              <button
+                type="button"
+                className="inv-setup-head"
+                aria-expanded={open === group.category}
+                onClick={() => setOpen(open === group.category ? '' : group.category)}
+              >
+                <strong>{group.category}</strong>
+                <small>
+                  {count
+                    ? `${count} de ${group.products.length}`
+                    : `${group.products.length} sugestões`}
+                </small>
+                <ChevronDown size={18} aria-hidden />
+              </button>
+              {open === group.category ? (
+                <ul className="inv-setup-list">
+                  {group.products.map((product) => {
+                    const row = rows[product.id]
+                    return (
+                      <li key={product.id} className={row.selected ? 'is-on' : undefined}>
+                        <button
+                          type="button"
+                          role="checkbox"
+                          aria-checked={row.selected}
+                          className="filter-option"
+                          onClick={() => set(product.id, { selected: !row.selected })}
+                        >
+                          <span className="filter-box" aria-hidden>
+                            {row.selected ? <Check size={13} strokeWidth={3} /> : null}
+                          </span>
+                          <span>{product.nome}</span>
+                          <small>{unitShort(product.unidade)}</small>
+                        </button>
+                        {row.selected ? (
+                          <div className="inv-setup-fields">
+                            <SelectField
+                              ariaLabel={`Embalagem de ${product.nome}`}
+                              value={row.label}
+                              onChange={(label) => set(product.id, { label })}
+                              options={packageLabels.map((id) => ({ id, label: id }))}
+                            />
+                            <TextInputField
+                              ariaLabel={`Conteúdo de cada embalagem de ${product.nome}`}
+                              inputMode="decimal"
+                              placeholder="Tamanho"
+                              value={row.size}
+                              suffix={unitShort(product.unidade)}
+                              onChange={(size) => set(product.id, { size })}
+                            />
+                            <TextInputField
+                              ariaLabel={`Quanto tem de ${product.nome}`}
+                              inputMode="decimal"
+                              placeholder="Tenho"
+                              value={row.have}
+                              suffix={
+                                row.size.trim()
+                                  ? pluralize(row.label, 2)
+                                  : unitShort(product.unidade)
+                              }
+                              onChange={(have) => set(product.id, { have })}
+                            />
+                          </div>
+                        ) : null}
+                      </li>
+                    )
+                  })}
+                </ul>
+              ) : null}
+            </section>
+          )
+        })
+      ) : (
+        <Empty>
+          <PackageCheck size={18} aria-hidden /> Todos os produtos sugeridos para o seu espaço já
+          estão no estoque.
+        </Empty>
+      )}
       {error ? (
         <p className="apt-error" role="alert">
           {error}

@@ -447,12 +447,12 @@ describe('inventory and marketing', () => {
     const save = await call('reception-a', 'PUT', `/clinics/${c('a').id}/inventory/items/${item}`, {
       name: 'Shampoo 1L',
       category: 'Cabelo',
-      unit: 'fr',
-      minQuantity: 2,
-      initialQuantity: 5,
+      unit: 'ml',
+      minQuantity: 2000,
+      initialQuantity: 5000,
       costCents: 3500,
       packageSize: 1000,
-      packageUnit: 'ml',
+      packageLabel: 'frasco',
     })
     expect(save.statusCode).toBe(200)
     // A photo that was never uploaded for this product is refused.
@@ -460,28 +460,188 @@ describe('inventory and marketing', () => {
       (
         await call('reception-a', 'PUT', `/clinics/${c('a').id}/inventory/items/${item}`, {
           name: 'Shampoo 1L',
-          unit: 'fr',
-          minQuantity: 2,
+          unit: 'ml',
+          minQuantity: 2000,
           photoAssetId: crypto.randomUUID(),
         })
       ).statusCode,
     ).toBe(400)
-    expect(
-      (await call('owner-a', 'GET', `/clinics/${c('a').id}/inventory`)).json().items[0],
-    ).toMatchObject({ packageSize: 1000, packageUnit: 'ml', photoUrl: null })
+    const first = (await call('owner-a', 'GET', `/clinics/${c('a').id}/inventory`)).json()
+    expect(first.items[0]).toMatchObject({
+      packageSize: 1000,
+      packageLabel: 'frasco',
+      photoUrl: null,
+    })
+    // Five 1-litre bottles at R$ 35 each.
+    expect(first.stockValueCents).toBe(17500)
     const move = (kind: string, quantity: number) =>
       call('reception-a', 'POST', `/clinics/${c('a').id}/inventory/items/${item}/movements`, {
         kind,
         quantity,
       })
-    expect((await move('out', 4)).json().balance).toBe(1)
-    expect((await move('out', 3)).statusCode).toBe(400)
+    expect((await move('out', 4000)).json().balance).toBe(1000)
+    expect((await move('out', 3000)).statusCode).toBe(400)
     const stock = (await call('owner-a', 'GET', `/clinics/${c('a').id}/inventory`)).json()
     expect(stock.lowStock).toBe(1)
-    expect(stock.items[0]).toMatchObject({ name: 'Shampoo 1L', quantity: 1 })
+    expect(stock.items[0]).toMatchObject({ name: 'Shampoo 1L', quantity: 1000, used30: 4000 })
     expect(stock.movements.map((m: { kind: string }) => m.kind)).toEqual(['out', 'in'])
-    expect((await move('adjust', 6)).json().balance).toBe(6)
+    expect((await move('adjust', 6000)).json().balance).toBe(6000)
     expect((await call('owner-b', 'GET', `/clinics/${c('a').id}/inventory`)).statusCode).toBe(403)
+  })
+
+  it('alerts at a percent of the last restock', async () => {
+    const wax = crypto.randomUUID()
+    const base = `/clinics/${c('a').id}/inventory`
+    expect(
+      (
+        await call('owner-a', 'PUT', `${base}/items/${wax}`, {
+          name: 'Cera quente',
+          unit: 'g',
+          minQuantity: 0,
+          initialQuantity: 2000,
+          packageSize: 1000,
+          packageLabel: 'pote',
+          alertPercent: 25,
+          catalogId: 'cera-quente',
+        })
+      ).statusCode,
+    ).toBe(200)
+    const found = (await call('owner-a', 'GET', base))
+      .json()
+      .items.find((entry: { id: string }) => entry.id === wax)
+    expect(found).toMatchObject({ minQuantity: 500, alertPercent: 25, catalogId: 'cera-quente' })
+    // Restocking to 4 kg moves the alert to 1 kg.
+    await call('owner-a', 'POST', `${base}/items/${wax}/movements`, { kind: 'in', quantity: 2000 })
+    const after = (await call('owner-a', 'GET', base))
+      .json()
+      .items.find((entry: { id: string }) => entry.id === wax)
+    expect(after).toMatchObject({ quantity: 4000, minQuantity: 1000, referenceQuantity: 4000 })
+  })
+
+  it('consumes the service recipe once when an appointment is completed', async () => {
+    const wax = crypto.randomUUID()
+    const spatula = crypto.randomUUID()
+    const base = `/clinics/${c('a').id}`
+    for (const [id, name, unit, initial] of [
+      [wax, 'Cera roll-on', 'g', 500],
+      [spatula, 'Espátula', 'un', 3],
+    ] as const)
+      await call('owner-a', 'PUT', `${base}/inventory/items/${id}`, {
+        name,
+        unit,
+        minQuantity: 0,
+        initialQuantity: initial,
+        ...(id === wax ? { supplies: [{ serviceId: c('a').service, quantity: 40 }] } : {}),
+      })
+    // The recipe can also be set from the service, and another clinic cannot touch it.
+    expect(
+      (
+        await call('owner-a', 'PUT', `${base}/catalog/services/${c('a').service}/supplies`, {
+          items: [
+            { itemId: wax, quantity: 40 },
+            { itemId: spatula, quantity: 2 },
+          ],
+        })
+      ).statusCode,
+    ).toBe(200)
+    expect(
+      (
+        await call('owner-b', 'PUT', `${base}/catalog/services/${c('a').service}/supplies`, {
+          items: [],
+        })
+      ).statusCode,
+    ).toBe(403)
+    expect(
+      (await call('owner-a', 'GET', `${base}/catalog/services/${c('a').service}/supplies`)).json()
+        .supplies,
+    ).toHaveLength(2)
+
+    const today = (await call('owner-a', 'GET', `${base}/catalog`)).json().today as string
+    const booked = await book('reception-a', c('a').service, `${today}T17:00`)
+    const id = booked.json().appointment.id as string
+    expect(
+      (await call('reception-a', 'PUT', `${base}/appointments/${id}/check-in`, {})).statusCode,
+    ).toBe(200)
+    const plan = (await call('reception-a', 'GET', `${base}/appointments/${id}/supplies`)).json()
+    expect(plan.supplies).toEqual([
+      expect.objectContaining({ itemId: wax, quantity: 40, stock: 500, consumed: null }),
+      expect.objectContaining({ itemId: spatula, quantity: 2, stock: 3, consumed: null }),
+    ])
+    // Reception cannot record money: the whole completion is refused, nothing is consumed.
+    const supplies = [
+      { itemId: wax, quantity: 55 },
+      { itemId: spatula, quantity: 2 },
+    ]
+    expect(
+      (
+        await call('reception-a', 'PUT', `${base}/appointments/${id}/complete`, {
+          supplies,
+          payment: { amountCents: 5000, method: 'pix', description: 'Parcial' },
+        })
+      ).statusCode,
+    ).toBe(403)
+    expect(
+      (
+        await call('owner-a', 'PUT', `${base}/appointments/${id}/complete`, {
+          supplies,
+          payment: { amountCents: 5000, method: 'pix', description: 'Parcial' },
+        })
+      ).json(),
+    ).toEqual({ completed: true, consumed: 2 })
+    // Completing again never consumes twice.
+    expect(
+      (
+        await call('owner-a', 'PUT', `${base}/appointments/${id}/complete`, {
+          supplies,
+          payment: null,
+        })
+      ).json().consumed,
+    ).toBe(0)
+    const stock = (await call('owner-a', 'GET', `${base}/inventory`)).json()
+    const level = (itemId: string) =>
+      stock.items.find((entry: { id: string }) => entry.id === itemId).quantity
+    expect([level(wax), level(spatula)]).toEqual([445, 1])
+
+    // Paid in part: the rest is still "a receber"; more than the price is refused.
+    const finance = (await call('owner-a', 'GET', `${base}/finance`)).json()
+    expect(
+      finance.pending.find((entry: { appointmentId: string }) => entry.appointmentId === id),
+    ).toMatchObject({ priceCents: 5000, paidCents: 5000 })
+    const rest = {
+      kind: 'income',
+      occurredOn: today,
+      description: 'Resto',
+      method: 'pix',
+      appointmentId: id,
+    }
+    expect(
+      (await call('owner-a', 'POST', `${base}/finance/entries`, { ...rest, amountCents: 6000 }))
+        .statusCode,
+    ).toBe(409)
+    expect(
+      (await call('owner-a', 'POST', `${base}/finance/entries`, { ...rest, amountCents: 5000 }))
+        .statusCode,
+    ).toBe(200)
+    // Canceling keeps the reason, and the agenda shows it.
+    const other = (await book('owner-a', c('a').service, `${today}T19:00`)).json().appointment
+      .id as string
+    expect(
+      (
+        await call('owner-a', 'PUT', `${base}/appointments/${other}/status`, {
+          status: 'canceled',
+          note: 'Cliente pediu para remarcar mês que vem',
+        })
+      ).statusCode,
+    ).toBe(200)
+    const dashboard = (await call('owner-a', 'GET', `${base}/dashboard`)).json()
+    expect(
+      dashboard.appointments.find((entry: { id: string }) => entry.id === other),
+    ).toMatchObject({ status: 'canceled', statusNote: 'Cliente pediu para remarcar mês que vem' })
+    expect(dashboard.appointments.find((entry: { id: string }) => entry.id === id)).toMatchObject({
+      paid: true,
+      paidCents: 10000,
+      checkedInAt: expect.any(String),
+    })
   })
 
   it('lists birthdays of the month for marketing', async () => {

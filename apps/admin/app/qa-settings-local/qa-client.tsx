@@ -263,6 +263,10 @@ const fixtures: Record<string, unknown> = {
       professional: 'Joana Lima',
       priceCents: price,
       paid: index === 0,
+      paidCents: index === 0 ? price : index === 1 ? 10000 : 0,
+      bookingSource: index === 1 ? 'client' : 'manager',
+      checkedInAt: null,
+      priceType: 'fixed',
       promotion: index === 1,
     })),
     upcoming: [
@@ -488,12 +492,19 @@ const fixtures: Record<string, unknown> = {
       },
       {
         id: 'i2',
-        name: 'Shampoo profissional 1L',
+        name: 'Shampoo profissional',
         category: 'Cabelo',
-        unit: 'fr',
-        quantity: 6,
-        minQuantity: 2,
+        unit: 'ml',
+        quantity: 2350,
+        minQuantity: 1000,
         costCents: 4500,
+        packageSize: 1000,
+        packageLabel: 'frasco',
+        alertPercent: 25,
+        referenceQuantity: 4000,
+        catalogId: 'shampoo',
+        used30: 1650,
+        services: 3,
       },
       {
         id: 'i3',
@@ -870,6 +881,27 @@ export default function QASettings({
           )
           return { canSeeMoney: true, clients: rows } as T
         }
+        if (/^appointments\/[^/]+\/supplies$/.test(path))
+          return {
+            supplies: [
+              {
+                itemId: 'i2',
+                name: 'Shampoo profissional',
+                unit: 'ml',
+                quantity: 40,
+                stock: 2350,
+                consumed: null,
+              },
+              {
+                itemId: 'i3',
+                name: 'Luvas descartáveis',
+                unit: 'un',
+                quantity: 2,
+                stock: 120,
+                consumed: null,
+              },
+            ],
+          } as T
         if (path.startsWith('clients/'))
           return {
             client: {

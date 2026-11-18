@@ -6,6 +6,7 @@ import {
 } from '../../shared/tenant/authorized-route.js'
 import type { TenantPool } from '../../shared/tenant/clinic-transaction.js'
 import { clientPhotoUrl } from '../clinics/media-storage.js'
+import { isPaid } from '../../shared/tenant/route-helpers.js'
 import {
   dateSchema,
   isoDate,
@@ -38,16 +39,14 @@ export async function insightsRoutes(
         const [appointments, week, upcoming] = await Promise.all([
           connection.query(
             `SELECT a.id, a.starts_at, a.ends_at, a.status, a.price_cents, a.promotion_id,
-                    a.notes, a.override_reasons, a.previous_starts_at, c.id AS client_id,
+                    a.booking_source, a.checked_in_at, a.status_note, a.notes, a.override_reasons, a.previous_starts_at, c.id AS client_id,
                     c.display_name AS client, c.contact_phone AS phone, c.notes AS client_notes,
                     (SELECT m.small_object_key FROM luminix.media_assets m
                      WHERE m.clinic_id = c.clinic_id AND m.id = c.photo_asset_id
                        AND m.status = 'ready') AS photo_key,
                     luminix.clinic_client_has_account_photo(c.clinic_id, c.id) AS account_photo,
                     s.name AS service, s.price_type, p.display_name AS professional,
-                    EXISTS (SELECT 1 FROM luminix.finance_entries e
-                             WHERE e.clinic_id = a.clinic_id AND e.appointment_id = a.id
-                               AND e.status = 'active') AS paid
+                    luminix.appointment_paid_cents(a.clinic_id, a.id) AS paid_cents
                FROM luminix.appointments a
                JOIN luminix.clinic_clients c ON c.clinic_id = a.clinic_id AND c.id = a.clinic_client_id
                JOIN luminix.services s ON s.clinic_id = a.clinic_id AND s.id = a.service_id
@@ -65,16 +64,14 @@ export async function insightsRoutes(
           // What comes next, so a quiet day still shows the week ahead.
           connection.query(
             `SELECT a.id, a.starts_at, a.ends_at, a.status, a.price_cents, a.promotion_id,
-                    a.notes, a.override_reasons, a.previous_starts_at, c.id AS client_id,
+                    a.booking_source, a.checked_in_at, a.status_note, a.notes, a.override_reasons, a.previous_starts_at, c.id AS client_id,
                     c.display_name AS client, c.contact_phone AS phone, c.notes AS client_notes,
                     (SELECT m.small_object_key FROM luminix.media_assets m
                      WHERE m.clinic_id = c.clinic_id AND m.id = c.photo_asset_id
                        AND m.status = 'ready') AS photo_key,
                     luminix.clinic_client_has_account_photo(c.clinic_id, c.id) AS account_photo,
                     s.name AS service, s.price_type, p.display_name AS professional,
-                    EXISTS (SELECT 1 FROM luminix.finance_entries e
-                             WHERE e.clinic_id = a.clinic_id AND e.appointment_id = a.id
-                               AND e.status = 'active') AS paid
+                    luminix.appointment_paid_cents(a.clinic_id, a.id) AS paid_cents
                FROM luminix.appointments a
                JOIN luminix.clinic_clients c ON c.clinic_id = a.clinic_id AND c.id = a.clinic_client_id
                JOIN luminix.services s ON s.clinic_id = a.clinic_id AND s.id = a.service_id
@@ -113,7 +110,11 @@ export async function insightsRoutes(
           service: String(row.service),
           professional: row.professional ? String(row.professional) : null,
           priceCents: can.has('finance:manage') ? toNumber(row.price_cents) : null,
-          paid: row.paid === true,
+          paid: isPaid(row),
+          paidCents: can.has('finance:manage') ? toNumber(row.paid_cents) : null,
+          bookingSource: String(row.booking_source),
+          statusNote: row.status_note ? String(row.status_note) : null,
+          checkedInAt: row.checked_in_at ? new Date(String(row.checked_in_at)).toISOString() : null,
           promotion: Boolean(row.promotion_id),
         })
         const result: Record<string, unknown> = {

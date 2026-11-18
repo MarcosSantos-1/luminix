@@ -17,6 +17,8 @@ import {
   Scissors,
   ShieldAlert,
   Store,
+  Package,
+  Trash2,
   TrendingUp,
   TriangleAlert,
   UserRound,
@@ -24,6 +26,7 @@ import {
   Wand2,
 } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { catalogRecipe, fold, unitShort } from '@/lib/stock'
 import { FilterMenu, KpiCards, type FilterValue } from '../data-kit'
 import { QuickModal } from '../quick-modal'
 import catalogSuggestions from '@/lib/service-catalog.json'
@@ -757,6 +760,7 @@ function ServiceEditor({
   const [state, setState] = useState<SaveState>({ status: 'idle' })
   const [showErrors, setShowErrors] = useState(false)
   const [suggestQuery, setSuggestQuery] = useState('')
+  const supplies = useSupplies(api, isNew ? null : initial)
   const set = (patch: Partial<Service>) => {
     setService((current) => ({ ...current, ...patch }))
     if (state.status !== 'saving') setState({ status: 'idle' })
@@ -796,6 +800,7 @@ function ServiceEditor({
         audience: service.audience,
         sensitive: service.sensitive,
       })
+      if (supplies.dirty) await supplies.save()
       onClose(
         isNew
           ? `${service.name.trim()} entrou no catálogo e já aparece no site.`
@@ -1007,12 +1012,194 @@ function ServiceEditor({
           onChange={(sensitive) => set({ sensitive })}
         />
       </SettingsCard>
+      {!isNew ? <SuppliesCard supplies={supplies} service={service} /> : null}
       {isNew ? (
         <p className="settings-footnote">
           Depois de criar, marque em Configurações → Equipe quem da equipe faz este serviço.
         </p>
       ) : null}
     </QuickModal>
+  )
+}
+
+type SupplyItem = {
+  id: string
+  name: string
+  unit: string
+  packageSize: number | null
+  packageLabel: string | null
+}
+
+/** The recipe of a service: what each appointment takes from the stock. */
+function useSupplies(api: ClinicApi, service: Service | null) {
+  const [items, setItems] = useState<SupplyItem[] | null>(null)
+  const [lines, setLines] = useState<{ itemId: string; quantity: string }[]>([])
+  const [dirty, setDirty] = useState(false)
+  const [failed, setFailed] = useState(false)
+  const serviceId = service?.id
+  useEffect(() => {
+    if (!serviceId) return
+    let active = true
+    void api
+      .get<{ supplies: { itemId: string; quantity: number }[]; items: SupplyItem[] }>(
+        `catalog/services/${serviceId}/supplies`,
+      )
+      .then((data) => {
+        if (!active) return
+        setItems(data.items)
+        setLines(
+          data.supplies.map((line) => ({
+            itemId: line.itemId,
+            quantity: String(line.quantity).replace('.', ','),
+          })),
+        )
+      })
+      .catch(() => active && setFailed(true))
+    return () => {
+      active = false
+    }
+  }, [api, serviceId])
+  return {
+    items,
+    lines,
+    failed,
+    dirty,
+    update(next: { itemId: string; quantity: string }[]) {
+      setLines(next)
+      setDirty(true)
+    },
+    async save() {
+      if (!serviceId) return
+      await api.put(`catalog/services/${serviceId}/supplies`, {
+        items: lines
+          .map((line) => ({
+            itemId: line.itemId,
+            quantity: Math.round(Number(line.quantity.replace(',', '.')) * 100) / 100,
+          }))
+          .filter((line) => line.itemId && line.quantity > 0),
+      })
+    },
+  }
+}
+
+function SuppliesCard({
+  supplies,
+  service,
+}: {
+  supplies: ReturnType<typeof useSupplies>
+  service: Service
+}) {
+  const { items, lines } = supplies
+  const unitOf = (itemId: string) => {
+    const item = items?.find((entry) => entry.id === itemId)
+    return item ? unitShort(item.unit) : ''
+  }
+  const suggested = catalogRecipe(service).filter(
+    (line) =>
+      line.product &&
+      items?.some(
+        (item) =>
+          fold(item.name) === fold(line.product!.nome) &&
+          !lines.some((entry) => entry.itemId === item.id),
+      ),
+  )
+  return (
+    <SettingsCard
+      icon={<Package size={20} />}
+      title="Produtos usados"
+      description="Quanto cada atendimento gasta. Ao concluir, o estoque desconta sozinho."
+      help={{
+        title: 'E se cada cliente gastar diferente?',
+        text: 'É uma estimativa. Ao concluir o atendimento você pode aumentar ou diminuir o que foi usado naquela vez; aqui fica o valor de costume.',
+      }}
+    >
+      {supplies.failed ? (
+        <p className="settings-muted">Não foi possível carregar os produtos.</p>
+      ) : !items ? (
+        <Spinner size="sm" aria-label="Carregando" />
+      ) : !items.length ? (
+        <p className="settings-muted">Cadastre os produtos em Estoque para ligar a este serviço.</p>
+      ) : (
+        <>
+          {lines.length ? (
+            <ul className="svc-supplies">
+              {lines.map((line, index) => (
+                <li key={`${line.itemId}-${index}`}>
+                  <SelectField
+                    ariaLabel="Produto"
+                    value={line.itemId}
+                    onChange={(itemId) =>
+                      supplies.update(
+                        lines.map((entry, at) => (at === index ? { ...entry, itemId } : entry)),
+                      )
+                    }
+                    options={items.map((item) => ({ id: item.id, label: item.name }))}
+                  />
+                  <TextInputField
+                    ariaLabel="Quantidade por atendimento"
+                    inputMode="decimal"
+                    value={line.quantity}
+                    suffix={unitOf(line.itemId)}
+                    onChange={(quantity) =>
+                      supplies.update(
+                        lines.map((entry, at) => (at === index ? { ...entry, quantity } : entry)),
+                      )
+                    }
+                  />
+                  <Button
+                    isIconOnly
+                    variant="ghost"
+                    aria-label="Tirar produto"
+                    onPress={() => supplies.update(lines.filter((_, at) => at !== index))}
+                  >
+                    <Trash2 size={16} />
+                  </Button>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="settings-muted">Nenhum produto ligado a este serviço ainda.</p>
+          )}
+          <div className="biz-actions">
+            <Button
+              size="sm"
+              variant="secondary"
+              onPress={() =>
+                supplies.update([
+                  ...lines,
+                  {
+                    itemId:
+                      items.find((item) => !lines.some((line) => line.itemId === item.id))?.id ??
+                      items[0].id,
+                    quantity: '1',
+                  },
+                ])
+              }
+            >
+              <Plus size={15} aria-hidden /> Adicionar produto
+            </Button>
+            {suggested.length ? (
+              <Button
+                size="sm"
+                variant="ghost"
+                onPress={() =>
+                  supplies.update([
+                    ...lines,
+                    ...suggested.map((line) => ({
+                      itemId: items.find((item) => fold(item.name) === fold(line.product!.nome))!
+                        .id,
+                      quantity: String(line.quantity).replace('.', ','),
+                    })),
+                  ])
+                }
+              >
+                <Wand2 size={15} aria-hidden /> Usar sugestão ({suggested.length})
+              </Button>
+            ) : null}
+          </div>
+        </>
+      )}
+    </SettingsCard>
   )
 }
 

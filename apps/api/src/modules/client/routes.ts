@@ -3,6 +3,7 @@ import type { SqlConnection } from '../../shared/database/migrations.js'
 import { createStaffAuthenticator, type AuthDependencies } from '../../shared/auth/staff-session.js'
 import type { TenantPool } from '../../shared/tenant/clinic-transaction.js'
 import { publicMediaUrl } from '../clinics/media-storage.js'
+import { isPaid } from '../../shared/tenant/route-helpers.js'
 import { localDateTime, zonedLocalToUtc } from '../operations/routes.js'
 
 // Client area API (ADR-029). The person comes only from the verified Firebase token; the clinic
@@ -396,9 +397,7 @@ export async function clientRoutes(app: FastifyInstance, dependencies: AuthDepen
                   a.created_at, a.client_payment_method,
                   s.id AS service_id, s.name AS service_name, s.category AS service_category,
                   p.id AS professional_id, p.display_name AS professional_name,
-                  EXISTS (SELECT 1 FROM luminix.finance_entries e
-                           WHERE e.clinic_id = a.clinic_id AND e.appointment_id = a.id
-                             AND e.status = 'active') AS paid
+                  luminix.appointment_paid_cents(a.clinic_id, a.id) AS paid_cents
              FROM luminix.appointments a
              JOIN luminix.services s ON s.clinic_id = a.clinic_id AND s.id = a.service_id
              LEFT JOIN luminix.professionals p ON p.clinic_id = a.clinic_id AND p.id = a.professional_id
@@ -436,7 +435,7 @@ export async function clientRoutes(app: FastifyInstance, dependencies: AuthDepen
             updatedAt: row.updated_at,
             createdAt: row.created_at,
             paymentMethod: row.client_payment_method,
-            paid: row.paid,
+            paid: isPaid(row),
             service: { id: row.service_id, name: row.service_name, category: row.service_category },
             professional: row.professional_id
               ? { id: row.professional_id, name: row.professional_name }

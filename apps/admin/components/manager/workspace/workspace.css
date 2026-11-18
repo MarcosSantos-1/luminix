@@ -477,3 +477,7 @@
 .ws-row-actions .button {
   color: #ffffffd9;
 }
+
+.ws-select-all {
+  margin-right: auto;
+}

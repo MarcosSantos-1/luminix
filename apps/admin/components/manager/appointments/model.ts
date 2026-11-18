@@ -19,6 +19,14 @@ export type AppointmentView = {
   professional: string | null
   /** null when the person's level does not show money. */
   priceCents: number | null
+  /** Received so far (payments in parts); null when the person's level does not show money. */
+  paidCents?: number | null
+  /** manager | client | import: who booked it. */
+  bookingSource?: string
+  /** The client arrived (check-in). */
+  checkedInAt?: string | null
+  /** Why it was canceled. */
+  statusNote?: string | null
   /** fixed | from | quote ("a combinar": the amount is agreed and typed at payment). */
   priceType?: string
   paid: boolean

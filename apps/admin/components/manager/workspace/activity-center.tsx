@@ -99,6 +99,9 @@ export function ActivityCenter({
 
   const list = items ?? []
   const selectedIds = [...selected]
+  const allSelected = list.length > 0 && list.every((item) => selected.has(item.id))
+  // In the inbox without a filter, "tudo" means every entry, not only the ones loaded so far.
+  const everything = allSelected && view === 'inbox' && !entity && Boolean(next)
   const toggle = (id: string) =>
     setSelected((current) => {
       const copy = new Set(current)
@@ -157,16 +160,26 @@ export function ActivityCenter({
                 ))}
               </div>
               <div className="ws-bulk">
+                {list.length ? (
+                  <CheckboxField
+                    className="ws-select-all"
+                    label={allSelected ? 'Desmarcar' : 'Selecionar tudo'}
+                    isSelected={allSelected}
+                    onChange={() =>
+                      setSelected(allSelected ? new Set() : new Set(list.map((item) => item.id)))
+                    }
+                  />
+                ) : null}
                 {selectedIds.length ? (
                   <>
-                    <span>{selectedIds.length} selecionadas</span>
+                    <span>{everything ? 'Todas' : `${selectedIds.length} selecionadas`}</span>
                     {view === 'inbox' ? (
                       <>
                         <Button
                           size="sm"
                           variant="secondary"
                           isDisabled={busy}
-                          onPress={() => void change(selectedIds, 'read')}
+                          onPress={() => void change(everything ? 'all' : selectedIds, 'read')}
                         >
                           <Check size={14} aria-hidden /> Marcar lidas
                         </Button>
@@ -174,9 +187,10 @@ export function ActivityCenter({
                           size="sm"
                           variant="secondary"
                           isDisabled={busy}
-                          onPress={() => void change(selectedIds, 'archived')}
+                          onPress={() => void change(everything ? 'all' : selectedIds, 'archived')}
                         >
-                          <Archive size={14} aria-hidden /> Arquivar
+                          <Archive size={14} aria-hidden />{' '}
+                          {allSelected ? 'Arquivar tudo' : 'Arquivar'}
                         </Button>
                       </>
                     ) : (
@@ -193,7 +207,7 @@ export function ActivityCenter({
                       size="sm"
                       variant="ghost"
                       isDisabled={busy}
-                      onPress={() => void change(selectedIds, 'hidden')}
+                      onPress={() => void change(everything ? 'all' : selectedIds, 'hidden')}
                     >
                       <Trash2 size={14} aria-hidden /> Apagar
                     </Button>

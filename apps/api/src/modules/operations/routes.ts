@@ -1,7 +1,7 @@
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify'
 import type { SqlConnection } from '../../shared/database/migrations.js'
 import { withClinicTransaction, type TenantPool } from '../../shared/tenant/clinic-transaction.js'
-import { rolePermissions } from '../../shared/tenant/route-helpers.js'
+import { isoDate, isPaid, rolePermissions, toNumber } from '../../shared/tenant/route-helpers.js'
 import type { TenantContext } from '../../shared/tenant/tenant-context.js'
 import { clientPhotoUrl } from '../clinics/media-storage.js'
 import { isValidBrazilianTaxId } from '../clinics/tax-id.js'
@@ -613,7 +613,8 @@ export async function operationRoutes(
           professionalDays,
         ] = await Promise.all([
           connection.query(
-            `SELECT a.id, a.starts_at, a.ends_at, a.status, a.booking_source,
+            `SELECT a.id, a.starts_at, a.ends_at, a.status, a.booking_source, a.checked_in_at,
+                      a.status_note,
                       a.override_reasons, a.notes, a.previous_starts_at, a.price_cents,
                       c.id AS client_id, c.display_name AS client_name,
                       c.contact_phone AS client_phone, c.notes AS client_notes,
@@ -623,9 +624,7 @@ export async function operationRoutes(
                       luminix.clinic_client_has_account_photo(c.clinic_id, c.id) AS account_photo,
                       s.id AS service_id, s.name AS service_name, s.price_type,
                       s.duration_minutes, p.id AS professional_id, p.display_name AS professional_name,
-                      EXISTS (SELECT 1 FROM luminix.finance_entries e
-                               WHERE e.clinic_id = a.clinic_id AND e.appointment_id = a.id
-                                 AND e.status = 'active') AS paid
+                      luminix.appointment_paid_cents(a.clinic_id, a.id) AS paid_cents
                  FROM luminix.appointments a
                  JOIN luminix.clinic_clients c ON c.clinic_id = a.clinic_id AND c.id = a.clinic_client_id
                  JOIN luminix.services s ON s.clinic_id = a.clinic_id AND s.id = a.service_id
@@ -681,6 +680,8 @@ export async function operationRoutes(
             appointments.rows.map(async ({ photo_key, ...row }) => ({
               ...row,
               price_cents: seesMoney ? row.price_cents : null,
+              paid: isPaid(row),
+              paid_cents: seesMoney ? toNumber(row.paid_cents) : null,
               client_phone: seesClients ? row.client_phone : null,
               client_notes: seesClients ? row.client_notes : null,
               client_photo_url: seesClients ? await clientPhotoUrl(photo_key) : null,
@@ -805,7 +806,10 @@ export async function operationRoutes(
 
   app.put<{
     Params: { clinicId: string; appointmentId: string }
-    Body: { status: 'scheduled' | 'confirmed' | 'completed' | 'canceled' | 'no_show' }
+    Body: {
+      status: 'scheduled' | 'confirmed' | 'completed' | 'canceled' | 'no_show'
+      note?: string
+    }
   }>(
     '/clinics/:clinicId/appointments/:appointmentId/status',
     {
@@ -828,17 +832,198 @@ export async function operationRoutes(
               type: 'string',
               enum: ['scheduled', 'confirmed', 'completed', 'canceled', 'no_show'],
             },
+            // Why it was canceled; only with status "canceled".
+            note: { type: 'string', maxLength: 300 },
           },
         },
       },
     },
     async (request, reply) =>
       authorized(request, reply, 'agenda:manage', async (connection, tenant) => {
-        await connection.query(
-          'SELECT luminix.set_appointment_status($1::uuid, $2::uuid, $3::text)',
-          [tenant.clinicId, request.params.appointmentId, request.body.status],
-        )
+        if (request.body.status === 'canceled')
+          await connection.query(
+            'SELECT luminix.cancel_appointment($1::uuid, $2::uuid, $3::text)',
+            [tenant.clinicId, request.params.appointmentId, request.body.note ?? null],
+          )
+        else
+          await connection.query(
+            'SELECT luminix.set_appointment_status($1::uuid, $2::uuid, $3::text)',
+            [tenant.clinicId, request.params.appointmentId, request.body.status],
+          )
         return { status: request.body.status }
+      }),
+  )
+
+  // The client arrived ("check-in"); it stays open until it is completed.
+  app.put<{ Params: { clinicId: string; appointmentId: string }; Body: Record<string, never> }>(
+    '/clinics/:clinicId/appointments/:appointmentId/check-in',
+    {
+      schema: {
+        params: {
+          type: 'object',
+          additionalProperties: false,
+          required: ['clinicId', 'appointmentId'],
+          properties: {
+            ...clinicParams.properties,
+            appointmentId: { type: 'string', pattern: uuid },
+          },
+        },
+        body: { type: 'object', additionalProperties: false },
+      },
+    },
+    async (request, reply) =>
+      authorized(request, reply, 'agenda:manage', async (connection, tenant) => {
+        await connection.query('SELECT luminix.check_in_appointment($1::uuid, $2::uuid)', [
+          tenant.clinicId,
+          request.params.appointmentId,
+        ])
+        return { checkedIn: true }
+      }),
+  )
+
+  // What finishing this appointment uses from the stock (the service recipe), for the
+  // "concluir atendimento" step. Reception sees names and amounts, never costs.
+  app.get<{ Params: { clinicId: string; appointmentId: string } }>(
+    '/clinics/:clinicId/appointments/:appointmentId/supplies',
+    {
+      schema: {
+        params: {
+          type: 'object',
+          additionalProperties: false,
+          required: ['clinicId', 'appointmentId'],
+          properties: {
+            ...clinicParams.properties,
+            appointmentId: { type: 'string', pattern: uuid },
+          },
+        },
+      },
+    },
+    async (request, reply) =>
+      authorized(request, reply, 'agenda:manage', async (connection, tenant) => {
+        const { rows } = await connection.query(
+          'SELECT * FROM luminix.appointment_supplies($1::uuid, $2::uuid)',
+          [tenant.clinicId, request.params.appointmentId],
+        )
+        return {
+          supplies: rows.map((row) => ({
+            itemId: String(row.item_id),
+            name: String(row.name),
+            unit: String(row.unit),
+            packageSize: row.package_size == null ? null : Number(row.package_size),
+            packageLabel: row.package_label ? String(row.package_label) : null,
+            quantity: Number(row.quantity),
+            stock: Number(row.stock),
+            consumed: row.consumed == null ? null : Number(row.consumed),
+          })),
+        }
+      }),
+  )
+
+  // Completes the appointment, consumes what was used and, optionally, records a payment: all
+  // in one transaction, so a failed payment never leaves the stock half discounted.
+  app.put<{
+    Params: { clinicId: string; appointmentId: string }
+    Body: {
+      supplies: { itemId: string; quantity: number }[]
+      payment: { amountCents: number; method: string; description: string } | null
+    }
+  }>(
+    '/clinics/:clinicId/appointments/:appointmentId/complete',
+    {
+      bodyLimit: 16384,
+      schema: {
+        params: {
+          type: 'object',
+          additionalProperties: false,
+          required: ['clinicId', 'appointmentId'],
+          properties: {
+            ...clinicParams.properties,
+            appointmentId: { type: 'string', pattern: uuid },
+          },
+        },
+        body: {
+          type: 'object',
+          additionalProperties: false,
+          required: ['supplies', 'payment'],
+          properties: {
+            supplies: {
+              type: 'array',
+              maxItems: 40,
+              items: {
+                type: 'object',
+                additionalProperties: false,
+                required: ['itemId', 'quantity'],
+                properties: {
+                  itemId: { type: 'string', pattern: uuid },
+                  quantity: { type: 'number', minimum: 0, maximum: 999999, multipleOf: 0.01 },
+                },
+              },
+            },
+            payment: {
+              anyOf: [
+                { type: 'null' },
+                {
+                  type: 'object',
+                  additionalProperties: false,
+                  required: ['amountCents', 'method', 'description'],
+                  properties: {
+                    amountCents: { type: 'integer', minimum: 1, maximum: 100000000 },
+                    method: {
+                      type: 'string',
+                      enum: ['pix', 'cash', 'credit', 'debit', 'transfer', 'other'],
+                    },
+                    description: { type: 'string', minLength: 1, maxLength: 160 },
+                  },
+                },
+              ],
+            },
+          },
+        },
+      },
+    },
+    async (request, reply) =>
+      authorized(request, reply, 'agenda:manage', async (connection, tenant) => {
+        const id = request.params.appointmentId
+        await connection.query(
+          "SELECT luminix.set_appointment_status($1::uuid, $2::uuid, 'completed')",
+          [tenant.clinicId, id],
+        )
+        const consumed = request.body.supplies.length
+          ? toNumber(
+              (
+                await connection.query(
+                  'SELECT luminix.consume_appointment_supplies($1::uuid, $2::uuid, $3::jsonb) AS n',
+                  [
+                    tenant.clinicId,
+                    id,
+                    JSON.stringify(
+                      request.body.supplies.map((item) => ({
+                        ...item,
+                        quantity: String(item.quantity),
+                      })),
+                    ),
+                  ],
+                )
+              ).rows[0]?.n,
+            )
+          : 0
+        if (request.body.payment) {
+          const today = (await connection.query('SELECT luminix.clinic_today() AS d')).rows[0]?.d
+          // save_finance_entry checks finance:manage itself; without it the whole step fails.
+          await connection.query('SELECT luminix.save_finance_entry($1::uuid, $2::jsonb)', [
+            tenant.clinicId,
+            JSON.stringify({
+              kind: 'income',
+              amountCents: request.body.payment.amountCents,
+              occurredOn: isoDate(today),
+              description: request.body.payment.description,
+              category: 'Atendimentos',
+              method: request.body.payment.method,
+              appointmentId: id,
+            }),
+          ])
+        }
+        return { completed: true, consumed }
       }),
   )
 

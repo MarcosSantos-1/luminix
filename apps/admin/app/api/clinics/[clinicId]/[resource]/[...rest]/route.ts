@@ -3,14 +3,20 @@ import { staffApiGet, staffApiWrite } from '@/lib/staff-api-proxy'
 
 const id = '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}'
 // Closed list of nested read paths. Only the client detail (full CPF + history) today.
-const reads = [new RegExp(`^clients/${id}$`, 'i'), new RegExp(`^clients/${id}/photo$`, 'i')]
+const reads = [
+  new RegExp(`^clients/${id}$`, 'i'),
+  new RegExp(`^clients/${id}/photo$`, 'i'),
+  new RegExp(`^catalog/services/${id}/supplies$`, 'i'),
+  new RegExp(`^appointments/${id}/supplies$`, 'i'),
+]
 // Closed list of nested write paths (after /clinics/:clinicId/). Anything else is 404.
 const writes: Record<'PUT' | 'POST', RegExp[]> = {
   PUT: [
     new RegExp(`^catalog/services/${id}$`, 'i'),
     new RegExp(`^catalog/promotions/${id}$`, 'i'),
     new RegExp(`^inventory/items/${id}$`, 'i'),
-    new RegExp(`^appointments/${id}/(status|reschedule)$`, 'i'),
+    new RegExp(`^appointments/${id}/(status|reschedule|check-in|complete)$`, 'i'),
+    new RegExp(`^catalog/services/${id}/supplies$`, 'i'),
     new RegExp(`^clients/${id}$`, 'i'),
     new RegExp(`^clients/${id}/(status|photo)$`, 'i'),
     new RegExp(`^finance/bills/${id}$`, 'i'),

@@ -1,0 +1,1713 @@
+{
+  "versao": "1.2",
+  "origem": "service-catalog.json",
+  "servicos": [
+    {
+      "categoria": "Estética facial",
+      "nome": "Limpeza de pele profunda",
+      "insumos": [
+        ["gel-limpeza-facial", 5],
+        ["esfoliante-facial", 6],
+        ["mascara-facial", 12],
+        ["algodao", 4],
+        ["luvas-descartaveis", 2],
+        ["touca-descartavel", 1],
+        ["papel-toalha", 3],
+        ["algodao-disco", 2]
+      ]
+    },
+    {
+      "categoria": "Estética facial",
+      "nome": "Limpeza de pele express",
+      "insumos": [
+        ["gel-limpeza-facial", 5],
+        ["esfoliante-facial", 6],
+        ["mascara-facial", 12],
+        ["algodao", 4],
+        ["luvas-descartaveis", 2],
+        ["touca-descartavel", 1],
+        ["papel-toalha", 3],
+        ["algodao-disco", 2]
+      ]
+    },
+    {
+      "categoria": "Estética facial",
+      "nome": "Peeling químico superficial",
+      "insumos": [
+        ["gel-limpeza-facial", 5],
+        ["protetor-solar", 2],
+        ["touca-descartavel", 1],
+        ["papel-toalha", 3],
+        ["algodao-disco", 2]
+      ]
+    },
+    {
+      "categoria": "Estética facial",
+      "nome": "Peeling de diamante",
+      "insumos": [
+        ["touca-descartavel", 1],
+        ["papel-toalha", 3],
+        ["algodao-disco", 2]
+      ]
+    },
+    {
+      "categoria": "Estética facial",
+      "nome": "Hidratação facial",
+      "insumos": [
+        ["hidratante-facial", 5],
+        ["serum-facial", 3],
+        ["touca-descartavel", 1],
+        ["papel-toalha", 3],
+        ["algodao-disco", 2]
+      ]
+    },
+    {
+      "categoria": "Estética facial",
+      "nome": "Microagulhamento facial",
+      "insumos": [
+        ["cartucho-microagulhamento", 1],
+        ["gaze", 3],
+        ["luvas-descartaveis", 2],
+        ["touca-descartavel", 1],
+        ["papel-toalha", 3],
+        ["algodao-disco", 2]
+      ]
+    },
+    {
+      "categoria": "Estética facial",
+      "nome": "Radiofrequência facial",
+      "insumos": [
+        ["touca-descartavel", 1],
+        ["papel-toalha", 3],
+        ["algodao-disco", 2]
+      ]
+    },
+    {
+      "categoria": "Estética facial",
+      "nome": "Massagem facial",
+      "insumos": [
+        ["touca-descartavel", 1],
+        ["papel-toalha", 3],
+        ["algodao-disco", 2]
+      ]
+    },
+    {
+      "categoria": "Estética facial",
+      "nome": "Dermaplaning",
+      "insumos": [
+        ["touca-descartavel", 1],
+        ["papel-toalha", 3],
+        ["algodao-disco", 2]
+      ]
+    },
+    {
+      "categoria": "Estética facial",
+      "nome": "Peeling ultrassônico",
+      "insumos": [
+        ["touca-descartavel", 1],
+        ["papel-toalha", 3],
+        ["algodao-disco", 2]
+      ]
+    },
+    {
+      "categoria": "Estética facial",
+      "nome": "Revitalização facial",
+      "insumos": [
+        ["touca-descartavel", 1],
+        ["papel-toalha", 3],
+        ["algodao-disco", 2]
+      ]
+    },
+    {
+      "categoria": "Estética facial",
+      "nome": "Máscara facial personalizada",
+      "insumos": [
+        ["mascara-facial", 12],
+        ["touca-descartavel", 1],
+        ["papel-toalha", 3],
+        ["algodao-disco", 2]
+      ]
+    },
+    {
+      "categoria": "Estética facial",
+      "nome": "Drenagem linfática facial",
+      "insumos": [
+        ["touca-descartavel", 1],
+        ["papel-toalha", 3],
+        ["algodao-disco", 2]
+      ]
+    },
+    {
+      "categoria": "Estética facial",
+      "nome": "Fototerapia facial com LED",
+      "insumos": [
+        ["touca-descartavel", 1],
+        ["papel-toalha", 3],
+        ["algodao-disco", 2]
+      ]
+    },
+    {
+      "categoria": "Estética facial",
+      "nome": "Ultrassom microfocado: rosto completo",
+      "insumos": [
+        ["touca-descartavel", 1],
+        ["papel-toalha", 3],
+        ["algodao-disco", 2]
+      ]
+    },
+    {
+      "categoria": "Estética facial",
+      "nome": "Ultrassom microfocado: papada",
+      "insumos": [
+        ["touca-descartavel", 1],
+        ["papel-toalha", 3],
+        ["algodao-disco", 2]
+      ]
+    },
+    {
+      "categoria": "Estética facial",
+      "nome": "Ultrassom microfocado: pescoço e colo",
+      "insumos": [
+        ["touca-descartavel", 1],
+        ["papel-toalha", 3],
+        ["algodao-disco", 2]
+      ]
+    },
+    {
+      "categoria": "Estética facial",
+      "nome": "Limpeza de pele com vapor de ozônio",
+      "insumos": [
+        ["gel-limpeza-facial", 5],
+        ["esfoliante-facial", 6],
+        ["mascara-facial", 12],
+        ["algodao", 4],
+        ["luvas-descartaveis", 2],
+        ["touca-descartavel", 1],
+        ["papel-toalha", 3],
+        ["algodao-disco", 2]
+      ]
+    },
+    {
+      "categoria": "Estética facial",
+      "nome": "Criofrequência facial",
+      "insumos": [
+        ["touca-descartavel", 1],
+        ["papel-toalha", 3],
+        ["algodao-disco", 2]
+      ]
+    },
+    {
+      "categoria": "Estética corporal",
+      "nome": "Drenagem linfática corporal",
+      "insumos": [
+        ["oleo-massagem", 20],
+        ["creme-corporal", 25],
+        ["papel-maca", 1],
+        ["papel-toalha", 3]
+      ]
+    },
+    {
+      "categoria": "Estética corporal",
+      "nome": "Massagem modeladora",
+      "insumos": [
+        ["oleo-massagem", 20],
+        ["creme-corporal", 25],
+        ["papel-maca", 1],
+        ["papel-toalha", 3]
+      ]
+    },
+    {
+      "categoria": "Estética corporal",
+      "nome": "Criolipólise por área",
+      "insumos": [
+        ["papel-maca", 1],
+        ["papel-toalha", 3]
+      ]
+    },
+    {
+      "categoria": "Estética corporal",
+      "nome": "Radiofrequência corporal",
+      "insumos": [
+        ["gel-condutor", 15],
+        ["papel-maca", 1],
+        ["papel-toalha", 3]
+      ]
+    },
+    {
+      "categoria": "Estética corporal",
+      "nome": "Ultrassom estético",
+      "insumos": [
+        ["gel-condutor", 15],
+        ["papel-maca", 1],
+        ["papel-toalha", 3]
+      ]
+    },
+    {
+      "categoria": "Estética corporal",
+      "nome": "Esfoliação corporal",
+      "insumos": [
+        ["esfoliante-corporal", 30],
+        ["creme-corporal", 25],
+        ["papel-maca", 1],
+        ["papel-toalha", 3]
+      ]
+    },
+    {
+      "categoria": "Estética corporal",
+      "nome": "Limpeza de pele nas costas",
+      "insumos": [
+        ["papel-maca", 1],
+        ["papel-toalha", 3]
+      ]
+    },
+    {
+      "categoria": "Estética corporal",
+      "nome": "Endermoterapia",
+      "insumos": [
+        ["papel-maca", 1],
+        ["papel-toalha", 3]
+      ]
+    },
+    {
+      "categoria": "Estética corporal",
+      "nome": "Criofrequência corporal",
+      "insumos": [
+        ["gel-condutor", 15],
+        ["papel-maca", 1],
+        ["papel-toalha", 3]
+      ]
+    },
+    {
+      "categoria": "Estética corporal",
+      "nome": "Corrente russa corporal",
+      "insumos": [
+        ["papel-maca", 1],
+        ["papel-toalha", 3]
+      ]
+    },
+    {
+      "categoria": "Estética corporal",
+      "nome": "Pressoterapia",
+      "insumos": [
+        ["papel-maca", 1],
+        ["papel-toalha", 3]
+      ]
+    },
+    {
+      "categoria": "Estética corporal",
+      "nome": "Manta térmica",
+      "insumos": [
+        ["papel-maca", 1],
+        ["papel-toalha", 3]
+      ]
+    },
+    {
+      "categoria": "Estética corporal",
+      "nome": "Hidratação corporal",
+      "insumos": [
+        ["papel-maca", 1],
+        ["papel-toalha", 3]
+      ]
+    },
+    {
+      "categoria": "Estética corporal",
+      "nome": "Banho de lua",
+      "insumos": [
+        ["papel-maca", 1],
+        ["papel-toalha", 3]
+      ]
+    },
+    {
+      "categoria": "Estética corporal",
+      "nome": "Ultrassom microfocado corporal por área",
+      "insumos": [
+        ["gel-condutor", 15],
+        ["papel-maca", 1],
+        ["papel-toalha", 3]
+      ]
+    },
+    {
+      "categoria": "Estética corporal",
+      "nome": "Pump Up: vacuoterapia de glúteos",
+      "insumos": [
+        ["papel-maca", 1],
+        ["papel-toalha", 3]
+      ]
+    },
+    {
+      "categoria": "Estética corporal",
+      "nome": "Corrente Aussie corporal",
+      "insumos": [
+        ["papel-maca", 1],
+        ["papel-toalha", 3]
+      ]
+    },
+    {
+      "categoria": "Estética corporal",
+      "nome": "Microagulhamento corporal por área",
+      "insumos": [
+        ["cartucho-microagulhamento", 1],
+        ["luvas-descartaveis", 2],
+        ["papel-maca", 1],
+        ["papel-toalha", 3]
+      ]
+    },
+    {
+      "categoria": "Depilação",
+      "nome": "Depilação com linha: buço",
+      "insumos": [
+        ["linha-depilacao", 2],
+        ["papel-maca", 1],
+        ["papel-toalha", 3]
+      ]
+    },
+    {
+      "categoria": "Depilação",
+      "nome": "Depilação com linha: rosto completo",
+      "insumos": [
+        ["linha-depilacao", 2],
+        ["papel-maca", 1],
+        ["papel-toalha", 3]
+      ]
+    },
+    {
+      "categoria": "Depilação",
+      "nome": "Depilação com cera: axilas",
+      "insumos": [
+        ["cera-quente", 25],
+        ["espátula-madeira", 2],
+        ["oleo-pos-depilacao", 3],
+        ["papel-maca", 1],
+        ["papel-toalha", 3]
+      ]
+    },
+    {
+      "categoria": "Depilação",
+      "nome": "Depilação com cera: meia perna",
+      "insumos": [
+        ["cera-quente", 70],
+        ["espátula-madeira", 2],
+        ["oleo-pos-depilacao", 3],
+        ["papel-maca", 1],
+        ["papel-toalha", 3]
+      ]
+    },
+    {
+      "categoria": "Depilação",
+      "nome": "Depilação com cera: perna inteira",
+      "insumos": [
+        ["cera-quente", 130],
+        ["espátula-madeira", 2],
+        ["oleo-pos-depilacao", 3],
+        ["papel-maca", 1],
+        ["papel-toalha", 3]
+      ]
+    },
+    {
+      "categoria": "Depilação",
+      "nome": "Depilação com cera: virilha simples",
+      "insumos": [
+        ["cera-quente", 45],
+        ["espátula-madeira", 2],
+        ["oleo-pos-depilacao", 3],
+        ["papel-maca", 1],
+        ["papel-toalha", 3]
+      ]
+    },
+    {
+      "categoria": "Depilação",
+      "nome": "Depilação com cera: buço",
+      "insumos": [
+        ["cera-quente", 8],
+        ["espátula-madeira", 2],
+        ["oleo-pos-depilacao", 3],
+        ["papel-maca", 1],
+        ["papel-toalha", 3]
+      ]
+    },
+    {
+      "categoria": "Depilação",
+      "nome": "Depilação com cera: queixo",
+      "insumos": [
+        ["cera-quente", 8],
+        ["espátula-madeira", 2],
+        ["oleo-pos-depilacao", 3],
+        ["papel-maca", 1],
+        ["papel-toalha", 3]
+      ]
+    },
+    {
+      "categoria": "Depilação",
+      "nome": "Depilação com cera: rosto completo",
+      "insumos": [
+        ["cera-quente", 45],
+        ["espátula-madeira", 2],
+        ["oleo-pos-depilacao", 3],
+        ["papel-maca", 1],
+        ["papel-toalha", 3]
+      ]
+    },
+    {
+      "categoria": "Depilação",
+      "nome": "Depilação com cera: braços completos",
+      "insumos": [
+        ["cera-quente", 45],
+        ["espátula-madeira", 2],
+        ["oleo-pos-depilacao", 3],
+        ["papel-maca", 1],
+        ["papel-toalha", 3]
+      ]
+    },
+    {
+      "categoria": "Depilação",
+      "nome": "Depilação com cera: antebraços",
+      "insumos": [
+        ["cera-quente", 45],
+        ["espátula-madeira", 2],
+        ["oleo-pos-depilacao", 3],
+        ["papel-maca", 1],
+        ["papel-toalha", 3]
+      ]
+    },
+    {
+      "categoria": "Depilação",
+      "nome": "Depilação com cera: costas",
+      "insumos": [
+        ["cera-quente", 45],
+        ["espátula-madeira", 2],
+        ["oleo-pos-depilacao", 3],
+        ["papel-maca", 1],
+        ["papel-toalha", 3]
+      ]
+    },
+    {
+      "categoria": "Depilação",
+      "nome": "Depilação com cera: tórax",
+      "insumos": [
+        ["cera-quente", 45],
+        ["espátula-madeira", 2],
+        ["oleo-pos-depilacao", 3],
+        ["papel-maca", 1],
+        ["papel-toalha", 3]
+      ]
+    },
+    {
+      "categoria": "Depilação",
+      "nome": "Depilação com cera: abdômen",
+      "insumos": [
+        ["cera-quente", 45],
+        ["espátula-madeira", 2],
+        ["oleo-pos-depilacao", 3],
+        ["papel-maca", 1],
+        ["papel-toalha", 3]
+      ]
+    },
+    {
+      "categoria": "Depilação",
+      "nome": "Depilação com cera: nádegas",
+      "insumos": [
+        ["cera-quente", 45],
+        ["espátula-madeira", 2],
+        ["oleo-pos-depilacao", 3],
+        ["papel-maca", 1],
+        ["papel-toalha", 3]
+      ]
+    },
+    {
+      "categoria": "Depilação",
+      "nome": "Depilação com cera: íntima completa",
+      "insumos": [
+        ["cera-quente", 45],
+        ["espátula-madeira", 2],
+        ["oleo-pos-depilacao", 3],
+        ["papel-maca", 1],
+        ["papel-toalha", 3]
+      ]
+    },
+    {
+      "categoria": "Depilação",
+      "nome": "Depilação com cera: região perianal",
+      "insumos": [
+        ["cera-quente", 45],
+        ["espátula-madeira", 2],
+        ["oleo-pos-depilacao", 3],
+        ["papel-maca", 1],
+        ["papel-toalha", 3]
+      ]
+    },
+    {
+      "categoria": "Depilação",
+      "nome": "Depilação a laser: axilas",
+      "insumos": [
+        ["gel-condutor", 15],
+        ["papel-maca", 1],
+        ["papel-toalha", 3]
+      ]
+    },
+    {
+      "categoria": "Depilação",
+      "nome": "Depilação a laser: pernas",
+      "insumos": [
+        ["gel-condutor", 15],
+        ["papel-maca", 1],
+        ["papel-toalha", 3]
+      ]
+    },
+    {
+      "categoria": "Depilação",
+      "nome": "Depilação a laser: virilha simples",
+      "insumos": [
+        ["gel-condutor", 15],
+        ["papel-maca", 1],
+        ["papel-toalha", 3]
+      ]
+    },
+    {
+      "categoria": "Depilação",
+      "nome": "Depilação a laser: buço",
+      "insumos": [
+        ["gel-condutor", 15],
+        ["papel-maca", 1],
+        ["papel-toalha", 3]
+      ]
+    },
+    {
+      "categoria": "Depilação",
+      "nome": "Depilação a laser: meia perna",
+      "insumos": [
+        ["gel-condutor", 15],
+        ["papel-maca", 1],
+        ["papel-toalha", 3]
+      ]
+    },
+    {
+      "categoria": "Depilação",
+      "nome": "Depilação a laser: braços",
+      "insumos": [
+        ["gel-condutor", 15],
+        ["papel-maca", 1],
+        ["papel-toalha", 3]
+      ]
+    },
+    {
+      "categoria": "Depilação",
+      "nome": "Depilação a laser: costas",
+      "insumos": [
+        ["gel-condutor", 15],
+        ["papel-maca", 1],
+        ["papel-toalha", 3]
+      ]
+    },
+    {
+      "categoria": "Depilação",
+      "nome": "Depilação a laser: tórax",
+      "insumos": [
+        ["gel-condutor", 15],
+        ["papel-maca", 1],
+        ["papel-toalha", 3]
+      ]
+    },
+    {
+      "categoria": "Depilação",
+      "nome": "Depilação a laser: íntima completa",
+      "insumos": [
+        ["gel-condutor", 15],
+        ["papel-maca", 1],
+        ["papel-toalha", 3]
+      ]
+    },
+    {
+      "categoria": "Cabelo",
+      "nome": "Corte feminino",
+      "insumos": [
+        ["touca-descartavel", 1],
+        ["papel-toalha", 3]
+      ]
+    },
+    {
+      "categoria": "Cabelo",
+      "nome": "Corte masculino",
+      "insumos": [
+        ["touca-descartavel", 1],
+        ["papel-toalha", 3]
+      ]
+    },
+    {
+      "categoria": "Cabelo",
+      "nome": "Escova simples",
+      "insumos": [
+        ["shampoo", 12],
+        ["condicionador", 10],
+        ["finalizador", 3],
+        ["touca-descartavel", 1],
+        ["papel-toalha", 3]
+      ]
+    },
+    {
+      "categoria": "Cabelo",
+      "nome": "Hidratação capilar",
+      "insumos": [
+        ["shampoo", 12],
+        ["mascara-capilar", 25],
+        ["condicionador", 10],
+        ["touca-descartavel", 1],
+        ["papel-toalha", 3]
+      ]
+    },
+    {
+      "categoria": "Cabelo",
+      "nome": "Coloração de raiz",
+      "insumos": [
+        ["coloracao", 45],
+        ["oxidante", 60],
+        ["po-descolorante", 35],
+        ["tonalizante", 35],
+        ["luvas-descartaveis", 2],
+        ["touca-descartavel", 1],
+        ["papel-toalha", 3]
+      ]
+    },
+    {
+      "categoria": "Cabelo",
+      "nome": "Mechas",
+      "insumos": [
+        ["coloracao", 45],
+        ["oxidante", 60],
+        ["po-descolorante", 35],
+        ["tonalizante", 35],
+        ["luvas-descartaveis", 2],
+        ["touca-descartavel", 1],
+        ["papel-toalha", 3]
+      ]
+    },
+    {
+      "categoria": "Cabelo",
+      "nome": "Progressiva",
+      "insumos": [
+        ["produto-progressiva", 45],
+        ["shampoo", 12],
+        ["luvas-descartaveis", 2],
+        ["touca-descartavel", 1],
+        ["papel-toalha", 3]
+      ]
+    },
+    {
+      "categoria": "Cabelo",
+      "nome": "Corte infantil",
+      "insumos": [
+        ["touca-descartavel", 1],
+        ["papel-toalha", 3]
+      ]
+    },
+    {
+      "categoria": "Cabelo",
+      "nome": "Corte de franja",
+      "insumos": [
+        ["touca-descartavel", 1],
+        ["papel-toalha", 3]
+      ]
+    },
+    {
+      "categoria": "Cabelo",
+      "nome": "Barba",
+      "insumos": [
+        ["touca-descartavel", 1],
+        ["papel-toalha", 3]
+      ]
+    },
+    {
+      "categoria": "Cabelo",
+      "nome": "Corte e barba",
+      "insumos": [
+        ["touca-descartavel", 1],
+        ["papel-toalha", 3]
+      ]
+    },
+    {
+      "categoria": "Cabelo",
+      "nome": "Lavagem e secagem",
+      "insumos": [
+        ["shampoo", 12],
+        ["condicionador", 10],
+        ["finalizador", 3],
+        ["touca-descartavel", 1],
+        ["papel-toalha", 3]
+      ]
+    },
+    {
+      "categoria": "Cabelo",
+      "nome": "Escova modelada",
+      "insumos": [
+        ["shampoo", 12],
+        ["condicionador", 10],
+        ["finalizador", 3],
+        ["touca-descartavel", 1],
+        ["papel-toalha", 3]
+      ]
+    },
+    {
+      "categoria": "Cabelo",
+      "nome": "Penteado",
+      "insumos": [
+        ["touca-descartavel", 1],
+        ["papel-toalha", 3]
+      ]
+    },
+    {
+      "categoria": "Cabelo",
+      "nome": "Nutrição capilar",
+      "insumos": [
+        ["shampoo", 12],
+        ["mascara-capilar", 25],
+        ["condicionador", 10],
+        ["touca-descartavel", 1],
+        ["papel-toalha", 3]
+      ]
+    },
+    {
+      "categoria": "Cabelo",
+      "nome": "Reconstrução capilar",
+      "insumos": [
+        ["shampoo", 12],
+        ["mascara-capilar", 25],
+        ["condicionador", 10],
+        ["touca-descartavel", 1],
+        ["papel-toalha", 3]
+      ]
+    },
+    {
+      "categoria": "Cabelo",
+      "nome": "Tonalização capilar",
+      "insumos": [
+        ["coloracao", 45],
+        ["oxidante", 60],
+        ["po-descolorante", 35],
+        ["tonalizante", 35],
+        ["luvas-descartaveis", 2],
+        ["touca-descartavel", 1],
+        ["papel-toalha", 3]
+      ]
+    },
+    {
+      "categoria": "Cabelo",
+      "nome": "Coloração completa",
+      "insumos": [
+        ["coloracao", 45],
+        ["oxidante", 60],
+        ["po-descolorante", 35],
+        ["tonalizante", 35],
+        ["luvas-descartaveis", 2],
+        ["touca-descartavel", 1],
+        ["papel-toalha", 3]
+      ]
+    },
+    {
+      "categoria": "Cabelo",
+      "nome": "Balayage",
+      "insumos": [
+        ["coloracao", 45],
+        ["oxidante", 60],
+        ["po-descolorante", 35],
+        ["tonalizante", 35],
+        ["luvas-descartaveis", 2],
+        ["touca-descartavel", 1],
+        ["papel-toalha", 3]
+      ]
+    },
+    {
+      "categoria": "Cabelo",
+      "nome": "Tranças",
+      "insumos": [
+        ["touca-descartavel", 1],
+        ["papel-toalha", 3]
+      ]
+    },
+    {
+      "categoria": "Cabelo",
+      "nome": "Aplicação de mega hair",
+      "insumos": [
+        ["fita-mega-hair", 5],
+        ["touca-descartavel", 1],
+        ["papel-toalha", 3]
+      ]
+    },
+    {
+      "categoria": "Cabelo",
+      "nome": "Manutenção de mega hair",
+      "insumos": [
+        ["fita-mega-hair", 5],
+        ["touca-descartavel", 1],
+        ["papel-toalha", 3]
+      ]
+    },
+    {
+      "categoria": "Cabelo",
+      "nome": "Remoção de mega hair",
+      "insumos": [
+        ["fita-mega-hair", 5],
+        ["touca-descartavel", 1],
+        ["papel-toalha", 3]
+      ]
+    },
+    {
+      "categoria": "Cabelo",
+      "nome": "Hidratação capilar com vapor de ozônio",
+      "insumos": [
+        ["shampoo", 12],
+        ["mascara-capilar", 25],
+        ["condicionador", 10],
+        ["touca-descartavel", 1],
+        ["papel-toalha", 3]
+      ]
+    },
+    {
+      "categoria": "Cabelo",
+      "nome": "Spa capilar com vapor de ozônio",
+      "insumos": [
+        ["shampoo", 12],
+        ["mascara-capilar", 25],
+        ["condicionador", 10],
+        ["touca-descartavel", 1],
+        ["papel-toalha", 3]
+      ]
+    },
+    {
+      "categoria": "Unhas",
+      "nome": "Manicure tradicional",
+      "insumos": [
+        ["esmalte", 1],
+        ["algodao", 4],
+        ["removedor", 8],
+        ["lixa-descartavel", 1],
+        ["palito-manicure", 1],
+        ["papel-toalha", 3]
+      ]
+    },
+    {
+      "categoria": "Unhas",
+      "nome": "Pedicure tradicional",
+      "insumos": [
+        ["esmalte", 1],
+        ["algodao", 4],
+        ["removedor", 8],
+        ["lixa-descartavel", 1],
+        ["palito-manicure", 1],
+        ["papel-toalha", 3]
+      ]
+    },
+    {
+      "categoria": "Unhas",
+      "nome": "Pé e mão",
+      "insumos": [
+        ["esmalte", 1],
+        ["algodao", 4],
+        ["removedor", 8],
+        ["lixa-descartavel", 1],
+        ["palito-manicure", 1],
+        ["papel-toalha", 3]
+      ]
+    },
+    {
+      "categoria": "Unhas",
+      "nome": "Esmaltação em gel",
+      "insumos": [
+        ["gel-construtor", 4],
+        ["esmalte-gel", 1],
+        ["lixa-descartavel", 1],
+        ["palito-manicure", 1],
+        ["papel-toalha", 3]
+      ]
+    },
+    {
+      "categoria": "Unhas",
+      "nome": "Alongamento em gel",
+      "insumos": [
+        ["gel-construtor", 4],
+        ["esmalte-gel", 1],
+        ["lixa-descartavel", 1],
+        ["palito-manicure", 1],
+        ["papel-toalha", 3]
+      ]
+    },
+    {
+      "categoria": "Unhas",
+      "nome": "Manutenção de alongamento",
+      "insumos": [
+        ["palito-manicure", 1],
+        ["papel-toalha", 3]
+      ]
+    },
+    {
+      "categoria": "Unhas",
+      "nome": "Remoção de alongamento",
+      "insumos": [
+        ["palito-manicure", 1],
+        ["papel-toalha", 3]
+      ]
+    },
+    {
+      "categoria": "Unhas",
+      "nome": "Alongamento em fibra de vidro",
+      "insumos": [
+        ["palito-manicure", 1],
+        ["papel-toalha", 3]
+      ]
+    },
+    {
+      "categoria": "Unhas",
+      "nome": "Alongamento em acrílico",
+      "insumos": [
+        ["acrilico-po", 5],
+        ["monomer", 5],
+        ["lixa-descartavel", 1],
+        ["palito-manicure", 1],
+        ["papel-toalha", 3]
+      ]
+    },
+    {
+      "categoria": "Unhas",
+      "nome": "Alongamento em polygel",
+      "insumos": [
+        ["gel-construtor", 4],
+        ["esmalte-gel", 1],
+        ["lixa-descartavel", 1],
+        ["palito-manicure", 1],
+        ["papel-toalha", 3]
+      ]
+    },
+    {
+      "categoria": "Unhas",
+      "nome": "Banho de gel",
+      "insumos": [
+        ["gel-construtor", 4],
+        ["esmalte-gel", 1],
+        ["lixa-descartavel", 1],
+        ["palito-manicure", 1],
+        ["papel-toalha", 3]
+      ]
+    },
+    {
+      "categoria": "Unhas",
+      "nome": "Blindagem de unhas",
+      "insumos": [
+        ["palito-manicure", 1],
+        ["papel-toalha", 3]
+      ]
+    },
+    {
+      "categoria": "Unhas",
+      "nome": "Spa dos pés",
+      "insumos": [
+        ["palito-manicure", 1],
+        ["papel-toalha", 3]
+      ]
+    },
+    {
+      "categoria": "Unhas",
+      "nome": "Remoção de esmaltação em gel",
+      "insumos": [
+        ["gel-construtor", 4],
+        ["esmalte-gel", 1],
+        ["lixa-descartavel", 1],
+        ["palito-manicure", 1],
+        ["papel-toalha", 3]
+      ]
+    },
+    {
+      "categoria": "Unhas",
+      "nome": "Reparo de unha alongada",
+      "insumos": [
+        ["palito-manicure", 1],
+        ["papel-toalha", 3]
+      ]
+    },
+    {
+      "categoria": "Sobrancelhas",
+      "nome": "Design de sobrancelhas",
+      "insumos": [
+        ["escovinha-descartavel", 1],
+        ["cotonete", 2]
+      ]
+    },
+    {
+      "categoria": "Sobrancelhas",
+      "nome": "Design com henna",
+      "insumos": [
+        ["henna", 1],
+        ["algodao", 4],
+        ["escovinha-descartavel", 1],
+        ["cotonete", 2]
+      ]
+    },
+    {
+      "categoria": "Sobrancelhas",
+      "nome": "Brow lamination",
+      "insumos": [
+        ["solucao-laminacao", 2],
+        ["escovinha-descartavel", 1],
+        ["cotonete", 2]
+      ]
+    },
+    {
+      "categoria": "Sobrancelhas",
+      "nome": "Micropigmentação de sobrancelhas",
+      "insumos": [
+        ["pigmento-micro", 1],
+        ["agulha-micro", 1],
+        ["luvas-descartaveis", 2],
+        ["escovinha-descartavel", 1],
+        ["cotonete", 2]
+      ]
+    },
+    {
+      "categoria": "Sobrancelhas",
+      "nome": "Retoque de micropigmentação",
+      "insumos": [
+        ["pigmento-micro", 1],
+        ["agulha-micro", 1],
+        ["luvas-descartaveis", 2],
+        ["escovinha-descartavel", 1],
+        ["cotonete", 2]
+      ]
+    },
+    {
+      "categoria": "Sobrancelhas",
+      "nome": "Design com tintura",
+      "insumos": [
+        ["tintura-sobrancelha", 1],
+        ["escovinha-descartavel", 1],
+        ["cotonete", 2]
+      ]
+    },
+    {
+      "categoria": "Sobrancelhas",
+      "nome": "Design com linha",
+      "insumos": [
+        ["linha-depilacao", 2],
+        ["escovinha-descartavel", 1],
+        ["cotonete", 2]
+      ]
+    },
+    {
+      "categoria": "Sobrancelhas",
+      "nome": "Micropigmentação fio a fio",
+      "insumos": [
+        ["pigmento-micro", 1],
+        ["agulha-micro", 1],
+        ["luvas-descartaveis", 2],
+        ["escovinha-descartavel", 1],
+        ["cotonete", 2]
+      ]
+    },
+    {
+      "categoria": "Sobrancelhas",
+      "nome": "Micropigmentação shadow",
+      "insumos": [
+        ["pigmento-micro", 1],
+        ["agulha-micro", 1],
+        ["luvas-descartaveis", 2],
+        ["escovinha-descartavel", 1],
+        ["cotonete", 2]
+      ]
+    },
+    {
+      "categoria": "Cílios",
+      "nome": "Lash lifting",
+      "insumos": [
+        ["solucao-lifting", 2],
+        ["pads-cilios", 2],
+        ["escovinha-descartavel", 1],
+        ["microbrush", 2]
+      ]
+    },
+    {
+      "categoria": "Cílios",
+      "nome": "Extensão de cílios clássica",
+      "insumos": [
+        ["cola-cilios", 0.2],
+        ["fios-cilios", 80],
+        ["pads-cilios", 2],
+        ["escovinha-descartavel", 1],
+        ["microbrush", 2]
+      ]
+    },
+    {
+      "categoria": "Cílios",
+      "nome": "Extensão de cílios volume brasileiro",
+      "insumos": [
+        ["cola-cilios", 0.2],
+        ["fios-cilios", 80],
+        ["pads-cilios", 2],
+        ["escovinha-descartavel", 1],
+        ["microbrush", 2]
+      ]
+    },
+    {
+      "categoria": "Cílios",
+      "nome": "Manutenção de extensão de cílios",
+      "insumos": [
+        ["cola-cilios", 0.2],
+        ["fios-cilios", 80],
+        ["pads-cilios", 2],
+        ["escovinha-descartavel", 1],
+        ["microbrush", 2]
+      ]
+    },
+    {
+      "categoria": "Cílios",
+      "nome": "Remoção de extensão de cílios",
+      "insumos": [
+        ["cola-cilios", 0.2],
+        ["fios-cilios", 80],
+        ["pads-cilios", 2],
+        ["escovinha-descartavel", 1],
+        ["microbrush", 2]
+      ]
+    },
+    {
+      "categoria": "Cílios",
+      "nome": "Extensão de cílios híbrida",
+      "insumos": [
+        ["cola-cilios", 0.2],
+        ["fios-cilios", 80],
+        ["pads-cilios", 2],
+        ["escovinha-descartavel", 1],
+        ["microbrush", 2]
+      ]
+    },
+    {
+      "categoria": "Cílios",
+      "nome": "Extensão de cílios volume russo",
+      "insumos": [
+        ["cola-cilios", 0.2],
+        ["fios-cilios", 80],
+        ["pads-cilios", 2],
+        ["escovinha-descartavel", 1],
+        ["microbrush", 2]
+      ]
+    },
+    {
+      "categoria": "Cílios",
+      "nome": "Extensão de cílios volume egípcio",
+      "insumos": [
+        ["cola-cilios", 0.2],
+        ["fios-cilios", 80],
+        ["pads-cilios", 2],
+        ["escovinha-descartavel", 1],
+        ["microbrush", 2]
+      ]
+    },
+    {
+      "categoria": "Cílios",
+      "nome": "Extensão de cílios efeito molhado",
+      "insumos": [
+        ["cola-cilios", 0.2],
+        ["fios-cilios", 80],
+        ["pads-cilios", 2],
+        ["escovinha-descartavel", 1],
+        ["microbrush", 2]
+      ]
+    },
+    {
+      "categoria": "Cílios",
+      "nome": "Extensão de cílios efeito fox eyes",
+      "insumos": [
+        ["cola-cilios", 0.2],
+        ["fios-cilios", 80],
+        ["pads-cilios", 2],
+        ["escovinha-descartavel", 1],
+        ["microbrush", 2]
+      ]
+    },
+    {
+      "categoria": "Cílios",
+      "nome": "Tintura de cílios",
+      "insumos": [
+        ["tintura-cilios", 1],
+        ["escovinha-descartavel", 1],
+        ["microbrush", 2]
+      ]
+    },
+    {
+      "categoria": "Tatuagem",
+      "nome": "Tatuagem pequena",
+      "insumos": [
+        ["tinta-tatuagem", 8],
+        ["agulha-tatuagem", 1],
+        ["luvas-descartaveis", 2],
+        ["filme-protetor", 1],
+        ["protetor-bancada", 1],
+        ["papel-toalha", 3]
+      ]
+    },
+    {
+      "categoria": "Tatuagem",
+      "nome": "Tatuagem média",
+      "insumos": [
+        ["tinta-tatuagem", 8],
+        ["agulha-tatuagem", 1],
+        ["luvas-descartaveis", 2],
+        ["filme-protetor", 1],
+        ["protetor-bancada", 1],
+        ["papel-toalha", 3]
+      ]
+    },
+    {
+      "categoria": "Tatuagem",
+      "nome": "Sessão de tatuagem",
+      "insumos": [
+        ["tinta-tatuagem", 8],
+        ["agulha-tatuagem", 1],
+        ["luvas-descartaveis", 2],
+        ["filme-protetor", 1],
+        ["protetor-bancada", 1],
+        ["papel-toalha", 3]
+      ]
+    },
+    {
+      "categoria": "Tatuagem",
+      "nome": "Retoque de tatuagem",
+      "insumos": [
+        ["tinta-tatuagem", 8],
+        ["agulha-tatuagem", 1],
+        ["luvas-descartaveis", 2],
+        ["filme-protetor", 1],
+        ["protetor-bancada", 1],
+        ["papel-toalha", 3]
+      ]
+    },
+    {
+      "categoria": "Tatuagem",
+      "nome": "Tatuagem fine line",
+      "insumos": [
+        ["tinta-tatuagem", 8],
+        ["agulha-tatuagem", 1],
+        ["luvas-descartaveis", 2],
+        ["filme-protetor", 1],
+        ["protetor-bancada", 1],
+        ["papel-toalha", 3]
+      ]
+    },
+    {
+      "categoria": "Tatuagem",
+      "nome": "Cobertura de tatuagem",
+      "insumos": [
+        ["tinta-tatuagem", 8],
+        ["agulha-tatuagem", 1],
+        ["luvas-descartaveis", 2],
+        ["filme-protetor", 1],
+        ["protetor-bancada", 1],
+        ["papel-toalha", 3]
+      ]
+    },
+    {
+      "categoria": "Tatuagem",
+      "nome": "Revitalização de tatuagem",
+      "insumos": [
+        ["tinta-tatuagem", 8],
+        ["agulha-tatuagem", 1],
+        ["luvas-descartaveis", 2],
+        ["filme-protetor", 1],
+        ["protetor-bancada", 1],
+        ["papel-toalha", 3]
+      ]
+    },
+    {
+      "categoria": "Tatuagem",
+      "nome": "Remoção de tatuagem a laser por sessão",
+      "insumos": [
+        ["luvas-descartaveis", 2],
+        ["protetor-bancada", 1],
+        ["papel-toalha", 3]
+      ]
+    },
+    {
+      "categoria": "Tatuagem",
+      "nome": "Remoção de micropigmentação a laser por sessão",
+      "insumos": [
+        ["luvas-descartaveis", 2],
+        ["protetor-bancada", 1],
+        ["papel-toalha", 3]
+      ]
+    },
+    {
+      "categoria": "Piercing",
+      "nome": "Perfuração de lóbulo",
+      "insumos": [
+        ["agulha-piercing", 1],
+        ["joia-piercing", 1],
+        ["luvas-descartaveis", 2],
+        ["gaze", 3],
+        ["campo-esteril", 1]
+      ]
+    },
+    {
+      "categoria": "Piercing",
+      "nome": "Perfuração de cartilagem",
+      "insumos": [
+        ["agulha-piercing", 1],
+        ["joia-piercing", 1],
+        ["luvas-descartaveis", 2],
+        ["gaze", 3],
+        ["campo-esteril", 1]
+      ]
+    },
+    {
+      "categoria": "Piercing",
+      "nome": "Perfuração de septo",
+      "insumos": [
+        ["agulha-piercing", 1],
+        ["joia-piercing", 1],
+        ["luvas-descartaveis", 2],
+        ["gaze", 3],
+        ["campo-esteril", 1]
+      ]
+    },
+    {
+      "categoria": "Piercing",
+      "nome": "Troca de joia",
+      "insumos": [
+        ["joia-piercing", 1],
+        ["luvas-descartaveis", 2],
+        ["campo-esteril", 1]
+      ]
+    },
+    {
+      "categoria": "Piercing",
+      "nome": "Perfuração de nostril",
+      "insumos": [
+        ["agulha-piercing", 1],
+        ["joia-piercing", 1],
+        ["luvas-descartaveis", 2],
+        ["gaze", 3],
+        ["campo-esteril", 1]
+      ]
+    },
+    {
+      "categoria": "Piercing",
+      "nome": "Perfuração de hélix",
+      "insumos": [
+        ["agulha-piercing", 1],
+        ["joia-piercing", 1],
+        ["luvas-descartaveis", 2],
+        ["gaze", 3],
+        ["campo-esteril", 1]
+      ]
+    },
+    {
+      "categoria": "Piercing",
+      "nome": "Perfuração de tragus",
+      "insumos": [
+        ["agulha-piercing", 1],
+        ["joia-piercing", 1],
+        ["luvas-descartaveis", 2],
+        ["gaze", 3],
+        ["campo-esteril", 1]
+      ]
+    },
+    {
+      "categoria": "Piercing",
+      "nome": "Perfuração de conch",
+      "insumos": [
+        ["agulha-piercing", 1],
+        ["joia-piercing", 1],
+        ["luvas-descartaveis", 2],
+        ["gaze", 3],
+        ["campo-esteril", 1]
+      ]
+    },
+    {
+      "categoria": "Piercing",
+      "nome": "Perfuração de umbigo",
+      "insumos": [
+        ["agulha-piercing", 1],
+        ["joia-piercing", 1],
+        ["luvas-descartaveis", 2],
+        ["gaze", 3],
+        ["campo-esteril", 1]
+      ]
+    },
+    {
+      "categoria": "Piercing",
+      "nome": "Perfuração de sobrancelha",
+      "insumos": [
+        ["agulha-piercing", 1],
+        ["joia-piercing", 1],
+        ["luvas-descartaveis", 2],
+        ["gaze", 3],
+        ["campo-esteril", 1]
+      ]
+    },
+    {
+      "categoria": "Piercing",
+      "nome": "Perfuração de mamilo",
+      "insumos": [
+        ["agulha-piercing", 1],
+        ["joia-piercing", 1],
+        ["luvas-descartaveis", 2],
+        ["gaze", 3],
+        ["campo-esteril", 1]
+      ]
+    },
+    {
+      "categoria": "Piercing",
+      "nome": "Remoção de joia",
+      "insumos": [
+        ["luvas-descartaveis", 2],
+        ["campo-esteril", 1]
+      ]
+    },
+    { "categoria": "Quiropraxia", "nome": "Sessão de quiropraxia", "insumos": [["papel-maca", 1]] },
+    { "categoria": "Quiropraxia", "nome": "Retorno quiroprático", "insumos": [["papel-maca", 1]] },
+    {
+      "categoria": "Massagem e Massoterapia",
+      "nome": "Massagem relaxante",
+      "insumos": [
+        ["oleo-massagem", 20],
+        ["papel-maca", 1],
+        ["papel-toalha", 3]
+      ]
+    },
+    {
+      "categoria": "Massagem e Massoterapia",
+      "nome": "Massagem terapêutica",
+      "insumos": [
+        ["oleo-massagem", 20],
+        ["papel-maca", 1],
+        ["papel-toalha", 3]
+      ]
+    },
+    {
+      "categoria": "Massagem e Massoterapia",
+      "nome": "Drenagem linfática manual",
+      "insumos": [
+        ["oleo-massagem", 20],
+        ["papel-maca", 1],
+        ["papel-toalha", 3]
+      ]
+    },
+    {
+      "categoria": "Massagem e Massoterapia",
+      "nome": "Bambuterapia",
+      "insumos": [
+        ["papel-maca", 1],
+        ["papel-toalha", 3]
+      ]
+    },
+    {
+      "categoria": "Massagem e Massoterapia",
+      "nome": "Reflexologia podal",
+      "insumos": [
+        ["papel-maca", 1],
+        ["papel-toalha", 3]
+      ]
+    },
+    {
+      "categoria": "Massagem e Massoterapia",
+      "nome": "Massagem com pedras quentes",
+      "insumos": [
+        ["oleo-massagem", 20],
+        ["papel-maca", 1],
+        ["papel-toalha", 3]
+      ]
+    },
+    {
+      "categoria": "Massagem e Massoterapia",
+      "nome": "Shiatsu",
+      "insumos": [
+        ["papel-maca", 1],
+        ["papel-toalha", 3]
+      ]
+    },
+    {
+      "categoria": "Massagem e Massoterapia",
+      "nome": "Massagem desportiva",
+      "insumos": [
+        ["oleo-massagem", 20],
+        ["papel-maca", 1],
+        ["papel-toalha", 3]
+      ]
+    },
+    {
+      "categoria": "Massagem e Massoterapia",
+      "nome": "Ventosaterapia",
+      "insumos": [
+        ["papel-maca", 1],
+        ["papel-toalha", 3]
+      ]
+    },
+    {
+      "categoria": "Massagem e Massoterapia",
+      "nome": "Liberação miofascial",
+      "insumos": [
+        ["papel-maca", 1],
+        ["papel-toalha", 3]
+      ]
+    },
+    {
+      "categoria": "Massagem e Massoterapia",
+      "nome": "Massagem com aromaterapia",
+      "insumos": [
+        ["oleo-massagem", 20],
+        ["papel-maca", 1],
+        ["oleo-essencial", 0.5],
+        ["papel-toalha", 3]
+      ]
+    },
+    {
+      "categoria": "Massagem e Massoterapia",
+      "nome": "Massagem localizada",
+      "insumos": [
+        ["oleo-massagem", 8],
+        ["papel-maca", 1],
+        ["papel-toalha", 3]
+      ]
+    },
+    {
+      "categoria": "Massagem e Massoterapia",
+      "nome": "Massagem dos pés",
+      "insumos": [
+        ["oleo-massagem", 8],
+        ["papel-maca", 1],
+        ["papel-toalha", 3]
+      ]
+    },
+    {
+      "categoria": "Biomedicina",
+      "nome": "Toxina botulínica facial",
+      "insumos": [
+        ["seringa", 1],
+        ["agulha-descartavel", 1],
+        ["luvas-descartaveis", 2],
+        ["campo-esteril", 1],
+        ["papel-toalha", 3]
+      ]
+    },
+    {
+      "categoria": "Biomedicina",
+      "nome": "Preenchimento labial",
+      "insumos": [
+        ["seringa", 1],
+        ["agulha-descartavel", 1],
+        ["luvas-descartaveis", 2],
+        ["campo-esteril", 1],
+        ["papel-toalha", 3]
+      ]
+    },
+    {
+      "categoria": "Biomedicina",
+      "nome": "Bioestimulador de colágeno",
+      "insumos": [
+        ["seringa", 1],
+        ["agulha-descartavel", 1],
+        ["luvas-descartaveis", 2],
+        ["campo-esteril", 1],
+        ["papel-toalha", 3]
+      ]
+    },
+    {
+      "categoria": "Biomedicina",
+      "nome": "Skinbooster",
+      "insumos": [
+        ["seringa", 1],
+        ["agulha-descartavel", 1],
+        ["luvas-descartaveis", 2],
+        ["campo-esteril", 1],
+        ["papel-toalha", 3]
+      ]
+    },
+    {
+      "categoria": "Biomedicina",
+      "nome": "Microagulhamento capilar",
+      "insumos": [
+        ["cartucho-microagulhamento", 1],
+        ["luvas-descartaveis", 2],
+        ["campo-esteril", 1],
+        ["papel-toalha", 3]
+      ]
+    },
+    {
+      "categoria": "Biomedicina",
+      "nome": "Intradermoterapia capilar",
+      "insumos": [
+        ["seringa", 1],
+        ["agulha-descartavel", 1],
+        ["luvas-descartaveis", 2],
+        ["campo-esteril", 1],
+        ["papel-toalha", 3]
+      ]
+    },
+    {
+      "categoria": "Biomedicina",
+      "nome": "Laser de CO2 fracionado: rosto completo",
+      "insumos": [
+        ["luvas-descartaveis", 2],
+        ["campo-esteril", 1],
+        ["papel-toalha", 3]
+      ]
+    },
+    {
+      "categoria": "Biomedicina",
+      "nome": "Laser de CO2 fracionado: cicatrizes por área",
+      "insumos": [
+        ["luvas-descartaveis", 2],
+        ["campo-esteril", 1],
+        ["papel-toalha", 3]
+      ]
+    },
+    {
+      "categoria": "Biomedicina",
+      "nome": "Laser de CO2 fracionado: estrias por área",
+      "insumos": [
+        ["luvas-descartaveis", 2],
+        ["campo-esteril", 1],
+        ["papel-toalha", 3]
+      ]
+    },
+    {
+      "categoria": "Biomedicina",
+      "nome": "Carboxiterapia: corporal por área",
+      "insumos": [
+        ["luvas-descartaveis", 2],
+        ["campo-esteril", 1],
+        ["papel-toalha", 3]
+      ]
+    },
+    {
+      "categoria": "Biomedicina",
+      "nome": "Carboxiterapia: estrias por área",
+      "insumos": [
+        ["luvas-descartaveis", 2],
+        ["campo-esteril", 1],
+        ["papel-toalha", 3]
+      ]
+    },
+    {
+      "categoria": "Biomedicina",
+      "nome": "Carboxiterapia: facial",
+      "insumos": [
+        ["luvas-descartaveis", 2],
+        ["campo-esteril", 1],
+        ["papel-toalha", 3]
+      ]
+    },
+    {
+      "categoria": "Biomedicina",
+      "nome": "Jato de plasma: facial por área",
+      "insumos": [
+        ["luvas-descartaveis", 2],
+        ["campo-esteril", 1],
+        ["papel-toalha", 3]
+      ]
+    },
+    {
+      "categoria": "Biomedicina",
+      "nome": "Jato de plasma: região dos olhos",
+      "insumos": [
+        ["luvas-descartaveis", 2],
+        ["campo-esteril", 1],
+        ["papel-toalha", 3]
+      ]
+    }
+  ]
+}

@@ -33,3 +33,9 @@ export const isoDate = (value: unknown) =>
     : value
       ? String(value).slice(0, 10)
       : null
+
+/** Paid in full: something was received and it covers the agreed price ("a combinar": any). */
+export function isPaid(row: { paid_cents?: unknown; price_cents?: unknown }) {
+  const paid = Number(row.paid_cents ?? 0)
+  return paid > 0 && paid >= Number(row.price_cents ?? 0)
+}

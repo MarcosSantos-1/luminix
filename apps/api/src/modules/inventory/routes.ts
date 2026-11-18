@@ -26,7 +26,13 @@ export async function inventoryRoutes(
         const [items, movements] = await Promise.all([
           connection.query(
             `SELECT i.id, i.name, i.category, i.unit, i.quantity, i.min_quantity, i.cost_cents,
-                    i.package_size, i.package_unit, i.updated_at, i.photo_asset_id,
+                    i.package_size, i.package_label, i.alert_percent, i.reference_quantity,
+                    i.catalog_id, i.updated_at, i.photo_asset_id,
+                    (SELECT coalesce(sum(m.quantity), 0) FROM luminix.inventory_movements m
+                      WHERE m.clinic_id = i.clinic_id AND m.item_id = i.id AND m.kind = 'out'
+                        AND m.created_at > now() - interval '30 days') AS used_30,
+                    (SELECT count(*) FROM luminix.service_supplies ss
+                      WHERE ss.clinic_id = i.clinic_id AND ss.item_id = i.id) AS services,
                     photo.small_object_key AS photo_key, photo.large_object_key AS photo_large_key
                FROM luminix.inventory_items i
                LEFT JOIN luminix.media_assets photo ON photo.clinic_id = i.clinic_id
@@ -52,7 +58,14 @@ export async function inventoryRoutes(
           minQuantity: toNumber(row.min_quantity),
           costCents: row.cost_cents == null ? null : Number(row.cost_cents),
           packageSize: row.package_size == null ? null : toNumber(row.package_size),
-          packageUnit: row.package_unit ? String(row.package_unit) : null,
+          packageLabel: row.package_label ? String(row.package_label) : null,
+          alertPercent: row.alert_percent == null ? null : Number(row.alert_percent),
+          referenceQuantity:
+            row.reference_quantity == null ? null : toNumber(row.reference_quantity),
+          catalogId: row.catalog_id ? String(row.catalog_id) : null,
+          // Base units used in the last 30 days (services and manual), for "acaba em ~N dias".
+          used30: toNumber(row.used_30),
+          services: toNumber(row.services),
           photoAssetId: row.photo_key ? String(row.photo_asset_id) : '',
           photoUrl: row.photo_key ? publicMediaUrl(String(row.photo_key)) : null,
           photoLargeUrl: row.photo_large_key ? publicMediaUrl(String(row.photo_large_key)) : null,
@@ -62,7 +75,11 @@ export async function inventoryRoutes(
           items: list,
           lowStock: list.filter((item) => item.quantity <= item.minQuantity).length,
           stockValueCents: Math.round(
-            list.reduce((sum, item) => sum + (item.costCents ?? 0) * item.quantity, 0),
+            list.reduce(
+              (sum, item) =>
+                sum + ((item.costCents ?? 0) * item.quantity) / (item.packageSize ?? 1),
+              0,
+            ),
           ),
           movements: movements.rows.map((row) => ({
             id: String(row.id),
@@ -91,7 +108,10 @@ export async function inventoryRoutes(
           properties: {
             name: { type: 'string', minLength: 1, maxLength: 120 },
             category: { type: 'string', maxLength: 60 },
-            unit: { type: 'string', enum: ['un', 'ml', 'l', 'g', 'kg', 'cx', 'fr', 'par'] },
+            unit: {
+              type: 'string',
+              enum: ['un', 'ml', 'l', 'g', 'kg', 'cx', 'fr', 'par', 'm', 'cm', 'folha'],
+            },
             minQuantity: quantity,
             initialQuantity: quantity,
             costCents: {
@@ -99,7 +119,31 @@ export async function inventoryRoutes(
             },
             // What one unit holds ("pote de 400 g"); both or neither.
             packageSize: { anyOf: [{ ...quantity, exclusiveMinimum: 0 }, { type: 'null' }] },
-            packageUnit: { anyOf: [{ type: 'string', enum: ['ml', 'g', 'un'] }, { type: 'null' }] },
+            packageLabel: { type: 'string', maxLength: 30 },
+            // Alert at a percent of the level right after restocking (null: at minQuantity).
+            alertPercent: {
+              anyOf: [{ type: 'integer', minimum: 1, maximum: 90 }, { type: 'null' }],
+            },
+            catalogId: { type: 'string', pattern: '^[a-z0-9áéíóúâêôãõç-]{1,80}$' },
+            // Recipes that use this product, replaced when sent.
+            supplies: {
+              type: 'array',
+              maxItems: 200,
+              items: {
+                type: 'object',
+                additionalProperties: false,
+                required: ['serviceId', 'quantity'],
+                properties: {
+                  serviceId: uuidSchema,
+                  quantity: {
+                    type: 'number',
+                    exclusiveMinimum: 0,
+                    maximum: 999999,
+                    multipleOf: 0.01,
+                  },
+                },
+              },
+            },
             photoAssetId: { anyOf: [uuidSchema, { type: 'string', maxLength: 0 }] },
           },
         },
@@ -119,7 +163,15 @@ export async function inventoryRoutes(
               : { initialQuantity: String(body.initialQuantity) }),
             costCents: body.costCents == null ? '' : String(body.costCents),
             packageSize: body.packageSize == null ? '' : String(body.packageSize),
-            packageUnit: body.packageUnit ?? '',
+            packageLabel: body.packageLabel ?? '',
+            alertPercent: body.alertPercent == null ? '' : String(body.alertPercent),
+            ...(body.supplies === undefined
+              ? {}
+              : {
+                  supplies: (body.supplies as { serviceId: string; quantity: number }[]).map(
+                    (supply) => ({ ...supply, quantity: String(supply.quantity) }),
+                  ),
+                }),
             photoAssetId: body.photoAssetId ?? '',
           }),
         ])

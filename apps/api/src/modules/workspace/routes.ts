@@ -252,8 +252,8 @@ export async function workspaceRoutes(
                    JOIN luminix.services s ON s.clinic_id = a.clinic_id AND s.id = a.service_id
                   WHERE a.clinic_id = $1 AND a.status = 'completed' AND a.starts_at > now() - interval '60 days'
                     AND (coalesce(a.price_cents, 0) > 0 OR s.price_type = 'quote')
-                    AND NOT EXISTS (SELECT 1 FROM luminix.finance_entries e WHERE e.clinic_id = a.clinic_id
-                      AND e.appointment_id = a.id AND e.status = 'active')`,
+                    AND luminix.appointment_paid_cents(a.clinic_id, a.id)
+                      < greatest(coalesce(a.price_cents, 0), 1)`,
                 [tenant.clinicId],
               )
             ).rows[0]?.total,

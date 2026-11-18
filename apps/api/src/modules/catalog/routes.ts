@@ -250,4 +250,89 @@ export async function catalogRoutes(
         true,
       ),
   )
+
+  // What one service uses from the stock (its recipe), with the products to choose from.
+  app.get<{ Params: { clinicId: string; serviceId: string } }>(
+    '/clinics/:clinicId/catalog/services/:serviceId/supplies',
+    { schema: { params: clinicItemParams('serviceId') } },
+    async (request, reply) =>
+      authorized(request, reply, 'service:manage', async (connection, tenant) => {
+        const [supplies, items] = await Promise.all([
+          connection.query(
+            `SELECT ss.item_id, ss.quantity FROM luminix.service_supplies ss
+              WHERE ss.clinic_id = $1 AND ss.service_id = $2`,
+            [tenant.clinicId, request.params.serviceId],
+          ),
+          connection.query(
+            `SELECT id, name, unit, package_size, package_label FROM luminix.inventory_items
+              WHERE clinic_id = $1 AND status = 'active' ORDER BY lower(name) LIMIT 500`,
+            [tenant.clinicId],
+          ),
+        ])
+        return {
+          supplies: supplies.rows.map((row) => ({
+            itemId: String(row.item_id),
+            quantity: Number(row.quantity),
+          })),
+          items: items.rows.map((row) => ({
+            id: String(row.id),
+            name: String(row.name),
+            unit: String(row.unit),
+            packageSize: row.package_size == null ? null : Number(row.package_size),
+            packageLabel: row.package_label ? String(row.package_label) : null,
+          })),
+        }
+      }),
+  )
+
+  app.put<{
+    Params: { clinicId: string; serviceId: string }
+    Body: { items: { itemId: string; quantity: number }[] }
+  }>(
+    '/clinics/:clinicId/catalog/services/:serviceId/supplies',
+    {
+      schema: {
+        params: clinicItemParams('serviceId'),
+        body: {
+          type: 'object',
+          additionalProperties: false,
+          required: ['items'],
+          properties: {
+            items: {
+              type: 'array',
+              maxItems: 40,
+              items: {
+                type: 'object',
+                additionalProperties: false,
+                required: ['itemId', 'quantity'],
+                properties: {
+                  itemId: uuidSchema,
+                  quantity: {
+                    type: 'number',
+                    exclusiveMinimum: 0,
+                    maximum: 999999,
+                    multipleOf: 0.01,
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    },
+    async (request, reply) =>
+      authorized(request, reply, 'service:manage', async (connection, tenant) => {
+        await connection.query(
+          'SELECT luminix.save_service_supplies($1::uuid, $2::uuid, $3::jsonb)',
+          [
+            tenant.clinicId,
+            request.params.serviceId,
+            JSON.stringify(
+              request.body.items.map((item) => ({ ...item, quantity: String(item.quantity) })),
+            ),
+          ],
+        )
+        return { saved: request.body.items.length }
+      }),
+  )
 }
