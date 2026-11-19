@@ -10,6 +10,7 @@ import {
   HandHeart,
   ImagePlus,
   KeyRound,
+  Palmtree,
   Plus,
   Scissors,
   Trash2,
@@ -22,6 +23,8 @@ import { TimePicker } from '@/components/onboarding/time-picker'
 import { CheckboxField, ComboField, SelectField } from '@/components/ui/fields'
 import '@/app/c/[clinicId]/onboarding/onboarding.css'
 import { roleLabel } from '@/lib/access'
+import { ClosuresEditor } from '../appointments/closures-editor'
+import '../appointments/appointments.css'
 import { ClinicApiError, useClinicApi, useClinicResource, type ClinicApi } from './clinic-api'
 import {
   Empty,
@@ -659,6 +662,26 @@ function ProfessionalEditor({
           })}
         </div>
       </SettingsCard>
+
+      {!isNew ? (
+        <SettingsCard
+          icon={<Palmtree size={20} />}
+          title="Férias e afastamentos"
+          description={`Nesses dias ninguém agenda com ${initial.name.split(' ')[0]}. Fica tudo registrado aqui, e dá para desfazer.`}
+        >
+          <ClosuresEditor
+            api={api}
+            professionals={[
+              { id: initial.id, display_name: initial.name, photo_url: initial.photoUrl },
+            ]}
+            photos={{}}
+            canManageSpace={false}
+            canManageTeam
+            professionalId={initial.id}
+            onSaved={() => undefined}
+          />
+        </SettingsCard>
+      ) : null}
 
       {canManageAccess ? (
         <SettingsCard

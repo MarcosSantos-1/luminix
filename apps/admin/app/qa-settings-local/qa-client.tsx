@@ -1086,6 +1086,21 @@ export default function QASettings({
           } as T
         if (path === 'team')
           return {
+            selfMembershipId: '',
+            clinicHours: [0, 1, 2, 3, 4, 5, 6].map((weekday) => ({
+              weekday,
+              enabled: weekday > 0,
+              start: '08:00',
+              end: '19:00',
+              breaks: [],
+            })),
+            services: services.map(([id, name, category]) => ({
+              id,
+              name,
+              category,
+              sensitive: false,
+              audience: 'all',
+            })),
             professionals: qaPeople.map((person, index) => ({
               ...person,
               role: 'Cabeleireira',
