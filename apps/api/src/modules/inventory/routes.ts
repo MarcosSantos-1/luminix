@@ -9,6 +9,20 @@ import { clinicItemParams, toNumber, uuidSchema } from '../../shared/tenant/rout
 import { publicMediaUrl } from '../clinics/media-storage.js'
 
 const quantity = { type: 'number', minimum: 0, maximum: 99999999, multipleOf: 0.01 }
+const dateSchema = { type: 'string', pattern: '^\\d{4}-\\d{2}-\\d{2}$' }
+
+function setExpiry(
+  connection: { query: (sql: string, values: unknown[]) => Promise<unknown> },
+  clinicId: string,
+  itemId: string,
+  tracks: boolean,
+  expiresOn: string | null,
+) {
+  return connection.query(
+    'SELECT luminix.set_inventory_expiry($1::uuid, $2::uuid, $3::boolean, $4::date)',
+    [clinicId, itemId, tracks, expiresOn],
+  )
+}
 
 /** Products used in the services or sold at the counter; movements keep the running balance. */
 export async function inventoryRoutes(
@@ -27,7 +41,9 @@ export async function inventoryRoutes(
           connection.query(
             `SELECT i.id, i.name, i.category, i.unit, i.quantity, i.min_quantity, i.cost_cents,
                     i.package_size, i.package_label, i.alert_percent, i.reference_quantity,
-                    i.catalog_id, i.updated_at, i.photo_asset_id,
+                    i.catalog_id, i.updated_at, i.photo_asset_id, i.tracks_expiry,
+                    to_char(i.expires_on, 'YYYY-MM-DD') AS expires_on,
+                    (i.expires_on - luminix.clinic_today()) AS expires_in,
                     (SELECT coalesce(sum(m.quantity), 0) FROM luminix.inventory_movements m
                       WHERE m.clinic_id = i.clinic_id AND m.item_id = i.id AND m.kind = 'out'
                         AND m.created_at > now() - interval '30 days') AS used_30,
@@ -66,6 +82,10 @@ export async function inventoryRoutes(
           // Base units used in the last 30 days (services and manual), for "acaba em ~N dias".
           used30: toNumber(row.used_30),
           services: toNumber(row.services),
+          tracksExpiry: Boolean(row.tracks_expiry),
+          expiresOn: row.expires_on ? String(row.expires_on) : null,
+          // Days from the clinic's today until it expires; negative when already expired.
+          expiresIn: row.expires_in == null ? null : Number(row.expires_in),
           photoAssetId: row.photo_key ? String(row.photo_asset_id) : '',
           photoUrl: row.photo_key ? publicMediaUrl(String(row.photo_key)) : null,
           photoLargeUrl: row.photo_large_key ? publicMediaUrl(String(row.photo_large_key)) : null,
@@ -74,6 +94,10 @@ export async function inventoryRoutes(
         return {
           items: list,
           lowStock: list.filter((item) => item.quantity <= item.minQuantity).length,
+          // Expired or expiring within 30 days, among products with something on the shelf.
+          expiring: list.filter(
+            (item) => item.expiresIn != null && item.expiresIn <= 30 && item.quantity > 0,
+          ).length,
           stockValueCents: Math.round(
             list.reduce(
               (sum, item) =>
@@ -145,13 +169,16 @@ export async function inventoryRoutes(
               },
             },
             photoAssetId: { anyOf: [uuidSchema, { type: 'string', maxLength: 0 }] },
+            // Validade: whether the product is tracked and the date of what is on the shelf.
+            tracksExpiry: { type: 'boolean' },
+            expiresOn: { anyOf: [dateSchema, { type: 'null' }] },
           },
         },
       },
     },
     async (request, reply) =>
       authorized(request, reply, 'inventory:manage', async (connection, tenant) => {
-        const body = request.body as Record<string, unknown>
+        const { tracksExpiry, expiresOn, ...body } = request.body as Record<string, unknown>
         await connection.query('SELECT luminix.save_inventory_item($1::uuid, $2::jsonb)', [
           tenant.clinicId,
           JSON.stringify({
@@ -175,13 +202,26 @@ export async function inventoryRoutes(
             photoAssetId: body.photoAssetId ?? '',
           }),
         ])
+        if (tracksExpiry !== undefined)
+          await setExpiry(
+            connection,
+            tenant.clinicId,
+            request.params.itemId,
+            Boolean(tracksExpiry),
+            tracksExpiry ? ((expiresOn as string | null | undefined) ?? null) : null,
+          )
         return { id: request.params.itemId }
       }),
   )
 
   app.post<{
     Params: { clinicId: string; itemId: string }
-    Body: { kind: 'in' | 'out' | 'adjust'; quantity: number; note?: string }
+    Body: {
+      kind: 'in' | 'out' | 'adjust'
+      quantity: number
+      note?: string
+      expiresOn?: string
+    }
   }>(
     '/clinics/:clinicId/inventory/items/:itemId/movements',
     {
@@ -195,6 +235,8 @@ export async function inventoryRoutes(
             kind: { type: 'string', enum: ['in', 'out', 'adjust'] },
             quantity,
             note: { type: 'string', maxLength: 160 },
+            // Restocking a product with validade: the date of what arrived.
+            expiresOn: dateSchema,
           },
         },
       },
@@ -213,6 +255,14 @@ export async function inventoryRoutes(
             ],
           )
         ).rows[0]?.balance
+        if (request.body.expiresOn && request.body.kind !== 'out')
+          await setExpiry(
+            connection,
+            tenant.clinicId,
+            request.params.itemId,
+            true,
+            request.body.expiresOn,
+          )
         return { balance: toNumber(balance) }
       }),
   )

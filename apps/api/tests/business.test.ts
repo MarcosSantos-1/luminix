@@ -489,6 +489,54 @@ describe('inventory and marketing', () => {
     expect((await call('owner-b', 'GET', `/clinics/${c('a').id}/inventory`)).statusCode).toBe(403)
   })
 
+  it('keeps the expiry date of a product and warns before it expires', async () => {
+    const base = `/clinics/${c('a').id}/inventory`
+    const acid = crypto.randomUUID()
+    const iso = (days: number) => new Date(Date.now() + days * 86400000).toISOString().slice(0, 10)
+    const save = await call('owner-a', 'PUT', `${base}/items/${acid}`, {
+      name: 'Ácido glicólico',
+      unit: 'ml',
+      minQuantity: 0,
+      initialQuantity: 30,
+      tracksExpiry: true,
+      expiresOn: iso(-2),
+    })
+    expect(save.statusCode).toBe(200)
+    const find = async () =>
+      (await call('owner-a', 'GET', base))
+        .json()
+        .items.find((entry: { id: string }) => entry.id === acid)
+    expect(await find()).toMatchObject({ tracksExpiry: true, expiresOn: iso(-2) })
+    expect((await find()).expiresIn).toBeLessThan(0)
+    expect((await call('owner-a', 'GET', base)).json().expiring).toBeGreaterThanOrEqual(1)
+    // Restocking with a new date replaces the date on the shelf.
+    const restock = await call('owner-a', 'POST', `${base}/items/${acid}/movements`, {
+      kind: 'in',
+      quantity: 30,
+      expiresOn: iso(200),
+    })
+    expect(restock.statusCode).toBe(200)
+    expect(await find()).toMatchObject({ expiresOn: iso(200) })
+    // Turning it off clears the date; another clinic cannot touch it.
+    await call('owner-a', 'PUT', `${base}/items/${acid}`, {
+      name: 'Ácido glicólico',
+      unit: 'ml',
+      minQuantity: 0,
+      tracksExpiry: false,
+      expiresOn: iso(10),
+    })
+    expect(await find()).toMatchObject({ tracksExpiry: false, expiresOn: null })
+    expect(
+      (
+        await call('owner-b', 'POST', `${base}/items/${acid}/movements`, {
+          kind: 'in',
+          quantity: 1,
+          expiresOn: iso(5),
+        })
+      ).statusCode,
+    ).toBe(403)
+  })
+
   it('renames and removes a stock category on every product', async () => {
     const base = `/clinics/${c('a').id}/inventory`
     for (const name of ['Luva P', 'Luva M'])

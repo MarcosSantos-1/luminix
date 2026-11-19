@@ -152,6 +152,7 @@ describe('versioned core migration', () => {
       { name: '0040_inventory_categories.sql' },
       { name: '0041_schedule_closures.sql' },
       { name: '0042_anamnesis_packages_rentals.sql' },
+      { name: '0043_inventory_expiry.sql' },
     ])
   })
 

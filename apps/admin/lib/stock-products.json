@@ -1,54 +1,61 @@
 {
-  "versao": "1.2",
+  "versao": "1.3",
   "produtos": [
     {
       "id": "gel-limpeza-facial",
       "nome": "Gel de limpeza facial",
       "categorias": ["Estética facial"],
       "unidade": "ml",
-      "aviso_percentual": 20
+      "aviso_percentual": 20,
+      "validade": true
     },
     {
       "id": "esfoliante-facial",
       "nome": "Esfoliante facial",
       "categorias": ["Estética facial"],
       "unidade": "g",
-      "aviso_percentual": 20
+      "aviso_percentual": 20,
+      "validade": true
     },
     {
       "id": "mascara-facial",
       "nome": "Máscara facial",
       "categorias": ["Estética facial"],
       "unidade": "g",
-      "aviso_percentual": 20
+      "aviso_percentual": 20,
+      "validade": true
     },
     {
       "id": "hidratante-facial",
       "nome": "Hidratante facial",
       "categorias": ["Estética facial"],
       "unidade": "ml",
-      "aviso_percentual": 20
+      "aviso_percentual": 20,
+      "validade": true
     },
     {
       "id": "protetor-solar",
       "nome": "Protetor solar",
       "categorias": ["Estética facial"],
       "unidade": "ml",
-      "aviso_percentual": 20
+      "aviso_percentual": 20,
+      "validade": true
     },
     {
       "id": "algodao",
       "nome": "Algodão",
       "categorias": ["Estética facial", "Estética corporal", "Unhas", "Sobrancelhas"],
       "unidade": "g",
-      "aviso_percentual": 20
+      "aviso_percentual": 20,
+      "validade": false
     },
     {
       "id": "gaze",
       "nome": "Gaze",
       "categorias": ["Estética facial", "Depilação", "Tatuagem", "Piercing", "Biomedicina"],
       "unidade": "un",
-      "aviso_percentual": 20
+      "aviso_percentual": 20,
+      "validade": false
     },
     {
       "id": "luvas-descartaveis",
@@ -65,7 +72,8 @@
         "Biomedicina"
       ],
       "unidade": "un",
-      "aviso_percentual": 20
+      "aviso_percentual": 20,
+      "validade": false
     },
     {
       "id": "agulha-descartavel",
@@ -73,6 +81,7 @@
       "categorias": ["Estética facial", "Biomedicina"],
       "unidade": "un",
       "aviso_percentual": 20,
+      "validade": true,
       "lote_validade": true
     },
     {
@@ -81,6 +90,7 @@
       "categorias": ["Estética facial", "Estética corporal", "Biomedicina"],
       "unidade": "un",
       "aviso_percentual": 20,
+      "validade": true,
       "lote_validade": true
     },
     {
@@ -89,6 +99,7 @@
       "categorias": ["Estética facial"],
       "unidade": "ml",
       "aviso_percentual": 20,
+      "validade": true,
       "lote_validade": true
     },
     {
@@ -96,42 +107,48 @@
       "nome": "Sérum facial",
       "categorias": ["Estética facial"],
       "unidade": "ml",
-      "aviso_percentual": 20
+      "aviso_percentual": 20,
+      "validade": true
     },
     {
       "id": "oleo-massagem",
       "nome": "Óleo de massagem",
       "categorias": ["Estética corporal", "Massagem e Massoterapia"],
       "unidade": "ml",
-      "aviso_percentual": 20
+      "aviso_percentual": 20,
+      "validade": true
     },
     {
       "id": "creme-corporal",
       "nome": "Creme corporal",
       "categorias": ["Estética corporal", "Unhas", "Massagem e Massoterapia"],
       "unidade": "ml",
-      "aviso_percentual": 20
+      "aviso_percentual": 20,
+      "validade": true
     },
     {
       "id": "esfoliante-corporal",
       "nome": "Esfoliante corporal",
       "categorias": ["Estética corporal"],
       "unidade": "g",
-      "aviso_percentual": 20
+      "aviso_percentual": 20,
+      "validade": true
     },
     {
       "id": "gel-condutor",
       "nome": "Gel condutor",
       "categorias": ["Estética corporal", "Depilação", "Quiropraxia", "Biomedicina"],
       "unidade": "ml",
-      "aviso_percentual": 20
+      "aviso_percentual": 20,
+      "validade": true
     },
     {
       "id": "manta-descartavel",
       "nome": "Manta protetora descartável",
       "categorias": ["Estética corporal"],
       "unidade": "un",
-      "aviso_percentual": 20
+      "aviso_percentual": 20,
+      "validade": false
     },
     {
       "id": "cera-quente",
@@ -139,42 +156,48 @@
       "categorias": ["Depilação"],
       "unidade": "g",
       "embalagem": 1000,
-      "aviso_percentual": 20
+      "aviso_percentual": 20,
+      "validade": true
     },
     {
       "id": "cera-roll-on",
       "nome": "Cera roll-on",
       "categorias": ["Depilação"],
       "unidade": "g",
-      "aviso_percentual": 20
+      "aviso_percentual": 20,
+      "validade": true
     },
     {
       "id": "lencos-depilatorios",
       "nome": "Lenços depilatórios",
       "categorias": ["Depilação"],
       "unidade": "un",
-      "aviso_percentual": 20
+      "aviso_percentual": 20,
+      "validade": false
     },
     {
       "id": "espátula-madeira",
       "nome": "Espátula descartável",
       "categorias": ["Depilação"],
       "unidade": "un",
-      "aviso_percentual": 20
+      "aviso_percentual": 20,
+      "validade": false
     },
     {
       "id": "oleo-pos-depilacao",
       "nome": "Óleo pós-depilação",
       "categorias": ["Depilação"],
       "unidade": "ml",
-      "aviso_percentual": 20
+      "aviso_percentual": 20,
+      "validade": true
     },
     {
       "id": "linha-depilacao",
       "nome": "Linha para depilação",
       "categorias": ["Depilação", "Sobrancelhas"],
       "unidade": "m",
-      "aviso_percentual": 20
+      "aviso_percentual": 20,
+      "validade": false
     },
     {
       "id": "shampoo",
@@ -182,224 +205,256 @@
       "categorias": ["Cabelo"],
       "unidade": "ml",
       "embalagem": 1000,
-      "aviso_percentual": 20
+      "aviso_percentual": 20,
+      "validade": true
     },
     {
       "id": "condicionador",
       "nome": "Condicionador",
       "categorias": ["Cabelo"],
       "unidade": "ml",
-      "aviso_percentual": 20
+      "aviso_percentual": 20,
+      "validade": true
     },
     {
       "id": "mascara-capilar",
       "nome": "Máscara capilar",
       "categorias": ["Cabelo"],
       "unidade": "g",
-      "aviso_percentual": 20
+      "aviso_percentual": 20,
+      "validade": true
     },
     {
       "id": "coloracao",
       "nome": "Coloração capilar",
       "categorias": ["Cabelo"],
       "unidade": "g",
-      "aviso_percentual": 20
+      "aviso_percentual": 20,
+      "validade": true
     },
     {
       "id": "oxidante",
       "nome": "Oxidante",
       "categorias": ["Cabelo"],
       "unidade": "ml",
-      "aviso_percentual": 20
+      "aviso_percentual": 20,
+      "validade": true
     },
     {
       "id": "po-descolorante",
       "nome": "Pó descolorante",
       "categorias": ["Cabelo"],
       "unidade": "g",
-      "aviso_percentual": 20
+      "aviso_percentual": 20,
+      "validade": true
     },
     {
       "id": "tonalizante",
       "nome": "Tonalizante",
       "categorias": ["Cabelo"],
       "unidade": "ml",
-      "aviso_percentual": 20
+      "aviso_percentual": 20,
+      "validade": true
     },
     {
       "id": "produto-progressiva",
       "nome": "Produto de alisamento",
       "categorias": ["Cabelo"],
       "unidade": "ml",
-      "aviso_percentual": 20
+      "aviso_percentual": 20,
+      "validade": true
     },
     {
       "id": "finalizador",
       "nome": "Finalizador capilar",
       "categorias": ["Cabelo"],
       "unidade": "ml",
-      "aviso_percentual": 20
+      "aviso_percentual": 20,
+      "validade": true
     },
     {
       "id": "papel-aluminio",
       "nome": "Papel alumínio",
       "categorias": ["Cabelo"],
       "unidade": "m",
-      "aviso_percentual": 20
+      "aviso_percentual": 20,
+      "validade": false
     },
     {
       "id": "fita-mega-hair",
       "nome": "Fita para extensão capilar",
       "categorias": ["Cabelo"],
       "unidade": "un",
-      "aviso_percentual": 20
+      "aviso_percentual": 20,
+      "validade": false
     },
     {
       "id": "esmalte",
       "nome": "Esmalte tradicional",
       "categorias": ["Unhas"],
       "unidade": "ml",
-      "aviso_percentual": 20
+      "aviso_percentual": 20,
+      "validade": true
     },
     {
       "id": "esmalte-gel",
       "nome": "Esmalte em gel",
       "categorias": ["Unhas"],
       "unidade": "ml",
-      "aviso_percentual": 20
+      "aviso_percentual": 20,
+      "validade": true
     },
     {
       "id": "gel-construtor",
       "nome": "Gel construtor",
       "categorias": ["Unhas"],
       "unidade": "g",
-      "aviso_percentual": 20
+      "aviso_percentual": 20,
+      "validade": true
     },
     {
       "id": "fibra-vidro",
       "nome": "Fibra de vidro para unhas",
       "categorias": ["Unhas"],
       "unidade": "un",
-      "aviso_percentual": 20
+      "aviso_percentual": 20,
+      "validade": false
     },
     {
       "id": "polygel",
       "nome": "Polygel",
       "categorias": ["Unhas"],
       "unidade": "g",
-      "aviso_percentual": 20
+      "aviso_percentual": 20,
+      "validade": true
     },
     {
       "id": "acrilico-po",
       "nome": "Pó acrílico",
       "categorias": ["Unhas"],
       "unidade": "g",
-      "aviso_percentual": 20
+      "aviso_percentual": 20,
+      "validade": true
     },
     {
       "id": "monomer",
       "nome": "Monômero",
       "categorias": ["Unhas"],
       "unidade": "ml",
-      "aviso_percentual": 20
+      "aviso_percentual": 20,
+      "validade": true
     },
     {
       "id": "removedor",
       "nome": "Removedor de esmalte",
       "categorias": ["Unhas"],
       "unidade": "ml",
-      "aviso_percentual": 20
+      "aviso_percentual": 20,
+      "validade": true
     },
     {
       "id": "lixa-descartavel",
       "nome": "Lixa descartável",
       "categorias": ["Unhas"],
       "unidade": "un",
-      "aviso_percentual": 20
+      "aviso_percentual": 20,
+      "validade": false
     },
     {
       "id": "henna",
       "nome": "Henna para sobrancelhas",
       "categorias": ["Sobrancelhas"],
       "unidade": "g",
-      "aviso_percentual": 20
+      "aviso_percentual": 20,
+      "validade": true
     },
     {
       "id": "tintura-sobrancelha",
       "nome": "Tintura para sobrancelhas",
       "categorias": ["Sobrancelhas"],
       "unidade": "ml",
-      "aviso_percentual": 20
+      "aviso_percentual": 20,
+      "validade": true
     },
     {
       "id": "pigmento-micro",
       "nome": "Pigmento de micropigmentação",
       "categorias": ["Sobrancelhas"],
       "unidade": "ml",
-      "aviso_percentual": 20
+      "aviso_percentual": 20,
+      "validade": true
     },
     {
       "id": "agulha-micro",
       "nome": "Agulha/cartucho para micropigmentação",
       "categorias": ["Sobrancelhas"],
       "unidade": "un",
-      "aviso_percentual": 20
+      "aviso_percentual": 20,
+      "validade": true
     },
     {
       "id": "solucao-laminacao",
       "nome": "Solução para laminação",
       "categorias": ["Sobrancelhas"],
       "unidade": "ml",
-      "aviso_percentual": 20
+      "aviso_percentual": 20,
+      "validade": true
     },
     {
       "id": "cola-cilios",
       "nome": "Adesivo para extensão de cílios",
       "categorias": ["Cílios"],
       "unidade": "ml",
-      "aviso_percentual": 20
+      "aviso_percentual": 20,
+      "validade": true
     },
     {
       "id": "fios-cilios",
       "nome": "Extensões de cílios",
       "categorias": ["Cílios"],
       "unidade": "un",
-      "aviso_percentual": 20
+      "aviso_percentual": 20,
+      "validade": false
     },
     {
       "id": "removedor-cilios",
       "nome": "Removedor de adesivo",
       "categorias": ["Cílios"],
       "unidade": "ml",
-      "aviso_percentual": 20
+      "aviso_percentual": 20,
+      "validade": true
     },
     {
       "id": "pads-cilios",
       "nome": "Pads descartáveis para cílios",
       "categorias": ["Cílios"],
       "unidade": "un",
-      "aviso_percentual": 20
+      "aviso_percentual": 20,
+      "validade": false
     },
     {
       "id": "solucao-lifting",
       "nome": "Solução para lash lifting",
       "categorias": ["Cílios"],
       "unidade": "ml",
-      "aviso_percentual": 20
+      "aviso_percentual": 20,
+      "validade": true
     },
     {
       "id": "tintura-cilios",
       "nome": "Tintura para cílios",
       "categorias": ["Cílios"],
       "unidade": "ml",
-      "aviso_percentual": 20
+      "aviso_percentual": 20,
+      "validade": true
     },
     {
       "id": "microbrush",
       "nome": "Microbrush descartável",
       "categorias": ["Cílios"],
       "unidade": "un",
-      "aviso_percentual": 20
+      "aviso_percentual": 20,
+      "validade": false
     },
     {
       "id": "tinta-tatuagem",
@@ -407,6 +462,7 @@
       "categorias": ["Tatuagem"],
       "unidade": "ml",
       "aviso_percentual": 20,
+      "validade": true,
       "lote_validade": true
     },
     {
@@ -415,6 +471,7 @@
       "categorias": ["Tatuagem"],
       "unidade": "un",
       "aviso_percentual": 20,
+      "validade": true,
       "lote_validade": true
     },
     {
@@ -423,6 +480,7 @@
       "categorias": ["Tatuagem"],
       "unidade": "m",
       "aviso_percentual": 20,
+      "validade": false,
       "lote_validade": true
     },
     {
@@ -431,6 +489,7 @@
       "categorias": ["Tatuagem"],
       "unidade": "un",
       "aviso_percentual": 20,
+      "validade": false,
       "lote_validade": true
     },
     {
@@ -439,6 +498,7 @@
       "categorias": ["Tatuagem", "Piercing"],
       "unidade": "ml",
       "aviso_percentual": 20,
+      "validade": true,
       "lote_validade": true
     },
     {
@@ -447,6 +507,7 @@
       "categorias": ["Piercing"],
       "unidade": "un",
       "aviso_percentual": 20,
+      "validade": true,
       "lote_validade": true
     },
     {
@@ -455,6 +516,7 @@
       "categorias": ["Piercing"],
       "unidade": "un",
       "aviso_percentual": 20,
+      "validade": true,
       "lote_validade": true
     },
     {
@@ -462,14 +524,16 @@
       "nome": "Papel descartável para maca",
       "categorias": ["Quiropraxia", "Massagem e Massoterapia"],
       "unidade": "m",
-      "aviso_percentual": 20
+      "aviso_percentual": 20,
+      "validade": false
     },
     {
       "id": "oleo-essencial",
       "nome": "Óleo essencial",
       "categorias": ["Massagem e Massoterapia"],
       "unidade": "ml",
-      "aviso_percentual": 20
+      "aviso_percentual": 20,
+      "validade": true
     },
     {
       "id": "seringa",
@@ -477,6 +541,7 @@
       "categorias": ["Biomedicina"],
       "unidade": "un",
       "aviso_percentual": 20,
+      "validade": true,
       "lote_validade": true
     },
     {
@@ -485,6 +550,7 @@
       "categorias": ["Biomedicina"],
       "unidade": "un",
       "aviso_percentual": 20,
+      "validade": true,
       "lote_validade": true
     },
     {
@@ -493,6 +559,7 @@
       "categorias": ["Biomedicina"],
       "unidade": "ml",
       "aviso_percentual": 20,
+      "validade": true,
       "lote_validade": true
     },
     {
@@ -501,6 +568,7 @@
       "categorias": ["Biomedicina"],
       "unidade": "un",
       "aviso_percentual": 20,
+      "validade": true,
       "lote_validade": true
     },
     {
@@ -509,6 +577,7 @@
       "categorias": ["Biomedicina"],
       "unidade": "ml",
       "aviso_percentual": 20,
+      "validade": true,
       "lote_validade": true
     },
     {
@@ -517,6 +586,7 @@
       "categorias": ["Biomedicina"],
       "unidade": "ml",
       "aviso_percentual": 20,
+      "validade": true,
       "lote_validade": true
     },
     {
@@ -524,112 +594,128 @@
       "nome": "Touca descartável",
       "categorias": [],
       "unidade": "un",
-      "aviso_percentual": 20
+      "aviso_percentual": 20,
+      "validade": false
     },
     {
       "id": "mascara-descartavel",
       "nome": "Máscara descartável",
       "categorias": [],
       "unidade": "un",
-      "aviso_percentual": 20
+      "aviso_percentual": 20,
+      "validade": false
     },
     {
       "id": "palito-manicure",
       "nome": "Palito descartável para manicure",
       "categorias": [],
       "unidade": "un",
-      "aviso_percentual": 20
+      "aviso_percentual": 20,
+      "validade": false
     },
     {
       "id": "separador-dedos",
       "nome": "Separador descartável de dedos",
       "categorias": [],
       "unidade": "un",
-      "aviso_percentual": 20
+      "aviso_percentual": 20,
+      "validade": false
     },
     {
       "id": "lencol-descartavel",
       "nome": "Lençol descartável",
       "categorias": [],
       "unidade": "un",
-      "aviso_percentual": 20
+      "aviso_percentual": 20,
+      "validade": false
     },
     {
       "id": "avental-descartavel",
       "nome": "Avental descartável",
       "categorias": [],
       "unidade": "un",
-      "aviso_percentual": 20
+      "aviso_percentual": 20,
+      "validade": false
     },
     {
       "id": "papel-toalha",
       "nome": "Papel toalha",
       "categorias": [],
       "unidade": "folha",
-      "aviso_percentual": 20
+      "aviso_percentual": 20,
+      "validade": false
     },
     {
       "id": "cotonete",
       "nome": "Haste flexível descartável",
       "categorias": [],
       "unidade": "un",
-      "aviso_percentual": 20
+      "aviso_percentual": 20,
+      "validade": false
     },
     {
       "id": "escovinha-descartavel",
       "nome": "Escovinha descartável",
       "categorias": [],
       "unidade": "un",
-      "aviso_percentual": 20
+      "aviso_percentual": 20,
+      "validade": false
     },
     {
       "id": "lamina-descartavel",
       "nome": "Lâmina descartável",
       "categorias": [],
       "unidade": "un",
-      "aviso_percentual": 20
+      "aviso_percentual": 20,
+      "validade": true
     },
     {
       "id": "protetor-bancada",
       "nome": "Barreira protetora de bancada",
       "categorias": [],
       "unidade": "un",
-      "aviso_percentual": 20
+      "aviso_percentual": 20,
+      "validade": false
     },
     {
       "id": "campo-esteril",
       "nome": "Campo estéril descartável",
       "categorias": [],
       "unidade": "un",
-      "aviso_percentual": 20
+      "aviso_percentual": 20,
+      "validade": true
     },
     {
       "id": "algodao-disco",
       "nome": "Disco de algodão",
       "categorias": [],
       "unidade": "un",
-      "aviso_percentual": 20
+      "aviso_percentual": 20,
+      "validade": false
     },
     {
       "id": "fita-micropore",
       "nome": "Fita microporosa",
       "categorias": [],
       "unidade": "cm",
-      "aviso_percentual": 20
+      "aviso_percentual": 20,
+      "validade": false
     },
     {
       "id": "saco-descarte",
       "nome": "Saco para descarte de resíduos",
       "categorias": [],
       "unidade": "un",
-      "aviso_percentual": 20
+      "aviso_percentual": 20,
+      "validade": false
     },
     {
       "id": "sapatilha-descartavel",
       "nome": "Propé descartável",
       "categorias": [],
       "unidade": "un",
-      "aviso_percentual": 20
+      "aviso_percentual": 20,
+      "validade": false
     }
   ]
 }

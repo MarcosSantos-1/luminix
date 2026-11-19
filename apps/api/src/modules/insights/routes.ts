@@ -166,6 +166,17 @@ export async function insightsRoutes(
             quantity: toNumber(row.quantity),
             unit: String(row.unit),
           }))
+          const expiring = await connection.query(
+            `SELECT name, expires_on - $2::date AS days FROM luminix.inventory_items
+              WHERE clinic_id = $1 AND status = 'active' AND tracks_expiry AND quantity > 0
+                AND expires_on <= $2::date + 30
+              ORDER BY expires_on LIMIT 5`,
+            [tenant.clinicId, today],
+          )
+          result.expiringStock = expiring.rows.map((row) => ({
+            name: String(row.name),
+            days: Number(row.days),
+          }))
         }
         const promos = await connection.query(
           `SELECT count(*) AS active FROM luminix.promotions

@@ -1909,3 +1909,73 @@
     transform: none;
   }
 }
+
+/* Validade: badge on the card, toggle in the forms. */
+.inv-card.is-expiry-soon {
+  border-color: #ffd98a99;
+}
+.inv-card.is-expiry-expired {
+  border-color: #ff8a8acc;
+  background: linear-gradient(180deg, #ff6b6b14, #ffffff0a);
+}
+.inv-expiry {
+  display: inline-flex;
+  align-items: center;
+  justify-self: start;
+  gap: 6px;
+  padding: 4px 10px;
+  border: 0;
+  border-radius: 999px;
+  color: #c9f5da;
+  background: #a7f0c41a;
+  font: inherit;
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.inv-expiry small {
+  color: inherit;
+  font-weight: 400;
+  opacity: 0.75;
+}
+.inv-expiry.is-soon {
+  color: #ffd98a;
+  background: #ffd98a1f;
+}
+.inv-expiry.is-expired {
+  color: #ffc2c2;
+  background: #ff6b6b2e;
+}
+.inv-expiry.is-unset {
+  color: var(--manager-muted);
+  background: #ffffff12;
+  border: 1px dashed #ffffff33;
+}
+.inv-expiry:focus-visible {
+  outline: 2px solid var(--space-highlight, #ffb5d3);
+  outline-offset: 2px;
+}
+.inv-expiry-field {
+  display: grid;
+  gap: 8px;
+  padding: 12px 14px;
+  border: 1px solid #ffffff1f;
+  border-radius: 16px;
+  background: #ffffff08;
+}
+.inv-expiry-field.is-on {
+  border-color: color-mix(in srgb, var(--space-accent, #ec287a) 45%, transparent);
+}
+.inv-expiry-field > small {
+  color: var(--manager-muted);
+  font-size: 13px;
+}
+.inv-setup-expiry {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: #ffd98a !important;
+}
+.inv-setup-fields .inv-expiry-field {
+  grid-column: 1 / -1;
+}

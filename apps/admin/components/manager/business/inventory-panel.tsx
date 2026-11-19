@@ -1,8 +1,9 @@
 'use client'
 
-import { Button } from '@heroui/react'
+import { Button, Label, Switch } from '@heroui/react'
 import {
   Archive,
+  CalendarClock,
   Camera,
   Check,
   ChevronDown,
@@ -22,12 +23,19 @@ import {
   Wallet,
 } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { MoneyField, SearchInput, SelectField, TextInputField } from '@/components/ui/fields'
+import {
+  DateInputField,
+  MoneyField,
+  SearchInput,
+  SelectField,
+  TextInputField,
+} from '@/components/ui/fields'
 import {
   amount,
   daysLeft,
   defaultPackageLabel,
   describeStock,
+  expiryState,
   fold,
   packageLabels,
   pluralize,
@@ -68,10 +76,15 @@ type Item = {
   services?: number
   photoAssetId?: string
   photoUrl?: string | null
+  /** Validade: the date of what is on the shelf now (the next to expire). */
+  tracksExpiry?: boolean
+  expiresOn?: string | null
+  expiresIn?: number | null
 }
 type Inventory = {
   items: Item[]
   lowStock: number
+  expiring?: number
   stockValueCents: number
   movements: {
     id: string
@@ -184,11 +197,19 @@ export function InventoryPanel({
   const needle = fold(query)
   const categories = [...new Set(data.items.map((item) => item.category).filter(Boolean))].sort()
   const isLow = (item: Item) => item.quantity <= item.minQuantity
+  const isExpiring = (item: Item) =>
+    item.quantity > 0 && ['expired', 'soon'].includes(expiryState(item)?.tone ?? '')
+  const expiring = data.items.filter(isExpiring).length
+  const expired = data.items.filter(
+    (item) => item.quantity > 0 && expiryState(item)?.tone === 'expired',
+  ).length
+  const tracked = data.items.filter((item) => item.tracksExpiry).length
   const items = data.items.filter(
     (item) =>
       (view === 'all' ||
         (view === 'low' && isLow(item)) ||
-        (view === 'nocost' && item.costCents == null)) &&
+        (view === 'nocost' && item.costCents == null) ||
+        (view === 'expiring' && isExpiring(item))) &&
       (!category || item.category === category) &&
       (!needle || fold(`${item.name} ${item.category}`).includes(needle)),
   )
@@ -212,6 +233,8 @@ export function InventoryPanel({
     packageLabel: product.embalagem ? defaultPackageLabel(product.unidade) : null,
     alertPercent: product.aviso_percentual,
     catalogId: product.id,
+    tracksExpiry: Boolean(product.validade),
+    expiresOn: null,
   })
 
   /** One tap: one package (or one unit) used up or arrived. */
@@ -244,13 +267,13 @@ export function InventoryPanel({
       <KpiCards
         label="Resumo do estoque"
         active={view}
-        onSelect={(id) => setView(view === id || id === 'value' || id === 'linked' ? 'all' : id)}
+        onSelect={(id) => setView(view === id || id === 'value' ? 'all' : id)}
         items={[
           {
             id: 'all',
             label: 'Produtos',
             value: data.items.length,
-            hint: `${categories.length} ${categories.length === 1 ? 'categoria' : 'categorias'}`,
+            hint: `${categories.length} ${categories.length === 1 ? 'categoria' : 'categorias'}${linked ? ` · ${linked} com baixa automática` : ''}`,
             icon: <Package size={22} />,
           },
           {
@@ -262,12 +285,18 @@ export function InventoryPanel({
             tone: data.lowStock ? 'warn' : 'good',
           },
           {
-            id: 'linked',
-            label: 'Baixa automática',
-            value: linked,
-            hint: 'Descontados ao concluir atendimentos',
-            icon: <Scissors size={22} />,
-            tone: 'info',
+            id: 'expiring',
+            label: 'Validade',
+            value: expiring,
+            hint: expired
+              ? `${expired} ${expired === 1 ? 'vencido' : 'vencidos'} · separe antes de usar`
+              : expiring
+                ? 'Vencem em até 30 dias'
+                : tracked
+                  ? `${tracked} com validade em dia`
+                  : 'Ative a validade nos produtos',
+            icon: <CalendarClock size={22} />,
+            tone: expiring ? 'warn' : 'good',
           },
           {
             id: 'value',
@@ -362,8 +391,12 @@ export function InventoryPanel({
               const stock = describeStock(item)
               const step = quickStep(item)
               const days = daysLeft(item.quantity, item.used30 ?? 0)
+              const expiry = expiryState(item)
               return (
-                <li key={item.id} className={`inv-card is-${state.tone}`}>
+                <li
+                  key={item.id}
+                  className={`inv-card is-${state.tone}${expiry && item.quantity > 0 ? ` is-expiry-${expiry.tone}` : ''}`}
+                >
                   <button
                     type="button"
                     className="inv-main"
@@ -393,6 +426,18 @@ export function InventoryPanel({
                     </span>
                     <Pencil className="inv-edit" size={15} aria-hidden />
                   </button>
+                  {expiry && item.quantity > 0 ? (
+                    <button
+                      type="button"
+                      className={`inv-expiry is-${expiry.tone}`}
+                      onClick={() => setEditing(item)}
+                      title={expiry.date ? `Validade: ${expiry.date}` : 'Informe a validade'}
+                    >
+                      <CalendarClock size={14} aria-hidden />
+                      {expiry.tone === 'unset' ? 'Informar validade' : expiry.label}
+                      {expiry.date && expiry.tone !== 'ok' ? <small>{expiry.date}</small> : null}
+                    </button>
+                  ) : null}
                   <div className="inv-level">
                     <div className="inv-amount">
                       <strong>{stock.main}</strong>
@@ -689,6 +734,8 @@ function ItemEditor({
       : plain(initial.minQuantity),
   )
   const [cost, setCost] = useState(initial.costCents == null ? '' : moneyInput(initial.costCents))
+  const [tracksExpiry, setTracksExpiry] = useState(Boolean(initial.tracksExpiry))
+  const [expiresOn, setExpiresOn] = useState(initial.expiresOn ?? '')
   const [error, setError] = useState('')
   const [saving, setSaving] = useState(false)
   const [uploading, setUploading] = useState(false)
@@ -744,6 +791,8 @@ function ItemEditor({
         photoAssetId: item.photoAssetId ?? '',
         ...(item.catalogId ? { catalogId: item.catalogId } : {}),
         ...(supplies.length ? { supplies } : {}),
+        tracksExpiry,
+        expiresOn: tracksExpiry && expiresOn ? expiresOn : null,
       })
       onClose(
         isNew
@@ -947,6 +996,15 @@ function ItemEditor({
             </small>
           )}
         </div>
+        <ExpiryField
+          className="manager-field-wide"
+          name={item.name || 'o produto'}
+          tracks={tracksExpiry}
+          date={expiresOn}
+          suggested={Boolean(isNew && initial.tracksExpiry)}
+          onTracks={setTracksExpiry}
+          onDate={setExpiresOn}
+        />
       </div>
       {supplies.length ? (
         <p className="inv-linked">
@@ -987,8 +1045,10 @@ function MovementForm({
         : '',
   )
   const [note, setNote] = useState('')
+  const [expiresOn, setExpiresOn] = useState('')
   const [error, setError] = useState('')
   const [saving, setSaving] = useState(false)
+  const asksExpiry = kind === 'in' && Boolean(item.tracksExpiry)
   const title = {
     in: `Chegou ${item.name}`,
     out: `Saída de ${item.name}`,
@@ -1016,6 +1076,7 @@ function MovementForm({
         kind,
         quantity,
         ...(note.trim() ? { note: note.trim() } : {}),
+        ...(asksExpiry && expiresOn ? { expiresOn } : {}),
       })
       const now = describeStock({ ...item, quantity: result.balance })
       onClose(`${item.name}: agora ${now.main} ${now.label}${now.base ? ` (${now.base})` : ''}.`)
@@ -1100,6 +1161,19 @@ function MovementForm({
           placeholder={kind === 'in' ? 'Ex.: Compra no fornecedor' : 'Ex.: Conferência do mês'}
           onChange={setNote}
         />
+        {asksExpiry ? (
+          <DateInputField
+            className="manager-field-wide"
+            label="Validade do que chegou"
+            description={
+              item.expiresOn
+                ? `Na prateleira: ${expiryState(item)?.label.toLowerCase()}. Informe a data do que vai ser usado primeiro.`
+                : 'Opcional. O sistema avisa antes de vencer.'
+            }
+            value={expiresOn}
+            onChange={setExpiresOn}
+          />
+        ) : null}
       </div>
       {error ? (
         <p className="apt-error" role="alert">
@@ -1110,7 +1184,15 @@ function MovementForm({
   )
 }
 
-type SetupRow = { selected: boolean; size: string; label: string; packs: string; loose: string }
+type SetupRow = {
+  selected: boolean
+  size: string
+  label: string
+  packs: string
+  loose: string
+  tracksExpiry: boolean
+  expiresOn: string
+}
 
 /**
  * "Montar estoque": the suggested products of the space's categories in one list. Each chosen
@@ -1138,6 +1220,8 @@ function StockSetup({
             label: defaultPackageLabel(product.unidade),
             packs: '',
             loose: '',
+            tracksExpiry: Boolean(product.validade),
+            expiresOn: '',
           },
         ]),
       ),
@@ -1178,6 +1262,8 @@ function StockSetup({
           photoAssetId: '',
           catalogId: product.id,
           ...(supplies.length ? { supplies } : {}),
+          tracksExpiry: row.tracksExpiry,
+          expiresOn: row.tracksExpiry && row.expiresOn ? row.expiresOn : null,
         })
         if (supplies.length) linked += 1
       } catch {
@@ -1256,6 +1342,11 @@ function StockSetup({
                             {row.selected ? <Check size={13} strokeWidth={3} /> : null}
                           </span>
                           <span>{product.nome}</span>
+                          {product.validade ? (
+                            <small className="inv-setup-expiry" title="Controla validade">
+                              <CalendarClock size={12} aria-hidden /> validade
+                            </small>
+                          ) : null}
                           <small>{unitShort(product.unidade)}</small>
                         </button>
                         {row.selected ? (
@@ -1277,6 +1368,14 @@ function StockSetup({
                               loose={row.loose}
                               onPacks={(packs) => set(product.id, { packs })}
                               onLoose={(loose) => set(product.id, { loose })}
+                            />
+                            <ExpiryField
+                              name={product.nome}
+                              tracks={row.tracksExpiry}
+                              date={row.expiresOn}
+                              suggested={Boolean(product.validade)}
+                              onTracks={(tracksExpiry) => set(product.id, { tracksExpiry })}
+                              onDate={(expiresOn) => set(product.id, { expiresOn })}
                             />
                           </div>
                         ) : null}
@@ -1300,6 +1399,68 @@ function StockSetup({
         </p>
       ) : null}
     </QuickModal>
+  )
+}
+
+/** "Tem validade" toggle and the date of what is on the shelf now. */
+function ExpiryField({
+  name,
+  tracks,
+  date,
+  suggested,
+  onTracks,
+  onDate,
+  className,
+}: {
+  name: string
+  tracks: boolean
+  date: string
+  suggested?: boolean
+  onTracks: (value: boolean) => void
+  onDate: (value: string) => void
+  className?: string
+}) {
+  const state = expiryState({
+    tracksExpiry: tracks,
+    expiresOn: date || null,
+    expiresIn: date
+      ? Math.round(
+          (new Date(`${date}T12:00:00`).getTime() - new Date().setHours(12, 0, 0, 0)) / 86400000,
+        )
+      : null,
+  })
+  return (
+    <div
+      className={['inv-expiry-field', tracks ? 'is-on' : '', className].filter(Boolean).join(' ')}
+    >
+      <Switch isSelected={tracks} onChange={onTracks} aria-label={`${name} tem validade`}>
+        <Switch.Content>
+          <Switch.Control>
+            <Switch.Thumb />
+          </Switch.Control>
+          <Label>Tem validade</Label>
+        </Switch.Content>
+      </Switch>
+      <small>
+        {tracks
+          ? 'O sistema avisa 30 dias antes de vencer e marca o produto vencido.'
+          : suggested
+            ? 'Produtos como este costumam ter validade.'
+            : 'Ligue para cosméticos, ácidos, injetáveis e tudo que vence.'}
+      </small>
+      {tracks ? (
+        <DateInputField
+          label="Vence em"
+          description={
+            state && state.tone !== 'unset' && state.tone !== 'ok'
+              ? state.label
+              : 'A data do que está aberto ou vai ser usado primeiro.'
+          }
+          value={date}
+          onChange={onDate}
+        />
+      ) : null}
+    </div>
   )
 }
 

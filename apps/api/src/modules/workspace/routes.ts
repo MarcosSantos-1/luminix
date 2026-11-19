@@ -310,6 +310,40 @@ export async function workspaceRoutes(
               text: low.length === 1 ? 'Hora de repor o estoque.' : low.join(', '),
               action: { label: 'Ver estoque', target: 'estoque' },
             })
+          const expiring = (
+            await connection.query(
+              `SELECT name, expires_on - $2::date AS days FROM luminix.inventory_items
+                WHERE clinic_id = $1 AND status = 'active' AND tracks_expiry AND quantity > 0
+                  AND expires_on <= $2::date + 30
+                ORDER BY expires_on LIMIT 3`,
+              [tenant.clinicId, today],
+            )
+          ).rows.map((row) => ({ name: String(row.name), days: Number(row.days) }))
+          if (expiring.length) {
+            const expired = expiring.filter((item) => item.days < 0).length
+            const first = expiring[0]
+            notices.push({
+              id: `expiring-stock-${today}`,
+              tone: 'warning',
+              title:
+                expiring.length === 1
+                  ? first.days < 0
+                    ? `${first.name} está vencido`
+                    : first.days === 0
+                      ? `${first.name} vence hoje`
+                      : `${first.name} vence em ${first.days} ${first.days === 1 ? 'dia' : 'dias'}`
+                  : expired
+                    ? `${expired} ${expired === 1 ? 'produto vencido' : 'produtos vencidos'} no estoque`
+                    : `${expiring.length} produtos vencem em até 30 dias`,
+              text:
+                expiring.length === 1
+                  ? first.days < 0
+                    ? 'Separe e descarte antes de usar em um atendimento.'
+                    : 'Use primeiro ou planeje a troca.'
+                  : expiring.map((item) => item.name).join(', '),
+              action: { label: 'Ver estoque', target: 'estoque' },
+            })
+          }
         }
         if (can.has('service:manage')) {
           const [withoutTeam, ending] = await Promise.all([

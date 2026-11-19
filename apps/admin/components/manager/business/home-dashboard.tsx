@@ -6,6 +6,7 @@ import {
   ArrowRight,
   BadgePercent,
   CalendarDays,
+  CalendarX,
   Check,
   ChevronRight,
   Package,
@@ -39,6 +40,7 @@ type Dashboard = {
   clients?: { newThisMonth: number; total: number }
   finance?: { monthIncomeCents: number; monthExpenseCents: number; todayExpectedCents: number }
   lowStock?: { name: string; quantity: number; unit: string }[]
+  expiringStock?: { name: string; days: number }[]
   activePromotions: number
   activity?: {
     entity: string
@@ -174,6 +176,18 @@ export function HomeDashboard({
     { label: 'Próximos 7 dias', value: String(data.upcomingWeek), detail: 'atendimentos marcados' },
   ]
   const alerts = [
+    ...(data.expiringStock ?? []).map((item) => ({
+      icon: CalendarX,
+      title:
+        item.days < 0
+          ? `${item.name} vencido`
+          : item.days === 0
+            ? `${item.name} vence hoje`
+            : `${item.name} vence em ${item.days} ${item.days === 1 ? 'dia' : 'dias'}`,
+      detail:
+        item.days < 0 ? 'Separe antes de usar em atendimento' : 'Use primeiro ou planeje a troca',
+      target: 'Estoque',
+    })),
     ...(data.lowStock ?? []).map((item) => ({
       icon: Package,
       title: `${item.name} acabando`,

@@ -17,6 +17,8 @@ export type CatalogProduct = {
   embalagem?: number
   aviso_percentual: number
   lote_validade?: boolean
+  /** Suggests turning on the expiry date in the form; the manager can change it. */
+  validade?: boolean
 }
 
 type Recipe = { categoria: string; nome: string; insumos: [string, number][] }
@@ -156,4 +158,35 @@ export function catalogRecipe(service: { name: string; category: string }) {
 export function daysLeft(quantity: number, used30: number) {
   if (!used30 || quantity <= 0) return null
   return Math.max(0, Math.round(quantity / (used30 / 30)))
+}
+
+/** How close a product is to its expiry date, for the badge and the filter. */
+export function expiryState(item: {
+  tracksExpiry?: boolean
+  expiresOn?: string | null
+  expiresIn?: number | null
+}) {
+  if (!item.tracksExpiry) return null
+  if (!item.expiresOn || item.expiresIn == null)
+    return { tone: 'unset' as const, label: 'Sem data de validade' }
+  const days = item.expiresIn
+  const date = new Date(`${item.expiresOn}T12:00:00`).toLocaleDateString('pt-BR', {
+    day: '2-digit',
+    month: '2-digit',
+    year: '2-digit',
+  })
+  if (days < 0)
+    return {
+      tone: 'expired' as const,
+      label: `Venceu ${days === -1 ? 'ontem' : `há ${-days} dias`}`,
+      date,
+    }
+  if (days === 0) return { tone: 'expired' as const, label: 'Vence hoje', date }
+  if (days <= 30)
+    return {
+      tone: 'soon' as const,
+      label: `Vence em ${days} ${days === 1 ? 'dia' : 'dias'}`,
+      date,
+    }
+  return { tone: 'ok' as const, label: `Validade ${date}`, date }
 }
