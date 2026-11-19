@@ -32,6 +32,8 @@ export type CatalogPackage = {
   /** "combo": several services; "sessions": N sessions of one. */
   kind?: 'sessions' | 'combo'
   items?: Item[]
+  /** Combo: how long each visit takes (every service of it, same day). */
+  durationMinutes?: number | null
   sessions: number
   priceCents: number
   validityDays: number | null
@@ -48,6 +50,12 @@ const validityOptions = [
   { id: 180, label: '6 meses', emoji: '📆' },
   { id: 365, label: '1 ano', emoji: '🎯' },
 ]
+
+const comboDurations = [30, 45, 60, 75, 90, 120, 150, 180, 240]
+const minutesLabel = (minutes: number) =>
+  minutes >= 60
+    ? `${Math.floor(minutes / 60)}h${minutes % 60 ? `${String(minutes % 60).padStart(2, '0')}` : ''}`
+    : `${minutes} min`
 
 const itemsOf = (item: CatalogPackage): Item[] =>
   item.items?.length ? item.items : [{ serviceId: item.serviceId, sessions: item.sessions }]
@@ -143,10 +151,16 @@ export function PackagesTab({
             const lines = itemsOf(item)
             const first = serviceOf(lines[0]?.serviceId ?? '')
             const Icon = serviceIcon(first?.category ?? '', first?.name ?? '')
-            const full = fullPrice(lines, services)
+            const combo = item.kind === 'combo' || lines.length > 1
+            // A combo visit does every service once; the full price is all of them, each visit.
+            const full = combo
+              ? fullPrice(
+                  lines.map((line) => ({ ...line, sessions: 1 })),
+                  services,
+                ) * item.sessions
+              : fullPrice(lines, services)
             const saving =
               full > item.priceCents ? Math.round(100 - (item.priceCents * 100) / full) : 0
-            const combo = item.kind === 'combo' || lines.length > 1
             return (
               <li
                 key={item.id}
@@ -168,13 +182,19 @@ export function PackagesTab({
                   </div>
                 </div>
                 {combo ? (
-                  <ul className="pk-lines">
-                    {lines.map((line) => (
-                      <li key={line.serviceId}>
-                        <span>{line.sessions}×</span> {serviceOf(line.serviceId)?.name ?? 'Serviço'}
-                      </li>
-                    ))}
-                  </ul>
+                  <div className="pk-combo">
+                    <span className="pk-combo-count">
+                      {item.sessions} {item.sessions === 1 ? 'sessão' : 'sessões'}
+                      {item.durationMinutes ? ` · ${minutesLabel(item.durationMinutes)} cada` : ''}
+                    </span>
+                    <ul className="pk-lines">
+                      {lines.map((line) => (
+                        <li key={line.serviceId}>
+                          <span>+</span> {serviceOf(line.serviceId)?.name ?? 'Serviço'}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
                 ) : (
                   <div className="biz-pack-sessions" aria-label={`${item.sessions} sessões`}>
                     {Array.from({ length: Math.min(item.sessions, 12) }, (_, index) => (
@@ -322,6 +342,11 @@ function PackageEditor({
     initial.kind ?? (startItems.length > 1 ? 'combo' : 'sessions'),
   )
   const [items, setItems] = useState<Item[]>(startItems)
+  // Combo: visits (each one does every service) and how long a visit takes.
+  const [visits, setVisits] = useState(
+    !isNew && (initial.kind === 'combo' || startItems.length > 1) ? initial.sessions : 5,
+  )
+  const [duration, setDuration] = useState<number | null>(initial.durationMinutes ?? null)
   const [validity, setValidity] = useState<number | null>(initial.validityDays)
   const [price, setPrice] = useState(isNew ? '' : moneyInput(Math.round(initial.priceCents)))
   const [priceTouched, setPriceTouched] = useState(!isNew)
@@ -335,14 +360,26 @@ function PackageEditor({
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
 
-  const full = fullPrice(items, services)
+  const serviceOf = (id: string) => services.find((service) => service.id === id)
+  const full =
+    kind === 'combo'
+      ? fullPrice(
+          items.map((item) => ({ ...item, sessions: 1 })),
+          services,
+        ) * visits
+      : fullPrice(items, services)
+  // Default visit length: the services one after the other.
+  const sumMinutes = items.reduce(
+    (sum, item) => sum + (serviceOf(item.serviceId)?.durationMinutes ?? 0),
+    0,
+  )
+  const visitMinutes = duration ?? sumMinutes
   const typed = parseMoney(price)
   // Without a price typed yet, the package costs the full sum (no discount).
   const cents = priceTouched ? typed : full
   const discount =
     cents != null && full > 0 && cents < full ? Math.round(100 - (cents * 100) / full) : 0
-  const total = items.reduce((sum, item) => sum + item.sessions, 0)
-  const serviceOf = (id: string) => services.find((service) => service.id === id)
+  const total = kind === 'combo' ? visits : items.reduce((sum, item) => sum + item.sessions, 0)
   const autoName =
     kind === 'sessions'
       ? items[0]
@@ -386,8 +423,10 @@ function PackageEditor({
     if (step === 'items') {
       if (!items.length)
         return setError(kind === 'combo' ? 'Escolha os serviços do combo.' : 'Escolha o serviço.')
-      if (kind === 'combo' && items.length < 2 && total < 2)
-        return setError('Um combo precisa de pelo menos 2 sessões no total.')
+      if (kind === 'combo' && items.length < 2)
+        return setError('Um combo junta pelo menos 2 tratamentos.')
+      if (kind === 'combo' && !visitMinutes)
+        return setError('Escolha quanto tempo leva cada sessão.')
       if (kind === 'sessions' && total < 2) return setError('Pelo menos 2 sessões.')
     }
     if (step === 'price' && (!cents || cents <= 0)) return setError('Confira o preço do pacote.')
@@ -403,7 +442,8 @@ function PackageEditor({
       await api.put(`catalog/packages/${initial.id}`, {
         name: finalName.trim(),
         kind,
-        items,
+        items: kind === 'combo' ? items.map((item) => ({ ...item, sessions: visits })) : items,
+        ...(kind === 'combo' ? { sessions: visits, durationMinutes: visitMinutes } : {}),
         priceCents: cents,
         validityDays: validity,
       })
@@ -425,7 +465,7 @@ function PackageEditor({
     kind === 'combo' ? '🎁 Combo' : '🔁 Sessões',
     items.length
       ? kind === 'combo'
-        ? `${items.length} ${items.length === 1 ? 'serviço' : 'serviços'} · ${total} ${total === 1 ? 'sessão' : 'sessões'}`
+        ? `${items.length} ${items.length === 1 ? 'tratamento' : 'tratamentos'} · ${visits} ${visits === 1 ? 'sessão' : 'sessões'}${visitMinutes ? ` · ${minutesLabel(visitMinutes)}` : ''}`
         : `${serviceOf(items[0].serviceId)?.name ?? ''} · ${total} sessões`
       : '',
     position > steps.indexOf('price') && cents ? `💰 ${money(cents)}` : '',
@@ -497,7 +537,10 @@ function PackageEditor({
             >
               <span className="pk-emoji">🎁</span>
               <strong>Combo</strong>
-              <small>Tratamentos diferentes juntos. Ex.: limpeza de pele + massagem.</small>
+              <small>
+                Tratamentos diferentes feitos juntos em cada sessão. Ex.: 5× limpeza de pele +
+                massagem.
+              </small>
             </button>
             <button
               type="button"
@@ -549,7 +592,7 @@ function PackageEditor({
                       </small>
                     </span>
                   </button>
-                  {line ? (
+                  {line && kind === 'sessions' ? (
                     <Counter
                       value={line.sessions}
                       min={kind === 'sessions' ? 2 : 1}
@@ -567,6 +610,42 @@ function PackageEditor({
               )
             })}
           </ul>
+          {kind === 'combo' && items.length ? (
+            <div className="pk-combo-setup">
+              <div className="pk-combo-row">
+                <span>
+                  <strong>Quantas sessões?</strong>
+                  <small>Em cada uma a cliente faz todos os tratamentos marcados.</small>
+                </span>
+                <Counter value={visits} min={1} label="o combo" onChange={setVisits} />
+              </div>
+              <div className="pk-combo-row is-column">
+                <span>
+                  <strong>Quanto tempo leva cada sessão?</strong>
+                  <small>
+                    É o horário que fica reservado na agenda.
+                    {sumMinutes ? ` Somando os tratamentos: ${minutesLabel(sumMinutes)}.` : ''}
+                  </small>
+                </span>
+                <div className="team-choice" role="radiogroup" aria-label="Duração da sessão">
+                  {[...new Set([...comboDurations, ...(sumMinutes ? [sumMinutes] : [])])]
+                    .filter((minutes) => minutes >= 15 && minutes <= 1440)
+                    .sort((a, b) => a - b)
+                    .map((minutes) => (
+                      <button
+                        key={minutes}
+                        type="button"
+                        role="radio"
+                        aria-checked={visitMinutes === minutes}
+                        onClick={() => setDuration(minutes)}
+                      >
+                        {minutesLabel(minutes)}
+                      </button>
+                    ))}
+                </div>
+              </div>
+            </div>
+          ) : null}
         </div>
       ) : null}
 

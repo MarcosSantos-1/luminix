@@ -3334,3 +3334,10 @@ button.ag-empty:hover {
   background: #66401466;
   font-size: 12.5px;
 }
+.ag-past-note {
+  color: var(--manager-muted);
+  font-size: 13.5px;
+}
+.ag-day-rule:disabled {
+  cursor: default;
+}

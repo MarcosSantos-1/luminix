@@ -71,6 +71,8 @@ type Row = {
   account_photo?: boolean
   price_type?: string
   service_name: string
+  /** Visit of a combo (every service of it on the same day). */
+  combo_name?: string | null
   professional_name: string | null
 }
 type AgendaData = {
@@ -127,7 +129,7 @@ function toView(row: Row): AppointmentView {
     clientNotes: row.client_notes,
     notes: row.notes,
     warnings: row.override_reasons ?? [],
-    service: row.service_name,
+    service: row.combo_name ? `🎁 ${row.combo_name}` : row.service_name,
     professional: row.professional_name,
     priceCents: row.price_cents == null ? null : Number(row.price_cents),
     priceType: row.price_type,
@@ -424,7 +426,7 @@ export function AgendaPanel({
             title: rule.holiday.name,
             detail: rule.exception
               ? told.open
-                ? told.label.replace('Especial ', 'Aberto ')
+                ? told.label.replace('Personalizado ', 'Aberto ')
                 : 'Fechado'
               : weeklyRow?.is_available
                 ? 'Feriado · ainda sem resposta'
@@ -440,9 +442,9 @@ export function AgendaPanel({
               : 'closed',
             title:
               rule.exception.reason ||
-              (rule.exception.is_available ? 'Horário especial' : 'Fechado'),
+              (rule.exception.is_available ? 'Horário personalizado' : 'Fechado'),
             detail: rule.exception.is_available
-              ? `${weeklyRow?.is_available ? '' : 'Abertura extra · '}${told.label.replace('Especial ', '')}`
+              ? `${weeklyRow?.is_available ? '' : 'Abertura extra · '}${told.label.replace('Personalizado ', '')}`
               : 'Ninguém consegue agendar',
           })
         if (rule.away.length)
@@ -589,7 +591,7 @@ export function AgendaPanel({
                     : rule.holiday
                       ? rule.holiday.name
                       : rule.exception
-                        ? rule.exception.reason || (rule.open ? 'Horário especial' : 'Fechado')
+                        ? rule.exception.reason || (rule.open ? 'Horário personalizado' : 'Fechado')
                         : rule.away.length
                           ? awayLabel(rule.away)
                           : ''
@@ -653,7 +655,12 @@ export function AgendaPanel({
               </div>
             </Card.Content>
           </Card>
-          <SpecialDays days={specialDays} onOpen={setDayConfig} />
+          <SpecialDays
+            days={specialDays}
+            onOpen={(date) =>
+              date < today ? selectMonthDay(new Date(`${date}T12:00:00`)) : setDayConfig(date)
+            }
+          />
           <div ref={selectedDayRef} className="manager-selected-day">
             <Card className="manager-panel">
               <Card.Header className="manager-panel-heading">
@@ -667,19 +674,23 @@ export function AgendaPanel({
                     }).format(selectedDay)}
                   </Card.Title>
                 </div>
-                <div className="ag-selected-actions">
-                  <Button variant="secondary" onPress={() => setDayConfig(selectedDate)}>
-                    <Settings2 size={17} /> Configurar dia
-                  </Button>
-                  {canManage ? (
-                    <Button
-                      variant="secondary"
-                      onPress={() => setBooking({ open: true, date: selectedDate })}
-                    >
-                      <Plus size={17} /> Agendar neste dia
+                {selectedDate < today ? (
+                  <span className="ag-past-note">Dia que já passou</span>
+                ) : (
+                  <div className="ag-selected-actions">
+                    <Button variant="secondary" onPress={() => setDayConfig(selectedDate)}>
+                      <Settings2 size={17} /> Configurar dia
                     </Button>
-                  ) : null}
-                </div>
+                    {canManage ? (
+                      <Button
+                        variant="secondary"
+                        onPress={() => setBooking({ open: true, date: selectedDate })}
+                      >
+                        <Plus size={17} /> Agendar neste dia
+                      </Button>
+                    ) : null}
+                  </div>
+                )}
               </Card.Header>
               <Card.Content>
                 {selected.active.length ? (
@@ -767,26 +778,29 @@ export function AgendaPanel({
                         type="button"
                         className="ag-day-rule"
                         title="Configurar este dia"
+                        disabled={item.date < today}
                         onClick={() => setDayConfig(item.date)}
                       >
                         {item.exception
                           ? item.open
-                            ? `Especial ${item.exception.periods[0]?.start ?? ''}`
+                            ? `Personalizado ${item.exception.periods[0]?.start ?? ''}`
                             : item.exception.reason || 'Fechado'
                           : 'Fechado'}
                       </button>
                     ) : null}
-                    <button
-                      type="button"
-                      className={`ag-day-add${item.exception ? ' is-special' : ''}`}
-                      aria-label={`Configurar ${dayLabel(`${item.date}T12:00:00`)}`}
-                      title={
-                        item.exception ? 'Dia com configuração especial' : 'Configurar este dia'
-                      }
-                      onClick={() => setDayConfig(item.date)}
-                    >
-                      <Settings2 size={16} />
-                    </button>
+                    {item.date < today ? null : (
+                      <button
+                        type="button"
+                        className={`ag-day-add${item.exception ? ' is-special' : ''}`}
+                        aria-label={`Configurar ${dayLabel(`${item.date}T12:00:00`)}`}
+                        title={
+                          item.exception ? 'Dia com horário personalizado' : 'Configurar este dia'
+                        }
+                        onClick={() => setDayConfig(item.date)}
+                      >
+                        <Settings2 size={16} />
+                      </button>
+                    )}
                   </div>
                 </header>
                 {item.active.length ? (
@@ -800,6 +814,8 @@ export function AgendaPanel({
                       />
                     ))}
                   </div>
+                ) : item.date < today ? (
+                  <p className="ag-empty">Sem atendimentos</p>
                 ) : canManage ? (
                   <button
                     className="ag-empty"
@@ -834,7 +850,10 @@ export function AgendaPanel({
               </button>
             </p>
           ) : null}
-          <SpecialDays days={specialDays} onOpen={setDayConfig} />
+          <SpecialDays
+            days={specialDays.filter((day) => day.date >= today)}
+            onOpen={setDayConfig}
+          />
         </>
       )}
 

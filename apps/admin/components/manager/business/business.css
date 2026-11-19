@@ -2335,3 +2335,77 @@
 .pk-price-prefix s {
   white-space: nowrap;
 }
+
+/* Product grid: at most 4 columns, and nothing inside a card can push it wider. */
+.inv-grid {
+  grid-template-columns: repeat(auto-fill, minmax(max(260px, calc((100% - 36px) / 4)), 1fr));
+}
+.inv-card {
+  position: relative;
+  grid-template-columns: minmax(0, 1fr);
+  min-width: 0;
+  overflow: hidden;
+}
+.inv-card > * {
+  min-width: 0;
+}
+.inv-main {
+  padding-right: 26px;
+}
+.inv-edit {
+  position: absolute;
+  top: 16px;
+  right: 14px;
+}
+.inv-actions {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto;
+}
+.inv-actions .button {
+  min-width: 0;
+  padding-inline: 10px;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.pk-combo {
+  display: grid;
+  gap: 6px;
+}
+.pk-combo-count {
+  justify-self: start;
+  padding: 3px 10px;
+  border-radius: 999px;
+  color: #3a0d22;
+  background: var(--space-highlight, #ffb5d3);
+  font-size: 12.5px;
+  font-weight: 750;
+}
+.pk-combo-setup {
+  display: grid;
+  gap: 14px;
+  padding: 14px;
+  border: 1px solid color-mix(in srgb, var(--space-highlight, #ffb5d3) 40%, transparent);
+  border-radius: 18px;
+  background: #ffffff0a;
+}
+.pk-combo-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+.pk-combo-row.is-column {
+  display: grid;
+}
+.pk-combo-row > span {
+  display: grid;
+  gap: 2px;
+}
+.pk-combo-row small {
+  color: var(--manager-muted);
+  font-size: 12.5px;
+}
+.pk-combo-row .pk-counter {
+  margin-left: 0;
+}

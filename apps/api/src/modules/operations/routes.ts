@@ -795,7 +795,10 @@ export async function operationRoutes(
                       luminix.clinic_client_has_account_photo(c.clinic_id, c.id) AS account_photo,
                       s.id AS service_id, s.name AS service_name, s.price_type,
                       s.duration_minutes, p.id AS professional_id, p.display_name AS professional_name,
-                      luminix.appointment_paid_cents(a.clinic_id, a.id) AS paid_cents
+                      luminix.appointment_paid_cents(a.clinic_id, a.id) AS paid_cents,
+                      (SELECT cp.name FROM luminix.client_packages cp
+                        WHERE cp.clinic_id = a.clinic_id AND cp.id = a.client_package_id
+                          AND cp.kind = 'combo') AS combo_name
                  FROM luminix.appointments a
                  JOIN luminix.clinic_clients c ON c.clinic_id = a.clinic_id AND c.id = a.clinic_client_id
                  JOIN luminix.services s ON s.clinic_id = a.clinic_id AND s.id = a.service_id
@@ -989,7 +992,18 @@ export async function operationRoutes(
         const startsAt = zonedLocalToUtc(request.body.localStartsAt, timezone)
         if (Number.isNaN(startsAt.getTime()))
           return reply.code(400).send({ error: 'Invalid local appointment time' })
-        const endsAt = new Date(startsAt.getTime() + Number(service.duration_minutes) * 60000)
+        // A combo visit does every service of the combo: it lasts what the combo says.
+        const combo = request.body.clientPackageId
+          ? (
+              await connection.query(
+                `SELECT duration_minutes FROM luminix.client_packages
+                  WHERE clinic_id = $1 AND id = $2 AND kind = 'combo'`,
+                [tenant.clinicId, request.body.clientPackageId],
+              )
+            ).rows[0]
+          : undefined
+        const minutes = Number(combo?.duration_minutes ?? service.duration_minutes)
+        const endsAt = new Date(startsAt.getTime() + minutes * 60000)
         const warnings = await bookingWarnings(
           connection,
           tenant.clinicId,

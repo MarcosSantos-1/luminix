@@ -62,7 +62,8 @@ export async function packageRoutes(
       authorized(request, reply, 'agenda:read', async (connection, tenant) => {
         const [packages, sold, equipment, links, rentals, permissions, items] = await Promise.all([
           connection.query(
-            `SELECT id, service_id, name, sessions, price_cents, validity_days, status, kind
+            `SELECT id, service_id, name, sessions, price_cents, validity_days, status, kind,
+                    duration_minutes
                FROM luminix.service_packages WHERE clinic_id = $1
               ORDER BY status, lower(name), id LIMIT 200`,
             [tenant.clinicId],
@@ -111,6 +112,7 @@ export async function packageRoutes(
               name: String(row.name),
               kind: row.kind === 'combo' ? 'combo' : 'sessions',
               sessions: Number(row.sessions),
+              durationMinutes: row.duration_minutes == null ? null : Number(row.duration_minutes),
               items: items.rows
                 .filter((item) => String(item.package_id) === String(row.id))
                 .map((item) => ({
@@ -157,6 +159,7 @@ export async function packageRoutes(
       sessions?: number
       kind?: 'sessions' | 'combo'
       items?: { serviceId: string; sessions: number }[]
+      durationMinutes?: number
       name: string
       priceCents: number
       validityDays: number | null
@@ -176,8 +179,10 @@ export async function packageRoutes(
           properties: {
             serviceId: uuidSchema,
             name: { type: 'string', minLength: 1, maxLength: 120, pattern: '\\S' },
-            sessions: { type: 'integer', minimum: 2, maximum: 100 },
+            // N sessions of one service, or (combo) visits doing every service of the combo.
+            sessions: { type: 'integer', minimum: 1, maximum: 100 },
             kind: { type: 'string', enum: ['sessions', 'combo'] },
+            durationMinutes: { type: 'integer', minimum: 5, maximum: 1440 },
             items: {
               type: 'array',
               minItems: 1,
@@ -256,7 +261,8 @@ export async function packageRoutes(
       authorized(request, reply, 'agenda:read', async (connection, tenant) => {
         const permissions = await rolePermissions(connection, tenant)
         const result = await connection.query(
-          `SELECT cp.id, cp.service_id, cp.name, cp.sessions_total, cp.price_cents,
+          `SELECT cp.id, cp.service_id, cp.name, cp.sessions_total, cp.price_cents, cp.kind,
+                  cp.duration_minutes,
                   (SELECT coalesce(jsonb_agg(jsonb_build_object(
                       'serviceId', i.service_id, 'sessions', i.sessions,
                       'used', luminix.client_package_used_for(cp.clinic_id, cp.id, i.service_id))
@@ -283,6 +289,8 @@ export async function packageRoutes(
               id: String(row.id),
               serviceId: String(row.service_id),
               name: String(row.name),
+              kind: row.kind === 'combo' ? 'combo' : 'sessions',
+              durationMinutes: row.duration_minutes == null ? null : Number(row.duration_minutes),
               sessionsTotal: total,
               used,
               done: Number(row.done),

@@ -1221,6 +1221,8 @@ type ClientPackage = {
   serviceId: string
   /** Per service; a combo has more than one. */
   items?: { serviceId: string; sessions: number; used: number; left: number }[]
+  kind?: 'sessions' | 'combo'
+  durationMinutes?: number | null
   name: string
   sessionsTotal: number
   used: number
@@ -1236,6 +1238,7 @@ type CatalogPackage = {
   name: string
   kind?: 'sessions' | 'combo'
   items?: { serviceId: string; sessions: number }[]
+  durationMinutes?: number | null
   sessions: number
   priceCents: number
   validityDays: number | null
@@ -1869,7 +1872,13 @@ function PackagesTab({
                   />
                 ))}
               </div>
-              {item.items && item.items.length > 1 ? (
+              {item.kind === 'combo' && item.items?.length ? (
+                <p className="cpf-pack-combo">
+                  🎁 Cada sessão:{' '}
+                  {item.items.map((line) => serviceNames[line.serviceId] ?? 'serviço').join(' + ')}
+                  {item.durationMinutes ? ` · ${item.durationMinutes} min` : ''}
+                </p>
+              ) : item.items && item.items.length > 1 ? (
                 <ul className="cpf-pack-items">
                   {item.items.map((line) => (
                     <li key={line.serviceId} data-empty={line.left === 0 || undefined}>
@@ -1922,12 +1931,9 @@ function PackagesTab({
                   <strong>{item.name}</strong>
                   <small>
                     {item.kind === 'combo' && item.items?.length
-                      ? item.items
-                          .map(
-                            (line) =>
-                              `${line.sessions}× ${serviceNames[line.serviceId] ?? 'serviço'}`,
-                          )
-                          .join(' + ')
+                      ? `${item.sessions} ${item.sessions === 1 ? 'sessão' : 'sessões'} de ${item.items
+                          .map((line) => serviceNames[line.serviceId] ?? 'serviço')
+                          .join(' + ')}`
                       : `${item.sessions} sessões`}{' '}
                     · {money(item.priceCents)}
                     {item.validityDays ? ` · ${item.validityDays} dias` : ''}

@@ -156,6 +156,7 @@ describe('versioned core migration', () => {
       { name: '0044_professional_schedule_overrides.sql' },
       { name: '0045_service_professionals.sql' },
       { name: '0046_package_combos.sql' },
+      { name: '0047_combo_sessions.sql' },
     ])
   })
 

@@ -80,6 +80,8 @@ type PackOption = {
   name: string
   left: number
   status: string
+  kind?: 'sessions' | 'combo'
+  durationMinutes?: number | null
   items?: { serviceId: string; left: number }[]
 }
 type Slot = { time: string; state: 'free' | 'outside' | 'busy' | 'past' }
@@ -240,7 +242,9 @@ export function BookingModal({
 
   useEffect(() => {
     if (!isOpen) return
-    const start = initialDate ?? localDate(new Date())
+    // A day that already went by cannot be booked: it opens on today.
+    const todayDate = localDate(new Date())
+    const start = initialDate && initialDate >= todayDate ? initialDate : todayDate
     // eslint-disable-next-line react-hooks/set-state-in-effect -- a fresh flow each time it opens
     setStep(initialClientId ? 'service' : 'client')
     setClientId(initialClientId ?? '')
@@ -312,12 +316,30 @@ export function BookingModal({
         : [],
     [strip, data?.location?.state, data?.location?.city],
   )
+  // A package of this client that covers the chosen service. "sessions": that service needs a
+  // session left. Combo: each visit does every service of the combo (one session of the whole).
+  const pack = packs
+    .map((item) => {
+      const covers = item.items?.length
+        ? item.items.some((entry) => entry.serviceId === serviceId)
+        : item.serviceId === serviceId
+      const line = item.items?.find((entry) => entry.serviceId === serviceId)
+      const left = !covers
+        ? 0
+        : item.kind === 'combo' || !item.items?.length
+          ? item.left
+          : (line?.left ?? 0)
+      return { ...item, left }
+    })
+    .find((item) => item.left > 0)
+  const comboMinutes =
+    usePack && pack?.kind === 'combo' && pack.durationMinutes ? pack.durationMinutes : null
   const slots = useMemo(
     () =>
       data && service && date
-        ? buildSlots(data, date, Number(service.duration_minutes), professionalId)
+        ? buildSlots(data, date, comboMinutes ?? Number(service.duration_minutes), professionalId)
         : [],
-    [data, service, date, professionalId],
+    [data, service, date, professionalId, comboMinutes],
   )
   const recent = useMemo(() => {
     const seen = new Set<string>()
@@ -395,18 +417,6 @@ export function BookingModal({
     }
   }
 
-  // A combo is used service by service: the session must be left for this service.
-  const pack = packs
-    .map((item) => {
-      const line = item.items?.find((entry) => entry.serviceId === serviceId)
-      const left = item.items?.length
-        ? (line?.left ?? 0)
-        : item.serviceId === serviceId
-          ? item.left
-          : 0
-      return { ...item, left }
-    })
-    .find((item) => item.left > 0)
   const dayHoliday = holidays.find((item) => item.date === date)
   const dayClosure = data ? closureOn(data, date, professionalId) : undefined
   const groups = [
@@ -623,6 +633,7 @@ export function BookingModal({
                 size="sm"
                 variant="ghost"
                 aria-label="Semana anterior"
+                isDisabled={stripStart <= localDate(new Date())}
                 onPress={() => setStripStart(shiftDate(stripStart, -7))}
               >
                 <ChevronLeft size={17} />
@@ -652,6 +663,7 @@ export function BookingModal({
                   aria-selected={day === date}
                   data-closed={!open || closure ? true : undefined}
                   data-today={day === localDate(new Date()) || undefined}
+                  disabled={day < localDate(new Date())}
                   title={holiday?.name ?? (closure ? closureKinds[closure.kind] : undefined)}
                   onClick={() => pickDate(day)}
                 >
@@ -670,6 +682,7 @@ export function BookingModal({
             className="bk-date-more"
             label="Outra data"
             value={date}
+            min={localDate(new Date())}
             onChange={(next) => next && pickDate(next)}
           />
           {dayHoliday || dayClosure ? (
@@ -708,6 +721,7 @@ export function BookingModal({
                         type="button"
                         data-state={slot.state}
                         aria-pressed={slot.time === time}
+                        disabled={slot.state === 'past'}
                         aria-label={`${slot.time}${slot.state === 'outside' ? ', fora do expediente' : slot.state === 'busy' ? ', já ocupado' : slot.state === 'past' ? ', já passou' : ''}`}
                         onClick={() => setTime(slot.time)}
                       >
@@ -797,8 +811,15 @@ export function BookingModal({
               <span>
                 <small>Pacote da cliente</small>
                 <strong>
-                  {usePack ? 'Usar 1 sessão' : 'Cobrar à parte'} · {pack.name} (
-                  {pack.left === 1 ? 'resta 1' : `restam ${pack.left}`})
+                  {usePack
+                    ? pack.kind === 'combo'
+                      ? 'Usar 1 sessão do combo'
+                      : 'Usar 1 sessão'
+                    : 'Cobrar à parte'}{' '}
+                  · {pack.name} ({pack.left === 1 ? 'resta 1' : `restam ${pack.left}`})
+                  {usePack && pack.kind === 'combo' && pack.durationMinutes
+                    ? ` · todos os tratamentos, ${pack.durationMinutes} min`
+                    : ''}
                 </strong>
               </span>
               <i aria-hidden />

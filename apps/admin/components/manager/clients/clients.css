@@ -579,3 +579,7 @@
 .cpf-pack-items li[data-empty] {
   opacity: 0.55;
 }
+.cpf-pack-combo {
+  margin: 0;
+  font-size: 13.5px;
+}

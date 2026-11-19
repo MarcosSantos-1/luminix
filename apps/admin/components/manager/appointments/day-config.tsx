@@ -33,7 +33,7 @@ export function describeDay(
     return {
       open: override.is_available,
       special: true,
-      label: override.is_available ? `Especial ${range(override.periods)}` : 'Fechado',
+      label: override.is_available ? `Personalizado ${range(override.periods)}` : 'Fechado',
     }
   return {
     open: weekly?.is_available === true,
@@ -107,6 +107,7 @@ export function DayConfigModal({
   }, [date])
 
   if (!date || !value) return null
+  const past = date < new Date().toLocaleDateString('en-CA')
   const title = new Intl.DateTimeFormat('pt-BR', {
     weekday: 'long',
     day: '2-digit',
@@ -176,7 +177,7 @@ export function DayConfigModal({
           : 'Normalmente o espaço não abre neste dia da semana.'
       }
       footer={
-        canManage ? (
+        canManage && !past ? (
           <>
             {override ? (
               <Button
@@ -261,7 +262,7 @@ export function DayConfigModal({
           onClick={() => setChoice('special')}
         >
           <Clock3 size={22} strokeWidth={1.75} aria-hidden />
-          <strong>Horário especial</strong>
+          <strong>Horário personalizado</strong>
           <small>Só neste dia</small>
         </button>
       </div>
@@ -347,7 +348,7 @@ export function SpecialDays({
 }) {
   if (!days.length) return null
   return (
-    <section className="dc-list" aria-label="Dias com configuração especial">
+    <section className="dc-list" aria-label="Dias com horário personalizado">
       <h3>Dias especiais neste período</h3>
       <ul>
         {days.map((day) => {
