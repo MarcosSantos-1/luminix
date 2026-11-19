@@ -32,14 +32,9 @@ import {
 import { KpiCards } from '../data-kit'
 import { QuickModal } from '../quick-modal'
 import { useClinicApi, useClinicResource, type ClinicApi } from '../settings/clinic-api'
-import {
-  HelpTip,
-  LoadError,
-  SettingsCard,
-  SettingsSkeleton,
-  StatusPill,
-} from '../settings/settings-kit'
+import { LoadError, SettingsCard, SettingsSkeleton, StatusPill } from '../settings/settings-kit'
 import { dateBr, money, moneyInput, parseMoney, shortDateBr, timeBr, todayIso } from './format'
+import { BillWizard, billEmoji, EntryWizard, expenseCategories } from './finance-wizards'
 import './business.css'
 
 type Entry = {
@@ -112,30 +107,6 @@ const methods: Record<string, string> = {
   other: 'Outro',
 }
 const methodOptions = Object.entries(methods).map(([id, label]) => ({ id, label }))
-const expenseCategories = [
-  'Aluguel',
-  'Contas',
-  'Produtos',
-  'Equipe',
-  'Marketing',
-  'Equipamentos',
-  'Impostos',
-  'Serviços',
-  'Outros',
-]
-/** Usual bills of a salon or clinic, offered on the first visit and in "Nova conta". */
-const billTemplates: { name: string; category: string; dueDay: number | null }[] = [
-  { name: 'Aluguel', category: 'Aluguel', dueDay: 10 },
-  { name: 'Energia (luz)', category: 'Contas', dueDay: 15 },
-  { name: 'Água', category: 'Contas', dueDay: 15 },
-  { name: 'Internet e telefone', category: 'Contas', dueDay: 10 },
-  { name: 'Salários e comissões', category: 'Equipe', dueDay: 5 },
-  { name: 'Impostos (DAS, MEI)', category: 'Impostos', dueDay: 20 },
-  { name: 'Contador', category: 'Serviços', dueDay: 5 },
-  { name: 'Sistemas e assinaturas', category: 'Serviços', dueDay: 5 },
-  { name: 'Limpeza', category: 'Serviços', dueDay: null },
-  { name: 'Reposição de produtos', category: 'Produtos', dueDay: null },
-]
 const monthNames = [
   'janeiro',
   'fevereiro',
@@ -224,6 +195,7 @@ export function FinancePanel({
   const [settle, setSettle] = useState<Bill | null>(null)
   const [editBill, setEditBill] = useState<Bill | 'new' | null>(null)
   const [setup, setSetup] = useState(false)
+  const [reviewing, setReviewing] = useState(false)
   const [asking, setAsking] = useState<Pending | null>(null)
   const [show, setShow] = useState<'all' | 'income' | 'expense'>('all')
   // Starts at 0: arriving here through a "+" elsewhere must open the form on mount.
@@ -256,6 +228,18 @@ export function FinancePanel({
       // Same as above.
     }
   }, [empty, clinicId])
+  // "?assistente=contas" opens the first-visit assistant again (to review it any time).
+  useEffect(() => {
+    try {
+      if (new URLSearchParams(window.location.search).get('assistente') !== 'contas') return
+      window.localStorage.removeItem(`luminix:finance-setup:${clinicId}`)
+    } catch {
+      return
+    }
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- opened once from the address
+    setReviewing(true)
+    setSetup(true)
+  }, [clinicId])
 
   if (finance.error && !data) return <LoadError message={finance.error} onRetry={finance.reload} />
   if (!data) return <SettingsSkeleton cards={2} />
@@ -499,50 +483,79 @@ export function FinancePanel({
         }}
         badge={
           <div className="biz-actions">
-            {!bills.length ? (
-              <Button size="sm" onPress={() => setSetup(true)}>
-                <Settings2 size={15} aria-hidden /> Configurar contas
-              </Button>
-            ) : null}
-            <Button size="sm" variant="secondary" onPress={() => setEditBill('new')}>
-              <Plus size={15} aria-hidden /> Nova conta
+            <Button size="sm" onPress={() => setSetup(true)}>
+              {bills.length ? (
+                <>
+                  <Plus size={15} aria-hidden /> Nova conta
+                </>
+              ) : (
+                <>
+                  <Settings2 size={15} aria-hidden /> Configurar contas
+                </>
+              )}
             </Button>
           </div>
         }
       >
         {bills.length ? (
-          <ul className="biz-list">
-            {bills.map((bill) => {
-              const state = billState(bill, data.month, data.today)
-              return (
-                <li key={bill.id} className={state.tone === 'late' ? 'is-alert' : undefined}>
-                  <div className="biz-row-main">
-                    <strong>{bill.name}</strong>
-                    <span className="biz-row-meta">
-                      {bill.category}
-                      {bill.amountCents ? ` · cerca de ${money(bill.amountCents)}` : ''}
+          <>
+            <div className="fin-bills-sum">
+              <span>
+                <small>Total previsto</small>
+                <strong>{money(bills.reduce((sum, bill) => sum + bill.amountCents, 0))}</strong>
+              </span>
+              <span>
+                <small>Já pago</small>
+                <strong>
+                  {money(bills.reduce((sum, bill) => sum + (bill.paidCents ?? 0), 0))}
+                </strong>
+              </span>
+              <span>
+                <small>Em aberto</small>
+                <strong>{money(openCents)}</strong>
+              </span>
+            </div>
+            <ul className="fin-bills">
+              {bills.map((bill) => {
+                const state = billState(bill, data.month, data.today)
+                return (
+                  <li key={bill.id} className={`fin-bill is-${state.tone}`}>
+                    <div className="fin-bill-top">
+                      <span className="fin-bill-emoji" aria-hidden>
+                        {billEmoji(bill.name, bill.category)}
+                      </span>
+                      <button
+                        type="button"
+                        className="fin-bill-edit"
+                        aria-label={`Editar ${bill.name}`}
+                        onClick={() => setEditBill(bill)}
+                      >
+                        <Pencil size={14} />
+                      </button>
+                    </div>
+                    <strong className="fin-bill-name">{bill.name}</strong>
+                    <span className="fin-bill-amount">
+                      {bill.entryId
+                        ? money(bill.paidCents ?? 0)
+                        : bill.amountCents
+                          ? `~ ${money(bill.amountCents)}`
+                          : 'Sem valor médio'}
                     </span>
-                  </div>
-                  <span className={`fin-state is-${state.tone}`}>{state.label}</span>
-                  <div className="biz-actions">
+                    <span className={`fin-state is-${state.tone}`}>{state.label}</span>
                     {!bill.entryId ? (
-                      <Button size="sm" onPress={() => setSettle(bill)}>
+                      <Button size="sm" className="fin-bill-pay" onPress={() => setSettle(bill)}>
                         <Check size={14} aria-hidden /> Dar baixa
                       </Button>
-                    ) : null}
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      aria-label={`Editar ${bill.name}`}
-                      onPress={() => setEditBill(bill)}
-                    >
-                      <Pencil size={14} aria-hidden /> Editar
-                    </Button>
-                  </div>
-                </li>
-              )
-            })}
-          </ul>
+                    ) : (
+                      <span className="fin-bill-done">
+                        <Check size={14} aria-hidden /> Paga
+                      </span>
+                    )}
+                  </li>
+                )
+              })}
+            </ul>
+          </>
         ) : (
           <div className="biz-empty">
             <Receipt size={24} aria-hidden />
@@ -704,7 +717,7 @@ export function FinancePanel({
       </SettingsCard>
 
       {form ? (
-        <EntryForm
+        <EntryWizard
           api={api}
           kind={form}
           today={data.today}
@@ -737,10 +750,13 @@ export function FinancePanel({
         />
       ) : null}
       {setup ? (
-        <BillSetup
+        <BillWizard
           api={api}
+          existing={bills}
+          firstTime={!bills.length || reviewing}
           onClose={(message) => {
             setSetup(false)
+            setReviewing(false)
             if (message) done(message)
           }}
         />
@@ -926,138 +942,6 @@ function TrendBars({ rows }: { rows: TrendRow[] }) {
   )
 }
 
-function EntryForm({
-  api,
-  kind,
-  today,
-  onClose,
-}: {
-  api: ClinicApi
-  kind: 'income' | 'expense'
-  today: string
-  onClose: (message?: string) => void
-}) {
-  const [type, setType] = useState(kind)
-  const [amount, setAmount] = useState('')
-  const [date, setDate] = useState(today)
-  const [description, setDescription] = useState('')
-  const [category, setCategory] = useState(kind === 'expense' ? 'Produtos' : 'Atendimentos')
-  const [method, setMethod] = useState('pix')
-  const [error, setError] = useState('')
-  const [saving, setSaving] = useState(false)
-
-  async function save() {
-    const cents = parseMoney(amount)
-    if (!cents || !description.trim()) {
-      setError('Preencha o valor e a descrição.')
-      return
-    }
-    setSaving(true)
-    setError('')
-    try {
-      await api.post('finance/entries', {
-        kind: type,
-        amountCents: cents,
-        occurredOn: date,
-        description: description.trim(),
-        category: category.trim(),
-        method,
-      })
-      onClose(`${type === 'income' ? 'Entrada' : 'Saída'} de ${money(cents)} registrada.`)
-    } catch {
-      setError('Não foi possível salvar. Tente de novo.')
-      setSaving(false)
-    }
-  }
-
-  return (
-    <QuickModal
-      isOpen
-      onOpenChange={(open) => !open && onClose()}
-      title={type === 'income' ? 'Nova entrada' : 'Nova saída'}
-      subtitle={
-        type === 'expense'
-          ? 'Gasto avulso ou imprevisto. Contas que se repetem ficam em “Contas fixas”.'
-          : undefined
-      }
-      footer={
-        <>
-          <Button variant="secondary" onPress={() => onClose()}>
-            Cancelar
-          </Button>
-          <Button onPress={() => void save()} isDisabled={saving}>
-            {saving ? 'Salvando…' : 'Registrar'}
-          </Button>
-        </>
-      }
-    >
-      <div className="team-choice" role="radiogroup" aria-label="Tipo">
-        {(
-          [
-            ['income', 'Entrada (recebi)'],
-            ['expense', 'Saída (paguei)'],
-          ] as const
-        ).map(([id, label]) => (
-          <button
-            key={id}
-            type="button"
-            role="radio"
-            aria-checked={type === id}
-            onClick={() => {
-              setType(id)
-              setCategory(id === 'expense' ? 'Produtos' : 'Atendimentos')
-            }}
-          >
-            {label}
-          </button>
-        ))}
-      </div>
-      <div className="manager-form-grid">
-        <MoneyField label="Valor" isRequired autoFocus value={amount} onChange={setAmount} />
-        <DateInputField
-          label="Data"
-          value={date}
-          max={today}
-          onChange={(value) => setDate(value || today)}
-        />
-        <TextInputField
-          className="manager-field-wide"
-          label="Descrição"
-          isRequired
-          maxLength={160}
-          value={description}
-          placeholder={
-            type === 'income' ? 'Ex.: Venda de produto' : 'Ex.: Conserto do ar-condicionado'
-          }
-          onChange={setDescription}
-        />
-        <ComboField
-          label="Categoria"
-          value={category}
-          maxLength={60}
-          suggestions={
-            type === 'expense'
-              ? expenseCategories
-              : ['Atendimentos', 'Produtos', 'Pacotes', 'Outros']
-          }
-          help={
-            <HelpTip title="Para que serve?">
-              Agrupa os lançamentos no gráfico e nos relatórios.
-            </HelpTip>
-          }
-          onChange={setCategory}
-        />
-        <SelectField label="Forma" value={method} onChange={setMethod} options={methodOptions} />
-      </div>
-      {error ? (
-        <p className="apt-error" role="alert">
-          {error}
-        </p>
-      ) : null}
-    </QuickModal>
-  )
-}
-
 /** "Dar baixa": the expected amount comes filled in and is adjusted to what was really paid. */
 function SettleBill({
   api,
@@ -1188,7 +1072,9 @@ function BillForm({
     <QuickModal
       isOpen
       onOpenChange={(open) => !open && onClose()}
-      title={bill ? `Editar ${bill.name}` : 'Nova conta fixa'}
+      title={
+        bill ? `${billEmoji(bill.name, bill.category)} Editar ${bill.name}` : 'Nova conta fixa'
+      }
       subtitle="Aparece todo mês em aberto, com aviso perto do vencimento."
       footer={
         <>
@@ -1211,24 +1097,6 @@ function BillForm({
         </>
       }
     >
-      {!bill ? (
-        <div className="biz-chips" role="group" aria-label="Sugestões">
-          {billTemplates.slice(0, 6).map((template) => (
-            <button
-              key={template.name}
-              type="button"
-              aria-pressed={name === template.name}
-              onClick={() => {
-                setName(template.name)
-                setCategory(template.category)
-                setDueDay(template.dueDay ? String(template.dueDay) : 'none')
-              }}
-            >
-              {template.name}
-            </button>
-          ))}
-        </div>
-      ) : null}
       <div className="manager-form-grid">
         <TextInputField
           label="Nome"
@@ -1253,140 +1121,6 @@ function BillForm({
         />
         <SelectField label="Vencimento" value={dueDay} onChange={setDueDay} options={dueOptions} />
       </div>
-      {error ? (
-        <p className="apt-error" role="alert">
-          {error}
-        </p>
-      ) : null}
-    </QuickModal>
-  )
-}
-
-/** First-visit setup in two steps: pick the usual bills, then give each a value and a due day. */
-function BillSetup({ api, onClose }: { api: ClinicApi; onClose: (message?: string) => void }) {
-  const [step, setStep] = useState<1 | 2>(1)
-  const [chosen, setChosen] = useState<string[]>(['Aluguel', 'Energia (luz)', 'Água'])
-  const [values, setValues] = useState<Record<string, { amount: string; dueDay: string }>>({})
-  const [error, setError] = useState('')
-  const [saving, setSaving] = useState(false)
-  const picked = billTemplates.filter((template) => chosen.includes(template.name))
-  const valueOf = (template: (typeof billTemplates)[number]) =>
-    values[template.name] ?? {
-      amount: '',
-      dueDay: template.dueDay ? String(template.dueDay) : 'none',
-    }
-
-  async function save() {
-    setSaving(true)
-    setError('')
-    try {
-      for (const template of picked) {
-        const value = valueOf(template)
-        await api.put(`finance/bills/${crypto.randomUUID()}`, {
-          name: template.name,
-          category: template.category,
-          amountCents: parseMoney(value.amount) ?? 0,
-          dueDay: value.dueDay === 'none' ? null : Number(value.dueDay),
-          status: 'active',
-        })
-      }
-      onClose(
-        `${picked.length} ${picked.length === 1 ? 'conta fixa criada' : 'contas fixas criadas'}. Elas aparecem todo mês para dar baixa.`,
-      )
-    } catch {
-      setError('Não foi possível salvar todas as contas. Confira a lista e tente de novo.')
-      setSaving(false)
-    }
-  }
-
-  return (
-    <QuickModal
-      isOpen
-      onOpenChange={(open) => !open && onClose()}
-      size="lg"
-      title="Vamos organizar as contas do mês"
-      subtitle={
-        step === 1
-          ? 'Passo 1 de 2 · Marque as despesas que se repetem no seu espaço.'
-          : 'Passo 2 de 2 · Um valor médio e o vencimento de cada uma. Dá para mudar depois.'
-      }
-      footer={
-        <>
-          <Button variant="ghost" className="qm-foot-start" onPress={() => onClose()}>
-            Agora não
-          </Button>
-          {step === 2 ? (
-            <Button variant="secondary" onPress={() => setStep(1)}>
-              Voltar
-            </Button>
-          ) : null}
-          {step === 1 ? (
-            <Button isDisabled={!picked.length} onPress={() => setStep(2)}>
-              Continuar
-            </Button>
-          ) : (
-            <Button isDisabled={saving} onPress={() => void save()}>
-              {saving ? 'Salvando…' : 'Criar contas'}
-            </Button>
-          )}
-        </>
-      }
-    >
-      {step === 1 ? (
-        <ul className="fin-setup">
-          {billTemplates.map((template) => {
-            const selected = chosen.includes(template.name)
-            return (
-              <li key={template.name}>
-                <button
-                  type="button"
-                  role="checkbox"
-                  aria-checked={selected}
-                  className="filter-option"
-                  onClick={() =>
-                    setChosen(
-                      selected
-                        ? chosen.filter((name) => name !== template.name)
-                        : [...chosen, template.name],
-                    )
-                  }
-                >
-                  <span className="filter-box" aria-hidden>
-                    {selected ? <Check size={13} strokeWidth={3} /> : null}
-                  </span>
-                  <span>{template.name}</span>
-                  <small>{template.category}</small>
-                </button>
-              </li>
-            )
-          })}
-        </ul>
-      ) : (
-        <ul className="fin-setup is-values">
-          {picked.map((template) => {
-            const value = valueOf(template)
-            const set = (patch: Partial<typeof value>) =>
-              setValues({ ...values, [template.name]: { ...value, ...patch } })
-            return (
-              <li key={template.name}>
-                <strong>{template.name}</strong>
-                <MoneyField
-                  ariaLabel={`Valor médio de ${template.name}`}
-                  placeholder="Valor médio"
-                  value={value.amount}
-                  onChange={(amount) => set({ amount })}
-                />
-                <SelectField
-                  ariaLabel={`Vencimento de ${template.name}`}
-                  value={value.dueDay}
-                  onChange={(dueDay) => set({ dueDay })}
-                  options={dueOptions}
-                />
-              </li>
-            )
-          })}
-        </ul>
-      )}
       {error ? (
         <p className="apt-error" role="alert">
           {error}
