@@ -158,6 +158,7 @@ describe('versioned core migration', () => {
       { name: '0046_package_combos.sql' },
       { name: '0047_combo_sessions.sql' },
       { name: '0048_media_albums.sql' },
+      { name: '0049_combo_supplies.sql' },
     ])
   })
 

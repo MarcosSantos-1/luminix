@@ -4,6 +4,7 @@ import { Button } from '@heroui/react'
 import {
   Archive,
   CalendarPlus,
+  Check,
   Cpu,
   Pencil,
   Plus,
@@ -12,11 +13,19 @@ import {
   Trash2,
   TriangleAlert,
 } from 'lucide-react'
+import Image from 'next/image'
 import { useState } from 'react'
+import {
+  equipmentCatalog,
+  equipmentKey,
+  equipmentPresentation,
+  suggestedEquipment,
+} from '@/components/onboarding/special-equipment'
 import {
   CheckboxField,
   DateInputField,
   MoneyField,
+  SearchInput,
   SelectField,
   TextInputField,
 } from '@/components/ui/fields'
@@ -149,103 +158,119 @@ export function EquipmentTab({
       </div>
 
       {shown.length ? (
-        <ul className="biz-grid biz-devices">
+        <ul className="eq-grid">
           {shown.map((item) => {
             const upcoming = item.rentals.filter((rental) => rental.endsOn >= today)
+            const now = upcoming.find((rental) => rental.startsOn <= today)
             const past = item.rentals.filter((rental) => rental.endsOn < today).slice(-2)
+            const art = equipmentPresentation(item.name)
             return (
-              <li key={item.id} className="biz-tile biz-device">
-                <div className="biz-tile-head">
-                  <span className="biz-tile-icon" aria-hidden>
-                    <Cpu size={20} />
+              <li key={item.id} className={`eq-card${now ? ' is-here' : ''}`}>
+                <div className="eq-card-art">
+                  <Image src={art.image} alt="" width={150} height={150} sizes="150px" />
+                  <span
+                    className={`eq-badge${now ? ' is-here' : upcoming.length ? ' is-soon' : ''}`}
+                  >
+                    {now
+                      ? '🟢 No espaço agora'
+                      : upcoming.length
+                        ? `📅 Chega ${shortDay(upcoming[0].startsOn)}`
+                        : '⚪ Sem aluguel marcado'}
                   </span>
-                  <div className="biz-tile-title">
+                  {canManage ? (
+                    <Button
+                      isIconOnly
+                      size="sm"
+                      variant="ghost"
+                      className="eq-card-edit"
+                      aria-label={`Editar ${item.name}`}
+                      onPress={() => setEditing(item)}
+                    >
+                      <Pencil size={15} />
+                    </Button>
+                  ) : null}
+                </div>
+                <div className="eq-card-body">
+                  <div className="eq-card-title">
                     <strong title={item.name}>{item.name}</strong>
-                    <span className="biz-row-meta">
-                      <Store size={13} aria-hidden /> {item.supplier || 'Fornecedor não informado'}
-                    </span>
+                    <small>
+                      <Store size={12} aria-hidden /> {item.supplier || 'Fornecedor não informado'}
+                      {item.defaultCostCents != null
+                        ? ` · ${money(item.defaultCostCents)} por aluguel`
+                        : ''}
+                    </small>
                   </div>
-                  {item.defaultCostCents != null ? (
-                    <div className="biz-price">
-                      <strong>{money(item.defaultCostCents)}</strong>
-                      <small>por aluguel</small>
+                  <div className="biz-device-services">
+                    {item.serviceIds.length ? (
+                      item.serviceIds.map((id) => <span key={id}>{name(id)}</span>)
+                    ) : (
+                      <span className="is-warn">
+                        <TriangleAlert size={13} aria-hidden /> Nenhum serviço ligado
+                      </span>
+                    )}
+                  </div>
+                  <div className="eq-days">
+                    {upcoming.length ? (
+                      <ul>
+                        {upcoming.map((rental) => (
+                          <li key={rental.id}>
+                            <span className="biz-day-chip">
+                              {rental.startsOn === rental.endsOn
+                                ? shortDay(rental.startsOn)
+                                : `${shortDay(rental.startsOn)} – ${shortDay(rental.endsOn)}`}
+                            </span>
+                            <span className="biz-row-meta">
+                              {rental.costCents != null ? money(rental.costCents) : ''}
+                              {rental.inFinance ? (
+                                <>
+                                  {' '}
+                                  <Receipt size={12} aria-label="No Financeiro" />
+                                </>
+                              ) : null}
+                              {rental.note ? ` · ${rental.note}` : ''}
+                            </span>
+                            {canManage ? (
+                              <Button
+                                isIconOnly
+                                size="sm"
+                                variant="ghost"
+                                aria-label={`Remover aluguel de ${dateBr(rental.startsOn)}`}
+                                isDisabled={busy === rental.id}
+                                onPress={() => void removeRental(rental)}
+                              >
+                                <Trash2 size={14} />
+                              </Button>
+                            ) : null}
+                          </li>
+                        ))}
+                      </ul>
+                    ) : (
+                      <p className="biz-row-meta">
+                        Sem dia marcado: as clientes não conseguem agendar esses serviços.
+                      </p>
+                    )}
+                    {past.length ? (
+                      <p className="biz-row-meta">
+                        Últimos: {past.map((rental) => shortDay(rental.startsOn)).join(', ')}
+                      </p>
+                    ) : null}
+                  </div>
+                  {canManage ? (
+                    <div className="eq-card-actions">
+                      <Button size="sm" onPress={() => setRenting(item)}>
+                        <CalendarPlus size={14} aria-hidden /> Marcar aluguel
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        isDisabled={busy === item.id}
+                        onPress={() => void archive(item)}
+                      >
+                        <Archive size={14} aria-hidden /> Arquivar
+                      </Button>
                     </div>
                   ) : null}
                 </div>
-                <div className="biz-device-services">
-                  {item.serviceIds.length ? (
-                    item.serviceIds.map((id) => <span key={id}>{name(id)}</span>)
-                  ) : (
-                    <span className="is-warn">
-                      <TriangleAlert size={13} aria-hidden /> Nenhum serviço ligado
-                    </span>
-                  )}
-                </div>
-                <div className="biz-device-days">
-                  <small>Próximos aluguéis</small>
-                  {upcoming.length ? (
-                    <ul>
-                      {upcoming.map((rental) => (
-                        <li key={rental.id}>
-                          <span className="biz-day-chip">
-                            {rental.startsOn === rental.endsOn
-                              ? shortDay(rental.startsOn)
-                              : `${shortDay(rental.startsOn)} – ${shortDay(rental.endsOn)}`}
-                          </span>
-                          <span className="biz-row-meta">
-                            {rental.costCents != null ? money(rental.costCents) : ''}
-                            {rental.inFinance ? (
-                              <>
-                                {' '}
-                                <Receipt size={12} aria-label="No Financeiro" />
-                              </>
-                            ) : null}
-                            {rental.note ? ` · ${rental.note}` : ''}
-                          </span>
-                          {canManage ? (
-                            <Button
-                              isIconOnly
-                              size="sm"
-                              variant="ghost"
-                              aria-label={`Remover aluguel de ${dateBr(rental.startsOn)}`}
-                              isDisabled={busy === rental.id}
-                              onPress={() => void removeRental(rental)}
-                            >
-                              <Trash2 size={14} />
-                            </Button>
-                          ) : null}
-                        </li>
-                      ))}
-                    </ul>
-                  ) : (
-                    <p className="biz-row-meta">
-                      Nenhum dia marcado: as clientes não conseguem agendar esses serviços.
-                    </p>
-                  )}
-                  {past.length ? (
-                    <p className="biz-row-meta">
-                      Últimos: {past.map((rental) => shortDay(rental.startsOn)).join(', ')}
-                    </p>
-                  ) : null}
-                </div>
-                {canManage ? (
-                  <div className="biz-tile-actions">
-                    <Button size="sm" onPress={() => setRenting(item)}>
-                      <CalendarPlus size={14} aria-hidden /> Marcar aluguel
-                    </Button>
-                    <Button size="sm" variant="secondary" onPress={() => setEditing(item)}>
-                      <Pencil size={14} aria-hidden /> Editar
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      isDisabled={busy === item.id}
-                      onPress={() => void archive(item)}
-                    >
-                      <Archive size={14} aria-hidden /> Arquivar
-                    </Button>
-                  </div>
-                ) : null}
               </li>
             )
           })}
@@ -286,6 +311,7 @@ export function EquipmentTab({
           api={api}
           initial={editing}
           services={services.filter((service) => service.status === 'active')}
+          equipment={equipment}
           onClose={(message) => {
             setEditing(null)
             if (message) onChanged(message)
@@ -308,28 +334,87 @@ export function EquipmentTab({
   )
 }
 
+type Pick = { name: string; serviceIds: string[]; catalog: boolean }
+
+/**
+ * Novo aparelho, como no cadastro inicial: os aparelhos do catálogo com foto (os que combinam
+ * com os seus serviços especiais primeiro), ou "Outro aparelho". Depois o nome, fornecedor,
+ * valor e os serviços que ele executa, já marcados pela sugestão.
+ */
 function EquipmentEditor({
   api,
   initial,
   services,
+  equipment,
   onClose,
 }: {
   api: ClinicApi
   initial: Equipment
   services: Service[]
+  equipment: Equipment[]
   onClose: (message?: string) => void
 }) {
+  const isNew = !initial.id
+  const [step, setStep] = useState<'pick' | 'details'>(isNew ? 'pick' : 'details')
   const [item, setItem] = useState(initial)
   const [cost, setCost] = useState(
     initial.defaultCostCents != null ? moneyInput(initial.defaultCostCents) : '',
   )
+  const [query, setQuery] = useState('')
+  const [serviceQuery, setServiceQuery] = useState('')
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
-  const isNew = !initial.id
-  const categories = [...new Set(services.map((service) => service.category))]
+  const taken = new Set(
+    equipment.filter((entry) => entry.id !== initial.id).map((entry) => equipmentKey(entry.name)),
+  )
+  const linkedElsewhere = new Map(
+    equipment
+      .filter((entry) => entry.id !== initial.id && entry.status === 'active')
+      .flatMap((entry) => entry.serviceIds.map((id) => [id, entry.name] as const)),
+  )
+  // Special treatments (services that depend on a device) recommend their machine first.
+  const special = new Set(
+    services
+      .filter((service) => service.bookingMode === 'manual_release')
+      .map((service) => service.id),
+  )
+  const matches = new Map(
+    suggestedEquipment(services).map((choice) => [equipmentKey(choice.name), choice.serviceIds]),
+  )
+  const needle = equipmentKey(query)
+  const picks: (Pick & { score: number })[] = equipmentCatalog
+    .map((entry) => {
+      const ids = matches.get(equipmentKey(entry.name)) ?? []
+      return {
+        name: entry.name,
+        serviceIds: ids,
+        catalog: true,
+        score: ids.some((id) => special.has(id)) ? 2 : ids.length ? 1 : 0,
+      }
+    })
+    .filter((entry) => !needle || equipmentKey(entry.name).includes(needle))
+    .sort((a, b) => b.score - a.score)
+  const recommended = picks.filter((entry) => entry.score > 0)
+  const others = picks.filter((entry) => entry.score === 0)
+  const presentation = equipmentPresentation(item.name)
+  const serviceNeedle = equipmentKey(serviceQuery)
+  const visibleServices = services
+    .filter((service) => !serviceNeedle || equipmentKey(service.name).includes(serviceNeedle))
+    .sort(
+      (a, b) =>
+        Number(item.serviceIds.includes(b.id)) - Number(item.serviceIds.includes(a.id)) ||
+        a.name.localeCompare(b.name, 'pt-BR'),
+    )
+
+  function choose(pick: Pick) {
+    setItem({ ...item, name: pick.name, serviceIds: pick.serviceIds })
+    setError('')
+    setStep('details')
+  }
 
   async function save() {
     if (!item.name.trim()) return setError('Escreva o nome do aparelho.')
+    if (taken.has(equipmentKey(item.name))) return setError('Já existe um aparelho com esse nome.')
     const cents = cost ? parseMoney(cost) : null
     if (cost && !cents) return setError('Confira o valor do aluguel.')
     setSaving(true)
@@ -353,11 +438,56 @@ function EquipmentEditor({
     }
   }
 
+  const card = (pick: Pick & { score: number }) => {
+    const art = equipmentPresentation(pick.name)
+    const already = taken.has(equipmentKey(pick.name))
+    return (
+      <li key={pick.name}>
+        <button
+          type="button"
+          className={`eq-pick${pick.score === 2 ? ' is-special' : ''}`}
+          disabled={already}
+          onClick={() => choose(pick)}
+        >
+          <span className="eq-art">
+            <Image src={art.image} alt="" width={140} height={140} sizes="140px" />
+          </span>
+          <span className="eq-pick-copy">
+            <strong>{pick.name}</strong>
+            <small>{art.description}</small>
+            <em>
+              {already
+                ? 'Já cadastrado'
+                : pick.score === 2
+                  ? `⭐ Para os seus tratamentos especiais`
+                  : pick.serviceIds.length
+                    ? `${pick.serviceIds.length} ${pick.serviceIds.length === 1 ? 'serviço compatível' : 'serviços compatíveis'}`
+                    : 'Escolha os serviços depois'}
+            </em>
+          </span>
+        </button>
+      </li>
+    )
+  }
+
   return (
     <QuickModal
       isOpen
       onOpenChange={(open) => !open && onClose()}
-      title={isNew ? 'Novo aparelho alugado' : `Editar ${initial.name}`}
+      size="xl"
+      className="eq-modal"
+      title={
+        step === 'pick'
+          ? 'Qual aparelho você aluga?'
+          : isNew
+            ? 'Detalhes do aparelho'
+            : `Editar ${initial.name}`
+      }
+      subtitle={
+        step === 'pick'
+          ? 'Os que combinam com os seus serviços aparecem primeiro. Escolha um ou cadastre outro.'
+          : 'Os serviços marcados só ficam disponíveis para as clientes nos dias de aluguel.'
+      }
       footer={
         <>
           {error ? (
@@ -365,60 +495,142 @@ function EquipmentEditor({
               {error}
             </span>
           ) : null}
-          <Button variant="secondary" onPress={() => onClose()}>
-            Cancelar
-          </Button>
-          <Button isDisabled={saving} onPress={() => void save()}>
-            {saving ? 'Salvando…' : isNew ? 'Cadastrar' : 'Salvar'}
-          </Button>
+          {step === 'details' && isNew ? (
+            <Button variant="ghost" onPress={() => setStep('pick')}>
+              Escolher outro
+            </Button>
+          ) : (
+            <Button variant="secondary" onPress={() => onClose()}>
+              Cancelar
+            </Button>
+          )}
+          {step === 'details' ? (
+            <Button isDisabled={saving} onPress={() => void save()}>
+              {saving ? 'Salvando…' : isNew ? 'Cadastrar aparelho' : 'Salvar'}
+            </Button>
+          ) : null}
         </>
       }
     >
-      <TextInputField
-        label="Aparelho"
-        maxLength={160}
-        placeholder="Ex.: Laser Soprano Ice"
-        value={item.name}
-        onChange={(name) => setItem({ ...item, name })}
-      />
-      <div className="settings-grid">
-        <TextInputField
-          label="Fornecedor (opcional)"
-          maxLength={120}
-          value={item.supplier}
-          onChange={(supplier) => setItem({ ...item, supplier })}
-        />
-        <MoneyField label="Valor de costume por aluguel" value={cost} onChange={setCost} />
-      </div>
-      <div className="biz-device-pick">
-        <strong>Serviços que usam este aparelho</strong>
-        <small>Eles passam a depender dos dias de aluguel para as clientes agendarem.</small>
-        {categories.map((category) => (
-          <fieldset key={category}>
-            <legend>{category}</legend>
-            {services
-              .filter((service) => service.category === category)
-              .map((service) => (
-                <CheckboxField
-                  key={service.id}
-                  label={service.name}
-                  isSelected={item.serviceIds.includes(service.id)}
-                  onChange={(on) =>
-                    setItem({
-                      ...item,
-                      serviceIds: on
-                        ? [...item.serviceIds, service.id]
-                        : item.serviceIds.filter((id) => id !== service.id),
-                    })
-                  }
+      {step === 'pick' ? (
+        <div className="eq-picker">
+          <SearchInput
+            ariaLabel="Buscar aparelho"
+            placeholder="Buscar aparelho"
+            value={query}
+            onChange={setQuery}
+          />
+          {recommended.length ? (
+            <>
+              <h4 className="eq-group">Recomendados para o seu espaço</h4>
+              <ul className="eq-picks">{recommended.map(card)}</ul>
+            </>
+          ) : null}
+          <h4 className="eq-group">{recommended.length ? 'Outros aparelhos' : 'Aparelhos'}</h4>
+          <ul className="eq-picks">
+            {others.map(card)}
+            <li>
+              <button
+                type="button"
+                className="eq-pick is-custom"
+                onClick={() => choose({ name: '', serviceIds: [], catalog: false })}
+              >
+                <span className="eq-art">
+                  <Image src="/brand/machines/22.webp" alt="" width={140} height={140} />
+                </span>
+                <span className="eq-pick-copy">
+                  <strong>Outro aparelho</strong>
+                  <small>Um kit portátil, uma estação multifuncional ou o seu modelo.</small>
+                  <em>
+                    <Plus size={12} aria-hidden /> Cadastrar
+                  </em>
+                </span>
+              </button>
+            </li>
+          </ul>
+        </div>
+      ) : (
+        <div className="eq-details">
+          <div className="eq-details-head">
+            <span className="eq-art is-small">
+              <Image src={presentation.image} alt="" width={96} height={96} />
+            </span>
+            <div className="eq-details-fields">
+              <TextInputField
+                label="Nome do aparelho"
+                maxLength={160}
+                placeholder="Ex.: Laser Soprano Ice"
+                value={item.name}
+                onChange={(name) => setItem({ ...item, name })}
+              />
+              <div className="settings-grid">
+                <TextInputField
+                  label="Fornecedor (opcional)"
+                  maxLength={120}
+                  value={item.supplier}
+                  onChange={(supplier) => setItem({ ...item, supplier })}
                 />
-              ))}
-          </fieldset>
-        ))}
-      </div>
-      <p className="settings-footnote">
-        Dica: em Serviços, marque esses serviços como “Depende de aparelho ou sala”.
-      </p>
+                <MoneyField label="Valor de costume por aluguel" value={cost} onChange={setCost} />
+              </div>
+            </div>
+          </div>
+          <div className="eq-services">
+            <div className="eq-services-head">
+              <strong>Que serviços ele executa?</strong>
+              <small>
+                {item.serviceIds.length
+                  ? `${item.serviceIds.length} ${item.serviceIds.length === 1 ? 'marcado' : 'marcados'}`
+                  : 'Nenhum marcado'}
+              </small>
+            </div>
+            {services.length > 8 ? (
+              <SearchInput
+                ariaLabel="Buscar serviço"
+                placeholder="Buscar serviço"
+                value={serviceQuery}
+                onChange={setServiceQuery}
+              />
+            ) : null}
+            <ul>
+              {visibleServices.map((service) => {
+                const on = item.serviceIds.includes(service.id)
+                const other = linkedElsewhere.get(service.id)
+                return (
+                  <li key={service.id}>
+                    <button
+                      type="button"
+                      role="checkbox"
+                      aria-checked={on}
+                      onClick={() =>
+                        setItem({
+                          ...item,
+                          serviceIds: on
+                            ? item.serviceIds.filter((id) => id !== service.id)
+                            : [...item.serviceIds, service.id],
+                        })
+                      }
+                    >
+                      <span className="eq-check" aria-hidden>
+                        {on ? <Check size={13} strokeWidth={3} /> : null}
+                      </span>
+                      <span>
+                        <strong>
+                          {special.has(service.id) ? '⭐ ' : ''}
+                          {service.name}
+                        </strong>
+                        <small>
+                          {service.category}
+                          {other ? ` · também usa ${other}` : ''}
+                        </small>
+                      </span>
+                    </button>
+                  </li>
+                )
+              })}
+            </ul>
+          </div>
+        </div>
+      )}
     </QuickModal>
   )
 }

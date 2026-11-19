@@ -1,7 +1,7 @@
 import type { Service } from './model'
 
 // Suggestions only: the manager explicitly decides which equipment is rented.
-const equipmentCatalog = [
+export const equipmentCatalog = [
   {
     name: 'Laser para depilação',
     image: 1,
@@ -160,7 +160,8 @@ export function equipmentKey(name: string) {
     .toLocaleLowerCase('pt-BR')
 }
 
-export function suggestedEquipment(services: Service[]): EquipmentChoice[] {
+/** Catalog equipment whose services match by name (also used by the manager's Aparelhos tab). */
+export function suggestedEquipment(services: Pick<Service, 'id' | 'name'>[]): EquipmentChoice[] {
   return equipmentCatalog.flatMap((equipment) => {
     const matching = services.filter((service) =>
       equipment.services.some((name) =>

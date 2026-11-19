@@ -2796,3 +2796,299 @@
 .fw-methods {
   grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
 }
+
+/* ---------- Aparelhos alugados ---------- */
+.eq-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 290px), 1fr));
+  gap: 14px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.eq-card {
+  display: grid;
+  grid-template-rows: auto 1fr;
+  min-width: 0;
+  overflow: hidden;
+  border: 1px solid rgba(255, 180, 210, 0.24);
+  border-radius: 22px;
+  background: rgba(255, 255, 255, 0.045);
+}
+.eq-card.is-here {
+  border-color: #d6ae60;
+  background: linear-gradient(135deg, rgba(184, 126, 35, 0.16), rgba(255, 255, 255, 0.04));
+}
+.eq-card-art {
+  position: relative;
+  display: grid;
+  place-items: center;
+  height: 168px;
+  background: radial-gradient(ellipse at 50% 80%, rgba(255, 186, 203, 0.22), transparent 70%);
+  border-bottom: 1px solid rgba(255, 180, 210, 0.12);
+}
+.eq-card-art img {
+  width: 140px;
+  height: 140px;
+  object-fit: contain;
+  filter: drop-shadow(0 12px 16px rgba(25, 3, 15, 0.24));
+}
+.eq-badge {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: #00000059;
+  font-size: 12px;
+  font-weight: 650;
+}
+.eq-badge.is-here {
+  color: #ffe1a6;
+  background: rgba(180, 123, 27, 0.4);
+}
+.eq-badge.is-soon {
+  color: #bfe8ff;
+  background: #2d7ab059;
+}
+.eq-card-edit {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+}
+.eq-card-body {
+  display: grid;
+  align-content: start;
+  gap: 12px;
+  padding: 16px;
+  min-width: 0;
+}
+.eq-card-title {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+.eq-card-title strong {
+  overflow: hidden;
+  font-size: 16.5px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.eq-card-title small {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--manager-muted);
+  font-size: 12.5px;
+}
+.eq-days ul {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.eq-days li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.eq-card-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: auto;
+}
+.eq-picker,
+.eq-details {
+  display: grid;
+  gap: 14px;
+}
+.eq-group {
+  margin: 4px 0 0;
+  color: var(--manager-muted);
+  font-size: 13.5px;
+  font-weight: 650;
+}
+.eq-picks {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 220px), 1fr));
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.eq-pick {
+  display: grid;
+  grid-template-rows: auto 1fr;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  padding: 0;
+  border: 1px solid rgba(255, 180, 210, 0.24);
+  border-radius: 20px;
+  color: inherit;
+  background: rgba(255, 255, 255, 0.045);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition:
+    transform 0.18s ease,
+    border-color 0.18s ease;
+}
+.eq-pick:hover:not(:disabled) {
+  transform: translateY(-2px);
+  border-color: var(--space-highlight, #ffb5d3);
+}
+.eq-pick:disabled {
+  cursor: default;
+  opacity: 0.45;
+}
+.eq-pick.is-special {
+  border-color: #d6ae60;
+  background: linear-gradient(135deg, rgba(184, 126, 35, 0.16), rgba(255, 255, 255, 0.04));
+}
+.eq-pick.is-custom {
+  border: 1px dashed rgba(244, 200, 113, 0.55);
+}
+.eq-art {
+  display: grid;
+  place-items: center;
+  height: 132px;
+  background: radial-gradient(ellipse at 50% 80%, rgba(255, 186, 203, 0.22), transparent 70%);
+}
+.eq-art img {
+  width: 116px;
+  height: 116px;
+  object-fit: contain;
+}
+.eq-art.is-small {
+  width: 104px;
+  height: 104px;
+  flex: none;
+  border-radius: 20px;
+  background-color: #ffffff0a;
+}
+.eq-art.is-small img {
+  width: 88px;
+  height: 88px;
+}
+.eq-pick-copy {
+  display: grid;
+  align-content: start;
+  gap: 6px;
+  padding: 14px 16px 16px;
+}
+.eq-pick-copy strong {
+  font-size: 15px;
+}
+.eq-pick-copy small {
+  color: #ebcad8;
+  font-size: 12.5px;
+  line-height: 1.5;
+}
+.eq-pick-copy em {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  justify-self: start;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: rgba(255, 180, 210, 0.1);
+  color: #ffe1ec;
+  font-size: 12px;
+  font-style: normal;
+  font-weight: 650;
+}
+.eq-pick.is-special .eq-pick-copy em {
+  background: rgba(180, 123, 27, 0.25);
+  color: #ffe1a6;
+}
+.eq-details-head {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+}
+.eq-details-fields {
+  display: grid;
+  flex: 1;
+  gap: 12px;
+  min-width: 0;
+}
+.eq-services {
+  display: grid;
+  gap: 10px;
+  padding: 14px;
+  border: 1px solid rgba(255, 180, 210, 0.18);
+  border-radius: 18px;
+}
+.eq-services-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+.eq-services-head small {
+  color: var(--manager-muted);
+  font-size: 12.5px;
+}
+.eq-services ul {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 240px), 1fr));
+  gap: 6px;
+  max-height: 320px;
+  margin: 0;
+  padding: 0;
+  overflow-y: auto;
+  list-style: none;
+}
+.eq-services li button {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 48px;
+  padding: 6px 10px;
+  border: 1px solid #ffffff14;
+  border-radius: 14px;
+  color: inherit;
+  background: #ffffff08;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.eq-services li button[aria-checked='true'] {
+  border-color: color-mix(in srgb, var(--space-highlight, #ffb5d3) 60%, transparent);
+  background: color-mix(in srgb, var(--space-accent, #ec287a) 16%, transparent);
+}
+.eq-services li button > span:last-child {
+  display: grid;
+  min-width: 0;
+}
+.eq-services li small {
+  color: var(--manager-muted);
+  font-size: 12px;
+}
+.eq-check {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border: 1.5px solid #ffffff59;
+  border-radius: 7px;
+}
+.eq-services li button[aria-checked='true'] .eq-check {
+  border-color: transparent;
+  color: #3a0d22;
+  background: var(--space-highlight, #ffb5d3);
+}
+@media (max-width: 650px) {
+  .eq-details-head {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .eq-art.is-small {
+    align-self: center;
+  }
+}

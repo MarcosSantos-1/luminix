@@ -288,6 +288,28 @@ describe('pacotes', () => {
       )
     ).json()
     expect(agenda.appointments[0].combo_name).toBe('Combo verão')
+    // Stock: every treatment's recipe, summed; the per-visit disposables count once.
+    const product = (name: string, category: string, both: boolean) =>
+      call('pack-a', 'PUT', clinicA, `inventory/items/${randomUUID()}`, {
+        name,
+        category,
+        unit: name === 'Luvas' ? 'un' : 'ml',
+        minQuantity: 0,
+        initialQuantity: 500,
+        supplies: [
+          { serviceId: serviceA, quantity: name === 'Luvas' ? 2 : 10 },
+          ...(both ? [{ serviceId: deviceServiceA, quantity: name === 'Luvas' ? 2 : 5 }] : []),
+        ],
+      })
+    expect((await product('Gel', 'Estética', true)).statusCode).toBe(200)
+    expect((await product('Luvas', 'Descartáveis', true)).statusCode).toBe(200)
+    const supplies = (
+      await call('pack-a', 'GET', clinicA, `appointments/${appointment.id}/supplies`)
+    ).json().supplies as { name: string; quantity: number }[]
+    expect(Object.fromEntries(supplies.map((row) => [row.name, row.quantity]))).toEqual({
+      Gel: 15,
+      Luvas: 2,
+    })
   })
 })
 
