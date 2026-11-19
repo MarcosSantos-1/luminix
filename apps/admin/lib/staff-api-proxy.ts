@@ -96,6 +96,12 @@ export async function staffApiGet(
       const from = source.get('from')
       if (check) url.searchParams.set('check', check.slice(0, 40))
       if (from) url.searchParams.set('from', from.slice(0, 160))
+    } else if (path.endsWith('/closures')) {
+      const source = new URL(request.url).searchParams
+      const professionalId = source.get('professionalId')
+      if (professionalId && /^[0-9a-f-]{36}$/i.test(professionalId))
+        url.searchParams.set('professionalId', professionalId)
+      if (source.get('history') === '1') url.searchParams.set('history', '1')
     } else if (path.endsWith('/agenda')) {
       const source = new URL(request.url).searchParams
       for (const key of ['from', 'to']) {
@@ -136,6 +142,7 @@ export async function staffApiWrite(
     | `/clinics/${string}/appointments`
     | `/clinics/${string}/closures`
     | `/clinics/${string}/availability`
+    | `/clinics/${string}/schedule-plan`
     | `/clinics/${string}/theme`
     | `/clinics/${string}/profile`
     | `/clinics/${string}/booking-rules`

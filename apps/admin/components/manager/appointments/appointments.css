@@ -3112,3 +3112,225 @@ button.ag-empty:hover {
     flex: 1;
   }
 }
+
+/* ---------- Rotina padrão ---------- */
+.sch-standard {
+  display: grid;
+  gap: 14px;
+}
+.sch-standard-foot {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+.sch-standard-foot .button {
+  min-height: 46px;
+}
+
+/* ---------- Planejar semanas ---------- */
+.wp {
+  display: grid;
+  gap: 14px;
+}
+.wp-week {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+}
+.wp-week-label {
+  display: grid;
+  min-width: 160px;
+  text-align: center;
+}
+.wp-week-label strong {
+  font-size: 16px;
+}
+.wp-week-label small,
+.wp-hint {
+  color: var(--manager-muted);
+  font-size: 13px;
+}
+.wp-hint {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+}
+.wp-clip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  color: #bfe8ff;
+  background: #2d7ab033;
+  font-weight: 650;
+}
+.wp-clip button {
+  padding: 0;
+  border: 0;
+  color: inherit;
+  background: none;
+  font: inherit;
+  text-decoration: underline;
+  cursor: pointer;
+}
+.wp-dirty {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: #ffd98a;
+}
+.wp-days {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.wp-day {
+  display: grid;
+  align-content: start;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid #ffffff17;
+  border-radius: 18px;
+  background: #ffffff08;
+}
+.wp-day.is-open {
+  background: #ffffff0d;
+}
+.wp-day.is-custom {
+  border-color: #5aa9e6;
+  box-shadow: inset 4px 0 0 #5aa9e6;
+}
+.wp-day[data-past] {
+  opacity: 0.5;
+}
+.wp-day-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+.wp-day-name {
+  display: grid;
+  line-height: 1.15;
+}
+.wp-day-name small {
+  color: var(--manager-muted);
+  font-size: 12px;
+}
+.wp-badge {
+  margin-left: auto;
+  padding: 2px 8px;
+  border-radius: 8px;
+  color: var(--manager-muted);
+  background: #ffffff12;
+  font-size: 11.5px;
+  font-weight: 700;
+}
+.wp-badge.is-custom {
+  color: #bfe8ff;
+  background: #2d7ab04d;
+}
+.wp-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  max-width: 100%;
+  overflow: hidden;
+  padding: 2px 8px;
+  border-radius: 8px;
+  font-size: 11.5px;
+  font-weight: 650;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.wp-tag.is-holiday {
+  color: #ffd6f0;
+  background: color-mix(in srgb, #c13fff 38%, transparent);
+}
+.wp-tag.is-away {
+  color: #ffe0a1;
+  background: #66401499;
+}
+.wp-day-body {
+  display: grid;
+  gap: 8px;
+}
+.wp-closed {
+  margin: 0;
+  color: var(--manager-muted);
+  font-size: 13.5px;
+}
+.wp-day-tools {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px;
+}
+.wp-day-tools .button {
+  min-height: 32px;
+  padding-inline: 8px;
+  font-size: 12.5px;
+}
+.wp-foot {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+.wp-foot .button {
+  min-height: 46px;
+}
+@media (max-width: 650px) {
+  .wp-days {
+    grid-template-columns: 1fr;
+  }
+  .wp-foot .button {
+    flex: 1;
+  }
+}
+
+/* Professional hours of their own on a day (week view tag, month dot). */
+.ag-day-team {
+  max-width: 140px;
+  overflow: hidden;
+  padding: 3px 8px;
+  border: 0;
+  border-radius: 8px;
+  color: #bfe8ff;
+  background: #2d7ab04d;
+  font-size: 12px;
+  font-weight: 650;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.ag .manager-month-day.ag-heat[data-special='team']::after {
+  background: #9cc9f0;
+}
+.wp .sch-range {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  gap: 6px;
+}
+.wp .sch-range.is-break {
+  grid-template-columns: auto minmax(0, 1fr) auto minmax(0, 1fr);
+}
+.wp .sch-range .lx-field {
+  width: auto;
+  min-width: 0;
+}
+.wp-warn {
+  margin: 0;
+  padding: 6px 10px;
+  border-radius: 10px;
+  color: #ffe0a1;
+  background: #66401466;
+  font-size: 12.5px;
+}

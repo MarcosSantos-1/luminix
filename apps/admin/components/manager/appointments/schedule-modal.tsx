@@ -1,7 +1,16 @@
 'use client'
 
 import { Button, Label, Spinner, Switch } from '@heroui/react'
-import { CalendarDays, Coffee, Copy, Palmtree, Plus, Store, Trash2 } from 'lucide-react'
+import {
+  CalendarDays,
+  CalendarRange,
+  Coffee,
+  Copy,
+  Palmtree,
+  Plus,
+  Store,
+  Trash2,
+} from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { TimeInputField } from '@/components/ui/fields'
 import { initials } from '../business/format'
@@ -9,9 +18,16 @@ import type { ClinicApi } from '../settings/clinic-api'
 import { QuickModal } from '../quick-modal'
 import type { BookingProfessional } from './booking-modal'
 import { ClosuresEditor } from './closures-editor'
+import { WeekPlanner } from './week-planner'
 
-type Period = { start: string; end: string }
-type Day = { weekday: number; enabled: boolean; start: string; end: string; breaks: Period[] }
+export type Period = { start: string; end: string }
+export type Day = {
+  weekday: number
+  enabled: boolean
+  start: string
+  end: string
+  breaks: Period[]
+}
 export type WeeklyRow = { weekday: number; is_available: boolean; periods: Period[] }
 export type OverrideRow = {
   local_date: string
@@ -20,7 +36,8 @@ export type OverrideRow = {
   reason: string | null
 }
 export type ProfessionalDayRow = WeeklyRow & { professional_id: string }
-type TeamMember = {
+export type ProfessionalOverrideRow = OverrideRow & { professional_id: string }
+export type TeamMember = {
   id: string
   name: string
   role: string
@@ -34,11 +51,11 @@ type TeamMember = {
   days: Day[]
 }
 
-const order = [1, 2, 3, 4, 5, 6, 0]
-const names = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado']
+export const order = [1, 2, 3, 4, 5, 6, 0]
+export const names = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado']
 
 /** Open periods → "abre, fecha e intervalos", which is how people think about a day. */
-function fromPeriods(weekday: number, available: boolean, periods: Period[]): Day {
+export function fromPeriods(weekday: number, available: boolean, periods: Period[]): Day {
   const sorted = [...periods].sort((left, right) => left.start.localeCompare(right.start))
   if (!sorted.length)
     return { weekday, enabled: available, start: '09:00', end: '18:00', breaks: [] }
@@ -53,7 +70,7 @@ function fromPeriods(weekday: number, available: boolean, periods: Period[]): Da
   }
 }
 
-function toPeriods(day: Day): Period[] {
+export function toPeriods(day: Day): Period[] {
   if (!day.enabled) return []
   const breaks = [...day.breaks].sort((left, right) => left.start.localeCompare(right.start))
   const periods: Period[] = []
@@ -66,14 +83,14 @@ function toPeriods(day: Day): Period[] {
   return periods
 }
 
-function weekFrom(rows: WeeklyRow[]): Day[] {
+export function weekFrom(rows: WeeklyRow[]): Day[] {
   return order.map((weekday) => {
     const row = rows.find((item) => Number(item.weekday) === weekday)
     return fromPeriods(weekday, row?.is_available === true, row?.periods ?? [])
   })
 }
 
-function problem(days: Day[]) {
+export function problem(days: Day[]) {
   for (const day of days) {
     if (!day.enabled) continue
     const name = names[day.weekday]
@@ -85,7 +102,7 @@ function problem(days: Day[]) {
   return ''
 }
 
-function summary(day: Day) {
+export function summary(day: Day) {
   if (!day.enabled) return 'Fechado'
   const pause = day.breaks.length
     ? ` · intervalo ${day.breaks.map((item) => `${item.start}–${item.end}`).join(', ')}`
@@ -233,36 +250,30 @@ function WeekEditor({
 }
 
 /**
- * Horários: the space's week, each professional's week, and special dates (feriado, folga,
- * horário estendido) with "Aberto" and "Fechado" one tap away.
+ * Rotina padrão: the space's week and each professional's week (what repeats every week).
+ * Used in "Horários" and in Configurações → Rotina.
  */
-export function ScheduleModal({
+export function StandardWeek({
   api,
-  isOpen,
-  onOpenChange,
   weekly,
   professionals,
   professionalAvailability,
   canManageHours,
   canManageTeam,
-  initialTab,
   onSaved,
+  onCancel,
 }: {
   api: ClinicApi
-  isOpen: boolean
-  onOpenChange: (open: boolean) => void
   weekly: WeeklyRow[]
-  overrides: OverrideRow[]
   professionals: BookingProfessional[]
   professionalAvailability: ProfessionalDayRow[]
   canManageHours: boolean
   canManageTeam: boolean
-  /** Opens on this tab (e.g. "Férias e fechamentos" from a closed day). */
-  initialTab?: 'week' | 'closures'
   onSaved: (message: string) => void
+  /** Shown as "Cancelar" next to save (inside the pop-up). */
+  onCancel?: () => void
 }) {
   const [who, setWho] = useState('clinic')
-  const [tab, setTab] = useState<'week' | 'closures'>('week')
   const [clinicDays, setClinicDays] = useState<Day[]>(() => weekFrom(weekly))
   const [team, setTeam] = useState<TeamMember[] | null>(null)
   const [personDays, setPersonDays] = useState<Record<string, Day[]>>({})
@@ -271,20 +282,7 @@ export function ScheduleModal({
   const [done, setDone] = useState('')
 
   useEffect(() => {
-    if (!isOpen) return
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- starts from the saved hours each time it opens
-    setClinicDays(weekFrom(weekly))
-    setPersonDays({})
-    setWho('clinic')
-    setTab(initialTab ?? 'week')
-    setError('')
-    setDone('')
-    // Only when it opens: saving reloads `weekly`, which must not wipe what is being edited.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isOpen])
-
-  useEffect(() => {
-    if (!isOpen || !canManageTeam || !professionals.length) return
+    if (!canManageTeam || !professionals.length) return
     let active = true
     void api
       .get<{ professionals: TeamMember[] }>('team')
@@ -293,7 +291,7 @@ export function ScheduleModal({
     return () => {
       active = false
     }
-  }, [isOpen, canManageTeam, professionals.length, api])
+  }, [canManageTeam, professionals.length, api])
 
   const person = who === 'clinic' ? null : professionals.find((item) => item.id === who)
   const member = team?.find((item) => item.id === who) ?? null
@@ -309,15 +307,14 @@ export function ScheduleModal({
   const days = who === 'clinic' ? clinicDays : (personDays[who] ?? savedPersonDays(who))
   const readOnly = who === 'clinic' ? !canManageHours : !canManageTeam || !member
 
-  async function run(work: () => Promise<unknown>, message: string, close: boolean) {
+  async function run(work: () => Promise<unknown>, message: string) {
     setSaving(true)
     setError('')
     setDone('')
     try {
       await work()
       onSaved(message)
-      if (close) onOpenChange(false)
-      else setDone(message)
+      setDone(message)
     } catch {
       setError('Não foi possível salvar os horários. Tente de novo.')
     } finally {
@@ -339,8 +336,7 @@ export function ScheduleModal({
               periods: toPeriods(day),
             })),
           }),
-        'Horários do espaço atualizados.',
-        true,
+        'Rotina do espaço atualizada.',
       )
     if (!member) return
     void run(
@@ -356,10 +352,144 @@ export function ScheduleModal({
           serviceAudiences: member.serviceAudiences,
           days: [...days].sort((left, right) => left.weekday - right.weekday),
         }),
-      `Horários de ${member.name} atualizados.`,
-      true,
+      `Rotina de ${member.name} atualizada.`,
     )
   }
+
+  return (
+    <div className="sch-standard">
+      {professionals.length ? (
+        <div className="sch-people" role="group" aria-label="De quem é a rotina">
+          <button type="button" aria-pressed={who === 'clinic'} onClick={() => setWho('clinic')}>
+            <span className="sch-face">
+              <Store size={16} aria-hidden />
+            </span>
+            Espaço
+          </button>
+          {professionals.map((item) => {
+            const photo = item.photo_url ?? team?.find((entry) => entry.id === item.id)?.photoUrl
+            return (
+              <button
+                key={item.id}
+                type="button"
+                aria-pressed={who === item.id}
+                onClick={() => {
+                  setWho(item.id)
+                  setError('')
+                }}
+              >
+                <span className="sch-face">
+                  {photo ? (
+                    // eslint-disable-next-line @next/next/no-img-element -- public team photo
+                    <img src={photo} alt="" />
+                  ) : (
+                    initials(item.display_name)
+                  )}
+                </span>
+                {item.display_name}
+              </button>
+            )
+          })}
+        </div>
+      ) : null}
+      {person && canManageTeam && !team ? (
+        <div className="ws-loading" role="status">
+          <Spinner size="sm" aria-hidden /> Carregando horários…
+        </div>
+      ) : (
+        <WeekEditor
+          days={days}
+          readOnly={readOnly}
+          onChange={(next) => {
+            setDone('')
+            if (who === 'clinic') setClinicDays(next)
+            else setPersonDays((current) => ({ ...current, [who]: next }))
+          }}
+        />
+      )}
+      {person && readOnly && team !== null ? (
+        <p className="sch-note">Só quem gerencia a equipe pode mudar estes horários.</p>
+      ) : null}
+      {error ? (
+        <p className="apt-error" role="alert">
+          {error}
+        </p>
+      ) : null}
+      {done ? (
+        <p className="apt-done" role="status">
+          {done}
+        </p>
+      ) : null}
+      {readOnly ? null : (
+        <div className="sch-standard-foot">
+          {onCancel ? (
+            <Button variant="secondary" onPress={onCancel}>
+              Cancelar
+            </Button>
+          ) : null}
+          <Button isDisabled={saving} onPress={saveWeek}>
+            {saving
+              ? 'Salvando…'
+              : person
+                ? `Salvar rotina de ${person.display_name.split(' ')[0]}`
+                : 'Salvar rotina do espaço'}
+          </Button>
+        </div>
+      )}
+    </div>
+  )
+}
+
+type Tab = 'plan' | 'week' | 'closures'
+
+/**
+ * Horários: plan specific weeks (space and each professional, with copy/paste of a day), the
+ * standard routine, and férias/fechamentos.
+ */
+export function ScheduleModal({
+  api,
+  isOpen,
+  onOpenChange,
+  weekly,
+  professionals,
+  professionalAvailability,
+  canManageHours,
+  canManageTeam,
+  initialTab,
+  timezone,
+  location,
+  onSaved,
+}: {
+  api: ClinicApi
+  isOpen: boolean
+  onOpenChange: (open: boolean) => void
+  weekly: WeeklyRow[]
+  professionals: BookingProfessional[]
+  professionalAvailability: ProfessionalDayRow[]
+  canManageHours: boolean
+  canManageTeam: boolean
+  /** Opens on this tab (e.g. "Férias e fechamentos" from a closed day). */
+  initialTab?: Tab
+  timezone: string
+  location?: { city: string | null; state: string | null }
+  onSaved: (message: string) => void
+}) {
+  const [tab, setTab] = useState<Tab>('plan')
+  const [round, setRound] = useState(0)
+
+  useEffect(() => {
+    if (!isOpen) return
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- starts on the asked tab each time it opens
+    setTab(initialTab ?? 'plan')
+    setRound((value) => value + 1)
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- only when it opens
+  }, [isOpen])
+
+  const tabs: { id: Tab; label: string; icon: typeof CalendarDays }[] = [
+    { id: 'plan', label: 'Planejar semanas', icon: CalendarRange },
+    { id: 'week', label: 'Rotina padrão', icon: CalendarDays },
+    { id: 'closures', label: 'Férias e fechamentos', icon: Palmtree },
+  ]
 
   return (
     <QuickModal
@@ -374,132 +504,59 @@ export function ScheduleModal({
           : 'Quando as clientes podem agendar com você.'
       }
       footer={
-        tab === 'week' ? (
-          <>
-            <Button variant="secondary" onPress={() => onOpenChange(false)}>
-              {readOnly ? 'Fechar' : 'Cancelar'}
-            </Button>
-            {readOnly ? null : (
-              <Button isDisabled={saving} onPress={saveWeek}>
-                {saving
-                  ? 'Salvando…'
-                  : person
-                    ? `Salvar horários de ${person.display_name.split(' ')[0]}`
-                    : 'Salvar horários'}
-              </Button>
-            )}
-          </>
-        ) : (
-          <Button variant="secondary" onPress={() => onOpenChange(false)}>
-            Fechar
-          </Button>
-        )
+        <Button variant="secondary" onPress={() => onOpenChange(false)}>
+          Fechar
+        </Button>
       }
     >
       <div className="sch-tabs" role="tablist" aria-label="O que ajustar">
-        <button
-          type="button"
-          role="tab"
-          aria-selected={tab === 'week'}
-          onClick={() => {
-            setTab('week')
-            setError('')
-          }}
-        >
-          <CalendarDays size={17} aria-hidden /> Semana padrão
-        </button>
-        <button
-          type="button"
-          role="tab"
-          aria-selected={tab === 'closures'}
-          onClick={() => {
-            setTab('closures')
-            setError('')
-          }}
-        >
-          <Palmtree size={17} aria-hidden /> Férias e fechamentos
-        </button>
+        {tabs.map(({ id, label, icon: Icon }) => (
+          <button
+            key={id}
+            type="button"
+            role="tab"
+            aria-selected={tab === id}
+            onClick={() => setTab(id)}
+          >
+            <Icon size={17} aria-hidden /> {label}
+          </button>
+        ))}
       </div>
 
-      {tab === 'week' ? (
-        <>
-          {professionals.length ? (
-            <div className="sch-people" role="group" aria-label="De quem são os horários">
-              <button
-                type="button"
-                aria-pressed={who === 'clinic'}
-                onClick={() => setWho('clinic')}
-              >
-                <span className="sch-face">
-                  <Store size={16} aria-hidden />
-                </span>
-                Espaço
-              </button>
-              {professionals.map((item) => {
-                const photo = team?.find((entry) => entry.id === item.id)?.photoUrl
-                return (
-                  <button
-                    key={item.id}
-                    type="button"
-                    aria-pressed={who === item.id}
-                    onClick={() => {
-                      setWho(item.id)
-                      setError('')
-                    }}
-                  >
-                    <span className="sch-face">
-                      {photo ? (
-                        // eslint-disable-next-line @next/next/no-img-element -- public team photo
-                        <img src={photo} alt="" />
-                      ) : (
-                        initials(item.display_name)
-                      )}
-                    </span>
-                    {item.display_name}
-                  </button>
-                )
-              })}
-            </div>
-          ) : null}
-          {person && canManageTeam && !team ? (
-            <div className="ws-loading" role="status">
-              <Spinner size="sm" aria-hidden /> Carregando horários…
-            </div>
-          ) : (
-            <WeekEditor
-              days={days}
-              readOnly={readOnly}
-              onChange={(next) =>
-                who === 'clinic'
-                  ? setClinicDays(next)
-                  : setPersonDays((current) => ({ ...current, [who]: next }))
-              }
-            />
-          )}
-          {person && readOnly && team !== null ? (
-            <p className="sch-note">Só quem gerencia a equipe pode mudar estes horários.</p>
-          ) : null}
-        </>
+      {tab === 'plan' ? (
+        <WeekPlanner
+          key={round}
+          api={api}
+          weekly={weekly}
+          professionals={professionals}
+          professionalAvailability={professionalAvailability}
+          canManageHours={canManageHours}
+          canManageTeam={canManageTeam}
+          timezone={timezone}
+          location={location}
+          onSaved={onSaved}
+        />
+      ) : tab === 'week' ? (
+        <StandardWeek
+          key={round}
+          api={api}
+          weekly={weekly}
+          professionals={professionals}
+          professionalAvailability={professionalAvailability}
+          canManageHours={canManageHours}
+          canManageTeam={canManageTeam}
+          onSaved={onSaved}
+        />
       ) : (
         <ClosuresEditor
           api={api}
           professionals={professionals}
-          photos={Object.fromEntries((team ?? []).map((item) => [item.id, item.photoUrl]))}
+          photos={{}}
           canManageSpace={canManageHours}
           canManageTeam={canManageTeam}
           onSaved={onSaved}
         />
       )}
-      {error ? (
-        <p className="apt-error" role="alert">
-          {error}
-        </p>
-      ) : null}
-      {done ? (
-        <p className="apt-done" role="status">
-          {done}
-        </p>
-      ) : null}
     </QuickModal>
   )
 }

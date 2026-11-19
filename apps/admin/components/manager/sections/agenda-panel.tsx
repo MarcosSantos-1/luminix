@@ -41,6 +41,7 @@ import {
   ScheduleModal,
   type OverrideRow,
   type ProfessionalDayRow,
+  type ProfessionalOverrideRow,
   type WeeklyRow,
 } from '../appointments/schedule-modal'
 import { appointmentStatus } from '../business/format'
@@ -82,6 +83,7 @@ type AgendaData = {
   closures?: ClosureRow[]
   location?: { city: string | null; state: string | null }
   professionalAvailability?: ProfessionalDayRow[]
+  professionalOverrides?: ProfessionalOverrideRow[]
   timezone: string
   canManage?: boolean
   canManageHours?: boolean
@@ -213,7 +215,7 @@ export function AgendaPanel({
   const [booking, setBooking] = useState<{ open: boolean; date?: string }>({ open: false })
   const [schedule, setSchedule] = useState<{
     open: boolean
-    tab?: 'week' | 'closures'
+    tab?: 'plan' | 'week' | 'closures'
   }>({ open: false })
   const [dayConfig, setDayConfig] = useState<string | null>(null)
   const [opened, setOpened] = useState<AppointmentView | null>(null)
@@ -321,7 +323,22 @@ export function AgendaPanel({
         : (data?.weeklyAvailability.find((item) => Number(item.weekday) === weekday)
             ?.is_available ?? false))
     const holiday = holidayByDate.get(date)
-    return { exception, open, closure, away, holiday }
+    const team = (data?.professionalOverrides ?? []).filter(
+      (item) => item.local_date.slice(0, 10) === date,
+    )
+    return { exception, open, closure, away, holiday, team }
+  }
+  /** "Ana 13:00–18:00, Bia folga" for the professionals with hours of their own that day. */
+  function teamLabel(rows: ProfessionalOverrideRow[]) {
+    return rows
+      .map((item) => {
+        const name = data?.professionals.find((person) => person.id === item.professional_id)
+        const first = name?.display_name.split(' ')[0] ?? 'Profissional'
+        return item.is_available && item.periods.length
+          ? `${first} ${item.periods[0].start}–${item.periods[item.periods.length - 1].end}`
+          : `${first} folga`
+      })
+      .join(', ')
   }
   /** "Ana · Férias" for the professionals away on a day. */
   function awayLabel(away: ClosureRow[]) {
@@ -430,6 +447,13 @@ export function AgendaPanel({
           })
         if (rule.away.length)
           list.push({ date, kind: 'away', title: 'Equipe ausente', detail: awayLabel(rule.away) })
+        if (rule.team.length)
+          list.push({
+            date,
+            kind: 'special',
+            title: 'Horário da equipe ajustado',
+            detail: teamLabel(rule.team),
+          })
         return list
       })
     : []
@@ -580,7 +604,15 @@ export function AgendaPanel({
                       data-closed={!rule.open || undefined}
                       data-heat={heat(count)}
                       data-holiday={rule.holiday ? rule.holiday.scope : undefined}
-                      data-special={rule.exception ? (rule.open ? 'open' : 'closed') : undefined}
+                      data-special={
+                        rule.exception
+                          ? rule.open
+                            ? 'open'
+                            : 'closed'
+                          : rule.team.length
+                            ? 'team'
+                            : undefined
+                      }
                       aria-selected={isSelected}
                       aria-label={`${new Intl.DateTimeFormat('pt-BR', { dateStyle: 'full' }).format(day)}, ${count} ${count === 1 ? 'agendamento' : 'agendamentos'}${rule.open ? '' : ', fechado'}${tag ? `, ${tag}` : ''}`}
                       key={date}
@@ -711,6 +743,16 @@ export function AgendaPanel({
                         {awayLabel(item.away)}
                       </em>
                     ) : null}
+                    {item.team.length ? (
+                      <button
+                        type="button"
+                        className="ag-day-team"
+                        title={teamLabel(item.team)}
+                        onClick={() => setSchedule({ open: true, tab: 'plan' })}
+                      >
+                        {teamLabel(item.team)}
+                      </button>
+                    ) : null}
                     {item.closure ? (
                       <button
                         type="button"
@@ -810,12 +852,13 @@ export function AgendaPanel({
           isOpen={schedule.open}
           onOpenChange={(open) => setSchedule((current) => ({ ...current, open }))}
           weekly={data.weeklyAvailability}
-          overrides={data.overrides}
           professionals={data.professionals}
           professionalAvailability={data.professionalAvailability ?? []}
           canManageHours={canManageHours}
           canManageTeam={data.canManageTeam !== false}
           initialTab={schedule.tab}
+          timezone={timezone}
+          location={data.location}
           onSaved={changed}
         />
       ) : null}

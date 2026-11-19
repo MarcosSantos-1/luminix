@@ -781,6 +781,7 @@ export async function operationRoutes(
           professionalDays,
           closures,
           location,
+          professionalOverrides,
         ] = await Promise.all([
           connection.query(
             `SELECT a.id, a.starts_at, a.ends_at, a.status, a.booking_source, a.checked_in_at,
@@ -858,6 +859,15 @@ export async function operationRoutes(
                 WHERE clinic_id = $1 AND is_primary LIMIT 1`,
             [tenant.clinicId],
           ),
+          connection.query(
+            `SELECT o.professional_id, o.local_date::text AS local_date, o.is_available, o.periods, o.reason
+                 FROM luminix.professional_schedule_overrides o
+                 JOIN luminix.professionals p ON p.clinic_id = o.clinic_id AND p.id = o.professional_id
+                WHERE o.clinic_id = $1 AND p.status = 'active'
+                  AND o.local_date BETWEEN $2::date AND $3::date
+                ORDER BY o.local_date, o.professional_id`,
+            [tenant.clinicId, request.query.from.slice(0, 10), request.query.to.slice(0, 10)],
+          ),
         ])
         // Reception sees the day; money and client details follow the person's level.
         const seesMoney = can.has('finance:manage')
@@ -884,6 +894,7 @@ export async function operationRoutes(
           canCharge: seesMoney,
           canOpenClients: can.has('client:manage'),
           professionalAvailability: professionalDays.rows,
+          professionalOverrides: professionalOverrides.rows,
           clients: clients.rows,
           services: services.rows,
           professionals: professionals.rows.map(({ photo_key, ...row }) => {
@@ -1439,6 +1450,106 @@ export async function operationRoutes(
           },
         }
       }),
+  )
+
+  // "Planejar semanas": several days at once (the space and/or professionals), in one
+  // transaction. Each entry either restores the default (useDefault) or sets that day's hours.
+  app.put<{
+    Params: { clinicId: string }
+    Body: {
+      days: {
+        date: string
+        professionalId: string | null
+        useDefault?: boolean
+        isAvailable?: boolean
+        periods?: Period[]
+        reason?: string
+      }[]
+    }
+  }>(
+    '/clinics/:clinicId/schedule-plan',
+    {
+      bodyLimit: 65536,
+      schema: {
+        params: clinicParams,
+        body: {
+          type: 'object',
+          additionalProperties: false,
+          required: ['days'],
+          properties: {
+            days: {
+              type: 'array',
+              minItems: 1,
+              maxItems: 120,
+              items: {
+                type: 'object',
+                additionalProperties: false,
+                required: ['date', 'professionalId'],
+                properties: {
+                  date: { type: 'string', pattern: ymd },
+                  professionalId: { type: ['string', 'null'], pattern: uuid },
+                  useDefault: { type: 'boolean' },
+                  isAvailable: { type: 'boolean' },
+                  periods: periodSchema,
+                  reason: { type: 'string', maxLength: 240 },
+                },
+              },
+            },
+          },
+        },
+      },
+    },
+    async (request, reply) => {
+      const days = request.body.days
+      const keys = new Set(days.map((day) => `${day.professionalId ?? ''}|${day.date}`))
+      if (
+        keys.size !== days.length ||
+        days.some(
+          (day) =>
+            !day.useDefault &&
+            (!validPeriods(day.periods ?? []) ||
+              (!day.isAvailable && (day.periods ?? []).length) ||
+              (day.isAvailable && !(day.periods ?? []).length)),
+        )
+      )
+        return reply.code(400).send({ error: 'Invalid availability' })
+      // The SQL functions check each scope again (space: clinic:manage; team: professional:manage).
+      const permission = days.some((day) => !day.professionalId)
+        ? 'clinic:manage'
+        : 'professional:manage'
+      return authorized(request, reply, permission, async (connection, tenant) => {
+        for (const day of days) {
+          const periods = JSON.stringify(day.useDefault ? [] : (day.periods ?? []))
+          const reason = day.useDefault ? null : day.reason?.trim() || null
+          if (day.professionalId)
+            await connection.query(
+              'SELECT luminix.save_professional_override($1, $2, $3::date, $4, $5, $6::jsonb, $7)',
+              [
+                tenant.clinicId,
+                day.professionalId,
+                day.date,
+                day.useDefault === true,
+                day.isAvailable === true,
+                periods,
+                reason,
+              ],
+            )
+          else
+            await connection.query(
+              'SELECT luminix.save_schedule_override($1, $2::date, $3, $4, $5::jsonb, $6)',
+              [
+                tenant.clinicId,
+                day.date,
+                day.useDefault === true,
+                day.isAvailable === true,
+                periods,
+                reason,
+              ],
+            )
+        }
+        return { saved: days.length }
+      })
+    },
   )
 
   const closureBody = {

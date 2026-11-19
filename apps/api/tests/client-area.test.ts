@@ -251,6 +251,71 @@ describe('área do cliente', () => {
     expect(both.slots[bia]).toEqual(['09:00', '09:30', '10:00'])
   })
 
+  it('semana planejada: horário da profissional no dia, sempre dentro do espaço', async () => {
+    const date = new Date(Date.parse(`${nextWeekday()}T12:00:00Z`) + 7 * 86_400_000)
+      .toISOString()
+      .slice(0, 10)
+    const slots = async () =>
+      (
+        await call(
+          'cliente-1',
+          'GET',
+          `/client/spaces/${slugA}/availability?serviceId=${solo}&date=${date}`,
+        )
+      ).json().slots[ana]
+    const plan = (days: unknown[], user = 'owner-a', clinic = clinicA) =>
+      call(user, 'PUT', `/clinics/${clinic}/schedule-plan`, { days })
+    // Ana starts at 10:00 that day and asks for until 14:00; the space closes at 12:00.
+    expect(
+      (
+        await plan([
+          {
+            date,
+            professionalId: ana,
+            isAvailable: true,
+            periods: [{ start: '10:00', end: '14:00' }],
+          },
+        ])
+      ).statusCode,
+    ).toBe(200)
+    expect(await slots()).toEqual(['10:00', '10:30', '11:00'])
+    const agenda = (
+      await call(
+        'owner-a',
+        'GET',
+        `/clinics/${clinicA}/agenda?from=${date}T00:00:00.000Z&to=${date}T23:59:59.999Z`,
+      )
+    ).json()
+    expect(agenda.professionalOverrides).toMatchObject([
+      { professional_id: ana, local_date: date, is_available: true },
+    ])
+    // The space closes that day: nobody books, whatever the professional's own hours.
+    await plan([{ date, professionalId: null, isAvailable: false, periods: [] }])
+    expect(await slots()).toEqual([])
+    // Back to the routine for both.
+    await plan([
+      { date, professionalId: null, useDefault: true },
+      { date, professionalId: ana, useDefault: true },
+    ])
+    expect(await slots()).toEqual(['09:00', '09:30', '10:00', '10:30', '11:00'])
+    // Invalid entries and other clinics are refused.
+    expect(
+      (await plan([{ date, professionalId: ana, isAvailable: true, periods: [] }])).statusCode,
+    ).toBe(400)
+    expect(
+      (
+        await plan([
+          { date, professionalId: ana, useDefault: true },
+          { date, professionalId: ana, useDefault: true },
+        ])
+      ).statusCode,
+    ).toBe(400)
+    expect(
+      (await plan([{ date, professionalId: ana, isAvailable: false, periods: [] }], 'owner-b'))
+        .statusCode,
+    ).toBe(403)
+  })
+
   it('agenda na clínica, bloqueia o mesmo horário e lista só os da própria cliente', async () => {
     const date = nextWeekday()
     const booked = await call('cliente-1', 'POST', `/client/spaces/${slugA}/appointments`, {

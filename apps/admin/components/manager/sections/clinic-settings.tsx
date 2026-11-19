@@ -2,10 +2,11 @@
 
 import Link from 'next/link'
 import { Button } from '@heroui/react'
-import { ArrowRight, CalendarDays, Clock3, Rocket, Wallet } from 'lucide-react'
+import { ArrowRight, Rocket, Wallet } from 'lucide-react'
 import { AccessSettings } from '../settings/access-settings'
 import { PersonalizationSettings } from '../settings/personalization-settings'
 import { ProfileSettings } from '../settings/profile-settings'
+import { RoutineSettings } from '../settings/routine-settings'
 import { RulesSettings } from '../settings/rules-settings'
 import { SettingsCard } from '../settings/settings-kit'
 import { SiteSettings } from '../settings/site-settings'
@@ -76,15 +77,7 @@ export function ClinicSettings({
       {tab === 'acessos' && <AccessSettings clinicId={clinic.id} />}
       {tab === 'rotina' && (
         <div className="settings-stack">
-          <SettingsCard
-            icon={<CalendarDays size={20} />}
-            title="Agenda e expediente"
-            description="Os horários de atendimento, pausas e dias especiais ficam na Agenda."
-          >
-            <Button variant="secondary" onPress={() => onOpen('agenda')}>
-              <Clock3 size={16} aria-hidden /> Abrir Agenda
-            </Button>
-          </SettingsCard>
+          <RoutineSettings clinicId={clinic.id} onOpenAgenda={() => onOpen('agenda')} />
           <SettingsCard
             icon={<Wallet size={20} />}
             title="Pagamentos"

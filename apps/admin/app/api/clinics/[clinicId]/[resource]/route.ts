@@ -31,6 +31,7 @@ const readable = [
 const writable = [
   'onboarding',
   'availability',
+  'schedule-plan',
   'theme',
   'profile',
   'booking-rules',

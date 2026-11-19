@@ -517,38 +517,45 @@ export async function clientRoutes(app: FastifyInstance, dependencies: AuthDepen
       )
     ).rows[0]
     const deviceMissing = device?.needs === true && device.rented !== true
-    const [override, weekly, professionalDays, policy, busy, closures] = await Promise.all([
-      connection.query(
-        'SELECT is_available, periods FROM luminix.schedule_overrides WHERE clinic_id = $1 AND local_date = $2',
-        [scope.clinicId, date],
-      ),
-      connection.query(
-        'SELECT is_available, periods FROM luminix.weekly_availability WHERE clinic_id = $1 AND weekday = $2',
-        [scope.clinicId, weekday],
-      ),
-      connection.query(
-        `SELECT professional_id, is_available, periods FROM luminix.professional_weekly_availability
+    const [override, weekly, professionalDays, policy, busy, closures, ownDates] =
+      await Promise.all([
+        connection.query(
+          'SELECT is_available, periods FROM luminix.schedule_overrides WHERE clinic_id = $1 AND local_date = $2',
+          [scope.clinicId, date],
+        ),
+        connection.query(
+          'SELECT is_available, periods FROM luminix.weekly_availability WHERE clinic_id = $1 AND weekday = $2',
+          [scope.clinicId, weekday],
+        ),
+        connection.query(
+          `SELECT professional_id, is_available, periods FROM luminix.professional_weekly_availability
           WHERE clinic_id = $1 AND weekday = $2`,
-        [scope.clinicId, weekday],
-      ),
-      connection.query(
-        'SELECT booking_notice_minutes, booking_window_days FROM luminix.booking_policies WHERE clinic_id = $1',
-        [scope.clinicId],
-      ),
-      connection.query(
-        `SELECT professional_id, starts_at, ends_at FROM luminix.appointments
+          [scope.clinicId, weekday],
+        ),
+        connection.query(
+          'SELECT booking_notice_minutes, booking_window_days FROM luminix.booking_policies WHERE clinic_id = $1',
+          [scope.clinicId],
+        ),
+        connection.query(
+          `SELECT professional_id, starts_at, ends_at FROM luminix.appointments
           WHERE clinic_id = $1 AND status = ANY($2::text[])
             AND starts_at < ($3::date + 2)::timestamptz AND ends_at > ($3::date - 1)::timestamptz
             AND ($4::uuid IS NULL OR id <> $4::uuid)`,
-        [scope.clinicId, active, date, ignoreAppointmentId],
-      ),
-      // Space closures (férias coletivas, luto…) and each professional's leave.
-      connection.query(
-        `SELECT professional_id FROM luminix.schedule_closures
+          [scope.clinicId, active, date, ignoreAppointmentId],
+        ),
+        // Space closures (férias coletivas, luto…) and each professional's leave.
+        connection.query(
+          `SELECT professional_id FROM luminix.schedule_closures
           WHERE clinic_id = $1 AND $2::date BETWEEN starts_on AND ends_on`,
-        [scope.clinicId, date],
-      ),
-    ])
+          [scope.clinicId, date],
+        ),
+        // A professional's hours for this date only ("Planejar semanas"), over her week.
+        connection.query(
+          `SELECT professional_id, is_available, periods FROM luminix.professional_schedule_overrides
+          WHERE clinic_id = $1 AND local_date = $2`,
+          [scope.clinicId, date],
+        ),
+      ])
     const spaceClosed = closures.rows.some((row) => row.professional_id == null)
     const away = new Set(
       closures.rows
@@ -569,21 +576,25 @@ export async function clientRoutes(app: FastifyInstance, dependencies: AuthDepen
       result[professionalId] = []
       if (date < today || date > last || spaceClosed || deviceMissing || away.has(professionalId))
         continue
+      const ownDate = ownDates.rows.find((row) => String(row.professional_id) === professionalId)
       const own = professionalDays.rows.find(
         (row) => String(row.professional_id) === professionalId,
       )
       // The professional's week narrows the clinic day; a clinic closure (holiday) closes all.
+      // A date of her own always stays inside the space's hours for that day.
       const periods = !professionalId
         ? clinicPeriods
-        : override.rows[0]
-          ? own
-            ? intersect(clinicPeriods, (own.is_available ? own.periods : []) as Period[])
-            : clinicPeriods
-          : own
-            ? own.is_available
-              ? (own.periods as Period[])
-              : []
-            : clinicPeriods
+        : ownDate
+          ? intersect(clinicPeriods, (ownDate.is_available ? ownDate.periods : []) as Period[])
+          : override.rows[0]
+            ? own
+              ? intersect(clinicPeriods, (own.is_available ? own.periods : []) as Period[])
+              : clinicPeriods
+            : own
+              ? own.is_available
+                ? (own.periods as Period[])
+                : []
+              : clinicPeriods
       const taken = busy.rows.filter(
         (row) => !professionalId || String(row.professional_id) === professionalId,
       )
