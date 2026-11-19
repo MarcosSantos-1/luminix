@@ -1515,16 +1515,35 @@ export async function operationRoutes(
     )
   }
 
-  app.get<{ Params: { clinicId: string } }>(
+  app.get<{
+    Params: { clinicId: string }
+    Querystring: { professionalId?: string; history?: string }
+  }>(
     '/clinics/:clinicId/closures',
-    { schema: { params: clinicParams } },
+    {
+      schema: {
+        params: clinicParams,
+        querystring: {
+          type: 'object',
+          additionalProperties: false,
+          properties: {
+            // One professional's periods (Configurações → Equipe); with history, also the old ones.
+            professionalId: { type: 'string', pattern: uuid },
+            history: { type: 'string', enum: ['1'] },
+          },
+        },
+      },
+    },
     async (request, reply) =>
       authorized(request, reply, 'agenda:read', async (connection, tenant) => {
+        const { professionalId, history } = request.query
         const result = await connection.query(
           `SELECT ${closureColumns} FROM luminix.schedule_closures
-             WHERE clinic_id = $1 AND ends_on >= (now() AT TIME ZONE 'UTC')::date - 31
+             WHERE clinic_id = $1
+               AND ($2::uuid IS NULL OR professional_id = $2::uuid)
+               AND ($3::boolean OR ends_on >= (now() AT TIME ZONE 'UTC')::date - 31)
              ORDER BY starts_on, id LIMIT 200`,
-          [tenant.clinicId],
+          [tenant.clinicId, professionalId ?? null, history === '1' && Boolean(professionalId)],
         )
         return { closures: result.rows }
       }),

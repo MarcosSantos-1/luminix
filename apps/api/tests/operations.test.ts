@@ -534,6 +534,21 @@ describe('closures (férias, fechamento por período)', () => {
     expect(agenda.closures).toHaveLength(1)
     expect(agenda.location).toEqual({ city: null, state: null })
     expect((await call('agenda-b', 'GET', clinicB, 'closures')).json().closures).toEqual([])
+    // One professional's history only lists that professional's periods.
+    expect(
+      (
+        await call(
+          'agenda-a',
+          'GET',
+          clinicA,
+          `closures?professionalId=${crypto.randomUUID()}&history=1`,
+        )
+      ).json().closures,
+    ).toEqual([])
+    expect(
+      (await call('agenda-a', 'GET', clinicA, 'closures?history=1')).json().closures,
+    ).toHaveLength(1)
+    expect((await call('agenda-a', 'GET', clinicA, 'closures?history=yes')).statusCode).toBe(400)
 
     const edited = await call('agenda-a', 'PUT', clinicA, `closures/${closure.id}`, {
       startsOn: '2030-01-21',
