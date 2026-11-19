@@ -3,6 +3,8 @@
 import { Button, Spinner } from '@heroui/react'
 import {
   Building2,
+  ChevronLeft,
+  FolderOpen,
   Columns2,
   Folder,
   FolderPlus,
@@ -48,6 +50,8 @@ type FolderInfo = {
   /** Client albums live inside "Clientes". */
   parentId?: string | null
   clientId?: string | null
+  /** Latest photo (signed, expiring) shown on the folder in the explorer. */
+  coverUrl?: string | null
 }
 type Library = {
   folders: FolderInfo[]
@@ -67,6 +71,23 @@ type Item = {
 }
 
 const TRASH = 'trash'
+const fold = (value: string) =>
+  value
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLocaleLowerCase('pt-BR')
+    .trim()
+
+/** "Maria Aparecida dos Santos" → "Maria Santos": first and last name, short enough for a tile. */
+function shortName(name: string) {
+  const parts = name
+    .replace(/ · .*$/, '')
+    .trim()
+    .split(/\s+/)
+  const short = parts.length > 2 ? `${parts[0]} ${parts[parts.length - 1]}` : parts.join(' ')
+  return short.length > 20 ? `${short.slice(0, 19)}…` : short
+}
+
 const folderIcons: Record<string, typeof Folder> = {
   inbox: Inbox,
   clients: UserRound,
@@ -237,6 +258,7 @@ export function MediaLibrary({ clinicId }: { clinicId: string }) {
           key={`${current}-${round}`}
           api={api}
           folder={data.folders.find((folder) => folder.id === current) ?? null}
+          onOpenFolder={setSelected}
           folders={data.folders}
           canManage={data.canManage}
           storageReady={data.storageReady}
@@ -266,7 +288,6 @@ function FolderList({
 }) {
   const [creating, setCreating] = useState(false)
   const [name, setName] = useState('')
-  const [query, setQuery] = useState('')
   const top = folders.filter((folder) => !folder.parentId)
   const childrenOf = (id: string) => folders.filter((folder) => folder.parentId === id)
   const inside = folders.find((folder) => folder.id === current)?.parentId ?? null
@@ -300,53 +321,18 @@ function FolderList({
         {top.map((folder) => {
           const Icon = folderIcons[folder.systemKey ?? ''] ?? Folder
           const children = childrenOf(folder.id)
-          const open = children.length > 0 && (current === folder.id || inside === folder.id)
-          const needle = query.trim().toLocaleLowerCase('pt-BR')
-          const shown = children.filter(
-            (child) => !needle || child.name.toLocaleLowerCase('pt-BR').includes(needle),
-          )
           const sum = folder.count + children.reduce((total, child) => total + child.count, 0)
           return (
             <li key={folder.id}>
               <button
                 type="button"
-                aria-current={current === folder.id ? 'true' : undefined}
-                aria-expanded={children.length ? open : undefined}
+                aria-current={current === folder.id || inside === folder.id ? 'true' : undefined}
                 onClick={() => onSelect(folder.id)}
               >
                 <Icon size={18} aria-hidden />
                 <span>{folder.name}</span>
-                <small>{children.length ? `${children.length} · ${sum}` : folder.count}</small>
+                <small>{children.length ? sum : folder.count}</small>
               </button>
-              {open ? (
-                <div className="media-subfolders">
-                  {children.length > 6 ? (
-                    <label className="media-subsearch">
-                      <Search size={14} aria-hidden />
-                      <input
-                        placeholder="Buscar cliente"
-                        aria-label="Buscar álbum de cliente"
-                        value={query}
-                        onChange={(event) => setQuery(event.target.value)}
-                      />
-                    </label>
-                  ) : null}
-                  <ul>
-                    {shown.map((child) => (
-                      <li key={child.id}>
-                        <button
-                          type="button"
-                          aria-current={current === child.id ? 'true' : undefined}
-                          onClick={() => onSelect(child.id)}
-                        >
-                          <span>{child.name}</span>
-                          <small>{child.count}</small>
-                        </button>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              ) : null}
             </li>
           )
         })}
@@ -405,6 +391,7 @@ function FolderView({
   canManage,
   storageReady,
   onChanged,
+  onOpenFolder,
 }: {
   api: ClinicApi
   folder: FolderInfo | null
@@ -412,8 +399,15 @@ function FolderView({
   canManage: boolean
   storageReady: boolean
   onChanged: () => void
+  /** Explorer navigation: into a sub-folder, or back to the parent. */
+  onOpenFolder: (id: string) => void
 }) {
   const trash = folder === null
+  const parent = folder?.parentId ? folders.find((entry) => entry.id === folder.parentId) : null
+  const children = folder ? folders.filter((entry) => entry.parentId === folder.id) : []
+  const [search, setSearch] = useState('')
+  const [moving, setMoving] = useState<string | null>(null)
+  const needle = fold(search)
   const items = useClinicResource<{ items: Item[] }>(
     api,
     folder ? `library/items?folder=${folder.id}` : 'library/items?trash=1',
@@ -473,13 +467,25 @@ function FolderView({
     if (canUpload) void upload(Array.from(event.dataTransfer.files))
   }
 
-  const list = items.data?.items ?? []
+  const list = (items.data?.items ?? []).filter(
+    (item) => !needle || fold(item.title).includes(needle),
+  )
+  const subfolders = children.filter((child) => !needle || fold(child.name).includes(needle))
+
+  /** Drops a photo dragged from the grid onto a folder tile: moves it there. */
+  async function dropOn(target: FolderInfo, itemId: string) {
+    const item = items.data?.items.find((entry) => entry.id === itemId)
+    setMoving(null)
+    if (!item || item.folderId === target.id) return
+    await change(item, { folderId: target.id }, `Foto movida para ${shortName(target.name)}.`)
+  }
   return (
     <section
       className={`media-folder manager-panel${dragging ? ' is-dragging' : ''}`}
       aria-label={folder?.name ?? 'Lixeira'}
       onDragOver={(event) => {
-        if (!canUpload) return
+        // Only files from the computer; photos dragged inside go to the folder tiles.
+        if (!canUpload || !event.dataTransfer.types.includes('Files')) return
         event.preventDefault()
         setDragging(true)
       }}
@@ -499,7 +505,21 @@ function FolderView({
             />
           ) : (
             <h3>
-              {folder?.name ?? 'Lixeira'}
+              {parent ? (
+                <>
+                  <button
+                    type="button"
+                    className="media-crumb"
+                    onClick={() => onOpenFolder(parent.id)}
+                  >
+                    <ChevronLeft size={16} aria-hidden /> {parent.name}
+                  </button>
+                  <span className="media-crumb-sep" aria-hidden>
+                    ›
+                  </span>
+                </>
+              ) : null}
+              {folder ? (parent ? shortName(folder.name) : folder.name) : 'Lixeira'}
               {folder && !folder.systemKey && canManage ? (
                 <Button
                   size="sm"
@@ -515,7 +535,9 @@ function FolderView({
           )}
           <p>
             {folder
-              ? (folderHints[folder.systemKey ?? ''] ?? 'Pasta criada por você.')
+              ? parent
+                ? `Fotos de ${folder.name}. Envie aqui ou arraste fotos para dentro.`
+                : (folderHints[folder.systemKey ?? ''] ?? 'Pasta criada por você.')
               : 'Fotos tiradas das pastas. Você pode devolver qualquer uma.'}
           </p>
         </div>
@@ -554,6 +576,71 @@ function FolderView({
         </p>
       ) : null}
 
+      {children.length || (items.data?.items.length ?? 0) > 8 ? (
+        <div className="media-explorer-bar">
+          <label className="media-explorer-search">
+            <Search size={16} aria-hidden />
+            <input
+              placeholder={children.length ? 'Buscar cliente ou foto' : 'Buscar foto'}
+              aria-label={children.length ? 'Buscar cliente ou foto' : 'Buscar foto'}
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+            />
+          </label>
+          {children.length ? (
+            <small>
+              {children.length} {children.length === 1 ? 'pasta' : 'pastas'}
+            </small>
+          ) : null}
+        </div>
+      ) : null}
+
+      {subfolders.length ? (
+        <ul className="media-explorer" aria-label="Pastas">
+          {subfolders.map((child) => (
+            <li key={child.id}>
+              <button
+                type="button"
+                className={`media-tile${moving ? ' is-target' : ''}`}
+                title={child.name}
+                onDoubleClick={() => onOpenFolder(child.id)}
+                onClick={() => onOpenFolder(child.id)}
+                onDragOver={(event) => {
+                  if (!event.dataTransfer.types.includes('application/x-luminix-photo')) return
+                  event.preventDefault()
+                  event.stopPropagation()
+                }}
+                onDrop={(event) => {
+                  const id = event.dataTransfer.getData('application/x-luminix-photo')
+                  if (!id) return
+                  event.preventDefault()
+                  event.stopPropagation()
+                  void dropOn(child, id)
+                }}
+              >
+                <span className="media-tile-icon" aria-hidden>
+                  {child.coverUrl ? (
+                    // eslint-disable-next-line @next/next/no-img-element -- signed, expiring URL
+                    <img src={child.coverUrl} alt="" loading="lazy" />
+                  ) : null}
+                  <FolderOpen size={child.coverUrl ? 22 : 54} strokeWidth={1.4} />
+                </span>
+                <strong>{shortName(child.name)}</strong>
+                <small>
+                  {child.count} {child.count === 1 ? 'foto' : 'fotos'}
+                </small>
+              </button>
+            </li>
+          ))}
+        </ul>
+      ) : children.length && needle ? (
+        <p className="media-explorer-none">Nenhuma pasta com “{search}”.</p>
+      ) : null}
+
+      {children.length && list.length ? (
+        <h4 className="media-explorer-label">Fotos soltas em {folder?.name}</h4>
+      ) : null}
+
       {items.error && !items.data ? (
         <LoadError message={items.error} onRetry={items.reload} />
       ) : !items.data ? (
@@ -566,7 +653,18 @@ function FolderView({
         <ul className="media-grid">
           {list.map((item) => (
             <li key={item.id}>
-              <button type="button" className="media-thumb" onClick={() => setOpen(item)}>
+              <button
+                type="button"
+                className="media-thumb"
+                draggable={canManage && !trash}
+                onDragStart={(event) => {
+                  event.dataTransfer.setData('application/x-luminix-photo', item.id)
+                  event.dataTransfer.effectAllowed = 'move'
+                  setMoving(item.id)
+                }}
+                onDragEnd={() => setMoving(null)}
+                onClick={() => setOpen(item)}
+              >
                 {item.thumbUrl ? (
                   // Signed, expiring URLs: plain <img> avoids caching them in the image optimizer.
                   // eslint-disable-next-line @next/next/no-img-element
@@ -579,7 +677,7 @@ function FolderView({
             </li>
           ))}
         </ul>
-      ) : (
+      ) : children.length ? null : (
         <div className="media-empty">
           {trash ? (
             <Empty>A lixeira está vazia.</Empty>

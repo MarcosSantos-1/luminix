@@ -41,9 +41,19 @@ export async function mediaRoutes(
             WHERE clinic_id = $1 AND role_id = $2 AND permission_code = 'media:manage'`,
           [tenant.clinicId, tenant.role],
         )
+        const library = rows[0]?.library as { folders: { cover?: string | null }[] }
+        const ready = privateStorageReady()
+        // Covers are signed like the photos; without the private bucket there is none.
+        const folders = await Promise.all(
+          library.folders.map(async ({ cover, ...folder }) => ({
+            ...folder,
+            coverUrl: ready && cover ? await privateMediaUrl(String(cover)) : null,
+          })),
+        )
         return {
-          ...(rows[0]?.library as object),
-          storageReady: privateStorageReady(),
+          ...library,
+          folders,
+          storageReady: ready,
           canManage: permissions.rows.length > 0,
         }
       }),
