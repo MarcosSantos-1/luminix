@@ -13,7 +13,7 @@ import { inventoryRoutes } from '../inventory/routes.js'
 import { insightsRoutes } from '../insights/routes.js'
 import { workspaceRoutes } from '../workspace/routes.js'
 import { formatClinicGeocodeAddress, pickGeocodedPoint } from './geocode.js'
-import { accessMail } from '../team/access-mail.js'
+import { accessMail, accessMailFailure } from '../team/access-mail.js'
 export type { AuthDependencies } from '../../shared/auth/staff-session.js'
 
 export async function authRoutes(app: FastifyInstance, dependencies: AuthDependencies) {
@@ -119,8 +119,8 @@ export async function authRoutes(app: FastifyInstance, dependencies: AuthDepende
       })
       try {
         await mail.signIn(email)
-      } catch {
-        request.log.warn({ event: 'staff_sign_in_link_failed' })
+      } catch (error) {
+        request.log.warn({ event: 'staff_sign_in_link_failed', cause: accessMailFailure(error) })
         return reply.code(503).send({ error: 'Email unavailable' })
       }
       return reply.code(202).send({ sent: true })

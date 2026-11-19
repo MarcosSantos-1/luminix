@@ -7,7 +7,7 @@ import {
 } from '../../shared/tenant/authorized-route.js'
 import { withClinicTransaction } from '../../shared/tenant/clinic-transaction.js'
 import { publicMediaUrl } from '../clinics/media-storage.js'
-import { accessMail } from './access-mail.js'
+import { accessMail, accessMailFailure } from './access-mail.js'
 
 const uuidPattern = '^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$'
 const clock = { type: 'string', pattern: '^(?:[01][0-9]|2[0-3]):[0-5][0-9]$' }
@@ -365,8 +365,8 @@ export async function teamRoutes(
         try {
           await mail.invite({ email, name, clinicName, role: request.body.role })
           emailSent = true
-        } catch {
-          request.log.warn({ event: 'staff_invite_email_failed' })
+        } catch (error) {
+          request.log.warn({ event: 'staff_invite_email_failed', cause: accessMailFailure(error) })
         }
       }
       return { ...body, emailSent }
@@ -402,8 +402,8 @@ export async function teamRoutes(
       if (!mail) return reply.code(503).send({ error: 'Email unavailable', email: target.email })
       try {
         await mail.invite(target)
-      } catch {
-        request.log.warn({ event: 'staff_access_link_failed' })
+      } catch (error) {
+        request.log.warn({ event: 'staff_access_link_failed', cause: accessMailFailure(error) })
         return reply.code(503).send({ error: 'Email unavailable', email: target.email })
       }
       return { sent: true }

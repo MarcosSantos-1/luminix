@@ -1,6 +1,18 @@
 import type { AuthDependencies } from '../../shared/auth/staff-session.js'
 import { staffInviteEmail, staffSignInEmail } from '../../shared/integrations/email/access-email.js'
 
+/**
+ * Why an access e-mail failed, safe to log: the Firebase error code (e.g. an admin domain missing
+ * from Authorized domains) or our own mailer message, which carries only the provider status.
+ * Never the address or the link.
+ */
+export function accessMailFailure(error: unknown) {
+  const code = (error as { code?: unknown } | null)?.code
+  if (typeof code === 'string') return code
+  const message = error instanceof Error ? error.message : ''
+  return /^(Email provider rejected (d{3})|Link unavailable)$/.test(message) ? message : 'unknown'
+}
+
 /** Mailer + admin origin, or null when access e-mails are not configured (admin falls back). */
 export function accessMail(dependencies: AuthDependencies) {
   const { mailer, staffDirectory } = dependencies
