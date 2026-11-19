@@ -5,11 +5,16 @@ import type { TenantPool } from '../tenant/clinic-transaction.js'
 
 import type { ConnectProvider } from '../../modules/payments/stripe-connect.js'
 import type { StaffDirectory } from '../integrations/firebase/staff-directory.js'
+import type { Mailer } from '../integrations/email/mailer.js'
 
 export type AuthDependencies = {
   connectProvider?: ConnectProvider
   /** Firebase accounts for staff invitations; created lazily in production. */
   staffDirectory?: StaffDirectory
+  /** Access e-mails (invite, sign-in link). Absent: the admin uses Firebase's own e-mail. */
+  mailer?: Mailer
+  /** Public origin of the admin (https://app.luminix.beauty): link return and e-mail logo. */
+  adminOrigin?: string
   verifyToken(token: string): Promise<{ uid: string }>
   database: SqlConnection
   tenantPool?: TenantPool

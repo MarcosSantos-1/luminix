@@ -3,6 +3,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { buildApp } from '../src/app.js'
 import { applyMigrations, type SqlConnection } from '../src/shared/database/migrations.js'
 import type { StaffDirectory } from '../src/shared/integrations/firebase/staff-directory.js'
+import type { OutgoingEmail } from '../src/shared/integrations/email/mailer.js'
 
 let db: PGlite
 let connection: SqlConnection
@@ -23,7 +24,12 @@ const directory: StaffDirectory = {
   async describe(uids) {
     return new Map(uids.map((uid) => [uid, { lastSignInAt: null, disabled: false }]))
   },
+  async signInLink(email, continueUrl, options) {
+    if (options?.existingOnly && !accounts.has(email)) return null
+    return `https://auth.example/link?email=${encodeURIComponent(email)}&continue=${encodeURIComponent(continueUrl)}`
+  },
 }
+const outbox: OutgoingEmail[] = []
 
 beforeAll(async () => {
   db = new PGlite()
@@ -95,6 +101,8 @@ beforeAll(async () => {
       tenantPool: { connect: async () => ({ ...connection, release() {} }) },
       verifyToken: async (uid) => ({ uid }),
       staffDirectory: directory,
+      mailer: { send: async (email) => void outbox.push(email) },
+      adminOrigin: 'https://app.luminix.beauty',
     },
   )
 })
@@ -406,5 +414,175 @@ describe('access', () => {
       (await app.inject({ url: `/clinics/${clinic('a').id}/staff`, headers: as('owner-b') }))
         .statusCode,
     ).toBe(403)
+  })
+})
+
+describe('access levels and options', () => {
+  const ip = { remoteAddress: '10.7.7.7' }
+  const base = () => `/clinics/${clinic('b').id}`
+  let pro = ''
+
+  it('invites with the Luminix e-mail and resends a sign-in link', async () => {
+    outbox.length = 0
+    const response = await app.inject({
+      method: 'POST',
+      url: `${base()}/staff`,
+      headers: as('owner-b'),
+      payload: { name: 'Carla Souza', email: 'carla@example.com', role: 'professional' },
+      ...ip,
+    })
+    expect(response.statusCode).toBe(200)
+    expect(response.json()).toMatchObject({ emailSent: true })
+    expect(response.json()).not.toHaveProperty('clinicName')
+    expect(outbox).toHaveLength(1)
+    expect(outbox[0]).toMatchObject({ to: 'carla@example.com', tag: 'staff_invite' })
+    expect(outbox[0].subject).toContain('Espaço b')
+    expect(decodeURIComponent(outbox[0].text)).toContain(
+      'https://app.luminix.beauty/login?acesso=link',
+    )
+    expect(outbox[0].html).toContain('https://app.luminix.beauty/brand/logo-letter-default.png')
+    pro = accounts.get('carla@example.com')!
+
+    const members = (
+      await app.inject({ url: `${base()}/staff`, headers: as('owner-b'), ...ip })
+    ).json().members as { id: string; email: string }[]
+    const carla = members.find((member) => member.email === 'carla@example.com')!
+    const resend = (uid: string, id: string) =>
+      app.inject({
+        method: 'POST',
+        url: `${base()}/staff/${id}/access-link`,
+        headers: as(uid),
+        payload: {},
+        ...ip,
+      })
+    expect((await resend('owner-b', carla.id)).statusCode).toBe(200)
+    expect(outbox).toHaveLength(2)
+    expect((await resend(pro, carla.id)).statusCode).toBe(403)
+    expect((await resend('owner-a', carla.id)).statusCode).toBe(403)
+  })
+
+  it('mails the public sign-in link only to existing accounts, with the same answer', async () => {
+    outbox.length = 0
+    const ask = (email: string) =>
+      app.inject({ method: 'POST', url: '/auth/access-link', payload: { email } })
+    expect((await ask('carla@example.com')).statusCode).toBe(202)
+    expect((await ask('nobody@example.com')).statusCode).toBe(202)
+    expect(outbox.map((email) => email.to)).toEqual(['carla@example.com'])
+    expect(outbox[0].tag).toBe('staff_sign_in')
+    await ask('carla@example.com')
+    await ask('carla@example.com')
+    expect((await ask('Carla@Example.com')).statusCode).toBe(429)
+    expect((await ask('bad')).statusCode).toBe(400)
+  })
+
+  it('gives the professional schedule, services and marketing but not vacations', async () => {
+    const closure = (uid: string, kind: string) =>
+      app.inject({
+        method: 'POST',
+        url: `${base()}/closures`,
+        headers: as(uid),
+        payload: { startsOn: '2026-12-24', endsOn: '2026-12-26', kind },
+        ...ip,
+      })
+    const dayOff = await app.inject({
+      method: 'PUT',
+      url: `${base()}/availability`,
+      headers: as(pro),
+      payload: { mode: 'override', date: '2026-12-08', isAvailable: false },
+      ...ip,
+    })
+    expect(dayOff.statusCode).toBe(200)
+    expect((await closure(pro, 'maintenance')).statusCode).toBe(201)
+    expect((await closure(pro, 'collective_vacation')).statusCode).toBe(403)
+    const post = await app.inject({
+      method: 'PUT',
+      url: `${base()}/marketing/posts/5f1d7a3e-2b4c-4d6e-8f90-1a2b3c4d5e6f`,
+      headers: as(pro),
+      payload: { title: 'Natal' },
+      ...ip,
+    })
+    expect(post.statusCode).toBe(200)
+    for (const path of ['finance', 'reports', 'settings', 'staff', 'access-levels'])
+      expect(
+        (await app.inject({ url: `${base()}/${path}`, headers: as(pro), ...ip })).statusCode,
+      ).toBe(403)
+    const agendaBody = (
+      await app.inject({
+        url: `${base()}/agenda?from=2026-11-01T00:00:00.000Z&to=2026-11-08T00:00:00.000Z`,
+        headers: as(pro),
+        remoteAddress: '10.6.6.6',
+      })
+    ).json()
+    expect(agendaBody).toMatchObject({ canManageHours: true, canManageVacations: false })
+  })
+
+  it('lets the owner switch whitelisted options per level, never finance or access', async () => {
+    const set = (uid: string, permission: string, enabled: boolean, role = 'professional') =>
+      app.inject({
+        method: 'PUT',
+        url: `${base()}/access-levels`,
+        headers: as(uid),
+        payload: { role, permission, enabled },
+        ...ip,
+      })
+    const list = await app.inject({ url: `${base()}/access-levels`, headers: as('owner-b'), ...ip })
+    expect(list.statusCode).toBe(200)
+    const options = list.json().options as { role: string; permission: string; enabled: boolean }[]
+    expect(
+      options.find((o) => o.role === 'professional' && o.permission === 'vacation:manage'),
+    ).toMatchObject({ enabled: false })
+    expect(options.some((o) => o.permission === 'finance:manage')).toBe(false)
+
+    expect((await set('owner-b', 'finance:manage', true)).statusCode).toBe(400)
+    expect((await set('owner-b', 'team:manage', true, 'reception')).statusCode).toBe(400)
+    expect((await set(pro, 'vacation:manage', true)).statusCode).toBe(403)
+    expect((await set('owner-a', 'vacation:manage', true)).statusCode).toBe(403)
+
+    expect((await set('owner-b', 'vacation:manage', true)).statusCode).toBe(200)
+    const vacation = await app.inject({
+      method: 'POST',
+      url: `${base()}/closures`,
+      headers: as(pro),
+      payload: { startsOn: '2027-01-05', endsOn: '2027-01-10', kind: 'collective_vacation' },
+      ...ip,
+    })
+    expect(vacation.statusCode).toBe(201)
+    expect((await set('owner-b', 'schedule:manage', false)).statusCode).toBe(200)
+    expect(
+      (
+        await app.inject({
+          method: 'PUT',
+          url: `${base()}/availability`,
+          headers: as(pro),
+          payload: { mode: 'override', date: '2026-12-09', isAvailable: false },
+          ...ip,
+        })
+      ).statusCode,
+    ).toBe(403)
+    // A vacation cannot be turned into "maintenance" to dodge the permission, and vice versa.
+    const id = vacation.json().closure?.id as string
+    expect(id).toBeTruthy()
+    expect(
+      (
+        await app.inject({
+          method: 'PUT',
+          url: `${base()}/closures/${id}`,
+          headers: as(pro),
+          payload: { startsOn: '2027-01-05', endsOn: '2027-01-10', kind: 'maintenance' },
+          ...ip,
+        })
+      ).statusCode,
+    ).toBe(403)
+    // Clinic A keeps its own defaults.
+    const other = (
+      await app.inject({
+        url: `/clinics/${clinic('a').id}/access-levels`,
+        headers: as('owner-a'),
+        ...ip,
+      })
+    ).json().options as { role: string; permission: string; enabled: boolean }[]
+    expect(
+      other.find((o) => o.role === 'professional' && o.permission === 'vacation:manage')?.enabled,
+    ).toBe(false)
   })
 })

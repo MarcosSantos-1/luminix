@@ -162,6 +162,33 @@ const fixtures: Record<string, unknown> = {
       },
     ],
   },
+  'access-levels': {
+    options: (
+      [
+        ['reception', 'agenda:manage', true],
+        ['reception', 'client:manage', true],
+        ['reception', 'inventory:manage', true],
+        ['reception', 'service:manage', false],
+        ['reception', 'marketing:manage', false],
+        ['reception', 'media:manage', false],
+        ['reception', 'schedule:manage', false],
+        ['reception', 'vacation:manage', false],
+        ['professional', 'agenda:manage', false],
+        ['professional', 'client:manage', false],
+        ['professional', 'inventory:manage', true],
+        ['professional', 'service:manage', true],
+        ['professional', 'marketing:manage', true],
+        ['professional', 'media:manage', true],
+        ['professional', 'schedule:manage', true],
+        ['professional', 'vacation:manage', false],
+      ] as const
+    ).map(([role, permission, enabled]) => ({
+      role,
+      permission,
+      enabled,
+      enabledByDefault: enabled,
+    })),
+  },
   staff: {
     members: [
       {
@@ -1269,6 +1296,9 @@ export default function QASettings({
         ) as T
       },
       async sendAccessEmail() {
+        await wait(400)
+      },
+      async sendAccessLink() {
         await wait(400)
       },
       async upload(_kind, file) {

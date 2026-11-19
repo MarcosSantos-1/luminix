@@ -454,6 +454,7 @@ export function ScheduleModal({
   professionals,
   professionalAvailability,
   canManageHours,
+  canManageVacations,
   canManageTeam,
   initialTab,
   timezone,
@@ -467,6 +468,7 @@ export function ScheduleModal({
   professionals: BookingProfessional[]
   professionalAvailability: ProfessionalDayRow[]
   canManageHours: boolean
+  canManageVacations: boolean
   canManageTeam: boolean
   /** Opens on this tab (e.g. "Férias e fechamentos" from a closed day). */
   initialTab?: Tab
@@ -531,7 +533,6 @@ export function ScheduleModal({
           professionals={professionals}
           professionalAvailability={professionalAvailability}
           canManageHours={canManageHours}
-          canManageTeam={canManageTeam}
           timezone={timezone}
           location={location}
           onSaved={onSaved}
@@ -552,8 +553,8 @@ export function ScheduleModal({
           api={api}
           professionals={professionals}
           photos={{}}
-          canManageSpace={canManageHours}
-          canManageTeam={canManageTeam}
+          canManageSchedule={canManageHours}
+          canManageVacations={canManageVacations}
           onSaved={onSaved}
         />
       )}

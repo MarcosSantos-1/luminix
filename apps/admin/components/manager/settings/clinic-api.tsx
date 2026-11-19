@@ -3,7 +3,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
 import type { ReactNode } from 'react'
 import { useStaff } from '@/components/staff-provider'
-import { sendPasswordResetEmail } from 'firebase/auth'
+import { sendPasswordResetEmail, sendSignInLinkToEmail } from 'firebase/auth'
 import { getFirebaseAuth } from '@/lib/firebase'
 import { uploadClinicMedia } from '@/lib/media-upload'
 
@@ -37,6 +37,11 @@ export type ClinicApi = {
    * Used for new staff invitations, resending and password resets.
    */
   sendAccessEmail(email: string): Promise<void>
+  /**
+   * One-time sign-in link to a member: the Luminix e-mail through the API, or Firebase's own
+   * e-mail link when the API has no e-mail provider configured.
+   */
+  sendAccessLink(memberId: string, email: string): Promise<void>
   postalCode(
     cep: string,
   ): Promise<{ street: string; district: string; city: string; state: string } | null>
@@ -82,6 +87,17 @@ export function useClinicApi(clinicId: string): ClinicApi {
       get: (path, query) => call('GET', path, undefined, query),
       put: (path, body) => call('PUT', path, body),
       post: (path, body) => call('POST', path, body),
+      async sendAccessLink(memberId, email) {
+        try {
+          await call('POST', `staff/${memberId}/access-link`, {})
+        } catch (error) {
+          if (!(error instanceof ClinicApiError) || error.status !== 503) throw error
+          await sendSignInLinkToEmail(getFirebaseAuth(), email, {
+            url: `${window.location.origin}/login?acesso=link`,
+            handleCodeInApp: true,
+          })
+        }
+      },
       async sendAccessEmail(email) {
         await sendPasswordResetEmail(getFirebaseAuth(), email, {
           url: `${window.location.origin}/login`,

@@ -29,6 +29,8 @@ const spaceKinds = [
   'other',
 ]
 const personKinds = ['vacation', 'sick_leave', 'training', 'bereavement', 'other']
+/** People away: needs vacation:manage (mirrors luminix.closure_permission). */
+const vacationKinds = new Set(['vacation', 'collective_vacation', 'sick_leave', 'bereavement'])
 
 type Step = 'who' | 'kind' | 'when' | 'note'
 type Form = {
@@ -61,8 +63,8 @@ export function ClosuresEditor({
   api,
   professionals,
   photos,
-  canManageSpace,
-  canManageTeam,
+  canManageSchedule,
+  canManageVacations,
   onSaved,
   professionalId,
 }: {
@@ -70,8 +72,10 @@ export function ClosuresEditor({
   professionals: BookingProfessional[]
   /** Team photos already loaded by "Horários" (fallback for the agenda's own). */
   photos: Record<string, string | null | undefined>
-  canManageSpace: boolean
-  canManageTeam: boolean
+  /** Closures that are not people away (maintenance, event, course…): schedule:manage. */
+  canManageSchedule: boolean
+  /** Vacations and leaves (luminix.closure_permission): vacation:manage. */
+  canManageVacations: boolean
   onSaved: (message: string) => void
   /** Only this professional's periods (Configurações → Equipe), with the full history. */
   professionalId?: string
@@ -111,8 +115,9 @@ export function ClosuresEditor({
   }, [api, reload, professionalId])
 
   const person = professionals.find((item) => item.id === form.who)
-  const kinds = form.who === 'clinic' ? spaceKinds : personKinds
-  const allowed = (who: string) => (who === 'clinic' ? canManageSpace : canManageTeam)
+  const allowed = (kind: string) =>
+    vacationKinds.has(kind) ? canManageVacations : canManageSchedule
+  const kinds = (form.who === 'clinic' ? spaceKinds : personKinds).filter(allowed)
   const name = (id: string | null) =>
     id ? (professionals.find((item) => item.id === id)?.display_name ?? 'Profissional') : 'Espaço'
   const photo = (id: string) =>
@@ -144,11 +149,11 @@ export function ClosuresEditor({
   }
 
   async function save() {
-    if (!allowed(form.who))
+    if (!allowed(form.kind))
       return setError(
-        form.who === 'clinic'
-          ? 'Só quem gerencia o espaço pode fechar por período.'
-          : 'Só quem gerencia a equipe pode marcar férias da equipe.',
+        vacationKinds.has(form.kind)
+          ? 'Seu acesso não permite lançar férias ou afastamentos.'
+          : 'Seu acesso não permite fechar o espaço ou mudar horários.',
       )
     setSaving(true)
     setError('')
@@ -233,7 +238,7 @@ export function ClosuresEditor({
   const renderCard = (row: ClosureRow) => {
     const ended = row.ends_on < today
     const ongoing = !ended && row.starts_on <= today
-    const canEdit = allowed(row.professional_id ?? 'clinic')
+    const canEdit = allowed(row.kind)
     const total = count(row.starts_on, row.ends_on)
     const left = ongoing ? count(today, row.ends_on) : 0
     return (
@@ -506,7 +511,7 @@ export function ClosuresEditor({
         </section>
       ) : (
         <>
-          {canManageSpace || canManageTeam ? (
+          {canManageSchedule || canManageVacations ? (
             <button type="button" className="cw-add" onClick={() => start()}>
               <span aria-hidden>
                 <Plus size={20} />

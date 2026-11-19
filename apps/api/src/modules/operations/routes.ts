@@ -104,6 +104,11 @@ type ClosureKind =
   | 'training'
   | 'event'
   | 'other'
+/** Mirrors luminix.closure_permission: people away need vacation:manage. */
+const vacationKinds = new Set(['vacation', 'collective_vacation', 'sick_leave', 'bereavement'])
+export const closurePermission = (kind: string) =>
+  vacationKinds.has(kind) ? 'vacation:manage' : 'schedule:manage'
+
 const closureLabel: Record<string, string> = {
   vacation: 'Férias',
   collective_vacation: 'Férias coletivas',
@@ -892,7 +897,8 @@ export async function operationRoutes(
             })),
           ),
           canManage: can.has('agenda:manage'),
-          canManageHours: can.has('clinic:manage'),
+          canManageHours: can.has('schedule:manage'),
+          canManageVacations: can.has('vacation:manage'),
           canManageTeam: can.has('professional:manage'),
           canCharge: seesMoney,
           canOpenClients: can.has('client:manage'),
@@ -1416,7 +1422,7 @@ export async function operationRoutes(
       },
     },
     async (request, reply) =>
-      authorized(request, reply, 'clinic:manage', async (connection, tenant) => {
+      authorized(request, reply, 'schedule:manage', async (connection, tenant) => {
         if (request.body.mode === 'weekly') {
           const weekdays = new Set(request.body.days.map((day) => day.weekday))
           if (
@@ -1527,11 +1533,8 @@ export async function operationRoutes(
         )
       )
         return reply.code(400).send({ error: 'Invalid availability' })
-      // The SQL functions check each scope again (space: clinic:manage; team: professional:manage).
-      const permission = days.some((day) => !day.professionalId)
-        ? 'clinic:manage'
-        : 'professional:manage'
-      return authorized(request, reply, permission, async (connection, tenant) => {
+      // One-off days (space or professional) need schedule:manage; the SQL functions re-check.
+      return authorized(request, reply, 'schedule:manage', async (connection, tenant) => {
         for (const day of days) {
           const periods = JSON.stringify(day.useDefault ? [] : (day.periods ?? []))
           const reason = day.useDefault ? null : day.reason?.trim() || null
@@ -1598,46 +1601,42 @@ export async function operationRoutes(
     const body = request.body
     const days = (Date.parse(body.endsOn) - Date.parse(body.startsOn)) / 86_400_000
     if (!(days >= 0 && days <= 366)) return reply.code(400).send({ error: 'Invalid period' })
-    // The function re-checks the scope (space: clinic:manage, one professional: professional:manage).
-    return authorized(
-      request,
-      reply,
-      body.professionalId ? 'professional:manage' : 'clinic:manage',
-      async (connection, tenant) => {
-        const saved = await connection.query(
-          `SELECT ${closureColumns}
+    // Vacations and leaves need vacation:manage; other closures schedule:manage. The function
+    // re-checks, including the previous kind on an edit.
+    return authorized(request, reply, closurePermission(body.kind), async (connection, tenant) => {
+      const saved = await connection.query(
+        `SELECT ${closureColumns}
              FROM luminix.save_schedule_closure($1, $2, $3, $4::date, $5::date, $6, $7)`,
-          [
-            tenant.clinicId,
-            request.params.closureId ?? null,
-            body.professionalId || null,
-            body.startsOn,
-            body.endsOn,
-            body.kind,
-            body.note?.trim() || null,
-          ],
-        )
-        // Appointments already inside the period stay; the manager decides what to do with them.
-        const affected = await connection.query(
-          `SELECT count(*)::int AS total FROM luminix.appointments a
+        [
+          tenant.clinicId,
+          request.params.closureId ?? null,
+          body.professionalId || null,
+          body.startsOn,
+          body.endsOn,
+          body.kind,
+          body.note?.trim() || null,
+        ],
+      )
+      // Appointments already inside the period stay; the manager decides what to do with them.
+      const affected = await connection.query(
+        `SELECT count(*)::int AS total FROM luminix.appointments a
              JOIN luminix.clinic_settings s ON s.clinic_id = a.clinic_id
             WHERE a.clinic_id = $1 AND a.status = ANY($2::text[])
               AND (a.starts_at AT TIME ZONE s.timezone)::date BETWEEN $3::date AND $4::date
               AND ($5::uuid IS NULL OR a.professional_id = $5::uuid)`,
-          [
-            tenant.clinicId,
-            activeAppointmentStatuses,
-            body.startsOn,
-            body.endsOn,
-            body.professionalId || null,
-          ],
-        )
-        return reply.code(request.params.closureId ? 200 : 201).send({
-          closure: saved.rows[0],
-          affectedAppointments: Number(affected.rows[0]?.total ?? 0),
-        })
-      },
-    )
+        [
+          tenant.clinicId,
+          activeAppointmentStatuses,
+          body.startsOn,
+          body.endsOn,
+          body.professionalId || null,
+        ],
+      )
+      return reply.code(request.params.closureId ? 200 : 201).send({
+        closure: saved.rows[0],
+        affectedAppointments: Number(affected.rows[0]?.total ?? 0),
+      })
+    })
   }
 
   app.get<{

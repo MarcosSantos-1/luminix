@@ -13,6 +13,34 @@ em cada montagem. Google e confirmação de magic link usam sessão da aba. Nenh
 para storage próprio; autorização e revogação continuam no backend. Validar ambos os modos em
 navegador autenticado, incluindo fechamento/reabertura e logout, antes de clientes reais.
 
+## Níveis ajustáveis e link mágico (2026-11-19)
+
+Decisão: [ADR-033](decisions/ADR-033-NIVEIS-DE-ACESSO-E-LINK-MAGICO.md). Substitui o convite por
+"criar senha" descrito abaixo. Permissões novas `schedule:manage`, `vacation:manage`,
+`marketing:manage`; Recepção e Profissional têm opções liga/desliga por clínica em
+Configurações → Acessos. Lista fechada e padrões em `role_optional_permissions` (migration 0052);
+rótulos em `apps/admin/lib/access.ts`.
+
+### Configurar o e-mail próprio (Resend + Hostinger), uma vez
+
+1. Criar conta em resend.com → Domains → Add domain `luminix.beauty` (região São Paulo, se
+   oferecida). O Resend mostra os registros com valores únicos da conta.
+2. Hostinger → DNS de `luminix.beauty` → adicionar exatamente o que o Resend mostrar. Na
+   Hostinger, o campo Nome recebe só a parte antes de `.luminix.beauty`:
+   - `TXT` `resend._domainkey` → chave DKIM (`p=...`);
+   - `MX` `send` → `feedback-smtp.<região>.amazonses.com`, prioridade 10;
+   - `TXT` `send` → `v=spf1 include:amazonses.com ~all`;
+   - recomendado: `TXT` `_dmarc` → `v=DMARC1; p=none;`.
+     Nenhum desses conflita com os registros atuais (A do domínio raiz e CNAMEs `app`/`www` da
+     Vercel). Não mexer nos existentes.
+3. Esperar "Verified" no Resend (minutos a algumas horas). Criar API key com permissão de envio.
+4. Secrets da API no Fly: `RESEND_API_KEY`, `EMAIL_FROM="Luminix <acesso@luminix.beauty>"`,
+   `ADMIN_APP_ORIGIN=https://app.luminix.beauty` (opcional `EMAIL_REPLY_TO`).
+5. Firebase → Authentication → Sign-in method: habilitar "Link do e-mail (login sem senha)".
+   Settings → Authorized domains: `app.luminix.beauty`.
+
+Sem os passos 1–4, o link mágico continua funcionando pelo e-mail padrão do Firebase.
+
 ## Acesso da equipe — convites e níveis (2026-11-08)
 
 Decisão: [ADR-023](decisions/ADR-023-EQUIPE-E-ACESSOS.md). Resumo operacional:

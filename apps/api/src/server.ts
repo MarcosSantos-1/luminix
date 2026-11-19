@@ -8,6 +8,7 @@ import { createDatabasePool } from './shared/database/pool.js'
 import { assertRuntimeDatabaseSecurity } from './shared/database/runtime-security.js'
 import { verifyFirebaseIdToken } from './shared/integrations/firebase/admin.js'
 import { createFirebaseStaffDirectory } from './shared/integrations/firebase/staff-directory.js'
+import { createResendMailer } from './shared/integrations/email/mailer.js'
 
 if (existsSync('.env')) {
   loadEnvFile('.env')
@@ -33,6 +34,8 @@ const app = await buildApp(
     tenantPool: database,
     verifyToken: verifyFirebaseIdToken,
     staffDirectory: createFirebaseStaffDirectory(),
+    mailer: createResendMailer(),
+    adminOrigin: process.env.ADMIN_APP_ORIGIN,
   },
 )
 app.addHook('onClose', async () => database.end())

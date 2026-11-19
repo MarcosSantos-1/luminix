@@ -10,6 +10,7 @@ import {
   RotateCcw,
   Send,
   ShieldCheck,
+  SlidersHorizontal,
   UserPlus,
   UserRound,
   UserX,
@@ -17,7 +18,7 @@ import {
 } from 'lucide-react'
 import { useState } from 'react'
 import { SelectField } from '@/components/ui/fields'
-import { accessRoles, roleLabel, type AccessRole } from '@/lib/access'
+import { accessOptions, accessRoles, roleLabel, type AccessRole } from '@/lib/access'
 import { ClinicApiError, useClinicApi, useClinicResource } from './clinic-api'
 import {
   HelpTip,
@@ -26,6 +27,7 @@ import {
   SettingsSkeleton,
   StatusPill,
   TextInput,
+  ToggleRow,
 } from './settings-kit'
 
 export type StaffMember = {
@@ -39,7 +41,13 @@ export type StaffMember = {
   invitedAt: string | null
   lastSignInAt: string | null
 }
-type Notice = { kind: 'ok' | 'error'; text: string; at?: 'form' } | null
+type Notice = { kind: 'ok' | 'error'; text: string; at?: 'form' | 'levels' } | null
+type LevelOption = {
+  role: 'reception' | 'professional'
+  permission: string
+  enabled: boolean
+  enabledByDefault: boolean
+}
 
 function lastAccess(member: StaffMember) {
   if (!member.lastSignInAt) return 'Ainda não entrou'
@@ -50,6 +58,8 @@ function lastAccess(member: StaffMember) {
 export function AccessSettings({ clinicId }: { clinicId: string }) {
   const api = useClinicApi(clinicId)
   const staff = useClinicResource<{ members: StaffMember[] }>(api, 'staff')
+  const levels = useClinicResource<{ options: LevelOption[] }>(api, 'access-levels')
+  const [levelRole, setLevelRole] = useState<LevelOption['role']>('professional')
   const [form, setForm] = useState({
     name: '',
     email: '',
@@ -84,6 +94,39 @@ export function AccessSettings({ clinicId }: { clinicId: string }) {
     }
   }
 
+  async function sendLink(member: StaffMember, text: string) {
+    setBusy(member.id)
+    try {
+      await api.sendAccessLink(member.id, member.email)
+      setNotice({ kind: 'ok', text })
+    } catch {
+      setNotice({
+        kind: 'error',
+        text: 'Não foi possível enviar o link agora. Tente de novo em alguns minutos.',
+      })
+    } finally {
+      setBusy('')
+    }
+  }
+
+  async function setOption(option: LevelOption, enabled: boolean) {
+    const key = `${option.role}|${option.permission}`
+    setBusy(key)
+    setNotice(null)
+    try {
+      await api.put('access-levels', { role: option.role, permission: option.permission, enabled })
+      levels.reload()
+    } catch {
+      setNotice({
+        kind: 'error',
+        text: 'Não foi possível salvar essa permissão. Tente de novo.',
+        at: 'levels',
+      })
+    } finally {
+      setBusy('')
+    }
+  }
+
   async function invite() {
     if (emailError || nameError) {
       setShowErrors(true)
@@ -94,25 +137,33 @@ export function AccessSettings({ clinicId }: { clinicId: string }) {
     setNotice(null)
     setExisting(null)
     try {
-      const result = await api.post<{ accountCreated: boolean }>('staff', {
+      const result = await api.post<{
+        accountCreated: boolean
+        emailSent?: boolean
+        member: { id: string }
+      }>('staff', {
         name: form.name.trim(),
         email,
         role: form.role,
       })
-      if (result.accountCreated)
-        await sendEmail(
-          email,
-          `Pronto! Enviamos para ${email} um link para criar a senha. Peça para olhar também a caixa de spam.`,
-          'form',
-        )
-      else {
-        setNotice({
-          kind: 'ok',
-          text: `Acesso liberado! ${email} já tem conta na Luminix e pode entrar com a senha que já usa.`,
-          at: 'form',
-        })
-        setExisting(email)
+      let sent = result.emailSent === true
+      if (!sent) {
+        // No e-mail provider on the API: Firebase's own e-mail link does the same job.
+        try {
+          await api.sendAccessLink(result.member.id, email)
+          sent = true
+        } catch {
+          sent = false
+        }
       }
+      setNotice({
+        kind: sent ? 'ok' : 'error',
+        text: sent
+          ? `Acesso liberado! Enviamos para ${email} o convite com o botão “Entrar no painel”. Peça para olhar também o spam.`
+          : `Acesso liberado, mas o e-mail não saiu agora. Use “Enviar link de acesso” na lista em alguns minutos.`,
+        at: 'form',
+      })
+      if (!result.accountCreated) setExisting(email)
       setForm({ name: '', email: '', role: 'reception' })
       setShowErrors(false)
       staff.reload()
@@ -177,10 +228,10 @@ export function AccessSettings({ clinicId }: { clinicId: string }) {
           onPress={() => {
             const email = existing
             setExisting(null)
-            void sendEmail(email, `Enviamos para ${email} um link para redefinir a senha.`)
+            void sendEmail(email, `Enviamos para ${email} um link para criar uma senha nova.`)
           }}
         >
-          <Mail size={14} aria-hidden /> Enviar link de senha mesmo assim
+          <Mail size={14} aria-hidden /> Ela prefere senha? Enviar link de senha
         </Button>
       ) : null}
     </p>
@@ -191,7 +242,7 @@ export function AccessSettings({ clinicId }: { clinicId: string }) {
       <SettingsCard
         icon={<ShieldCheck size={20} />}
         title="Como funciona o acesso da equipe"
-        description="Cada pessoa entra com o próprio e-mail e senha. Você decide o que ela pode ver."
+        description="Cada pessoa entra com o próprio e-mail, sem você precisar saber senha nenhuma. Você decide o que ela pode ver."
       >
         <ol className="access-steps">
           <li>
@@ -204,16 +255,17 @@ export function AccessSettings({ clinicId }: { clinicId: string }) {
           <li>
             <span>2</span>
             <div>
-              <strong>A pessoa recebe um e-mail</strong>
-              <small>com um link para criar a senha. O link vale por pouco tempo.</small>
+              <strong>A pessoa recebe um convite</strong>
+              <small>com o botão “Entrar no painel”. Um clique e ela já está dentro.</small>
             </div>
           </li>
           <li>
             <span>3</span>
             <div>
-              <strong>Ela entra em app.luminix.beauty</strong>
+              <strong>Nas próximas vezes</strong>
               <small>
-                com o e-mail e a senha que criou. Você pode tirar o acesso quando quiser.
+                ela entra em app.luminix.beauty pedindo um link no e-mail, ou com senha, se preferir
+                criar uma. Você tira o acesso quando quiser.
               </small>
             </div>
           </li>
@@ -246,6 +298,55 @@ export function AccessSettings({ clinicId }: { clinicId: string }) {
           ))}
         </div>
       </SettingsCard>
+
+      {Array.isArray(levels.data?.options) ? (
+        <SettingsCard
+          icon={<SlidersHorizontal size={20} />}
+          title="O que cada nível pode fazer"
+          description="Ajuste para o jeito do seu espaço. Vale para todas as pessoas do nível. Financeiro, relatórios, configurações e acessos ficam sempre só com a proprietária e gerentes."
+        >
+          <div className="access-pick" role="radiogroup" aria-label="Nível para ajustar">
+            {(['professional', 'reception'] as const).map((role) => (
+              <button
+                key={role}
+                type="button"
+                role="radio"
+                aria-checked={levelRole === role}
+                onClick={() => setLevelRole(role)}
+              >
+                <strong>{roleLabel(role)}</strong>
+                <small>
+                  {levels.data!.options.filter((o) => o.role === role && o.enabled).length} de{' '}
+                  {levels.data!.options.filter((o) => o.role === role).length} liberados
+                </small>
+              </button>
+            ))}
+          </div>
+          <div className="settings-stack">
+            {accessOptions.map((item) => {
+              const option = levels.data!.options.find(
+                (o) => o.role === levelRole && o.permission === item.permission,
+              )
+              if (!option) return null
+              return (
+                <ToggleRow
+                  key={item.permission}
+                  title={item.title}
+                  description={
+                    option.enabled === option.enabledByDefault
+                      ? item.description
+                      : `${item.description} (padrão: ${option.enabledByDefault ? 'liberado' : 'bloqueado'})`
+                  }
+                  isSelected={option.enabled}
+                  disabled={busy !== ''}
+                  onChange={(enabled) => void setOption(option, enabled)}
+                />
+              )
+            })}
+          </div>
+          {notice?.at === 'levels' ? noticeView : null}
+        </SettingsCard>
+      ) : null}
 
       <SettingsCard
         icon={<UserRound size={20} />}
@@ -310,20 +411,16 @@ export function AccessSettings({ clinicId }: { clinicId: string }) {
                         variant="secondary"
                         isDisabled={busy !== ''}
                         onPress={() =>
-                          void sendEmail(
-                            member.email,
+                          void sendLink(
+                            member,
                             pending
                               ? `Reenviamos o convite para ${member.email}.`
-                              : `Enviamos para ${member.email} um link para criar uma senha nova.`,
+                              : `Enviamos para ${member.email} um link de acesso.`,
                           )
                         }
                       >
-                        {pending ? (
-                          <Send size={14} aria-hidden />
-                        ) : (
-                          <RotateCcw size={14} aria-hidden />
-                        )}
-                        {pending ? 'Reenviar convite' : 'Redefinir senha'}
+                        <Send size={14} aria-hidden />
+                        {pending ? 'Reenviar convite' : 'Enviar link de acesso'}
                       </Button>
                     ) : null}
                     {member.status === 'active' ? (
@@ -372,10 +469,10 @@ export function AccessSettings({ clinicId }: { clinicId: string }) {
       <SettingsCard
         icon={<UserPlus size={20} />}
         title="Dar acesso a alguém"
-        description="A pessoa recebe um e-mail para criar a própria senha. Você nunca precisa saber a senha dela."
+        description="A pessoa recebe um convite com um botão para entrar. Sem senha para combinar."
         help={{
           title: 'E se o e-mail não chegar?',
-          text: 'Peça para olhar a caixa de spam e as abas “Promoções” ou “Atualizações”. Depois, use “Reenviar convite” na lista acima. O link vale por pouco tempo, então é melhor abrir logo.',
+          text: 'Peça para olhar a caixa de spam e as abas “Promoções” ou “Atualizações”. Depois, use “Reenviar convite” na lista acima. O link vale por pouco tempo e só funciona uma vez.',
         }}
       >
         <div className="settings-grid">
@@ -431,8 +528,8 @@ export function AccessSettings({ clinicId }: { clinicId: string }) {
             Dar acesso e enviar e-mail
           </Button>
           <HelpTip title="O que a pessoa recebe?">
-            Um e-mail da Luminix com o assunto sobre senha. Ao clicar no link, ela cria a senha e já
-            pode entrar no painel com o e-mail dela.
+            Um e-mail da Luminix com o nome do seu espaço e o botão “Entrar no painel”. Ao tocar,
+            ela entra direto. Depois pode criar uma senha, se quiser.
           </HelpTip>
         </div>
         {notice?.at === 'form' ? noticeView : null}

@@ -12,6 +12,7 @@ export async function staffApiGet(
     | `/clinics/${string}/closures`
     | `/clinics/${string}/team`
     | `/clinics/${string}/staff`
+    | `/clinics/${string}/access-levels`
     | `/clinics/${string}/library`
     | `/clinics/${string}/library/items`
     | `/clinics/${string}/catalog`
@@ -156,6 +157,7 @@ export async function staffApiWrite(
     | `/clinics/${string}/account`
     | `/clinics/${string}/staff`
     | `/clinics/${string}/staff/${string}`
+    | `/clinics/${string}/access-levels`
     | `/clinics/${string}/team/${string}`
     | `/clinics/${string}/team/${string}/archive`
     | `/clinics/${string}/library/folders`

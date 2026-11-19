@@ -70,7 +70,6 @@ export function WeekPlanner({
   professionals,
   professionalAvailability,
   canManageHours,
-  canManageTeam,
   timezone,
   location,
   onSaved,
@@ -80,7 +79,6 @@ export function WeekPlanner({
   professionals: BookingProfessional[]
   professionalAvailability: ProfessionalDayRow[]
   canManageHours: boolean
-  canManageTeam: boolean
   timezone: string
   location?: { city: string | null; state: string | null }
   onSaved: (message: string) => void
@@ -125,7 +123,8 @@ export function WeekPlanner({
   }, [api, dates, reload])
 
   const isClinic = who === 'clinic'
-  const canEdit = isClinic ? canManageHours : canManageTeam
+  // One-off days (space or professional) are schedule:manage since migration 0052.
+  const canEdit = canManageHours
   const withBreaks = !isClinic || solo
   const person = professionals.find((item) => item.id === who)
   const key = (date: string) => `${who}|${date}`

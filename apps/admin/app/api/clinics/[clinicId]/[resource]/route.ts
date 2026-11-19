@@ -27,6 +27,7 @@ const readable = [
   'search',
   'account',
   'closures',
+  'access-levels',
 ] as const
 const writable = [
   'onboarding',
@@ -37,6 +38,7 @@ const writable = [
   'booking-rules',
   'slug',
   'account',
+  'access-levels',
 ] as const
 
 export async function GET(

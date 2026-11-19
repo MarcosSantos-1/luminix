@@ -95,8 +95,8 @@ describe('first owner clinic', () => {
           [a, member.role_id],
         )
       ).rows,
-    ).toHaveLength(15)
-    // Migrations 0025-0027: owner, manager, reception and professional presets exist from the start.
+    ).toHaveLength(18)
+    // Migrations 0025-0027 and 0052: owner, manager, reception and professional presets exist from the start.
     expect(
       (
         await database.query('SELECT name FROM luminix.roles WHERE clinic_id = $1 ORDER BY name', [
@@ -118,8 +118,9 @@ describe('first owner clinic', () => {
         [a],
       )
     ).rows
-    // 13 bootstrap rows + 3 preset roles + 30 preset grants (migrations 0025-0027), all by the owner.
-    expect(audit).toHaveLength(46)
+    // 0052 adds schedule/vacation/marketing to owner and manager and four default options to
+    // the professional: 46 + 10.
+    expect(audit).toHaveLength(56)
     expect(audit.every((row) => row.actor_identity_id === identityA)).toBe(true)
     expect((await create('a', { name: 'Other name' })).statusCode).toBe(409)
     expect((await database.query('SELECT id FROM luminix.clinics')).rows).toHaveLength(1)

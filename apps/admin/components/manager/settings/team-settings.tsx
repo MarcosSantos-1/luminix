@@ -675,8 +675,8 @@ function ProfessionalEditor({
               { id: initial.id, display_name: initial.name, photo_url: initial.photoUrl },
             ]}
             photos={{}}
-            canManageSpace={false}
-            canManageTeam
+            canManageSchedule
+            canManageVacations
             professionalId={initial.id}
             onSaved={() => undefined}
           />

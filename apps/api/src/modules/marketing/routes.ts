@@ -82,7 +82,7 @@ export async function marketingRoutes(
         ])
         const ready = privateStorageReady()
         return {
-          canManage: permissions.has('service:manage'),
+          canManage: permissions.has('marketing:manage'),
           posts: await Promise.all(
             posts.rows.map(async (row) => ({
               id: String(row.id),
@@ -106,7 +106,7 @@ export async function marketingRoutes(
     '/clinics/:clinicId/marketing/posts/:postId',
     { bodyLimit: 16384, schema: { params: clinicItemParams('postId'), body: postBody } },
     async (request, reply) =>
-      authorized(request, reply, 'service:manage', async (connection, tenant) => {
+      authorized(request, reply, 'marketing:manage', async (connection, tenant) => {
         await connection.query(
           'SELECT luminix.save_marketing_post($1::uuid, $2::uuid, $3::jsonb, false)',
           [tenant.clinicId, request.params.postId, JSON.stringify(request.body)],
@@ -119,7 +119,7 @@ export async function marketingRoutes(
     '/clinics/:clinicId/marketing/posts/:postId/remove',
     { schema: { params: clinicItemParams('postId') } },
     async (request, reply) =>
-      authorized(request, reply, 'service:manage', async (connection, tenant) => {
+      authorized(request, reply, 'marketing:manage', async (connection, tenant) => {
         await connection.query(
           "SELECT luminix.save_marketing_post($1::uuid, $2::uuid, '{}'::jsonb, true)",
           [tenant.clinicId, request.params.postId],

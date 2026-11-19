@@ -89,6 +89,7 @@ type AgendaData = {
   timezone: string
   canManage?: boolean
   canManageHours?: boolean
+  canManageVacations?: boolean
   canManageTeam?: boolean
   canCharge?: boolean
   canOpenClients?: boolean
@@ -401,6 +402,7 @@ export function AgendaPanel({
   const selectedDay = new Date(`${selectedDate}T12:00:00`)
   const canManage = data?.canManage !== false
   const canManageHours = data?.canManageHours !== false
+  const canManageVacations = data?.canManageVacations === true
   const periodDays =
     view === 'week' ? days : monthDays.filter((day) => day.getMonth() === month.getMonth())
   const specialDays: SpecialDay[] = data
@@ -464,7 +466,7 @@ export function AgendaPanel({
 
   return (
     <div className={`manager-section manager-data-section ag${embedded ? ' is-embedded' : ''}`}>
-      {data && canManageHours && !embedded ? (
+      {data && (canManageHours || canManageVacations) && !embedded ? (
         <HolidayPrompt
           api={api}
           clinicId={clinicId}
@@ -874,6 +876,7 @@ export function AgendaPanel({
           professionals={data.professionals}
           professionalAvailability={data.professionalAvailability ?? []}
           canManageHours={canManageHours}
+          canManageVacations={canManageVacations}
           canManageTeam={data.canManageTeam !== false}
           initialTab={schedule.tab}
           timezone={timezone}

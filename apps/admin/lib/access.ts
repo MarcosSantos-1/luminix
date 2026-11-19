@@ -17,30 +17,77 @@ export const accessRoles: {
   {
     id: 'owner',
     label: 'Proprietária',
-    summary: 'Dona do espaço. Pode tudo, inclusive dar acesso de gerente.',
+    summary: 'Dona do espaço. Pode tudo, inclusive dar e tirar acesso de gerente.',
     can: ['Tudo do painel', 'Dar e tirar acessos', 'Pagamentos e site'],
     cannot: [],
   },
   {
     id: 'manager',
     label: 'Gerente',
-    summary: 'Cuida do dia a dia como a dona, menos o cadastro inicial.',
-    can: ['Agenda e clientes', 'Equipe e acessos', 'Configurações e site'],
-    cannot: ['Criar outros gerentes'],
+    summary: 'Acesso administrativo: cuida do dia a dia como a dona.',
+    can: ['Agenda, clientes e financeiro', 'Horários, férias e configurações', 'Acessos da equipe'],
+    cannot: ['Dar, mudar ou tirar acesso de outro gerente'],
   },
   {
     id: 'reception',
     label: 'Recepção',
-    summary: 'Marca horários e cadastra clientes.',
-    can: ['Agenda (ver e marcar)', 'Clientes'],
-    cannot: ['Configurações', 'Financeiro', 'Equipe'],
+    summary: 'Marca horários, cadastra clientes e cuida do estoque.',
+    can: ['Agenda (ver e marcar)', 'Clientes', 'Estoque'],
+    cannot: ['Financeiro e relatórios', 'Configurações', 'Acessos'],
   },
   {
     id: 'professional',
     label: 'Profissional',
-    summary: 'Vê a agenda e os dados das clientes, sem alterar nada.',
-    can: ['Ver agenda', 'Ver clientes'],
-    cannot: ['Marcar horários', 'Configurações', 'Financeiro'],
+    summary: 'Atende, cuida de serviços, estoque, marketing e horários do espaço.',
+    can: ['Ver agenda e clientes', 'Serviços, estoque e marketing', 'Horários e dias fechados'],
+    cannot: ['Financeiro e relatórios', 'Configurações', 'Férias'],
+  },
+]
+
+/**
+ * Options the owner/manager switch per level (Configurações → Acessos). The API keeps the
+ * whitelist and the defaults (role_optional_permissions); this only names them.
+ */
+export const accessOptions: { permission: string; title: string; description: string }[] = [
+  {
+    permission: 'agenda:manage',
+    title: 'Marcar e remarcar atendimentos',
+    description: 'Criar, mudar e cancelar horários na agenda.',
+  },
+  {
+    permission: 'client:manage',
+    title: 'Cadastrar e editar clientes',
+    description: 'Ver sempre pode; aqui é criar e alterar cadastros.',
+  },
+  {
+    permission: 'service:manage',
+    title: 'Serviços, pacotes e promoções',
+    description: 'Criar e editar serviços, preços, pacotes e promoções.',
+  },
+  {
+    permission: 'inventory:manage',
+    title: 'Estoque',
+    description: 'Produtos, entradas, saídas e validade.',
+  },
+  {
+    permission: 'marketing:manage',
+    title: 'Marketing',
+    description: 'Planejar e editar posts e campanhas.',
+  },
+  {
+    permission: 'media:manage',
+    title: 'Enviar fotos e mídias',
+    description: 'Adicionar e organizar o acervo de fotos.',
+  },
+  {
+    permission: 'schedule:manage',
+    title: 'Horários e dias fechados',
+    description: 'Mudar o horário de funcionamento e fechar ou abrir dias avulsos.',
+  },
+  {
+    permission: 'vacation:manage',
+    title: 'Férias e afastamentos',
+    description: 'Lançar férias (individuais ou coletivas), licenças e luto.',
   },
 ]
 
@@ -55,7 +102,7 @@ const sectionPermissions: Record<ManagerSectionId, string[]> = {
   servicos: ['agenda:read'],
   financeiro: ['finance:manage', 'settings:manage'],
   estoque: ['inventory:manage'],
-  marketing: ['client:read'],
+  marketing: ['marketing:manage', 'client:read'],
   relatorios: ['finance:manage'],
   midia: ['media:read'],
   configuracoes: ['settings:manage', 'team:manage', 'professional:manage'],
@@ -77,7 +124,7 @@ const settingsPermissions: Record<ManagerSettingsSection, string> = {
   personalizacao: 'settings:manage',
   equipe: 'professional:manage',
   acessos: 'team:manage',
-  rotina: 'clinic:manage',
+  rotina: 'schedule:manage',
 }
 
 export function allowedSettings(permissions: string[]): ManagerSettingsSection[] {

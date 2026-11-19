@@ -38,6 +38,24 @@ export function authMessage(code: string): string {
   return 'Não foi possível concluir. Confira os dados e tente novamente.'
 }
 
+/** E-mail that asked for a link on this device: the return then needs no typing. */
+const linkEmailKey = 'luminix:link-email'
+export function rememberedLinkEmail() {
+  try {
+    return window.localStorage.getItem(linkEmailKey) ?? ''
+  } catch {
+    return ''
+  }
+}
+function rememberLinkEmail(email: string | null) {
+  try {
+    if (email) window.localStorage.setItem(linkEmailKey, email)
+    else window.localStorage.removeItem(linkEmailKey)
+  } catch {
+    /* Private mode: the return page asks for the e-mail. */
+  }
+}
+
 export function useStaffAuth() {
   const [busy, setBusy] = useState(false)
   const [message, setMessage] = useState('')
@@ -105,19 +123,35 @@ export function useStaffAuth() {
       const auth = getFirebaseAuth()
       await setPersistence(auth, browserSessionPersistence)
       await signInWithEmailLink(auth, email.trim(), window.location.href)
+      rememberLinkEmail(null)
       window.history.replaceState(null, '', window.location.pathname)
       setEmailLink(false)
     })
   }
 
+  /** Luminix e-mail through the API; Firebase's own e-mail when that is not configured. */
   function sendLink(email: string) {
     return run(async () => {
-      await sendSignInLinkToEmail(getFirebaseAuth(), email.trim(), {
-        url: `${window.location.origin}/login`,
-        handleCodeInApp: true,
-      })
+      const trimmed = email.trim()
+      const response = await fetch('/api/auth/access-link', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: trimmed }),
+        cache: 'no-store',
+      }).catch(() => null)
+      if (response?.status === 429) {
+        setError('Muitos pedidos seguidos. Aguarde alguns minutos e tente de novo.')
+        return
+      }
+      if (response?.status === 400) throw Object.assign(new Error(), { code: 'auth/invalid-email' })
+      if (!response?.ok)
+        await sendSignInLinkToEmail(getFirebaseAuth(), trimmed, {
+          url: `${window.location.origin}/login?acesso=link`,
+          handleCodeInApp: true,
+        })
+      rememberLinkEmail(trimmed.toLowerCase())
       setMessage(
-        'Se o envio estiver disponível, você receberá um link por e-mail. Verifique também o spam.',
+        'Se este e-mail tiver acesso, o link chega em instantes. Abra neste aparelho para entrar direto. Confira também o spam.',
       )
     })
   }

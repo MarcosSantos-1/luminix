@@ -7,6 +7,16 @@ export type StaffDirectory = {
   ensureAccount(email: string, displayName: string): Promise<{ uid: string; created: boolean }>
   /** Last sign-in and disabled flag; unknown UIDs are omitted. */
   describe(uids: string[]): Promise<Map<string, { lastSignInAt: string | null; disabled: boolean }>>
+  /**
+   * One-time sign-in link (Firebase e-mail link) that returns to `continueUrl`. With
+   * `existingOnly`, returns null for unknown or disabled accounts so the public login form
+   * never mails strangers nor reveals who has an account.
+   */
+  signInLink(
+    email: string,
+    continueUrl: string,
+    options?: { existingOnly?: boolean },
+  ): Promise<string | null>
 }
 
 export function createFirebaseStaffDirectory(
@@ -41,6 +51,18 @@ export function createFirebaseStaffDirectory(
           })
       }
       return result
+    },
+    async signInLink(email, continueUrl, options) {
+      const auth = getAuth()
+      if (options?.existingOnly) {
+        try {
+          if ((await auth.getUserByEmail(email)).disabled) return null
+        } catch (error) {
+          if ((error as { code?: string }).code === 'auth/user-not-found') return null
+          throw error
+        }
+      }
+      return auth.generateSignInWithEmailLink(email, { url: continueUrl, handleCodeInApp: true })
     },
   }
 }

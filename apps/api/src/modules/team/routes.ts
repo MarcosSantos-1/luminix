@@ -7,6 +7,7 @@ import {
 } from '../../shared/tenant/authorized-route.js'
 import { withClinicTransaction } from '../../shared/tenant/clinic-transaction.js'
 import { publicMediaUrl } from '../clinics/media-storage.js'
+import { accessMail } from './access-mail.js'
 
 const uuidPattern = '^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$'
 const clock = { type: 'string', pattern: '^(?:[01][0-9]|2[0-3]):[0-5][0-9]$' }
@@ -311,7 +312,7 @@ export async function teamRoutes(
       const name = request.body.name.trim()
       let account: { uid: string; created: boolean } | undefined
       // The Firebase account is created only after team:manage is confirmed for this clinic.
-      return authorized(
+      const result = await authorized(
         request,
         reply,
         'team:manage',
@@ -328,7 +329,14 @@ export async function teamRoutes(
               [tenant.clinicId, identity?.identity_id, request.body.role, name, email],
             )
           ).rows[0]?.id
-          return { member: { id: String(memberId), email }, accountCreated: account.created }
+          const clinic = await connection.query('SELECT name FROM luminix.clinics WHERE id = $1', [
+            tenant.clinicId,
+          ])
+          return {
+            member: { id: String(memberId), email },
+            accountCreated: account.created,
+            clinicName: String(clinic.rows[0]?.name ?? ''),
+          }
         },
         async (identityId) => {
           if (!dependencies.tenantPool || !dependencies.staffDirectory)
@@ -344,7 +352,114 @@ export async function teamRoutes(
           account = await dependencies.staffDirectory.ensureAccount(email, name)
         },
       )
+      if (reply.sent) return result
+      const { clinicName, ...body } = result as {
+        member: { id: string; email: string }
+        accountCreated: boolean
+        clinicName: string
+      }
+      // After commit: a failed e-mail never undoes the access; the panel offers to resend.
+      const mail = accessMail(dependencies)
+      let emailSent = false
+      if (mail) {
+        try {
+          await mail.invite({ email, name, clinicName, role: request.body.role })
+          emailSent = true
+        } catch {
+          request.log.warn({ event: 'staff_invite_email_failed' })
+        }
+      }
+      return { ...body, emailSent }
     },
+  )
+
+  // Sends a new sign-in link to an active member (invite again / "não recebi o e-mail").
+  // 503 when access e-mails are not configured: the panel then uses Firebase's own e-mail.
+  app.post<{ Params: { clinicId: string; memberId: string } }>(
+    '/clinics/:clinicId/staff/:memberId/access-link',
+    { schema: { params: itemParams('memberId') } },
+    async (request, reply) => {
+      const mail = accessMail(dependencies)
+      const result = await authorized(request, reply, 'team:manage', async (connection, tenant) => {
+        const [members, clinic] = await Promise.all([
+          connection.query('SELECT * FROM luminix.list_staff_members($1::uuid)', [tenant.clinicId]),
+          connection.query('SELECT name FROM luminix.clinics WHERE id = $1', [tenant.clinicId]),
+        ])
+        const member = members.rows.find(
+          (row) => String(row.membership_id) === request.params.memberId,
+        )
+        if (!member || member.status !== 'active' || !member.contact_email)
+          return reply.code(404).send({ error: 'Member not found' })
+        return {
+          email: String(member.contact_email),
+          name: String(member.display_name ?? ''),
+          role: String(member.role_name),
+          clinicName: String(clinic.rows[0]?.name ?? ''),
+        }
+      })
+      if (reply.sent) return result
+      const target = result as { email: string; name: string; role: string; clinicName: string }
+      if (!mail) return reply.code(503).send({ error: 'Email unavailable', email: target.email })
+      try {
+        await mail.invite(target)
+      } catch {
+        request.log.warn({ event: 'staff_access_link_failed' })
+        return reply.code(503).send({ error: 'Email unavailable', email: target.email })
+      }
+      return { sent: true }
+    },
+  )
+
+  // What Recepção and Profissional can do in this clinic, beyond their fixed base.
+  app.get<{ Params: { clinicId: string } }>(
+    '/clinics/:clinicId/access-levels',
+    { schema: { params: clinicRefParams } },
+    async (request, reply) =>
+      authorized(request, reply, 'team:manage', async (connection, tenant) => {
+        const { rows } = await connection.query(
+          'SELECT * FROM luminix.list_role_options($1::uuid)',
+          [tenant.clinicId],
+        )
+        return {
+          options: rows.map((row) => ({
+            role: String(row.role_name),
+            permission: String(row.permission_code),
+            enabled: row.enabled === true,
+            enabledByDefault: row.enabled_by_default === true,
+          })),
+        }
+      }),
+  )
+
+  app.put<{
+    Params: { clinicId: string }
+    Body: { role: 'reception' | 'professional'; permission: string; enabled: boolean }
+  }>(
+    '/clinics/:clinicId/access-levels',
+    {
+      schema: {
+        params: clinicRefParams,
+        body: {
+          type: 'object',
+          additionalProperties: false,
+          required: ['role', 'permission', 'enabled'],
+          properties: {
+            role: { type: 'string', enum: ['reception', 'professional'] },
+            // The SQL function accepts only the whitelisted options of each level.
+            permission: { type: 'string', pattern: '^[a-z]+:[a-z]+$', maxLength: 40 },
+            enabled: { type: 'boolean' },
+          },
+        },
+      },
+    },
+    async (request, reply) =>
+      authorized(request, reply, 'team:manage', async (connection, tenant) => {
+        await connection.query(
+          'SELECT luminix.set_role_option($1::uuid, $2::text, $3::text, $4::boolean)',
+          [tenant.clinicId, request.body.role, request.body.permission, request.body.enabled],
+        )
+        return { saved: true }
+      }),
   )
 
   app.put<{
