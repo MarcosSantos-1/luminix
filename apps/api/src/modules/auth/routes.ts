@@ -6,6 +6,7 @@ import { operationRoutes } from '../operations/routes.js'
 import { teamRoutes } from '../team/routes.js'
 import { mediaRoutes } from '../media/routes.js'
 import { packageRoutes } from '../catalog/packages-routes.js'
+import { marketingRoutes } from '../marketing/routes.js'
 import { catalogRoutes } from '../catalog/routes.js'
 import { financeRoutes } from '../finance/routes.js'
 import { inventoryRoutes } from '../inventory/routes.js'
@@ -35,6 +36,7 @@ export async function authRoutes(app: FastifyInstance, dependencies: AuthDepende
   await financeRoutes(app, authenticate, dependencies.tenantPool)
   await inventoryRoutes(app, authenticate, dependencies.tenantPool)
   await insightsRoutes(app, authenticate, dependencies.tenantPool)
+  await marketingRoutes(app, authenticate, dependencies.tenantPool)
   await workspaceRoutes(app, authenticate, dependencies.tenantPool)
   app.get<{ Querystring: { after?: string } }>(
     '/auth/clinics',

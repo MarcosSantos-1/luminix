@@ -1060,6 +1060,31 @@ export default function QASettings({
           } as T
         }
         if (path.startsWith('library/items') && !fixtures[path]) return { items: [] } as T
+        if (path.startsWith('marketing/posts')) {
+          const day = (offset: number) => {
+            const date = new Date(Date.now() + offset * 86_400_000)
+            return date.toLocaleDateString('en-CA')
+          }
+          return {
+            canManage: true,
+            posts: [
+              ['Dica pós-depilação', null, 'post', 'idea'],
+              ['Antes e depois da limpeza', day(1), 'carousel', 'planned'],
+              ['Bastidores da semana', day(3), 'reels', 'planned'],
+              ['Promo de terça', day(-2), 'stories', 'published'],
+            ].map(([title, date, format, status], index) => ({
+              id: `p-${index}`,
+              title,
+              caption: 'Legenda de exemplo ✨',
+              scheduledOn: date,
+              scheduledTime: date ? '18:00' : null,
+              channels: ['instagram'],
+              format,
+              status,
+              mediaItemId: null,
+            })),
+          } as T
+        }
         if (path === 'agenda') return qaAgenda() as T
         if (path === 'closures') return { closures: qaAgenda().closures } as T
         if (path === 'account')

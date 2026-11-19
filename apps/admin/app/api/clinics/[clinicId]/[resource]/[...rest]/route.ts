@@ -10,6 +10,7 @@ const reads = [
   new RegExp(`^appointments/${id}/supplies$`, 'i'),
   /^catalog\/extras$/,
   new RegExp(`^clients/${id}/packages$`, 'i'),
+  /^marketing\/posts$/,
 ]
 // Closed list of nested write paths (after /clinics/:clinicId/). Anything else is 404.
 const writes: Record<'PUT' | 'POST', RegExp[]> = {
@@ -26,6 +27,7 @@ const writes: Record<'PUT' | 'POST', RegExp[]> = {
     new RegExp(`^clients/${id}/anamnesis$`, 'i'),
     new RegExp(`^catalog/packages/${id}$`, 'i'),
     new RegExp(`^catalog/equipment/${id}$`, 'i'),
+    new RegExp(`^marketing/posts/${id}$`, 'i'),
   ],
   POST: [
     new RegExp(`^catalog/services/${id}/status$`, 'i'),
@@ -41,6 +43,7 @@ const writes: Record<'PUT' | 'POST', RegExp[]> = {
     /^catalog\/equipment$/,
     new RegExp(`^catalog/equipment/${id}/(archive|rentals)$`, 'i'),
     new RegExp(`^catalog/rentals/${id}/remove$`, 'i'),
+    new RegExp(`^marketing/posts/${id}/remove$`, 'i'),
   ],
 }
 

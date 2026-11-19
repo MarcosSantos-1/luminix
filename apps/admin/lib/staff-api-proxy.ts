@@ -96,6 +96,12 @@ export async function staffApiGet(
       const from = source.get('from')
       if (check) url.searchParams.set('check', check.slice(0, 40))
       if (from) url.searchParams.set('from', from.slice(0, 160))
+    } else if (path.endsWith('/marketing/posts')) {
+      const source = new URL(request.url).searchParams
+      for (const key of ['from', 'to']) {
+        const value = source.get(key)
+        if (value && /^\d{4}-\d{2}-\d{2}$/.test(value)) url.searchParams.set(key, value)
+      }
     } else if (path.endsWith('/closures')) {
       const source = new URL(request.url).searchParams
       const professionalId = source.get('professionalId')

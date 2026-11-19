@@ -9,6 +9,7 @@ import {
   Globe,
   HeartHandshake,
   MessageCircle,
+  Pencil,
   Send,
 } from 'lucide-react'
 import { useState } from 'react'
@@ -17,6 +18,7 @@ import { useClinicApi, useClinicResource } from '../settings/clinic-api'
 import { LoadError, SettingsCard, SettingsSkeleton, StatusPill } from '../settings/settings-kit'
 import { dateBr, whatsapp } from './format'
 import type { Catalog } from './catalog-model'
+import { MarketingStudio } from './marketing-studio'
 import { PromotionsSection } from './promotions'
 import './business.css'
 
@@ -69,6 +71,7 @@ function ContactList({
 export function MarketingPanel({
   clinicId,
   clinicName,
+  onOpen,
 }: {
   clinicId: string
   clinicName: string
@@ -93,9 +96,22 @@ export function MarketingPanel({
         title="Divulgue seu site"
         description="Coloque o link na bio do Instagram e mande para as clientes."
         badge={
-          <StatusPill tone={data.site.published ? 'on' : 'off'}>
-            {data.site.published ? 'No ar' : 'Fora do ar'}
-          </StatusPill>
+          <span className="mk-site-badge">
+            <StatusPill tone={data.site.published ? 'on' : 'off'}>
+              {data.site.published ? 'No ar' : 'Fora do ar'}
+            </StatusPill>
+            {onOpen ? (
+              <Button
+                isIconOnly
+                size="sm"
+                variant="ghost"
+                aria-label="Editar o site"
+                onPress={() => onOpen('Vitrine e site')}
+              >
+                <Pencil size={15} />
+              </Button>
+            ) : null}
+          </span>
         }
       >
         <div className="site-link-row">
@@ -131,6 +147,15 @@ export function MarketingPanel({
           ) : null}
         </div>
       </SettingsCard>
+
+      <MarketingStudio
+        api={api}
+        clinicName={clinicName}
+        services={(catalog.data?.services ?? [])
+          .filter((service) => service.status === 'active')
+          .sort((a, b) => b.bookings90d - a.bookings90d)
+          .map((service) => service.name.toLocaleLowerCase('pt-BR'))}
+      />
 
       {catalog.data ? (
         <PromotionsSection api={api} data={catalog.data} onChanged={catalog.reload} />

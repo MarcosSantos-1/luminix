@@ -721,6 +721,50 @@ describe('inventory and marketing', () => {
     })
   })
 
+  it('keeps the posting calendar per clinic', async () => {
+    const base = `/clinics/${c('a').id}/marketing/posts`
+    const post = crypto.randomUUID()
+    const save = await call('owner-a', 'PUT', `${base}/${post}`, {
+      title: 'Antes e depois da limpeza',
+      caption: 'Pele renovada ✨ #limpezadepele',
+      scheduledOn: '2030-05-10',
+      scheduledTime: '18:30',
+      channels: ['instagram', 'whatsapp'],
+      format: 'carousel',
+      status: 'planned',
+    })
+    expect(save.statusCode).toBe(200)
+    const idea = await call('owner-a', 'PUT', `${base}/${crypto.randomUUID()}`, {
+      title: 'Dica de cuidado pós-depilação',
+      status: 'idea',
+    })
+    expect(idea.statusCode).toBe(200)
+    const list = (await call('owner-a', 'GET', `${base}?from=2030-05-01&to=2030-05-31`)).json()
+    expect(list.canManage).toBe(true)
+    expect(list.posts.map((item: { title: string }) => item.title)).toEqual([
+      'Dica de cuidado pós-depilação',
+      'Antes e depois da limpeza',
+    ])
+    expect(list.posts[1]).toMatchObject({
+      scheduledOn: '2030-05-10',
+      scheduledTime: '18:30',
+      channels: ['instagram', 'whatsapp'],
+      format: 'carousel',
+    })
+    // Reception reads but does not write; another clinic sees nothing.
+    expect((await call('reception-a', 'PUT', `${base}/${post}`, { title: 'x' })).statusCode).toBe(
+      403,
+    )
+    expect((await call('owner-b', 'GET', base)).statusCode).toBe(403)
+    expect(
+      (await call('owner-b', 'GET', `/clinics/${c('b').id}/marketing/posts`)).json().posts,
+    ).toEqual([])
+    expect((await call('owner-a', 'POST', `${base}/${post}/remove`, {})).statusCode).toBe(200)
+    expect(
+      (await call('owner-a', 'GET', `${base}?from=2030-05-01&to=2030-05-31`)).json().posts,
+    ).toHaveLength(1)
+  })
+
   it('lists birthdays of the month for marketing', async () => {
     const marketing = (await call('owner-a', 'GET', `/clinics/${c('a').id}/marketing`)).json()
     expect(marketing.birthdays.map((b: { name: string }) => b.name)).toEqual(['Cliente a'])
