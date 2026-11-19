@@ -323,6 +323,10 @@ const fixtures: Record<string, unknown> = {
   catalog: {
     today: '2026-11-09',
     canManage: true,
+    team: [
+      { id: 'a1b2c3d4-0000-4000-8000-000000000201', name: 'Joana Lima', photoUrl: null },
+      { id: 'a1b2c3d4-0000-4000-8000-000000000202', name: 'Maria Aparecida', photoUrl: null },
+    ],
     services: services.map(([id, name, category, priceCents, bookingMode], index) => ({
       id,
       name,

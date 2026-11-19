@@ -172,6 +172,67 @@ describe('role presets', () => {
   })
 })
 
+describe('service professionals', () => {
+  it('sets who does a service from the service itself, only with own active professionals', async () => {
+    const base = `/clinics/${clinic('a').id}/catalog`
+    const catalog = async () =>
+      (
+        await app.inject({ url: base, headers: as('owner-a'), remoteAddress: '10.9.9.9' })
+      ).json() as {
+        team: { id: string }[]
+        services: {
+          id: string
+          name: string
+          category: string
+          description: string
+          priceCents: number
+          priceType: string
+          durationMinutes: number
+          bookingMode: string
+          audience: string
+          sensitive: boolean
+          professionalIds: string[]
+        }[]
+      }
+    const first = await catalog()
+    const target = first.services.find((item) => item.id === clinic('a').service)!
+    const professional = clinic('a').professional
+    expect(first.team.map((item) => item.id)).toContain(professional)
+    const body = (professionalIds: string[]) => ({
+      name: target.name,
+      category: target.category,
+      description: target.description,
+      priceCents: target.priceCents,
+      priceType: target.priceType,
+      durationMinutes: target.durationMinutes,
+      bookingMode: target.bookingMode,
+      audience: target.audience,
+      sensitive: target.sensitive,
+      professionalIds,
+    })
+    const save = (uid: string, ids: string[], clinicLabel = 'a') =>
+      app.inject({
+        method: 'PUT',
+        url: `/clinics/${clinic(clinicLabel).id}/catalog/services/${target.id}`,
+        headers: as(uid),
+        payload: body(ids),
+        // Own address: the staff rate limit (per IP) must not spill into the next suites.
+        remoteAddress: '10.9.9.9',
+      })
+    expect((await save('owner-a', [])).statusCode).toBe(200)
+    expect(
+      (await catalog()).services.find((item) => item.id === target.id)?.professionalIds,
+    ).toEqual([])
+    expect((await save('owner-a', [professional])).statusCode).toBe(200)
+    expect(
+      (await catalog()).services.find((item) => item.id === target.id)?.professionalIds,
+    ).toEqual([professional])
+    // Another clinic's professional is refused; another clinic cannot change it.
+    expect((await save('owner-a', [clinic('b').professional])).statusCode).toBe(400)
+    expect((await save('owner-b', [])).statusCode).toBe(403)
+  })
+})
+
 describe('team', () => {
   const joana = '7c9e6679-7425-40de-944b-e07fc1f90ae7'
   it('adds and edits a professional with services, sensitive audience and hours', async () => {

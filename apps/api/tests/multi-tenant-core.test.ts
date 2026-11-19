@@ -154,6 +154,7 @@ describe('versioned core migration', () => {
       { name: '0042_anamnesis_packages_rentals.sql' },
       { name: '0043_inventory_expiry.sql' },
       { name: '0044_professional_schedule_overrides.sql' },
+      { name: '0045_service_professionals.sql' },
     ])
   })
 

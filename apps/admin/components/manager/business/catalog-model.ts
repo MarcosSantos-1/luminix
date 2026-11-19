@@ -17,6 +17,8 @@ export type Service = {
   sensitive: boolean
   status: 'active' | 'archived'
   professionals: number
+  /** Who does it (active professionals). */
+  professionalIds?: string[]
   bookings90d: number
   promotion: {
     id: string
@@ -39,9 +41,12 @@ export type Promotion = {
   showOnSite: boolean
   serviceIds: string[]
 }
+export type TeamMember = { id: string; name: string; photoUrl: string | null }
 export type Catalog = {
   today: string
   canManage: boolean
+  /** The active professionals, for "Quem faz". */
+  team?: TeamMember[]
   services: Service[]
   promotions: Promotion[]
 }

@@ -12,6 +12,7 @@ import {
   rolePermissions,
   uuidSchema,
 } from '../../shared/tenant/route-helpers.js'
+import { publicMediaUrl } from '../clinics/media-storage.js'
 
 /**
  * Service catalog (created by onboarding, edited here) and promotions: a percent for every
@@ -30,7 +31,7 @@ export async function catalogRoutes(
     { schema: { params: clinicRefParams } },
     async (request, reply) =>
       authorized(request, reply, 'agenda:read', async (connection, tenant) => {
-        const [services, promotions, links, usage, today, permissions] = await Promise.all([
+        const [services, promotions, links, usage, today, permissions, team] = await Promise.all([
           connection.query(
             `SELECT s.id, s.name, coalesce(s.category, 'Cuidados') AS category, s.description,
                     s.price_cents, s.price_type, s.duration_minutes, s.booking_mode, s.audience,
@@ -55,7 +56,8 @@ export async function catalogRoutes(
             [tenant.clinicId],
           ),
           connection.query(
-            `SELECT ps.service_id, count(*) AS professionals
+            `SELECT ps.service_id, count(*) AS professionals,
+                    array_agg(ps.professional_id ORDER BY lower(p.display_name)) AS professional_ids
                FROM luminix.professional_services ps
                JOIN luminix.professionals p ON p.clinic_id = ps.clinic_id AND p.id = ps.professional_id
                 AND p.status = 'active'
@@ -71,12 +73,31 @@ export async function catalogRoutes(
           ),
           connection.query('SELECT luminix.clinic_today() AS today'),
           rolePermissions(connection, tenant),
+          // Who can be chosen in "Quem faz" (Novo serviço).
+          connection.query(
+            `SELECT p.id, p.display_name, photo.small_object_key AS photo_key
+               FROM luminix.professionals p
+               LEFT JOIN luminix.media_assets photo ON photo.clinic_id = p.clinic_id
+                 AND photo.id = p.photo_asset_id AND photo.status = 'ready'
+              WHERE p.clinic_id = $1 AND p.status = 'active'
+              ORDER BY lower(p.display_name) LIMIT 100`,
+            [tenant.clinicId],
+          ),
         ])
         const count = (rows: Record<string, unknown>[], id: string, field: string) =>
           Number(rows.find((row) => String(row.service_id) === id)?.[field] ?? 0)
         return {
           today: isoDate(today.rows[0]?.today),
           canManage: permissions.has('service:manage'),
+          team: team.rows.map((row) => {
+            let photoUrl: string | null = null
+            try {
+              photoUrl = row.photo_key ? publicMediaUrl(String(row.photo_key)) : null
+            } catch {
+              photoUrl = null
+            }
+            return { id: String(row.id), name: String(row.display_name), photoUrl }
+          }),
           services: services.rows.map((row) => {
             const id = String(row.id)
             const percent = row.percent == null ? null : Number(row.percent)
@@ -93,6 +114,10 @@ export async function catalogRoutes(
               sensitive: row.is_sensitive === true,
               status: row.status,
               professionals: count(links.rows, id, 'professionals'),
+              professionalIds: (
+                (links.rows.find((row) => String(row.service_id) === id)?.professional_ids ??
+                  []) as unknown[]
+              ).map(String),
               bookings90d: count(usage.rows, id, 'bookings'),
               promotion:
                 percent == null
@@ -150,6 +175,8 @@ export async function catalogRoutes(
             bookingMode: { type: 'string', enum: ['instant', 'request', 'manual_release'] },
             audience: { type: 'string', enum: ['all', 'women', 'men'] },
             sensitive: { type: 'boolean' },
+            // Who does it (replaces the list when sent).
+            professionalIds: { type: 'array', maxItems: 100, uniqueItems: true, items: uuidSchema },
           },
         },
       },
@@ -160,10 +187,16 @@ export async function catalogRoutes(
         reply,
         'service:manage',
         async (connection, tenant) => {
+          const { professionalIds, ...body } = request.body as Record<string, unknown>
           await connection.query('SELECT luminix.save_service($1::uuid, $2::jsonb)', [
             tenant.clinicId,
-            JSON.stringify({ ...request.body, id: request.params.serviceId }),
+            JSON.stringify({ ...body, id: request.params.serviceId }),
           ])
+          if (Array.isArray(professionalIds))
+            await connection.query(
+              'SELECT luminix.set_service_professionals($1::uuid, $2::uuid, $3::uuid[])',
+              [tenant.clinicId, request.params.serviceId, professionalIds],
+            )
           return { id: request.params.serviceId }
         },
         undefined,

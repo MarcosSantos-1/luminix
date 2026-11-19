@@ -67,6 +67,7 @@ import {
   type Catalog,
   type PriceType,
   type Service,
+  type TeamMember,
 } from './catalog-model'
 import { EquipmentTab, type Equipment } from './equipment-tab'
 import { money, moneyInput, parseMoney, dateBr } from './format'
@@ -176,6 +177,7 @@ export function ServicesPanel({
     sensitive: false,
     status: 'active',
     professionals: 0,
+    professionalIds: [],
     bookings90d: 0,
     promotion: null,
   })
@@ -549,6 +551,7 @@ export function ServicesPanel({
           initial={editing}
           isNew={!data.services.some((service) => service.id === editing.id)}
           categories={categories}
+          team={data.team ?? []}
           onClose={(message) => {
             setEditing(null)
             if (message) changed(message)
@@ -668,7 +671,7 @@ function ServiceTile({
   )
 }
 
-type EditorStep = 'what' | 'price' | 'booking' | 'supplies' | 'review'
+type EditorStep = 'what' | 'price' | 'booking' | 'team' | 'supplies' | 'review'
 
 /**
  * "Novo serviço" in steps: what it is (from a suggestion or typed), price and duration, how the
@@ -679,15 +682,22 @@ function ServiceEditor({
   initial,
   isNew,
   categories,
+  team,
   onClose,
 }: {
   api: ClinicApi
   initial: Service
   isNew: boolean
   categories: string[]
+  /** Active professionals. With one, she does every service (no question). */
+  team: TeamMember[]
   onClose: (message?: string) => void
 }) {
   const [service, setService] = useState(initial)
+  const solo = team.length === 1
+  const [who, setWho] = useState<string[]>(() =>
+    solo ? [team[0].id] : (initial.professionalIds ?? []),
+  )
   const [price, setPrice] = useState(moneyInput(initial.priceCents))
   const [state, setState] = useState<SaveState>({ status: 'idle' })
   const [showErrors, setShowErrors] = useState(false)
@@ -696,6 +706,7 @@ function ServiceEditor({
     { id: 'what', label: 'O serviço' },
     { id: 'price', label: 'Preço e tempo' },
     { id: 'booking', label: 'Agendamento' },
+    ...(team.length > 1 ? [{ id: 'team' as const, label: 'Quem faz' }] : []),
     ...(isNew ? [] : [{ id: 'supplies' as const, label: 'Produtos' }]),
     { id: 'review', label: 'Revisar' },
   ]
@@ -716,6 +727,7 @@ function ServiceEditor({
     what: [errors.name, errors.category].filter(Boolean),
     price: [errors.price].filter(Boolean),
     booking: [],
+    team: [],
     supplies: [],
     review: [],
   }
@@ -757,6 +769,8 @@ function ServiceEditor({
         bookingMode: service.bookingMode,
         audience: service.audience,
         sensitive: service.sensitive,
+        // Solo spaces link the only professional; with a team, the ones chosen in "Quem faz".
+        ...(team.length ? { professionalIds: solo ? [team[0].id] : who } : {}),
       })
       if (supplies.dirty) await supplies.save()
       onClose(
@@ -1022,6 +1036,69 @@ function ServiceEditor({
         </div>
       ) : null}
 
+      {step === 'team' ? (
+        <div className="svc-step">
+          <div className="svc-team-head">
+            <strong>Quem faz este serviço?</strong>
+            <small>
+              Marque uma ou mais pessoas. Só elas aparecem para a cliente escolher na hora de
+              agendar.
+            </small>
+          </div>
+          <div className="svc-team" role="group" aria-label="Quem faz">
+            {team.map((person) => {
+              const on = who.includes(person.id)
+              return (
+                <button
+                  key={person.id}
+                  type="button"
+                  role="checkbox"
+                  aria-checked={on}
+                  onClick={() =>
+                    setWho((current) =>
+                      on ? current.filter((id) => id !== person.id) : [...current, person.id],
+                    )
+                  }
+                >
+                  <span className="svc-team-face" aria-hidden>
+                    {person.photoUrl ? (
+                      // eslint-disable-next-line @next/next/no-img-element -- public team photo
+                      <img src={person.photoUrl} alt="" />
+                    ) : (
+                      person.name
+                        .split(' ')
+                        .slice(0, 2)
+                        .map((part) => part[0])
+                        .join('')
+                        .toUpperCase()
+                    )}
+                  </span>
+                  <strong>{person.name.split(' ')[0]}</strong>
+                  <i aria-hidden>{on ? <Check size={14} strokeWidth={3} /> : null}</i>
+                </button>
+              )
+            })}
+          </div>
+          <div className="svc-team-tools">
+            <Button
+              size="sm"
+              variant="ghost"
+              onPress={() =>
+                setWho(who.length === team.length ? [] : team.map((person) => person.id))
+              }
+            >
+              {who.length === team.length ? 'Desmarcar todas' : 'Todas fazem'}
+            </Button>
+            {!who.length ? (
+              <small className="svc-team-warn">
+                <TriangleAlert size={14} aria-hidden /> Sem ninguém marcado, as clientes não
+                conseguem agendar este serviço.
+              </small>
+            ) : null}
+          </div>
+        </div>
+      ) : null}
+
       {step === 'supplies' ? <SuppliesCard supplies={supplies} service={service} /> : null}
 
       {step === 'review' ? (
@@ -1060,12 +1137,24 @@ function ServiceEditor({
               ) : null}
             </ul>
           </div>
+          {team.length ? (
+            <p className="svc-review-team">
+              <UsersRound size={15} aria-hidden />{' '}
+              {solo
+                ? `Feito por ${team[0].name.split(' ')[0]}.`
+                : who.length
+                  ? `Feito por ${team
+                      .filter((person) => who.includes(person.id))
+                      .map((person) => person.name.split(' ')[0])
+                      .join(', ')}.`
+                  : 'Ninguém marcado em “Quem faz”: as clientes ainda não conseguem agendar.'}
+            </p>
+          ) : null}
           <p className="settings-footnote">
-            É assim que aparece no site. Depois de criar, marque em Configurações → Equipe quem faz
-            este serviço
+            É assim que aparece no site.
             {service.bookingMode === 'manual_release'
-              ? ' e, em Aparelhos alugados, ligue ao aparelho.'
-              : '.'}
+              ? ' Depois de criar, ligue ao aparelho em Aparelhos alugados.'
+              : ''}
           </p>
         </div>
       ) : null}
