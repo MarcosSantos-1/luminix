@@ -215,6 +215,86 @@ describe('pacotes', () => {
       (await call('pack-a', 'POST', clinicA, `client-packages/${clientPackage}/cancel`)).statusCode,
     ).toBe(200)
   })
+
+  it('sells a combo and consumes it service by service', async () => {
+    const comboId = randomUUID()
+    const save = (body: object) =>
+      call('pack-a', 'PUT', clinicA, `catalog/packages/${comboId}`, {
+        name: 'Combo verão',
+        priceCents: 40000,
+        validityDays: 90,
+        ...body,
+      })
+    // Repeated service, a single session in total, or "sessions" with two services: refused.
+    expect(
+      (
+        await save({
+          kind: 'combo',
+          items: [
+            { serviceId: serviceA, sessions: 1 },
+            { serviceId: serviceA, sessions: 1 },
+          ],
+        })
+      ).statusCode,
+    ).toBe(400)
+    expect(
+      (await save({ kind: 'sessions', items: [{ serviceId: serviceA, sessions: 1 }] })).statusCode,
+    ).toBe(400)
+    expect(
+      (
+        await save({
+          kind: 'sessions',
+          items: [
+            { serviceId: serviceA, sessions: 1 },
+            { serviceId: deviceServiceA, sessions: 1 },
+          ],
+        })
+      ).statusCode,
+    ).toBe(400)
+    expect(
+      (
+        await save({
+          kind: 'combo',
+          items: [
+            { serviceId: serviceA, sessions: 1 },
+            { serviceId: deviceServiceA, sessions: 2 },
+          ],
+        })
+      ).statusCode,
+    ).toBe(200)
+    const combo = (await call('pack-a', 'GET', clinicA, 'catalog/extras'))
+      .json()
+      .packages.find((item: { id: string }) => item.id === comboId)
+    expect(combo).toMatchObject({ kind: 'combo', sessions: 3 })
+    expect(combo.items).toEqual([
+      { serviceId: serviceA, sessions: 1 },
+      { serviceId: deviceServiceA, sessions: 2 },
+    ])
+    const sold = await call('pack-a', 'POST', clinicA, `clients/${clientA}/packages`, {
+      packageId: comboId,
+      soldOn: '2030-03-01',
+    })
+    expect(sold.statusCode).toBe(201)
+    const clientCombo = sold.json().id
+    const book = (day: string) =>
+      call('pack-a', 'POST', clinicA, 'appointments', {
+        clientId: clientA,
+        serviceId: serviceA,
+        localStartsAt: `2030-03-${day}T10:00`,
+        clientPackageId: clientCombo,
+      })
+    expect((await book('04')).statusCode).toBe(201)
+    // Drenagem's single session is used; the Laser sessions do not pay for another Drenagem.
+    expect((await book('05')).statusCode).toBe(409)
+    const mine = (await call('pack-a', 'GET', clinicA, `clients/${clientA}/packages`))
+      .json()
+      .packages.find((item: { id: string }) => item.id === clientCombo)
+    expect(mine).toMatchObject({ sessionsTotal: 3, used: 1, left: 2, status: 'active' })
+    expect(mine.items).toEqual([
+      { serviceId: serviceA, sessions: 1, used: 1, left: 0 },
+      { serviceId: deviceServiceA, sessions: 2, used: 0, left: 2 },
+    ])
+  })
 })
 
 describe('aparelhos alugados', () => {

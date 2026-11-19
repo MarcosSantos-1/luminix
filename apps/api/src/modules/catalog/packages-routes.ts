@@ -60,9 +60,9 @@ export async function packageRoutes(
     { schema: { params: clinicRefParams } },
     async (request, reply) =>
       authorized(request, reply, 'agenda:read', async (connection, tenant) => {
-        const [packages, sold, equipment, links, rentals, permissions] = await Promise.all([
+        const [packages, sold, equipment, links, rentals, permissions, items] = await Promise.all([
           connection.query(
-            `SELECT id, service_id, name, sessions, price_cents, validity_days, status
+            `SELECT id, service_id, name, sessions, price_cents, validity_days, status, kind
                FROM luminix.service_packages WHERE clinic_id = $1
               ORDER BY status, lower(name), id LIMIT 200`,
             [tenant.clinicId],
@@ -93,6 +93,11 @@ export async function packageRoutes(
             [tenant.clinicId],
           ),
           rolePermissions(connection, tenant),
+          connection.query(
+            `SELECT package_id, service_id, sessions FROM luminix.service_package_items
+              WHERE clinic_id = $1 ORDER BY package_id, position, service_id`,
+            [tenant.clinicId],
+          ),
         ])
         const seesMoney = permissions.has('finance:manage')
         return {
@@ -104,7 +109,14 @@ export async function packageRoutes(
               id: String(row.id),
               serviceId: String(row.service_id),
               name: String(row.name),
+              kind: row.kind === 'combo' ? 'combo' : 'sessions',
               sessions: Number(row.sessions),
+              items: items.rows
+                .filter((item) => String(item.package_id) === String(row.id))
+                .map((item) => ({
+                  serviceId: String(item.service_id),
+                  sessions: Number(item.sessions),
+                })),
               priceCents: Number(row.price_cents),
               validityDays: row.validity_days == null ? null : Number(row.validity_days),
               status: row.status,
@@ -141,9 +153,11 @@ export async function packageRoutes(
   app.put<{
     Params: { clinicId: string; packageId: string }
     Body: {
-      serviceId: string
+      serviceId?: string
+      sessions?: number
+      kind?: 'sessions' | 'combo'
+      items?: { serviceId: string; sessions: number }[]
       name: string
-      sessions: number
       priceCents: number
       validityDays: number | null
     }
@@ -156,11 +170,28 @@ export async function packageRoutes(
         body: {
           type: 'object',
           additionalProperties: false,
-          required: ['serviceId', 'name', 'sessions', 'priceCents', 'validityDays'],
+          required: ['name', 'priceCents', 'validityDays'],
+          // A combo (several services) or N sessions of one; the old {serviceId, sessions} too.
+          anyOf: [{ required: ['items'] }, { required: ['serviceId', 'sessions'] }],
           properties: {
             serviceId: uuidSchema,
             name: { type: 'string', minLength: 1, maxLength: 120, pattern: '\\S' },
             sessions: { type: 'integer', minimum: 2, maximum: 100 },
+            kind: { type: 'string', enum: ['sessions', 'combo'] },
+            items: {
+              type: 'array',
+              minItems: 1,
+              maxItems: 20,
+              items: {
+                type: 'object',
+                additionalProperties: false,
+                required: ['serviceId', 'sessions'],
+                properties: {
+                  serviceId: uuidSchema,
+                  sessions: { type: 'integer', minimum: 1, maximum: 100 },
+                },
+              },
+            },
             priceCents: { type: 'integer', minimum: 1, maximum: 100000000 },
             validityDays: {
               anyOf: [{ type: 'integer', minimum: 7, maximum: 1095 }, { type: 'null' }],
@@ -226,6 +257,12 @@ export async function packageRoutes(
         const permissions = await rolePermissions(connection, tenant)
         const result = await connection.query(
           `SELECT cp.id, cp.service_id, cp.name, cp.sessions_total, cp.price_cents,
+                  (SELECT coalesce(jsonb_agg(jsonb_build_object(
+                      'serviceId', i.service_id, 'sessions', i.sessions,
+                      'used', luminix.client_package_used_for(cp.clinic_id, cp.id, i.service_id))
+                    ORDER BY i.position, i.service_id), '[]'::jsonb)
+                     FROM luminix.client_package_items i
+                    WHERE i.clinic_id = cp.clinic_id AND i.client_package_id = cp.id) AS items,
                   cp.sold_on::text AS sold_on, cp.expires_on::text AS expires_on, cp.status,
                   luminix.client_package_used(cp.clinic_id, cp.id) AS used,
                   (SELECT count(*)::int FROM luminix.appointments a
@@ -250,6 +287,15 @@ export async function packageRoutes(
               used,
               done: Number(row.done),
               left: Math.max(0, total - used),
+              // Per service (a combo is consumed service by service).
+              items: (
+                (row.items ?? []) as { serviceId: string; sessions: number; used: number }[]
+              ).map((item) => ({
+                serviceId: String(item.serviceId),
+                sessions: Number(item.sessions),
+                used: Number(item.used),
+                left: Math.max(0, Number(item.sessions) - Number(item.used)),
+              })),
               priceCents: permissions.has('finance:manage') ? Number(row.price_cents) : null,
               soldOn: String(row.sold_on),
               expiresOn: row.expires_on ? String(row.expires_on) : null,

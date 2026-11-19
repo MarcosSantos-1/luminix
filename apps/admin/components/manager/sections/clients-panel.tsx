@@ -1219,6 +1219,8 @@ type ProfileTab = 'cover' | 'data' | 'anamnesis' | 'packages' | 'history'
 type ClientPackage = {
   id: string
   serviceId: string
+  /** Per service; a combo has more than one. */
+  items?: { serviceId: string; sessions: number; used: number; left: number }[]
   name: string
   sessionsTotal: number
   used: number
@@ -1232,6 +1234,8 @@ type ClientPackage = {
 type CatalogPackage = {
   id: string
   name: string
+  kind?: 'sessions' | 'combo'
+  items?: { serviceId: string; sessions: number }[]
   sessions: number
   priceCents: number
   validityDays: number | null
@@ -1781,6 +1785,7 @@ function PackagesTab({
   } | null>(null)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
+  const [serviceNames, setServiceNames] = useState<Record<string, string>>({})
 
   useEffect(() => {
     let active = true
@@ -1788,6 +1793,15 @@ function PackagesTab({
       .get<{ packages: CatalogPackage[]; canFinance: boolean }>('catalog/extras')
       .then((body) => active && setCatalog(body))
       .catch(() => active && setCatalog({ packages: [], canFinance: false }))
+    // Names of the services in combos ("2 de 3 limpezas").
+    void api
+      .get<{ services: { id: string; name: string }[] }>('catalog')
+      .then(
+        (body) =>
+          active &&
+          setServiceNames(Object.fromEntries(body.services.map((item) => [item.id, item.name]))),
+      )
+      .catch(() => undefined)
     return () => {
       active = false
     }
@@ -1855,6 +1869,20 @@ function PackagesTab({
                   />
                 ))}
               </div>
+              {item.items && item.items.length > 1 ? (
+                <ul className="cpf-pack-items">
+                  {item.items.map((line) => (
+                    <li key={line.serviceId} data-empty={line.left === 0 || undefined}>
+                      <span>{serviceNames[line.serviceId] ?? 'Serviço'}</span>
+                      <small>
+                        {line.left
+                          ? `${line.left === 1 ? 'resta' : 'restam'} ${line.left} de ${line.sessions}`
+                          : 'usado'}
+                      </small>
+                    </li>
+                  ))}
+                </ul>
+              ) : null}
               <small>
                 {item.left === 1 ? 'Resta' : 'Restam'} {item.left} de {item.sessionsTotal}{' '}
                 {item.sessionsTotal === 1 ? 'sessão' : 'sessões'} · vendido em {dateBr(item.soldOn)}
@@ -1893,7 +1921,15 @@ function PackagesTab({
                 >
                   <strong>{item.name}</strong>
                   <small>
-                    {item.sessions} sessões · {money(item.priceCents)}
+                    {item.kind === 'combo' && item.items?.length
+                      ? item.items
+                          .map(
+                            (line) =>
+                              `${line.sessions}× ${serviceNames[line.serviceId] ?? 'serviço'}`,
+                          )
+                          .join(' + ')
+                      : `${item.sessions} sessões`}{' '}
+                    · {money(item.priceCents)}
                     {item.validityDays ? ` · ${item.validityDays} dias` : ''}
                   </small>
                 </button>

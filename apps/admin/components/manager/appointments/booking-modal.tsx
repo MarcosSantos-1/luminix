@@ -74,6 +74,14 @@ export const closureKinds: Record<string, string> = {
 }
 
 type Step = 'client' | 'service' | 'professional' | 'when' | 'review'
+type PackOption = {
+  id: string
+  serviceId: string
+  name: string
+  left: number
+  status: string
+  items?: { serviceId: string; left: number }[]
+}
 type Slot = { time: string; state: 'free' | 'outside' | 'busy' | 'past' }
 
 const stepTitle: Record<Step, string> = {
@@ -216,9 +224,7 @@ export function BookingModal({
   const [agendaWindow, setAgendaWindow] = useState<{ key: string; data: WindowData } | null>(null)
   const [warnings, setWarnings] = useState<BookingWarning[]>([])
   // Active packages of the chosen client for the chosen service; one session can pay the visit.
-  const [packs, setPacks] = useState<
-    { id: string; serviceId: string; name: string; left: number; status: string }[]
-  >([])
+  const [packs, setPacks] = useState<PackOption[]>([])
   const [usePack, setUsePack] = useState(true)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
@@ -279,9 +285,7 @@ export function BookingModal({
     if (!isOpen || !clientId) return
     let active = true
     void api
-      .get<{
-        packages: { id: string; serviceId: string; name: string; left: number; status: string }[]
-      }>(`clients/${clientId}/packages`)
+      .get<{ packages: PackOption[] }>(`clients/${clientId}/packages`)
       .then((body) => active && setPacks(body.packages.filter((item) => item.status === 'active')))
       .catch(() => active && setPacks([]))
     return () => {
@@ -391,7 +395,18 @@ export function BookingModal({
     }
   }
 
-  const pack = packs.find((item) => item.serviceId === serviceId && item.left > 0)
+  // A combo is used service by service: the session must be left for this service.
+  const pack = packs
+    .map((item) => {
+      const line = item.items?.find((entry) => entry.serviceId === serviceId)
+      const left = item.items?.length
+        ? (line?.left ?? 0)
+        : item.serviceId === serviceId
+          ? item.left
+          : 0
+      return { ...item, left }
+    })
+    .find((item) => item.left > 0)
   const dayHoliday = holidays.find((item) => item.date === date)
   const dayClosure = data ? closureOn(data, date, professionalId) : undefined
   const groups = [
