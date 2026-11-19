@@ -5,6 +5,7 @@ import {
   Cake,
   CalendarClock,
   CalendarPlus,
+  Check,
   Camera,
   ClipboardCheck,
   Gift,
@@ -50,6 +51,7 @@ import {
   type AnamnesisSummary,
   type StaffAnamnesis,
 } from '../clients/anamnesis'
+import { ClientCreateSteps, createSteps, type CreateStep } from '../clients/client-create-steps'
 import { FilterMenu, KpiCards, type FilterValue } from '../data-kit'
 import { QuickModal } from '../quick-modal'
 import { ClinicApiError, useClinicApi, type ClinicApi } from '../settings/clinic-api'
@@ -216,6 +218,8 @@ export function ClientsPanel({
     consent: boolean
   }>({ on: false, index: -1, answers: {}, consent: false })
   const [booking, setBooking] = useState<string | null>(null)
+  // "Adicionar cliente" goes one subject per screen; editing keeps the full form.
+  const [createStep, setCreateStep] = useState<CreateStep>('who')
   const photoInput = useRef<HTMLInputElement>(null)
   const [photoBusy, setPhotoBusy] = useState(false)
   const [photoError, setPhotoError] = useState('')
@@ -284,6 +288,7 @@ export function ClientsPanel({
     setFieldErrors({})
     setError('')
     setIntake({ on: false, index: -1, answers: {}, consent: false })
+    setCreateStep('who')
     setOpen(true)
   }
 
@@ -354,6 +359,7 @@ export function ClientsPanel({
     const taxDigits = form.taxId.replace(/\D/g, '')
     if (taxDigits && !isValidBrazilianTaxId('cpf', taxDigits)) {
       setFieldErrors({ taxId: 'Confira o CPF informado.' })
+      setCreateStep('about')
       return
     }
     setSaving(true)
@@ -403,15 +409,18 @@ export function ClientsPanel({
             } | null)
           : null
       if (body?.error === 'Client requires confirmation') setDuplicates(body.duplicates ?? [])
-      else if (body?.error === 'Tax id already registered')
+      else if (body?.error === 'Tax id already registered') {
         setFieldErrors({
           taxId: `Este CPF já está cadastrado${body.client?.display_name ? ` para ${body.client.display_name}` : ''}.`,
         })
-      else if (body?.error === 'Invalid email')
+        setCreateStep('about')
+      } else if (body?.error === 'Invalid email') {
         setFieldErrors({ email: 'Confira o e-mail informado.' })
-      else if (body?.error === 'Invalid tax id')
+        setCreateStep('contact')
+      } else if (body?.error === 'Invalid tax id') {
         setFieldErrors({ taxId: 'Confira o CPF informado.' })
-      else
+        setCreateStep('about')
+      } else
         setError(body?.error === 'Invalid birth date' ? 'Confira a data de nascimento.' : fallback)
     } finally {
       setSaving(false)
@@ -882,10 +891,36 @@ export function ClientsPanel({
                   )}
                 </div>
               ) : null}
+              {!editing && !(intake.on && intake.index >= 0) ? (
+                <ClientCreateSteps
+                  step={createStep}
+                  form={form}
+                  setForm={(next) => {
+                    if (next.phone !== form.phone) setDuplicates(null)
+                    if (next.taxId !== form.taxId || next.email !== form.email) setFieldErrors({})
+                    setForm(next)
+                  }}
+                  taxIdError={fieldErrors.taxId}
+                  emailError={fieldErrors.email}
+                  anamnesisLabel={levelNames[requiredLevel]}
+                  anamnesisSteps={staffSteps(requiredLevel, intake.answers).length}
+                  onGoTo={setCreateStep}
+                  onStartAnamnesis={() => {
+                    setIntake((current) => ({ ...current, on: true }))
+                    startIntake()
+                  }}
+                  onSkipAnamnesis={() => {
+                    setIntake((current) => ({ ...current, on: false, index: -1 }))
+                    setCreateStep('review')
+                  }}
+                  formatPhone={formatBrPhone}
+                  formatTaxId={formatCpf}
+                />
+              ) : null}
               <form
                 id="manager-client-form"
                 className="manager-client-form"
-                hidden={intake.on && intake.index >= 0}
+                hidden={!editing || (intake.on && intake.index >= 0)}
                 onSubmit={(event) => {
                   if (intake.on && !editing && !intakeAtEnd) {
                     event.preventDefault()
@@ -1058,6 +1093,49 @@ export function ClientsPanel({
                       Continuar
                     </Button>
                   )}
+                </>
+              ) : !editing ? (
+                <>
+                  {createStep === 'who' ? (
+                    <Button variant="secondary" onPress={() => setOpen(false)}>
+                      Cancelar
+                    </Button>
+                  ) : (
+                    <Button
+                      variant="ghost"
+                      onPress={() => {
+                        const index = createSteps.findIndex((item) => item.id === createStep)
+                        setCreateStep(createSteps[index - 1].id)
+                      }}
+                    >
+                      Voltar
+                    </Button>
+                  )}
+                  {createStep !== 'review' && form.name.trim() ? (
+                    <Button variant="secondary" isDisabled={saving} onPress={() => void submit()}>
+                      {saving ? 'Salvando…' : 'Salvar agora'}
+                    </Button>
+                  ) : null}
+                  {createStep === 'review' ? (
+                    <Button isDisabled={saving} onPress={() => void submit()}>
+                      <Check size={16} aria-hidden />{' '}
+                      {saving
+                        ? 'Salvando…'
+                        : intake.on
+                          ? 'Salvar cliente e anamnese'
+                          : 'Salvar cliente'}
+                    </Button>
+                  ) : createStep !== 'anamnesis' ? (
+                    <Button
+                      isDisabled={!form.name.trim()}
+                      onPress={() => {
+                        const index = createSteps.findIndex((item) => item.id === createStep)
+                        setCreateStep(createSteps[index + 1].id)
+                      }}
+                    >
+                      {createStep === 'who' ? 'Continuar' : 'Próximo'}
+                    </Button>
+                  ) : null}
                 </>
               ) : (
                 <>
