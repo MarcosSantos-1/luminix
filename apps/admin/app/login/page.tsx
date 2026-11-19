@@ -1,12 +1,12 @@
 'use client'
 
-import { useEffect, useRef, useState, type FormEvent } from 'react'
+import { useEffect, useState, type FormEvent } from 'react'
 import { useRouter } from 'next/navigation'
 import { AppStatus } from '@/components/app-status'
 import { SignInPage } from '@/components/auth/sign-in'
 import { useStaff } from '@/components/staff-provider'
-import { rememberedLinkEmail, useStaffAuth } from '@/hooks/use-staff-auth'
-import { loadingScene, staffHomePath } from '@/lib/staff-destination'
+import { useStaffAuth } from '@/hooks/use-staff-auth'
+import { firstAccessKey, loadingScene, staffHomePath } from '@/lib/staff-destination'
 
 export default function LoginPage() {
   const staff = useStaff()
@@ -16,17 +16,14 @@ export default function LoginPage() {
 
   useEffect(() => {
     if (!staff.user || staff.loading || staff.error) return
-    router.replace(staffHomePath(staff.clinics) ?? '/')
+    let invited = false
+    try {
+      invited = Boolean(window.sessionStorage.getItem(firstAccessKey))
+    } catch {
+      invited = false
+    }
+    router.replace(invited ? '/primeiro-acesso' : (staffHomePath(staff.clinics) ?? '/'))
   }, [staff.user, staff.loading, staff.error, staff.clinics, router])
-
-  // Same device that asked for the link: finish the sign-in without asking the e-mail again.
-  const autoConfirm = useRef(false)
-  useEffect(() => {
-    if (!auth.emailLink || autoConfirm.current) return
-    autoConfirm.current = true
-    const remembered = rememberedLinkEmail()
-    if (remembered) void auth.confirmEmailLink(remembered)
-  }, [auth])
 
   if (staff.user && !staff.error)
     return <AppStatus scene={loadingScene(staff.clinics, staff.loading)} />
@@ -48,31 +45,33 @@ export default function LoginPage() {
   if (auth.emailLink) {
     return (
       <main className="auth-boot">
-        <form
-          className="email-link-form"
-          onSubmit={(event) => {
-            event.preventDefault()
-            void auth.confirmEmailLink(linkEmail)
-          }}
-        >
-          <h1>Confirme seu e-mail</h1>
-          <p>
-            Por segurança, informe o e-mail que recebeu o convite ou o link. Depois disso você entra
-            direto.
-          </p>
-          <input
-            type="email"
-            required
-            autoComplete="username"
-            placeholder="ex.: maria@sua-clinica.com"
-            value={linkEmail}
-            onChange={(event) => setLinkEmail(event.target.value)}
-          />
-          {auth.error ? <p role="alert">{auth.error}</p> : null}
-          <button type="submit" disabled={auth.busy}>
-            {auth.busy ? 'Aguarde…' : 'Confirmar acesso'}
-          </button>
-        </form>
+        <section className="first-access">
+          <form
+            className="email-link-form"
+            onSubmit={(event) => {
+              event.preventDefault()
+              void auth.confirmEmailLink(linkEmail)
+            }}
+          >
+            <h1>Confirme seu e-mail</h1>
+            <p>
+              Por segurança, informe o e-mail que recebeu o convite. Em seguida você cria a sua
+              senha.
+            </p>
+            <input
+              type="email"
+              required
+              autoComplete="username"
+              placeholder="ex.: maria@sua-clinica.com"
+              value={linkEmail}
+              onChange={(event) => setLinkEmail(event.target.value)}
+            />
+            {auth.error ? <p role="alert">{auth.error}</p> : null}
+            <button type="submit" disabled={auth.busy}>
+              {auth.busy ? 'Aguarde…' : 'Confirmar acesso'}
+            </button>
+          </form>
+        </section>
       </main>
     )
   }
@@ -85,7 +84,6 @@ export default function LoginPage() {
       message={auth.message}
       onSignIn={signIn}
       onResetPassword={resetPassword}
-      onSendLink={(email) => void auth.sendLink(email)}
     />
   )
 }

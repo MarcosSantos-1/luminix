@@ -335,6 +335,7 @@ export async function teamRoutes(
           return {
             member: { id: String(memberId), email },
             accountCreated: account.created,
+            clinicId: tenant.clinicId,
             clinicName: String(clinic.rows[0]?.name ?? ''),
           }
         },
@@ -353,9 +354,10 @@ export async function teamRoutes(
         },
       )
       if (reply.sent) return result
-      const { clinicName, ...body } = result as {
+      const { clinicId, clinicName, ...body } = result as {
         member: { id: string; email: string }
         accountCreated: boolean
+        clinicId: string
         clinicName: string
       }
       // After commit: a failed e-mail never undoes the access; the panel offers to resend.
@@ -363,7 +365,7 @@ export async function teamRoutes(
       let emailSent = false
       if (mail) {
         try {
-          await mail.invite({ email, name, clinicName, role: request.body.role })
+          await mail.invite({ clinicId, email, name, clinicName, role: request.body.role })
           emailSent = true
         } catch (error) {
           request.log.warn({ event: 'staff_invite_email_failed', cause: accessMailFailure(error) })
@@ -394,11 +396,18 @@ export async function teamRoutes(
           email: String(member.contact_email),
           name: String(member.display_name ?? ''),
           role: String(member.role_name),
+          clinicId: tenant.clinicId,
           clinicName: String(clinic.rows[0]?.name ?? ''),
         }
       })
       if (reply.sent) return result
-      const target = result as { email: string; name: string; role: string; clinicName: string }
+      const target = result as {
+        clinicId: string
+        email: string
+        name: string
+        role: string
+        clinicName: string
+      }
       if (!mail) return reply.code(503).send({ error: 'Email unavailable', email: target.email })
       try {
         await mail.invite(target)

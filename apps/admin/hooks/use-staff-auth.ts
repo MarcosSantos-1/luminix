@@ -9,13 +9,13 @@ import {
   createUserWithEmailAndPassword,
   isSignInWithEmailLink,
   sendPasswordResetEmail,
-  sendSignInLinkToEmail,
   signInWithEmailAndPassword,
   signInWithEmailLink,
   signInWithPopup,
   updateProfile,
 } from 'firebase/auth'
 import { getFirebaseAuth } from '@/lib/firebase'
+import { firstAccessKey } from '@/lib/staff-destination'
 
 export function authMessage(code: string): string {
   if (code === 'auth/popup-closed-by-user' || code === 'auth/cancelled-popup-request') return ''
@@ -36,24 +36,6 @@ export function authMessage(code: string): string {
   )
     return 'Não foi possível entrar. Confira o e-mail e a senha.'
   return 'Não foi possível concluir. Confira os dados e tente novamente.'
-}
-
-/** E-mail that asked for a link on this device: the return then needs no typing. */
-const linkEmailKey = 'luminix:link-email'
-export function rememberedLinkEmail() {
-  try {
-    return window.localStorage.getItem(linkEmailKey) ?? ''
-  } catch {
-    return ''
-  }
-}
-function rememberLinkEmail(email: string | null) {
-  try {
-    if (email) window.localStorage.setItem(linkEmailKey, email)
-    else window.localStorage.removeItem(linkEmailKey)
-  } catch {
-    /* Private mode: the return page asks for the e-mail. */
-  }
 }
 
 export function useStaffAuth() {
@@ -123,36 +105,15 @@ export function useStaffAuth() {
       const auth = getFirebaseAuth()
       await setPersistence(auth, browserSessionPersistence)
       await signInWithEmailLink(auth, email.trim(), window.location.href)
-      rememberLinkEmail(null)
+      // Invitation link: the space that invited comes in `c`; the first access opens next.
+      const clinic = new URL(window.location.href).searchParams.get('c') ?? ''
+      try {
+        window.sessionStorage.setItem(firstAccessKey, clinic || 'any')
+      } catch {
+        /* Private mode: the login still lands on the space; the password is set later. */
+      }
       window.history.replaceState(null, '', window.location.pathname)
       setEmailLink(false)
-    })
-  }
-
-  /** Luminix e-mail through the API; Firebase's own e-mail when that is not configured. */
-  function sendLink(email: string) {
-    return run(async () => {
-      const trimmed = email.trim()
-      const response = await fetch('/api/auth/access-link', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: trimmed }),
-        cache: 'no-store',
-      }).catch(() => null)
-      if (response?.status === 429) {
-        setError('Muitos pedidos seguidos. Aguarde alguns minutos e tente de novo.')
-        return
-      }
-      if (response?.status === 400) throw Object.assign(new Error(), { code: 'auth/invalid-email' })
-      if (!response?.ok)
-        await sendSignInLinkToEmail(getFirebaseAuth(), trimmed, {
-          url: `${window.location.origin}/login?acesso=link`,
-          handleCodeInApp: true,
-        })
-      rememberLinkEmail(trimmed.toLowerCase())
-      setMessage(
-        'Se este e-mail tiver acesso, o link chega em instantes. Abra neste aparelho para entrar direto. Confira também o spam.',
-      )
     })
   }
 
@@ -181,7 +142,6 @@ export function useStaffAuth() {
     signIn,
     signUp,
     confirmEmailLink,
-    sendLink,
     reset,
   }
 }

@@ -428,9 +428,11 @@ describe('access levels and options', () => {
     expect(outbox[0]).toMatchObject({ to: 'carla@example.com', tag: 'staff_invite' })
     expect(outbox[0].subject).toContain('Espaço b')
     expect(decodeURIComponent(outbox[0].text)).toContain(
-      'https://app.luminix.beauty/login?acesso=link',
+      `https://app.luminix.beauty/login?acesso=link&c=${clinic('b').id}`,
     )
-    expect(outbox[0].html).toContain('https://app.luminix.beauty/brand/logo-letter-default.png')
+    // The logo travels with the message (cid), not as a remote image.
+    expect(outbox[0].html).toContain('src="cid:luminix-logo"')
+    expect(outbox[0].inline?.[0]).toMatchObject({ contentId: 'luminix-logo' })
     pro = accounts.get('carla@example.com')!
 
     const members = (
@@ -449,20 +451,6 @@ describe('access levels and options', () => {
     expect(outbox).toHaveLength(2)
     expect((await resend(pro, carla.id)).statusCode).toBe(403)
     expect((await resend('owner-a', carla.id)).statusCode).toBe(403)
-  })
-
-  it('mails the public sign-in link only to existing accounts, with the same answer', async () => {
-    outbox.length = 0
-    const ask = (email: string) =>
-      app.inject({ method: 'POST', url: '/auth/access-link', payload: { email } })
-    expect((await ask('carla@example.com')).statusCode).toBe(202)
-    expect((await ask('nobody@example.com')).statusCode).toBe(202)
-    expect(outbox.map((email) => email.to)).toEqual(['carla@example.com'])
-    expect(outbox[0].tag).toBe('staff_sign_in')
-    await ask('carla@example.com')
-    await ask('carla@example.com')
-    expect((await ask('Carla@Example.com')).statusCode).toBe(429)
-    expect((await ask('bad')).statusCode).toBe(400)
   })
 
   it('gives Equipe schedule and services; marketing and vacations only when switched on', async () => {

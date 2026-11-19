@@ -58,16 +58,21 @@ inativa ou reativa gerente (gerente não remove outro gerente); ninguém altera 
 
 ### Link mágico
 
+> Revisado em 2026-11-19: o login **não** é sem senha. O link serve só ao convite: quem entra por
+> ele cai em `/primeiro-acesso` (criar e confirmar senha, foto, boas-vindas). Saíram o botão
+> "Entrar sem senha", o `POST /auth/access-link` público e o e-mail "link de acesso". O logo vai
+> embutido no e-mail (Content-ID). Os itens abaixo marcados como removidos ficam só como histórico.
+
 - API: `StaffDirectory.signInLink` usa `generateSignInWithEmailLink` (Firebase Admin) com retorno
-  `ADMIN_APP_ORIGIN/login?acesso=link`. E-mail próprio via Resend (`fetch`, sem SDK), template
-  em `shared/integrations/email/access-email.ts` (convite e login).
+  `ADMIN_APP_ORIGIN/login?acesso=link&c=<clínica>`. E-mail próprio via Resend (`fetch`, sem SDK),
+  template em `shared/integrations/email/access-email.ts` (só convite).
 - `POST /clinics/:id/staff` envia o convite após o commit (`emailSent`); falha de e-mail não
   desfaz o acesso. `POST /clinics/:id/staff/:memberId/access-link` reenvia (`team:manage`).
-- `POST /auth/access-link` (público): resposta igual exista ou não a conta; só envia para conta
+- (removido) `POST /auth/access-link` (público): resposta igual exista ou não a conta; só envia para conta
   existente e ativa; limite 3/15 min por e-mail e 60/min global (o proxy do admin concentra IPs).
 - Sem `RESEND_API_KEY`/`EMAIL_FROM`/`ADMIN_APP_ORIGIN` a API responde 503 e o admin cai no
   `sendSignInLinkToEmail` do Firebase — o fluxo funciona antes do domínio verificado.
-- Admin: botão "Entrar sem senha" no login; o e-mail fica em `localStorage` no aparelho que pediu
+- (removido) Admin: botão "Entrar sem senha" no login; o e-mail fica em `localStorage` no aparelho que pediu
   o link e o retorno conclui sozinho. Em outro aparelho (convite), pede o e-mail — proteção do
   Firebase contra fixação de sessão. Senha continua opcional ("Esqueci a senha").
 

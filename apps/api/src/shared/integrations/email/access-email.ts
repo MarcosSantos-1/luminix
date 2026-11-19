@@ -1,7 +1,8 @@
+import { emailLogo } from './logo.js'
 import type { OutgoingEmail } from './mailer.js'
 
 /**
- * Staff access e-mails (invitation and sign-in link). Table layout and inline styles because
+ * Staff access e-mail (invitation). Table layout and inline styles because
  * e-mail clients ignore most CSS; one button, a plain-text twin and the raw link as fallback.
  */
 const brand = {
@@ -35,7 +36,6 @@ function layout(input: {
   button: string
   link: string
   footnote: string
-  logoUrl: string
 }) {
   const link = escapeHtml(input.link)
   const paragraphs = input.paragraphs
@@ -58,7 +58,7 @@ function layout(input: {
 <tr><td align="center" style="padding:32px 16px;">
   <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:520px;">
     <tr><td style="padding:0 0 20px;">
-      <img src="${escapeHtml(input.logoUrl)}" width="150" alt="Luminix" style="display:block;border:0;height:auto;">
+      <img src="cid:${emailLogo.contentId}" width="${emailLogo.width}" height="${emailLogo.height}" alt="Luminix" style="display:block;border:0;width:${emailLogo.width}px;height:${emailLogo.height}px;">
     </td></tr>
     <tr><td style="background:#ffffff;border:1px solid ${brand.line};border-radius:20px;overflow:hidden;">
       <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
@@ -104,7 +104,6 @@ export function staffInviteEmail(input: {
   clinicName: string
   role: string
   link: string
-  logoUrl: string
 }): OutgoingEmail {
   const first = input.name.trim().split(/\s+/)[0] || 'Olá'
   const clinic = escapeHtml(input.clinicName)
@@ -119,53 +118,24 @@ export function staffInviteEmail(input: {
       title: `${escapeHtml(first)}, seu acesso ao ${clinic} está pronto`,
       paragraphs: [
         `O <strong>${clinic}</strong> liberou para você o painel do Luminix com o nível <strong>${escapeHtml(role)}</strong>.`,
-        'Não precisa criar senha agora: o botão abaixo já faz o seu login. Se preferir senha, use “Esqueci a senha” na tela de login quando quiser.',
+        'Toque no botão abaixo para entrar. No primeiro acesso você cria a sua senha e coloca a sua foto; depois é só entrar com e-mail e senha.',
       ],
       button: 'Entrar no painel',
       link: input.link,
       footnote:
-        'O link vale por pouco tempo e só funciona uma vez. Se expirar, peça um novo à responsável pelo espaço ou use “Entrar sem senha” na tela de login. Se você não esperava este convite, ignore este e-mail.',
-      logoUrl: input.logoUrl,
+        'O link vale por pouco tempo e só funciona uma vez. Se expirar, peça um novo convite à responsável pelo espaço. Se você não esperava este convite, ignore este e-mail.',
     }),
     text: [
       `${first}, seu acesso ao ${input.clinicName} está pronto.`,
       '',
       `Você recebeu acesso ao painel do Luminix com o nível ${role}.`,
-      'Entre com um clique (sem senha):',
+      'Entre pelo link abaixo e crie a sua senha no primeiro acesso:',
       input.link,
       '',
       'O link vale por pouco tempo e só funciona uma vez. Se você não esperava este convite, ignore este e-mail.',
     ].join('\n'),
-  }
-}
-
-export function staffSignInEmail(input: {
-  to: string
-  link: string
-  logoUrl: string
-}): OutgoingEmail {
-  return {
-    to: input.to,
-    tag: 'staff_sign_in',
-    subject: 'Seu link de acesso ao Luminix',
-    html: layout({
-      preheader: 'Entre no painel com um clique.',
-      eyebrow: 'Link de acesso',
-      title: 'Entre no seu painel',
-      paragraphs: [
-        'Recebemos um pedido para entrar no Luminix com este e-mail. Toque no botão para continuar.',
-      ],
-      button: 'Entrar no painel',
-      link: input.link,
-      footnote:
-        'O link vale por pouco tempo e só funciona uma vez. Se não foi você, ignore este e-mail: ninguém entra sem ele.',
-      logoUrl: input.logoUrl,
-    }),
-    text: [
-      'Entre no seu painel do Luminix com um clique:',
-      input.link,
-      '',
-      'O link vale por pouco tempo e só funciona uma vez. Se não foi você, ignore este e-mail.',
-    ].join('\n'),
+    inline: [
+      { contentId: emailLogo.contentId, filename: emailLogo.filename, base64: emailLogo.base64 },
+    ],
   }
 }

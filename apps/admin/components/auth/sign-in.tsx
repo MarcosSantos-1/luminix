@@ -16,8 +16,6 @@ interface SignInPageProps {
   message?: string
   onSignIn?: (event: React.FormEvent<HTMLFormElement>) => void
   onResetPassword?: (email: string) => void
-  /** "Entrar sem senha": sends a one-time sign-in link to the typed e-mail. */
-  onSendLink?: (email: string) => void
 }
 
 const LightInputWrapper = ({ children }: { children: React.ReactNode }) => (
@@ -35,7 +33,6 @@ export const SignInPage: React.FC<SignInPageProps> = ({
   message,
   onSignIn,
   onResetPassword,
-  onSendLink,
 }) => {
   const [showPassword, setShowPassword] = useState(false)
 
@@ -148,26 +145,6 @@ export const SignInPage: React.FC<SignInPageProps> = ({
               >
                 {busy ? 'Aguarde…' : 'Entrar'}
               </button>
-              {onSendLink ? (
-                <button
-                  type="button"
-                  disabled={busy}
-                  onClick={(event) => {
-                    const input = event.currentTarget
-                      .closest('form')
-                      ?.querySelector<HTMLInputElement>('input[name="email"]')
-                    if (!input?.value.trim() || !input.checkValidity()) {
-                      input?.reportValidity()
-                      input?.focus()
-                      return
-                    }
-                    onSendLink(input.value.trim())
-                  }}
-                  className="animate-element animate-delay-700 w-full rounded-2xl border border-[#f0cfdb] bg-white py-3.5 font-semibold text-[#34101f] transition hover:border-[#c70e59] disabled:opacity-60 sm:py-4"
-                >
-                  Entrar sem senha (link no e-mail)
-                </button>
-              ) : null}
             </form>
 
             <p className="animate-element animate-delay-700 mt-4 text-center text-sm text-[#6d4d5c] sm:mt-6">

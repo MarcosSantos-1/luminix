@@ -13,7 +13,6 @@ import { inventoryRoutes } from '../inventory/routes.js'
 import { insightsRoutes } from '../insights/routes.js'
 import { workspaceRoutes } from '../workspace/routes.js'
 import { formatClinicGeocodeAddress, pickGeocodedPoint } from './geocode.js'
-import { accessMail, accessMailFailure } from '../team/access-mail.js'
 export type { AuthDependencies } from '../../shared/auth/staff-session.js'
 
 export async function authRoutes(app: FastifyInstance, dependencies: AuthDependencies) {
@@ -72,61 +71,6 @@ export async function authRoutes(app: FastifyInstance, dependencies: AuthDepende
       }
     },
   )
-  // Public "receber link de acesso". Same answer whether or not the account exists; mails only
-  // existing accounts. Behind the admin proxy every caller shares one IP, so the limits are per
-  // e-mail (3 per 15 min) and global (60 per minute), both bounded in memory.
-  const linkByEmail = new Map<string, { count: number; until: number }>()
-  const linkGlobal = { count: 0, until: 0 }
-  app.post<{ Body: { email: string } }>(
-    '/auth/access-link',
-    {
-      bodyLimit: 1024,
-      schema: {
-        body: {
-          type: 'object',
-          additionalProperties: false,
-          required: ['email'],
-          properties: {
-            email: {
-              type: 'string',
-              minLength: 3,
-              maxLength: 254,
-              pattern: '^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$',
-            },
-          },
-        },
-      },
-    },
-    async (request, reply) => {
-      reply.header('Cache-Control', 'no-store')
-      const mail = accessMail(dependencies)
-      if (!mail) return reply.code(503).send({ error: 'Email unavailable' })
-      const now = Date.now()
-      if (linkGlobal.until <= now) Object.assign(linkGlobal, { count: 0, until: now + 60_000 })
-      for (const [key, value] of linkByEmail) if (value.until <= now) linkByEmail.delete(key)
-      const email = request.body.email.trim().toLowerCase()
-      const previous = linkByEmail.get(email)
-      if (
-        linkGlobal.count >= 60 ||
-        (previous?.count ?? 0) >= 3 ||
-        (!previous && linkByEmail.size >= 10_000)
-      )
-        return reply.code(429).header('Retry-After', '60').send({ error: 'Too many requests' })
-      linkGlobal.count += 1
-      linkByEmail.set(email, {
-        count: (previous?.count ?? 0) + 1,
-        until: previous?.until ?? now + 15 * 60_000,
-      })
-      try {
-        await mail.signIn(email)
-      } catch (error) {
-        request.log.warn({ event: 'staff_sign_in_link_failed', cause: accessMailFailure(error) })
-        return reply.code(503).send({ error: 'Email unavailable' })
-      }
-      return reply.code(202).send({ sent: true })
-    },
-  )
-
   app.get('/auth/session', async (request, reply) => {
     const identityId = await authenticate(request, reply)
     if (!identityId) return

@@ -40,7 +40,18 @@ tem opções liga/desliga por clínica em Configurações → Acessos. Lista fec
 5. Firebase → Authentication → Sign-in method: habilitar "Link do e-mail (login sem senha)".
    Settings → Authorized domains: `app.luminix.beauty`.
 
-Sem os passos 1–4, o link mágico continua funcionando pelo e-mail padrão do Firebase.
+Sem os passos 1–4, o convite continua funcionando pelo e-mail padrão do Firebase.
+
+### Convite e primeiro acesso (2026-11-19)
+
+- O login da equipe é por e-mail e senha. O link do e-mail só existe no convite (e em "Reenviar
+  convite"): ele volta para `/login?acesso=link&c=<clínica>`, que pede o e-mail (proteção do
+  Firebase) e abre `/primeiro-acesso`: criar e confirmar senha (`updatePassword`), foto
+  (`PUT /clinics/:id/account`, pode pular) e boas-vindas, terminando no espaço que convidou.
+- Quem tem mais de um espaço (ex.: rascunho de onboarding próprio + convite de outro salão) cai em
+  `/c` para escolher; o rascunho só abre direto quando é o único espaço (`staffHomePath`).
+- O logo do e-mail vai embutido (Content-ID) para aparecer mesmo com imagens externas bloqueadas.
+- Tela de QA local: `/qa-first-access-local?step=password|photo|welcome`.
 
 ## Acesso da equipe — convites e níveis (2026-11-08)
 

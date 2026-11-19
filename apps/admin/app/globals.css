@@ -2084,6 +2084,125 @@ html[data-space-theme='azul'] .app-status.is-loading {
   font-weight: 700;
 }
 
+/* Invitation: confirm e-mail, then first access (password, photo, welcome). */
+.first-access {
+  width: min(460px, 100%);
+  display: grid;
+  gap: 22px;
+  padding: 28px;
+  border-radius: 24px;
+  background: #fff;
+  color: #371a29;
+  box-shadow: 0 24px 60px #3a001a55;
+}
+.first-access .email-link-form {
+  width: 100%;
+}
+.first-access .email-link-form p[role='alert'] {
+  color: #b42318;
+  font-weight: 600;
+}
+.first-access .email-link-form button[type='submit'],
+.first-access .email-link-form > button:last-child {
+  background: #371a29;
+}
+.first-access .email-link-form button:disabled {
+  opacity: 0.6;
+}
+.first-access-steps {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.first-access-steps li {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  border: 1px solid var(--line);
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 700;
+}
+.first-access-steps li.is-current {
+  border-color: #ed1765;
+  background: #ed1765;
+  color: #fff;
+}
+.first-access-steps li.is-done {
+  border-color: #ffe5ef;
+  background: #ffe5ef;
+  color: #c70e59;
+}
+.first-access-field {
+  display: grid;
+  gap: 6px;
+  font-size: 14px;
+  font-weight: 600;
+}
+.first-access-field input {
+  width: 100%;
+}
+.first-access-password {
+  position: relative;
+  display: block;
+}
+.first-access-password input {
+  padding-right: 48px;
+}
+.email-link-form .first-access-eye {
+  position: absolute;
+  top: 0;
+  right: 0;
+  display: grid;
+  place-items: center;
+  width: 48px;
+  height: 48px;
+  background: transparent;
+  color: var(--muted);
+}
+.first-access-hint {
+  margin-top: -6px;
+  color: var(--muted);
+}
+.email-link-form .first-access-photo {
+  position: relative;
+  justify-self: center;
+  display: grid;
+  place-items: center;
+  width: 120px;
+  height: 120px;
+  padding: 0;
+  border-radius: 50%;
+  background: #ffe5ef;
+  color: #c70e59;
+  font-size: 42px;
+  font-weight: 800;
+}
+.first-access-photo img {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  object-fit: cover;
+}
+.first-access-photo-badge {
+  position: absolute;
+  right: 2px;
+  bottom: 2px;
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border: 3px solid #fff;
+  border-radius: 50%;
+  background: #ed1765;
+  color: #fff;
+}
+
 @keyframes fadeSlideIn {
   to {
     opacity: 1;

@@ -17,7 +17,7 @@ const roleLabels: Record<string, string> = {
 }
 
 /** Square 256px JPEG as a data URI: small enough to live with the membership record. */
-async function squarePhoto(file: File) {
+export async function squarePhoto(file: File) {
   if (!['image/png', 'image/jpeg', 'image/webp'].includes(file.type))
     throw new Error('Use uma imagem PNG, JPG ou WebP.')
   if (file.size > 8_000_000) throw new Error('A imagem deve ter no máximo 8 MB.')

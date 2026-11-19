@@ -9,7 +9,9 @@ export type OutgoingEmail = {
   html: string
   text: string
   /** Groups the message in Resend's dashboard (letters, digits, _ and - only). */
-  tag: 'staff_invite' | 'staff_sign_in'
+  tag: 'staff_invite'
+  /** Images referenced as `cid:<contentId>` in the HTML, sent with the message. */
+  inline?: { contentId: string; filename: string; base64: string }[]
 }
 
 export type Mailer = { send(email: OutgoingEmail): Promise<void> }
@@ -35,6 +37,15 @@ export function createResendMailer(
           text: email.text,
           ...(replyTo ? { reply_to: replyTo } : {}),
           tags: [{ name: 'kind', value: email.tag }],
+          ...(email.inline?.length
+            ? {
+                attachments: email.inline.map((image) => ({
+                  filename: image.filename,
+                  content: image.base64,
+                  content_id: image.contentId,
+                })),
+              }
+            : {}),
         }),
         redirect: 'error',
         signal: AbortSignal.timeout(10_000),

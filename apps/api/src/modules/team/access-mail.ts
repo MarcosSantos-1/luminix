@@ -1,5 +1,5 @@
 import type { AuthDependencies } from '../../shared/auth/staff-session.js'
-import { staffInviteEmail, staffSignInEmail } from '../../shared/integrations/email/access-email.js'
+import { staffInviteEmail } from '../../shared/integrations/email/access-email.js'
 
 /**
  * Why an access e-mail failed, safe to log: the Firebase error code (e.g. an admin domain missing
@@ -10,7 +10,9 @@ export function accessMailFailure(error: unknown) {
   const code = (error as { code?: unknown } | null)?.code
   if (typeof code === 'string') return code
   const message = error instanceof Error ? error.message : ''
-  return /^(Email provider rejected \(\d{3}\)|Link unavailable)$/.test(message) ? message : 'unknown'
+  return /^(Email provider rejected \(\d{3}\)|Link unavailable)$/.test(message)
+    ? message
+    : 'unknown'
 }
 
 /** Mailer + admin origin, or null when access e-mails are not configured (admin falls back). */
@@ -26,19 +28,19 @@ export function accessMail(dependencies: AuthDependencies) {
   const local = origin.hostname === 'localhost' && process.env.NODE_ENV !== 'production'
   if (origin.protocol !== 'https:' && !local) return null
   const base = origin.origin
-  // The login page completes the e-mail link (isSignInWithEmailLink) on return.
-  const continueUrl = `${base}/login?acesso=link`
-  const logoUrl = `${base}/brand/logo-letter-default.png`
   return {
-    async invite(input: { email: string; name: string; clinicName: string; role: string }) {
+    /** The link returns to the login page, which completes it and opens the first access. */
+    async invite(input: {
+      clinicId: string
+      email: string
+      name: string
+      clinicName: string
+      role: string
+    }) {
+      const continueUrl = `${base}/login?acesso=link&c=${encodeURIComponent(input.clinicId)}`
       const link = await staffDirectory.signInLink(input.email, continueUrl)
       if (!link) throw new Error('Link unavailable')
-      await mailer.send(staffInviteEmail({ ...input, to: input.email, link, logoUrl }))
-    },
-    /** Sends only to existing, enabled accounts; returns silently otherwise. */
-    async signIn(email: string) {
-      const link = await staffDirectory.signInLink(email, continueUrl, { existingOnly: true })
-      if (link) await mailer.send(staffSignInEmail({ to: email, link, logoUrl }))
+      await mailer.send(staffInviteEmail({ ...input, to: input.email, link }))
     },
   }
 }

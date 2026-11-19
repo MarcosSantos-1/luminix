@@ -105,13 +105,6 @@ export function StaffAuthPanel({
           <button
             type="button"
             disabled={auth.busy || !email.trim()}
-            onClick={() => void auth.sendLink(email)}
-          >
-            Receber link de acesso
-          </button>
-          <button
-            type="button"
-            disabled={auth.busy || !email.trim()}
             onClick={() => void auth.reset(email)}
           >
             Recuperar senha

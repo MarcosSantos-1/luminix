@@ -93,7 +93,7 @@ export function useClinicApi(clinicId: string): ClinicApi {
         } catch (error) {
           if (!(error instanceof ClinicApiError) || error.status !== 503) throw error
           await sendSignInLinkToEmail(getFirebaseAuth(), email, {
-            url: `${window.location.origin}/login?acesso=link`,
+            url: `${window.location.origin}/login?acesso=link&c=${encodeURIComponent(clinicId)}`,
             handleCodeInApp: true,
           })
         }
