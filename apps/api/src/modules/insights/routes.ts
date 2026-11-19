@@ -18,7 +18,7 @@ const zone = 'America/Sao_Paulo'
 
 /**
  * Read models for Início, Relatórios and Marketing. Each block is included only when the
- * caller's level allows it, so reception sees the day but not the money.
+ * caller's level allows it, so Equipe sees the day but not the money.
  */
 export async function insightsRoutes(
   app: FastifyInstance,

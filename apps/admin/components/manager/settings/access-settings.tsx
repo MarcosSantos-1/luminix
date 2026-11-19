@@ -4,17 +4,14 @@ import { Button, Spinner } from '@heroui/react'
 import {
   Check,
   CircleAlert,
-  KeyRound,
   Mail,
   MailCheck,
   RotateCcw,
   Send,
-  ShieldCheck,
   SlidersHorizontal,
   UserPlus,
   UserRound,
   UserX,
-  X,
 } from 'lucide-react'
 import { useState } from 'react'
 import { SelectField } from '@/components/ui/fields'
@@ -43,7 +40,7 @@ export type StaffMember = {
 }
 type Notice = { kind: 'ok' | 'error'; text: string; at?: 'form' | 'levels' } | null
 type LevelOption = {
-  role: 'reception' | 'professional'
+  role: 'team'
   permission: string
   enabled: boolean
   enabledByDefault: boolean
@@ -59,11 +56,10 @@ export function AccessSettings({ clinicId }: { clinicId: string }) {
   const api = useClinicApi(clinicId)
   const staff = useClinicResource<{ members: StaffMember[] }>(api, 'staff')
   const levels = useClinicResource<{ options: LevelOption[] }>(api, 'access-levels')
-  const [levelRole, setLevelRole] = useState<LevelOption['role']>('professional')
   const [form, setForm] = useState({
     name: '',
     email: '',
-    role: 'reception' as Exclude<AccessRole, 'owner'>,
+    role: 'team' as Exclude<AccessRole, 'owner'>,
   })
   const [busy, setBusy] = useState<string>('')
   const [notice, setNotice] = useState<Notice>(null)
@@ -164,7 +160,7 @@ export function AccessSettings({ clinicId }: { clinicId: string }) {
         at: 'form',
       })
       if (!result.accountCreated) setExisting(email)
-      setForm({ name: '', email: '', role: 'reception' })
+      setForm({ name: '', email: '', role: 'team' })
       setShowErrors(false)
       staff.reload()
     } catch (error) {
@@ -239,115 +235,6 @@ export function AccessSettings({ clinicId }: { clinicId: string }) {
 
   return (
     <div className="settings-stack">
-      <SettingsCard
-        icon={<ShieldCheck size={20} />}
-        title="Como funciona o acesso da equipe"
-        description="Cada pessoa entra com o próprio e-mail, sem você precisar saber senha nenhuma. Você decide o que ela pode ver."
-      >
-        <ol className="access-steps">
-          <li>
-            <span>1</span>
-            <div>
-              <strong>Você cadastra o e-mail</strong>
-              <small>e escolhe o nível de acesso.</small>
-            </div>
-          </li>
-          <li>
-            <span>2</span>
-            <div>
-              <strong>A pessoa recebe um convite</strong>
-              <small>com o botão “Entrar no painel”. Um clique e ela já está dentro.</small>
-            </div>
-          </li>
-          <li>
-            <span>3</span>
-            <div>
-              <strong>Nas próximas vezes</strong>
-              <small>
-                ela entra em app.luminix.beauty pedindo um link no e-mail, ou com senha, se preferir
-                criar uma. Você tira o acesso quando quiser.
-              </small>
-            </div>
-          </li>
-        </ol>
-      </SettingsCard>
-
-      <SettingsCard
-        icon={<KeyRound size={20} />}
-        title="Níveis de acesso"
-        description="Escolha o nível certo para cada pessoa. Dá para mudar depois."
-      >
-        <div className="access-roles">
-          {accessRoles.map((role) => (
-            <article key={role.id} className="access-role">
-              <strong>{role.label}</strong>
-              <p>{role.summary}</p>
-              <ul>
-                {role.can.map((item) => (
-                  <li key={item}>
-                    <Check size={14} aria-label="Pode" /> {item}
-                  </li>
-                ))}
-                {role.cannot.map((item) => (
-                  <li key={item} className="is-blocked">
-                    <X size={14} aria-label="Não pode" /> {item}
-                  </li>
-                ))}
-              </ul>
-            </article>
-          ))}
-        </div>
-      </SettingsCard>
-
-      {Array.isArray(levels.data?.options) ? (
-        <SettingsCard
-          icon={<SlidersHorizontal size={20} />}
-          title="O que cada nível pode fazer"
-          description="Ajuste para o jeito do seu espaço. Vale para todas as pessoas do nível. Financeiro, relatórios, configurações e acessos ficam sempre só com a proprietária e gerentes."
-        >
-          <div className="access-pick" role="radiogroup" aria-label="Nível para ajustar">
-            {(['professional', 'reception'] as const).map((role) => (
-              <button
-                key={role}
-                type="button"
-                role="radio"
-                aria-checked={levelRole === role}
-                onClick={() => setLevelRole(role)}
-              >
-                <strong>{roleLabel(role)}</strong>
-                <small>
-                  {levels.data!.options.filter((o) => o.role === role && o.enabled).length} de{' '}
-                  {levels.data!.options.filter((o) => o.role === role).length} liberados
-                </small>
-              </button>
-            ))}
-          </div>
-          <div className="settings-stack">
-            {accessOptions.map((item) => {
-              const option = levels.data!.options.find(
-                (o) => o.role === levelRole && o.permission === item.permission,
-              )
-              if (!option) return null
-              return (
-                <ToggleRow
-                  key={item.permission}
-                  title={item.title}
-                  description={
-                    option.enabled === option.enabledByDefault
-                      ? item.description
-                      : `${item.description} (padrão: ${option.enabledByDefault ? 'liberado' : 'bloqueado'})`
-                  }
-                  isSelected={option.enabled}
-                  disabled={busy !== ''}
-                  onChange={(enabled) => void setOption(option, enabled)}
-                />
-              )
-            })}
-          </div>
-          {notice?.at === 'levels' ? noticeView : null}
-        </SettingsCard>
-      ) : null}
-
       <SettingsCard
         icon={<UserRound size={20} />}
         title="Pessoas com acesso"
@@ -469,7 +356,7 @@ export function AccessSettings({ clinicId }: { clinicId: string }) {
       <SettingsCard
         icon={<UserPlus size={20} />}
         title="Dar acesso a alguém"
-        description="A pessoa recebe um convite com um botão para entrar. Sem senha para combinar."
+        description="A pessoa recebe um e-mail com o botão “Entrar no painel”. Sem senha para combinar: nas próximas vezes ela pede um link no e-mail ou cria uma senha, se preferir."
         help={{
           title: 'E se o e-mail não chegar?',
           text: 'Peça para olhar a caixa de spam e as abas “Promoções” ou “Atualizações”. Depois, use “Reenviar convite” na lista acima. O link vale por pouco tempo e só funciona uma vez.',
@@ -534,6 +421,36 @@ export function AccessSettings({ clinicId }: { clinicId: string }) {
         </div>
         {notice?.at === 'form' ? noticeView : null}
       </SettingsCard>
+
+      {Array.isArray(levels.data?.options) ? (
+        <SettingsCard
+          icon={<SlidersHorizontal size={20} />}
+          title="O que a Equipe pode fazer"
+          description="Vale para todas as pessoas da Equipe. Ver a agenda, os clientes e as fotos sempre pode. Financeiro, relatórios, configurações e acessos ficam só com a proprietária e gerentes."
+        >
+          <div className="settings-stack">
+            {accessOptions.map((item) => {
+              const option = levels.data!.options.find((o) => o.permission === item.permission)
+              if (!option) return null
+              return (
+                <ToggleRow
+                  key={item.permission}
+                  title={item.title}
+                  description={
+                    option.enabled === option.enabledByDefault
+                      ? item.description
+                      : `${item.description} (padrão: ${option.enabledByDefault ? 'liberado' : 'bloqueado'})`
+                  }
+                  isSelected={option.enabled}
+                  disabled={busy !== ''}
+                  onChange={(enabled) => void setOption(option, enabled)}
+                />
+              )
+            })}
+          </div>
+          {notice?.at === 'levels' ? noticeView : null}
+        </SettingsCard>
+      ) : null}
     </div>
   )
 }

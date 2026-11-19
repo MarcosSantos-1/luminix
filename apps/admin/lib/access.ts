@@ -1,52 +1,34 @@
 /**
  * Single source for "who sees what" in the admin. The API enforces the same permissions
- * (migration 0025, role presets); this file only hides what the person cannot use.
+ * (migrations 0025, 0052 and 0053, role presets); this file only hides what the person cannot use.
  */
 import type { ManagerSectionId } from '@/components/manager/demo-data'
 import type { ManagerSettingsSection } from '@/components/manager/manager-settings-nav'
 
-export type AccessRole = 'owner' | 'manager' | 'reception' | 'professional'
+export type AccessRole = 'owner' | 'manager' | 'team'
 
-export const accessRoles: {
-  id: AccessRole
-  label: string
-  summary: string
-  can: string[]
-  cannot: string[]
-}[] = [
+export const accessRoles: { id: AccessRole; label: string; summary: string }[] = [
   {
     id: 'owner',
     label: 'Proprietária',
     summary: 'Dona do espaço. Pode tudo, inclusive dar e tirar acesso de gerente.',
-    can: ['Tudo do painel', 'Dar e tirar acessos', 'Pagamentos e site'],
-    cannot: [],
   },
   {
     id: 'manager',
     label: 'Gerente',
-    summary: 'Acesso administrativo: cuida do dia a dia como a dona.',
-    can: ['Agenda, clientes e financeiro', 'Horários, férias e configurações', 'Acessos da equipe'],
-    cannot: ['Dar, mudar ou tirar acesso de outro gerente'],
+    summary: 'Pode tudo, como a dona: financeiro, relatórios, configurações e acessos.',
   },
   {
-    id: 'reception',
-    label: 'Recepção',
-    summary: 'Marca horários, cadastra clientes e cuida do estoque.',
-    can: ['Agenda (ver e marcar)', 'Clientes', 'Estoque'],
-    cannot: ['Financeiro e relatórios', 'Configurações', 'Acessos'],
-  },
-  {
-    id: 'professional',
-    label: 'Profissional',
-    summary: 'Atende, cuida de serviços, estoque, marketing e horários do espaço.',
-    can: ['Ver agenda e clientes', 'Serviços, estoque e marketing', 'Horários e dias fechados'],
-    cannot: ['Financeiro e relatórios', 'Configurações', 'Férias'],
+    id: 'team',
+    label: 'Equipe',
+    summary: 'Recepção e profissionais. Pode o que você liberar logo abaixo.',
   },
 ]
 
 /**
- * Options the owner/manager switch per level (Configurações → Acessos). The API keeps the
- * whitelist and the defaults (role_optional_permissions); this only names them.
+ * Options the owner/manager switch for Equipe (Configurações → Acessos). The API keeps the
+ * whitelist and the defaults (role_optional_permissions); this only names them, in the
+ * order shown.
  */
 export const accessOptions: { permission: string; title: string; description: string }[] = [
   {

@@ -160,23 +160,21 @@ describe('role presets', () => {
       [clinic('a').id],
     )
     await db.exec('SET ROLE luminix_api')
-    expect(roles.rows.map((row) => row.name)).toEqual([
-      'manager',
-      'owner',
-      'professional',
-      'reception',
-    ])
+    expect(roles.rows.map((row) => row.name)).toEqual(['manager', 'owner', 'team'])
     const grants = Object.fromEntries(roles.rows.map((row) => [row.name, row.grants as string[]]))
     expect(grants.owner).toContain('agenda:manage')
-    expect(grants.reception).toEqual([
+    expect(grants.team).toEqual([
       'agenda:manage',
       'agenda:read',
       'client:manage',
       'client:read',
       'inventory:manage',
+      'media:manage',
       'media:read',
+      'schedule:manage',
+      'service:manage',
     ])
-    expect(grants.professional).not.toContain('client:manage')
+    expect(grants.team).not.toContain('finance:manage')
   })
 })
 
@@ -323,11 +321,11 @@ describe('team', () => {
 })
 
 describe('access', () => {
-  it('invites reception with agenda access but no settings or team management', async () => {
+  it('invites Equipe with agenda access but no settings or team management', async () => {
     const response = await invite('owner-a', 'a', {
       name: 'Recepção Ana',
       email: 'Ana@Example.com',
-      role: 'reception',
+      role: 'team',
     })
     expect(response.statusCode).toBe(200)
     expect(response.json()).toMatchObject({
@@ -344,12 +342,12 @@ describe('access', () => {
       (await app.inject({ url: `/clinics/${clinic('a').id}/staff`, headers: as(uid) })).statusCode,
     ).toBe(403)
     expect(
-      (await invite(uid, 'a', { name: 'X', email: 'x@example.com', role: 'reception' })).statusCode,
+      (await invite(uid, 'a', { name: 'X', email: 'x@example.com', role: 'team' })).statusCode,
     ).toBe(403)
     // Unauthorized callers never create Firebase accounts.
     expect(accounts.has('x@example.com')).toBe(false)
     expect(
-      (await invite('owner-a', 'a', { name: 'Ana', email: 'ana@example.com', role: 'reception' }))
+      (await invite('owner-a', 'a', { name: 'Ana', email: 'ana@example.com', role: 'team' }))
         .statusCode,
     ).toBe(409)
   })
@@ -392,20 +390,12 @@ describe('access', () => {
     const anaUid = accounts.get('ana@example.com')!
     expect((await change(manager, ana.id, { status: 'revoked' })).statusCode).toBe(200)
     expect((await agenda(anaUid, 'a')).statusCode).toBe(403)
-    expect(
-      (await change(manager, ana.id, { status: 'active', role: 'professional' })).statusCode,
-    ).toBe(200)
+    expect((await change(manager, ana.id, { status: 'active', role: 'team' })).statusCode).toBe(200)
     const back = await agenda(anaUid, 'a')
     expect(back.statusCode).toBe(200)
     expect(
-      (
-        await app.inject({
-          method: 'POST',
-          url: `/clinics/${clinic('a').id}/clients`,
-          headers: as(anaUid),
-          payload: { name: 'C' },
-        })
-      ).statusCode,
+      (await app.inject({ url: `/clinics/${clinic('a').id}/finance`, headers: as(anaUid) }))
+        .statusCode,
     ).toBe(403)
   })
 
@@ -428,7 +418,7 @@ describe('access levels and options', () => {
       method: 'POST',
       url: `${base()}/staff`,
       headers: as('owner-b'),
-      payload: { name: 'Carla Souza', email: 'carla@example.com', role: 'professional' },
+      payload: { name: 'Carla Souza', email: 'carla@example.com', role: 'team' },
       ...ip,
     })
     expect(response.statusCode).toBe(200)
@@ -475,7 +465,7 @@ describe('access levels and options', () => {
     expect((await ask('bad')).statusCode).toBe(400)
   })
 
-  it('gives the professional schedule, services and marketing but not vacations', async () => {
+  it('gives Equipe schedule and services; marketing and vacations only when switched on', async () => {
     const closure = (uid: string, kind: string) =>
       app.inject({
         method: 'POST',
@@ -501,7 +491,23 @@ describe('access levels and options', () => {
       payload: { title: 'Natal' },
       ...ip,
     })
-    expect(post.statusCode).toBe(200)
+    expect(post.statusCode).toBe(403)
+    const marketingOn = await app.inject({
+      method: 'PUT',
+      url: `${base()}/access-levels`,
+      headers: as('owner-b'),
+      payload: { role: 'team', permission: 'marketing:manage', enabled: true },
+      ...ip,
+    })
+    expect(marketingOn.statusCode).toBe(200)
+    const again = await app.inject({
+      method: 'PUT',
+      url: `${base()}/marketing/posts/5f1d7a3e-2b4c-4d6e-8f90-1a2b3c4d5e6f`,
+      headers: as(pro),
+      payload: { title: 'Natal' },
+      ...ip,
+    })
+    expect(again.statusCode).toBe(200)
     for (const path of ['finance', 'reports', 'settings', 'staff', 'access-levels'])
       expect(
         (await app.inject({ url: `${base()}/${path}`, headers: as(pro), ...ip })).statusCode,
@@ -516,8 +522,8 @@ describe('access levels and options', () => {
     expect(agendaBody).toMatchObject({ canManageHours: true, canManageVacations: false })
   })
 
-  it('lets the owner switch whitelisted options per level, never finance or access', async () => {
-    const set = (uid: string, permission: string, enabled: boolean, role = 'professional') =>
+  it('lets the owner switch whitelisted Equipe options, never finance or access', async () => {
+    const set = (uid: string, permission: string, enabled: boolean, role = 'team') =>
       app.inject({
         method: 'PUT',
         url: `${base()}/access-levels`,
@@ -529,12 +535,12 @@ describe('access levels and options', () => {
     expect(list.statusCode).toBe(200)
     const options = list.json().options as { role: string; permission: string; enabled: boolean }[]
     expect(
-      options.find((o) => o.role === 'professional' && o.permission === 'vacation:manage'),
+      options.find((o) => o.role === 'team' && o.permission === 'vacation:manage'),
     ).toMatchObject({ enabled: false })
     expect(options.some((o) => o.permission === 'finance:manage')).toBe(false)
 
     expect((await set('owner-b', 'finance:manage', true)).statusCode).toBe(400)
-    expect((await set('owner-b', 'team:manage', true, 'reception')).statusCode).toBe(400)
+    expect((await set('owner-b', 'vacation:manage', true, 'professional')).statusCode).toBe(400)
     expect((await set(pro, 'vacation:manage', true)).statusCode).toBe(403)
     expect((await set('owner-a', 'vacation:manage', true)).statusCode).toBe(403)
 
@@ -582,7 +588,7 @@ describe('access levels and options', () => {
       })
     ).json().options as { role: string; permission: string; enabled: boolean }[]
     expect(
-      other.find((o) => o.role === 'professional' && o.permission === 'vacation:manage')?.enabled,
+      other.find((o) => o.role === 'team' && o.permission === 'vacation:manage')?.enabled,
     ).toBe(false)
   })
 })

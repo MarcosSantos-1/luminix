@@ -15,8 +15,7 @@ const brand = {
 
 const roleNames: Record<string, string> = {
   manager: 'Gerente',
-  reception: 'Recepção',
-  professional: 'Profissional',
+  team: 'Equipe',
   owner: 'Proprietária',
 }
 

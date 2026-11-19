@@ -3,6 +3,8 @@
 - Data: 2026-11-19
 - Estado: implementado; migration 0052 a aplicar antes do deploy da API
 - Substitui parcialmente: [ADR-023](ADR-023-EQUIPE-E-ACESSOS.md) (presets fixos, convite por senha)
+- Substituído em parte por: [ADR-034](ADR-034-NIVEL-UNICO-EQUIPE.md) (Recepção e Profissional
+  viraram um nível só, Equipe)
 
 ## Contexto
 

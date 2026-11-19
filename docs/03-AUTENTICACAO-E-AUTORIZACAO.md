@@ -17,9 +17,10 @@ navegador autenticado, incluindo fechamento/reabertura e logout, antes de client
 
 Decisão: [ADR-033](decisions/ADR-033-NIVEIS-DE-ACESSO-E-LINK-MAGICO.md). Substitui o convite por
 "criar senha" descrito abaixo. Permissões novas `schedule:manage`, `vacation:manage`,
-`marketing:manage`; Recepção e Profissional têm opções liga/desliga por clínica em
-Configurações → Acessos. Lista fechada e padrões em `role_optional_permissions` (migration 0052);
-rótulos em `apps/admin/lib/access.ts`.
+`marketing:manage`. Desde a migration 0053 ([ADR-034](decisions/ADR-034-NIVEL-UNICO-EQUIPE.md))
+os níveis são Proprietária, Gerente e Equipe (`team`, antes Recepção e Profissional); a Equipe
+tem opções liga/desliga por clínica em Configurações → Acessos. Lista fechada e padrões em
+`role_optional_permissions`; rótulos em `apps/admin/lib/access.ts`.
 
 ### Configurar o e-mail próprio (Resend + Hostinger), uma vez
 
@@ -45,8 +46,8 @@ Sem os passos 1–4, o link mágico continua funcionando pelo e-mail padrão do 
 
 Decisão: [ADR-023](decisions/ADR-023-EQUIPE-E-ACESSOS.md). Resumo operacional:
 
-- Níveis prontos por clínica: Proprietária (`owner`), Gerente (`manager`), Recepção
-  (`reception`) e Profissional (`professional`). Permissões em `role_preset_permissions`;
+- Níveis prontos por clínica: Proprietária (`owner`), Gerente (`manager`) e Equipe (`team`;
+  Recepção e Profissional até a migration 0053). Permissões em `role_preset_permissions`;
   páginas visíveis no admin em `apps/admin/lib/access.ts`. Alterar os dois juntos.
 - Convite: Configurações → Acessos e logins. A API cria/encontra a conta Firebase pelo e-mail e
   o vínculo; o admin dispara `sendPasswordResetEmail` (pt-BR) com retorno para `/login`.

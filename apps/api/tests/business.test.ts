@@ -65,9 +65,17 @@ beforeAll(async () => {
   await connection.query("SELECT set_config('luminix.clinic_id', $1, false)", [a])
   await connection.query(
     `INSERT INTO luminix.clinic_memberships (clinic_id, identity_id, role_id)
-     SELECT $1, $2, id FROM luminix.roles WHERE clinic_id = $1 AND name = 'reception'`,
+     SELECT $1, $2, id FROM luminix.roles WHERE clinic_id = $1 AND name = 'team'`,
     [a, reception],
   )
+  // Equipe set up like a front desk: agenda, clients and stock, no services, photos or hours.
+  await connection.query(
+    `INSERT INTO luminix.role_permission_choices (clinic_id, role_name, permission_code, enabled)
+     SELECT $1, 'team', code, false
+       FROM unnest(ARRAY['service:manage', 'media:manage', 'schedule:manage']) code`,
+    [a],
+  )
+  await connection.query('SELECT luminix.ensure_clinic_roles($1)', [a])
   await db.exec('SET ROLE luminix_api')
   app = await buildApp(
     {},

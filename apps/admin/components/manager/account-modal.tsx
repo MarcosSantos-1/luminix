@@ -13,8 +13,7 @@ export type OwnAccount = { name: string; email: string; role: string; photo: str
 const roleLabels: Record<string, string> = {
   owner: 'Responsável pelo espaço',
   manager: 'Gestão',
-  reception: 'Recepção',
-  professional: 'Profissional',
+  team: 'Equipe',
 }
 
 /** Square 256px JPEG as a data URI: small enough to live with the membership record. */

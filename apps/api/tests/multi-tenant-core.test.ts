@@ -162,6 +162,7 @@ describe('versioned core migration', () => {
       { name: '0050_media_covers.sql' },
       { name: '0051_marketing_posts.sql' },
       { name: '0052_access_levels_and_options.sql' },
+      { name: '0053_team_access_level.sql' },
     ])
   })
 

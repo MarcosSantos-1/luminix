@@ -17,7 +17,7 @@ const itemParams = (name: string) => ({
   required: ['clinicId', name],
   properties: { ...clinicRefParams.properties, [name]: { type: 'string', pattern: uuidPattern } },
 })
-const accessRoles = ['manager', 'reception', 'professional'] as const
+const accessRoles = ['manager', 'team'] as const
 
 type Day = { weekday: number; enabled: boolean; start: string; end: string; breaks: Period[] }
 type Period = { start: string; end: string }
@@ -410,7 +410,7 @@ export async function teamRoutes(
     },
   )
 
-  // What Recepção and Profissional can do in this clinic, beyond their fixed base.
+  // What Equipe can do in this clinic, beyond its fixed base.
   app.get<{ Params: { clinicId: string } }>(
     '/clinics/:clinicId/access-levels',
     { schema: { params: clinicRefParams } },
@@ -433,7 +433,7 @@ export async function teamRoutes(
 
   app.put<{
     Params: { clinicId: string }
-    Body: { role: 'reception' | 'professional'; permission: string; enabled: boolean }
+    Body: { role: 'team'; permission: string; enabled: boolean }
   }>(
     '/clinics/:clinicId/access-levels',
     {
@@ -444,8 +444,8 @@ export async function teamRoutes(
           additionalProperties: false,
           required: ['role', 'permission', 'enabled'],
           properties: {
-            role: { type: 'string', enum: ['reception', 'professional'] },
-            // The SQL function accepts only the whitelisted options of each level.
+            role: { type: 'string', enum: ['team'] },
+            // The SQL function accepts only the whitelisted Equipe options.
             permission: { type: 'string', pattern: '^[a-z]+:[a-z]+$', maxLength: 40 },
             enabled: { type: 'boolean' },
           },

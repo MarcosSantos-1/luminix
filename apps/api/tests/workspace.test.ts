@@ -47,7 +47,12 @@ beforeAll(async () => {
     await connection.query(
       `INSERT INTO luminix.clinic_memberships (clinic_id, identity_id, role_id, display_name)
        SELECT $1, $2, id, $4 FROM luminix.roles WHERE clinic_id = $1 AND name = $3`,
-      [a, identity, uid.split('-')[0], uid === 'manager-a' ? 'Bia Gerente' : 'Ana Recepção'],
+      [
+        a,
+        identity,
+        uid === 'manager-a' ? 'manager' : 'team',
+        uid === 'manager-a' ? 'Bia Gerente' : 'Ana Recepção',
+      ],
     )
   }
   // Data created "by the owner" so that it shows up as activity for the manager.
