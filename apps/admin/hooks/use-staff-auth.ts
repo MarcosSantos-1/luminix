@@ -28,14 +28,23 @@ export function authMessage(code: string): string {
   if (code === 'auth/email-already-in-use')
     return 'Este e-mail já tem conta. Entre ou use o Google.'
   if (code === 'auth/weak-password') return 'Use uma senha com pelo menos 6 caracteres.'
-  if (code === 'auth/invalid-email') return 'Confira o e-mail informado.'
+  if (code === 'auth/invalid-email')
+    return 'Confira o e-mail. No convite, use exatamente o e-mail que recebeu a mensagem.'
+  if (code === 'auth/invalid-action-code' || code === 'auth/expired-action-code')
+    return 'Este link de convite já foi usado ou expirou. Peça para reenviar o convite e abra o e-mail mais recente.'
+  if (code === 'auth/network-request-failed')
+    return 'Sem conexão com a internet agora. Confira a rede e tente de novo.'
+  if (code === 'auth/too-many-requests')
+    return 'Muitas tentativas seguidas. Aguarde alguns minutos e tente de novo.'
+  if (code === 'auth/user-disabled') return 'Este acesso está desativado. Fale com o seu espaço.'
   if (
     code === 'auth/invalid-credential' ||
     code === 'auth/wrong-password' ||
     code === 'auth/user-not-found'
   )
     return 'Não foi possível entrar. Confira o e-mail e a senha.'
-  return 'Não foi possível concluir. Confira os dados e tente novamente.'
+  // The code helps support find the cause without exposing anything sensitive.
+  return `Não foi possível concluir. Confira os dados e tente novamente.${code ? ` (${code})` : ''}`
 }
 
 export function useStaffAuth() {
