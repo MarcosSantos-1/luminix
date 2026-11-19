@@ -1,4 +1,11 @@
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify'
+import { clinicWelcomeEmail } from '../../shared/integrations/email/clinic-emails.js'
+import {
+  adminUrl,
+  loadClinicContact,
+  sendLater,
+  type ClinicMail,
+} from '../notifications/clinic-mail.js'
 import {
   connectReady,
   createConnectProvider,
@@ -306,6 +313,7 @@ export async function clinicRoutes(
   authenticate: (request: FastifyRequest, reply: FastifyReply) => Promise<string | null>,
   pool: TenantPool | undefined,
   suppliedConnectProvider?: ConnectProvider,
+  mail?: ClinicMail,
 ) {
   let connectProvider = suppliedConnectProvider
   const params = clinicRefParams
@@ -1295,8 +1303,8 @@ export async function clinicRoutes(
         },
       },
     },
-    async (request, reply) =>
-      authorized(
+    async (request, reply) => {
+      const result = await authorized(
         request,
         reply,
         'onboarding:manage',
@@ -1332,12 +1340,35 @@ export async function clinicRoutes(
             },
             version: Number(row.draft_version),
             replayed: row.replayed,
+            // First completion only: the welcome e-mail goes out after commit.
+            welcome: row.replayed ? null : await loadClinicContact(connection, tenant.clinicId),
           }
         },
         (identityId) =>
           requireStripeReady(identityId, request.params.clinicId, undefined, request.body.version),
         true,
-      ),
+      )
+      if (reply.sent || !result || typeof result !== 'object') return result
+      const { welcome, ...body } = result as {
+        welcome: Awaited<ReturnType<typeof loadClinicContact>> | null
+        clinic: { id: string; shareCode: string | null }
+      }
+      const panelUrl = adminUrl(mail, `/c/${body.clinic.shareCode || body.clinic.id}`)
+      if (welcome?.ownerEmail && panelUrl)
+        sendLater(
+          mail,
+          clinicWelcomeEmail({
+            to: welcome.ownerEmail,
+            ownerName: welcome.ownerName,
+            clinicName: welcome.clinicName,
+            siteUrl: welcome.siteUrl,
+            appCode: welcome.appCode,
+            panelUrl,
+          }),
+          request.log,
+        )
+      return body
+    },
   )
   app.get<{ Params: { clinicId: string } }>(
     '/clinics/:clinicId/overview',

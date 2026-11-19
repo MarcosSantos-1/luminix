@@ -53,6 +53,25 @@ Sem os passos 1–4, o convite continua funcionando pelo e-mail padrão do Fireb
 - O logo do e-mail vai embutido (Content-ID) para aparecer mesmo com imagens externas bloqueadas.
 - Tela de QA local: `/qa-first-access-local?step=password|photo|welcome`.
 
+### E-mails transacionais (2026-11-19)
+
+Todos usam `shared/integrations/email/layout.ts` (logo e ícones embutidos por Content-ID, blocos de
+ícone, passos, destaque, detalhes, WhatsApp e suporte). Prévia local sem enviar nada:
+`pnpm --filter @luminix/api email:preview` → `apps/api/email-preview/index.html`.
+
+| E-mail                   | Quando sai                                       | Remetente                                        |
+| ------------------------ | ------------------------------------------------ | ------------------------------------------------ |
+| Convite da equipe        | Dar acesso / "Reenviar convite"                  | Luminix                                          |
+| Boas-vindas ao espaço    | Primeira conclusão do onboarding (para a dona)   | Luminix                                          |
+| Boas-vindas ao cliente   | Cadastro de cliente com e-mail no painel         | Nome do espaço; resposta vai ao e-mail do espaço |
+| Horário confirmado       | Modelo pronto, ainda não ligado ao agendamento   | Nome do espaço                                   |
+| Lembrete do dia seguinte | Modelo pronto; precisa de rotina agendada        | Nome do espaço                                   |
+| Aniversário do cliente   | Modelo pronto; precisa de rotina diária e opt-in | Nome do espaço                                   |
+
+Os envios saem depois do commit e não seguram a resposta; falha vira
+`notification_email_failed` no log. WhatsApp e endereço do espaço só aparecem se ele os publica no
+site. O WhatsApp de suporte Luminix em `layout.ts` (`support`) é **fictício** até existir o canal.
+
 ## Acesso da equipe — convites e níveis (2026-11-08)
 
 Decisão: [ADR-023](decisions/ADR-023-EQUIPE-E-ACESSOS.md). Resumo operacional:

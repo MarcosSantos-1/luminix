@@ -1,4 +1,6 @@
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify'
+import { clientWelcomeEmail } from '../../shared/integrations/email/client-emails.js'
+import { loadClinicContact, sendLater, type ClinicMail } from '../notifications/clinic-mail.js'
 import type { SqlConnection } from '../../shared/database/migrations.js'
 import { withClinicTransaction, type TenantPool } from '../../shared/tenant/clinic-transaction.js'
 import { isoDate, isPaid, rolePermissions, toNumber } from '../../shared/tenant/route-helpers.js'
@@ -312,6 +314,7 @@ export async function operationRoutes(
   app: FastifyInstance,
   authenticate: (request: FastifyRequest, reply: FastifyReply) => Promise<string | null>,
   pool: TenantPool | undefined,
+  mail?: ClinicMail,
 ) {
   const clinicParams = {
     type: 'object',
@@ -479,37 +482,66 @@ export async function operationRoutes(
   app.post<{ Params: { clinicId: string }; Body: ClientBody }>(
     '/clinics/:clinicId/clients',
     { bodyLimit: 8192, schema: { params: clinicParams, body: clientBodySchema } },
-    async (request, reply) =>
-      authorized(request, reply, 'client:manage', async (connection, tenant) => {
-        const parsed = normalizeClient(request.body)
-        if ('error' in parsed) return reply.code(400).send({ error: parsed.error })
-        const v = parsed.values
-        const found = await conflicts(connection, tenant.clinicId, v, null)
-        if (found.taxIdOwner)
-          return reply
-            .code(409)
-            .send({ error: 'Tax id already registered', client: found.taxIdOwner })
-        if (found.duplicates.length && !request.body.confirmDuplicatePhone)
-          return reply
-            .code(409)
-            .send({ error: 'Client requires confirmation', duplicates: found.duplicates })
-        const result = await connection.query(
-          `SELECT ${clientDetailColumns}
+    async (request, reply) => {
+      const result = await authorized(
+        request,
+        reply,
+        'client:manage',
+        async (connection, tenant) => {
+          const parsed = normalizeClient(request.body)
+          if ('error' in parsed) return reply.code(400).send({ error: parsed.error })
+          const v = parsed.values
+          const found = await conflicts(connection, tenant.clinicId, v, null)
+          if (found.taxIdOwner)
+            return reply
+              .code(409)
+              .send({ error: 'Tax id already registered', client: found.taxIdOwner })
+          if (found.duplicates.length && !request.body.confirmDuplicatePhone)
+            return reply
+              .code(409)
+              .send({ error: 'Client requires confirmation', duplicates: found.duplicates })
+          const result = await connection.query(
+            `SELECT ${clientDetailColumns}
              FROM luminix.create_clinic_client_v2($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
-          [
-            tenant.clinicId,
-            v.name,
-            v.phone,
-            v.email,
-            v.birthDate,
-            v.notes,
-            v.taxId,
-            v.sex,
-            v.marketingOptIn,
-          ],
+            [
+              tenant.clinicId,
+              v.name,
+              v.phone,
+              v.email,
+              v.birthDate,
+              v.notes,
+              v.taxId,
+              v.sex,
+              v.marketingOptIn,
+            ],
+          )
+          reply.code(201)
+          return {
+            client: result.rows[0],
+            // Welcome e-mail after commit, only when the client has an e-mail.
+            welcome: v.email ? await loadClinicContact(connection, tenant.clinicId) : null,
+            email: v.email,
+          }
+        },
+      )
+      if (reply.sent || !result || typeof result !== 'object') return result
+      const { welcome, email, ...body } = result as {
+        welcome: Awaited<ReturnType<typeof loadClinicContact>> | null
+        email: string | null
+        client: { display_name?: string; name?: string }
+      }
+      if (welcome && email && welcome.clinicName)
+        sendLater(
+          mail,
+          clientWelcomeEmail({
+            to: email,
+            clientName: String(body.client.display_name ?? body.client.name ?? ''),
+            ...welcome,
+          }),
+          request.log,
         )
-        return reply.code(201).send({ client: result.rows[0] })
-      }),
+      return body
+    },
   )
 
   const clientParams = {

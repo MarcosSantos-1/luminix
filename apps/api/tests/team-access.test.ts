@@ -579,4 +579,29 @@ describe('access levels and options', () => {
       other.find((o) => o.role === 'team' && o.permission === 'vacation:manage')?.enabled,
     ).toBe(false)
   })
+
+  it('welcomes a new client by e-mail in the name of the space, only when she has one', async () => {
+    outbox.length = 0
+    const create = (payload: Record<string, unknown>) =>
+      app.inject({
+        method: 'POST',
+        url: `${base()}/clients`,
+        headers: as('owner-b'),
+        payload,
+        ...ip,
+      })
+    const withEmail = await create({ name: 'Bruna Lima', email: 'bruna@example.com' })
+    expect(withEmail.statusCode).toBe(201)
+    expect(withEmail.json()).not.toHaveProperty('welcome')
+    expect(withEmail.json().client.display_name).toBe('Bruna Lima')
+    expect((await create({ name: 'Sem Email' })).statusCode).toBe(201)
+    await new Promise((resolve) => setTimeout(resolve, 0))
+    expect(outbox).toHaveLength(1)
+    expect(outbox[0]).toMatchObject({
+      to: 'bruna@example.com',
+      tag: 'client_welcome',
+      fromName: 'Espaço b',
+    })
+    expect(outbox[0].subject).toContain('Bruna')
+  })
 })

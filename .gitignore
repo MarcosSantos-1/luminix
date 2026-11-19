@@ -86,3 +86,6 @@ blob-report/
 
 # Fonte de referência com histórico próprio; não integra o repositório Luminix
 /legacy/charme-bela/
+
+# Local e-mail previews (pnpm --filter @luminix/api email:preview)
+apps/api/email-preview/
