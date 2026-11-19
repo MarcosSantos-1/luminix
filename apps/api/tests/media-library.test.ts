@@ -95,6 +95,7 @@ describe('media library', () => {
     expect(response.statusCode).toBe(200)
     const body = response.json()
     expect(body.folders.map((folder: { systemKey: string }) => folder.systemKey)).toEqual([
+      'inbox',
       'clients',
       'before_after',
       'marketing',
@@ -206,6 +207,86 @@ describe('media library', () => {
     const library = (await app.inject({ url: url('a', 'library'), headers: as('owner-a') })).json()
     expect(library.usage).toMatchObject({ libraryBytes: 340000, trashed: 1 })
     delete process.env.R2_PRIVATE_BUCKET
+  })
+
+  it('creates one album per client inside Clientes and lets a photo appear in more folders', async () => {
+    await db.exec('RESET ROLE')
+    await connection.query("SELECT set_config('luminix.clinic_id', $1, false)", [clinics.get('a')])
+    const client = String(
+      (
+        await connection.query(
+          `INSERT INTO luminix.clinic_clients (clinic_id, display_name) VALUES ($1, 'Ana Souza') RETURNING id`,
+          [clinics.get('a')],
+        )
+      ).rows[0].id,
+    )
+    await db.exec('SET ROLE luminix_api')
+    const album = async (uid = 'owner-a') =>
+      app.inject({
+        method: 'POST',
+        url: url('a', 'library/client-folder'),
+        headers: as(uid),
+        payload: { clientId: client },
+      })
+    const first = await album()
+    expect(first.statusCode).toBe(200)
+    // The same album every time; reception cannot create it.
+    expect((await album()).json().id).toBe(first.json().id)
+    expect((await album('reception-a')).statusCode).toBe(403)
+    const library = (await app.inject({ url: url('a', 'library'), headers: as('owner-a') })).json()
+    const clients = library.folders.find(
+      (folder: { systemKey: string }) => folder.systemKey === 'clients',
+    )
+    const marketing = library.folders.find(
+      (folder: { systemKey: string }) => folder.systemKey === 'marketing',
+    )
+    expect(
+      library.folders.find((folder: { id: string }) => folder.id === first.json().id),
+    ).toMatchObject({
+      name: 'Ana Souza',
+      parentId: clients.id,
+      clientId: client,
+    })
+
+    const asset = await readyAsset('a', first.json().id)
+    const item = (
+      await app.inject({
+        method: 'POST',
+        url: url('a', 'library/items'),
+        headers: as('owner-a'),
+        payload: { folderId: first.json().id, assetId: asset, title: 'Limpeza · 19/11' },
+      })
+    ).json().id
+    const links = await app.inject({
+      method: 'PUT',
+      url: url('a', `library/items/${item}/links`),
+      headers: as('owner-a'),
+      payload: { folderIds: [marketing.id] },
+    })
+    expect(links.json()).toEqual({ links: 1 })
+    const inMarketing = (
+      await app.inject({
+        url: url('a', `library/items?folder=${marketing.id}`),
+        headers: as('owner-a'),
+      })
+    ).json().items
+    expect(inMarketing.map((entry: { id: string }) => entry.id)).toContain(item)
+    expect(inMarketing.find((entry: { id: string }) => entry.id === item).linkedFolderIds).toEqual([
+      marketing.id,
+    ])
+    // Another clinic's folder cannot be linked.
+    const other = (await app.inject({ url: url('b', 'library'), headers: as('owner-b') })).json()
+      .folders[0].id
+    expect(
+      (
+        await app.inject({
+          method: 'PUT',
+          url: url('a', `library/items/${item}/links`),
+          headers: as('owner-a'),
+          payload: { folderIds: [other] },
+        })
+      ).statusCode,
+    ).toBe(400)
   })
 
   it('rejects assets from other clinics and library uploads without a folder', async () => {

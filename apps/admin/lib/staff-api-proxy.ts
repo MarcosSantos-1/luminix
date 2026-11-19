@@ -156,6 +156,7 @@ export async function staffApiWrite(
     | `/clinics/${string}/library/folders/${string}`
     | `/clinics/${string}/library/items`
     | `/clinics/${string}/library/items/${string}`
+    | `/clinics/${string}/library/client-folder`
     | `/clinics/${string}/business/${string}`
     | `/clinics/${string}/media`
     | `/clinics/${string}/media/${string}/finalize`,

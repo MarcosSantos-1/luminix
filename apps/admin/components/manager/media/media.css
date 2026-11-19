@@ -378,3 +378,57 @@
     grid-template-columns: repeat(auto-fill, minmax(104px, 1fr));
   }
 }
+
+/* Client albums inside "Clientes", quick upload and "também aparece em". */
+.media-layout {
+  grid-template-columns: 270px minmax(0, 1fr);
+}
+.media-subfolders {
+  display: grid;
+  gap: 6px;
+  margin: 4px 0 6px 18px;
+  padding-left: 10px;
+  border-left: 2px solid #ffffff1f;
+}
+.media-subfolders li button {
+  min-height: 38px;
+  font-size: 14px;
+}
+.media-subsearch {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border-radius: 10px;
+  background: #ffffff0f;
+  color: var(--manager-muted);
+}
+.media-subsearch input {
+  width: 100%;
+  border: 0;
+  outline: 0;
+  color: inherit;
+  background: none;
+  font: inherit;
+  font-size: 13.5px;
+}
+.media-quick {
+  margin-left: auto;
+}
+.media-links {
+  display: grid;
+  gap: 6px;
+}
+.media-links > span {
+  font-size: 13.5px;
+  font-weight: 650;
+}
+.media-links small {
+  color: var(--manager-muted);
+  font-size: 12px;
+}
+@media (max-width: 760px) {
+  .media-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

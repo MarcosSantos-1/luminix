@@ -3,16 +3,17 @@
 import { Button, Spinner } from '@heroui/react'
 import {
   Building2,
-  ChartColumnIncreasing,
   Columns2,
   Folder,
   FolderPlus,
   HardDrive,
   ImagePlus,
   Images,
+  Inbox,
   LockKeyhole,
   Megaphone,
   Pencil,
+  Search,
   RotateCcw,
   Sparkles,
   Trash2,
@@ -39,7 +40,15 @@ import {
 import { SelectField, TextInputField } from '@/components/ui/fields'
 import './media.css'
 
-type FolderInfo = { id: string; name: string; systemKey: string | null; count: number }
+type FolderInfo = {
+  id: string
+  name: string
+  systemKey: string | null
+  count: number
+  /** Client albums live inside "Clientes". */
+  parentId?: string | null
+  clientId?: string | null
+}
 type Library = {
   folders: FolderInfo[]
   usage: { libraryBytes: number; otherBytes: number; items: number; trashed: number }
@@ -54,10 +63,12 @@ type Item = {
   bytes: number
   thumbUrl: string | null
   fullUrl: string | null
+  linkedFolderIds?: string[]
 }
 
 const TRASH = 'trash'
 const folderIcons: Record<string, typeof Folder> = {
+  inbox: Inbox,
   clients: UserRound,
   before_after: Columns2,
   marketing: Megaphone,
@@ -65,11 +76,49 @@ const folderIcons: Record<string, typeof Folder> = {
   team: UsersRound,
 }
 const folderHints: Record<string, string> = {
-  clients: 'Fotos das clientes. Em breve: um álbum para cada cliente.',
+  inbox:
+    'Fotos soltas: o salão, o dia a dia, o que você ainda não separou. Abra uma foto para mover ou fazer ela aparecer também em outras pastas.',
+  clients:
+    'Cada cliente tem o próprio álbum aqui dentro. Ele é criado sozinho quando você guarda fotos ao concluir um atendimento.',
   before_after: 'Registros de antes e depois para acompanhar resultados.',
   marketing: 'Fotos para posts, campanhas e o site.',
   space: 'Fachada, recepção, salas e ambiente.',
   team: 'Fotos da equipe trabalhando e de eventos.',
+}
+
+/** Uploads photos into one folder, one by one; returns a short summary. */
+async function uploadPhotos(
+  api: ClinicApi,
+  files: File[],
+  folderId: string,
+  progress: (state: { done: number; total: number }) => void,
+) {
+  const images = files.filter((file) => /^image\/(png|jpeg|webp)$/.test(file.type)).slice(0, 30)
+  if (!images.length) return 'Use fotos em PNG, JPG ou WebP.'
+  let failed = 0
+  progress({ done: 0, total: images.length })
+  for (const [index, file] of images.entries()) {
+    try {
+      const asset = await api.upload('library_photo', file, folderId)
+      await api.post('library/items', {
+        folderId,
+        assetId: asset.id,
+        title: file.name.replace(/\.[^.]+$/, '').slice(0, 120),
+      })
+    } catch {
+      failed += 1
+    }
+    progress({ done: index + 1, total: images.length })
+  }
+  return failed
+    ? `${images.length - failed} enviadas, ${failed} com problema. Tente essas de novo.`
+    : `${images.length} ${images.length === 1 ? 'foto guardada' : 'fotos guardadas'}!`
+}
+
+/** "Clientes › Ana" for a client album, the name for the others. */
+function folderLabel(folder: FolderInfo, folders: FolderInfo[]) {
+  const parent = folder.parentId ? folders.find((entry) => entry.id === folder.parentId) : null
+  return parent ? `${parent.name} › ${folder.name}` : folder.name
 }
 
 export function formatBytes(bytes: number) {
@@ -82,6 +131,10 @@ export function MediaLibrary({ clinicId }: { clinicId: string }) {
   const api = useClinicApi(clinicId)
   const library = useClinicResource<Library>(api, 'library')
   const [selected, setSelected] = useState<string | null>(null)
+  const [quick, setQuick] = useState<{ done: number; total: number } | null>(null)
+  const [quickNotice, setQuickNotice] = useState('')
+  const [round, setRound] = useState(0)
+  const quickInput = useRef<HTMLInputElement>(null)
 
   if (library.error && !library.data)
     return <LoadError message={library.error} onRetry={library.reload} />
@@ -89,6 +142,19 @@ export function MediaLibrary({ clinicId }: { clinicId: string }) {
   const data = library.data
   const current = selected ?? data.folders[0]?.id ?? TRASH
   const total = data.usage.libraryBytes + data.usage.otherBytes
+  const inbox = data.folders.find((folder) => folder.systemKey === 'inbox')
+
+  /** Loose photos, without choosing a folder first: they wait in "Para organizar". */
+  async function sendLoose(files: File[]) {
+    if (!inbox) return
+    setQuickNotice('')
+    const result = await uploadPhotos(api, files, inbox.id, setQuick)
+    setQuick(null)
+    setQuickNotice(result)
+    setSelected(inbox.id)
+    setRound((value) => value + 1)
+    library.reload()
+  }
 
   return (
     <div className="media-page">
@@ -119,8 +185,36 @@ export function MediaLibrary({ clinicId }: { clinicId: string }) {
               logo, equipe e site
             </small>
           </div>
-          <span className="media-usage-note">Limites por plano em breve</span>
+          {data.canManage && data.storageReady && inbox ? (
+            <Button
+              className="media-quick"
+              isDisabled={quick !== null}
+              onPress={() => quickInput.current?.click()}
+            >
+              <Upload size={16} aria-hidden />{' '}
+              {quick ? `Enviando ${quick.done} de ${quick.total}…` : 'Enviar fotos'}
+            </Button>
+          ) : (
+            <span className="media-usage-note">Limites por plano em breve</span>
+          )}
+          <input
+            ref={quickInput}
+            hidden
+            multiple
+            type="file"
+            accept="image/png,image/jpeg,image/webp"
+            onChange={(event) => {
+              const files = Array.from(event.target.files ?? [])
+              event.target.value = ''
+              void sendLoose(files)
+            }}
+          />
         </div>
+        {quickNotice ? (
+          <p className="media-banner" role="status">
+            <Inbox size={16} aria-hidden /> {quickNotice} Elas estão em “Para organizar”.
+          </p>
+        ) : null}
         {!data.storageReady ? (
           <p className="media-banner" role="status">
             <Sparkles size={16} aria-hidden /> Estamos terminando de preparar o armazenamento
@@ -140,7 +234,7 @@ export function MediaLibrary({ clinicId }: { clinicId: string }) {
           onChanged={library.reload}
         />
         <FolderView
-          key={current}
+          key={`${current}-${round}`}
           api={api}
           folder={data.folders.find((folder) => folder.id === current) ?? null}
           folders={data.folders}
@@ -149,30 +243,6 @@ export function MediaLibrary({ clinicId }: { clinicId: string }) {
           onChanged={library.reload}
         />
       </div>
-
-      <SettingsCard
-        icon={<Sparkles size={20} />}
-        title="O que vem por aí"
-        description="O acervo é a base para várias novidades do Luminix."
-      >
-        <ul className="media-roadmap">
-          <li>
-            <UserRound size={18} aria-hidden /> Álbum de cada cliente, direto na ficha dela
-          </li>
-          <li>
-            <Columns2 size={18} aria-hidden /> Antes e depois lado a lado, com data
-          </li>
-          <li>
-            <Megaphone size={18} aria-hidden /> Usar as fotos no site e nas campanhas com um clique
-          </li>
-          <li>
-            <ChartColumnIncreasing size={18} aria-hidden /> Acompanhar a evolução dos tratamentos
-          </li>
-          <li>
-            <Sparkles size={18} aria-hidden /> Ajuda da inteligência artificial para organizar
-          </li>
-        </ul>
-      </SettingsCard>
     </div>
   )
 }
@@ -196,6 +266,10 @@ function FolderList({
 }) {
   const [creating, setCreating] = useState(false)
   const [name, setName] = useState('')
+  const [query, setQuery] = useState('')
+  const top = folders.filter((folder) => !folder.parentId)
+  const childrenOf = (id: string) => folders.filter((folder) => folder.parentId === id)
+  const inside = folders.find((folder) => folder.id === current)?.parentId ?? null
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
 
@@ -223,19 +297,56 @@ function FolderList({
   return (
     <nav className="media-folders manager-panel" aria-label="Pastas">
       <ul>
-        {folders.map((folder) => {
+        {top.map((folder) => {
           const Icon = folderIcons[folder.systemKey ?? ''] ?? Folder
+          const children = childrenOf(folder.id)
+          const open = children.length > 0 && (current === folder.id || inside === folder.id)
+          const needle = query.trim().toLocaleLowerCase('pt-BR')
+          const shown = children.filter(
+            (child) => !needle || child.name.toLocaleLowerCase('pt-BR').includes(needle),
+          )
+          const sum = folder.count + children.reduce((total, child) => total + child.count, 0)
           return (
             <li key={folder.id}>
               <button
                 type="button"
                 aria-current={current === folder.id ? 'true' : undefined}
+                aria-expanded={children.length ? open : undefined}
                 onClick={() => onSelect(folder.id)}
               >
                 <Icon size={18} aria-hidden />
                 <span>{folder.name}</span>
-                <small>{folder.count}</small>
+                <small>{children.length ? `${children.length} · ${sum}` : folder.count}</small>
               </button>
+              {open ? (
+                <div className="media-subfolders">
+                  {children.length > 6 ? (
+                    <label className="media-subsearch">
+                      <Search size={14} aria-hidden />
+                      <input
+                        placeholder="Buscar cliente"
+                        aria-label="Buscar álbum de cliente"
+                        value={query}
+                        onChange={(event) => setQuery(event.target.value)}
+                      />
+                    </label>
+                  ) : null}
+                  <ul>
+                    {shown.map((child) => (
+                      <li key={child.id}>
+                        <button
+                          type="button"
+                          aria-current={current === child.id ? 'true' : undefined}
+                          onClick={() => onSelect(child.id)}
+                        >
+                          <span>{child.name}</span>
+                          <small>{child.count}</small>
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ) : null}
             </li>
           )
         })}
@@ -324,41 +435,24 @@ function FolderView({
 
   async function upload(files: File[]) {
     if (!folder || !files.length) return
-    const images = files.filter((file) => /^image\/(png|jpeg|webp)$/.test(file.type)).slice(0, 30)
-    if (!images.length) {
-      setNotice({ kind: 'error', text: 'Use fotos em PNG, JPG ou WebP.' })
-      return
-    }
     setNotice(null)
-    setUploading({ done: 0, total: images.length })
-    let failed = 0
-    for (const [index, file] of images.entries()) {
-      try {
-        const asset = await api.upload('library_photo', file, folder.id)
-        await api.post('library/items', {
-          folderId: folder.id,
-          assetId: asset.id,
-          title: file.name.replace(/\.[^.]+$/, '').slice(0, 120),
-        })
-      } catch {
-        failed += 1
-      }
-      setUploading({ done: index + 1, total: images.length })
-    }
+    const text = await uploadPhotos(api, files, folder.id, setUploading)
     setUploading(null)
-    setNotice(
-      failed
-        ? {
-            kind: 'error',
-            text: `${images.length - failed} enviadas, ${failed} com problema. Tente essas de novo.`,
-          }
-        : {
-            kind: 'ok',
-            text: `${images.length} ${images.length === 1 ? 'foto guardada' : 'fotos guardadas'}!`,
-          },
-    )
+    setNotice({ kind: text.includes('problema') || text.startsWith('Use') ? 'error' : 'ok', text })
     reload()
     onChanged()
+  }
+
+  async function link(item: Item, folderIds: string[]) {
+    try {
+      await api.put(`library/items/${item.id}/links`, { folderIds })
+      setNotice({ kind: 'ok', text: 'Pastas da foto atualizadas.' })
+      setOpen({ ...item, linkedFolderIds: folderIds })
+      reload()
+      onChanged()
+    } catch {
+      setNotice({ kind: 'error', text: 'Não foi possível alterar as pastas. Tente de novo.' })
+    }
   }
 
   async function change(item: Item, body: Record<string, string>, message: string) {
@@ -513,6 +607,7 @@ function FolderView({
           canManage={canManage}
           onClose={() => setOpen(null)}
           onChange={(body, message) => void change(open, body, message)}
+          onLink={(folderIds) => void link(open, folderIds)}
         />
       ) : null}
     </section>
@@ -567,6 +662,7 @@ function Viewer({
   canManage,
   onClose,
   onChange,
+  onLink,
 }: {
   item: Item
   folders: FolderInfo[]
@@ -574,7 +670,9 @@ function Viewer({
   canManage: boolean
   onClose: () => void
   onChange: (body: Record<string, string>, message: string) => void
+  onLink: (folderIds: string[]) => void
 }) {
+  const linked = item.linkedFolderIds ?? []
   const [title, setTitle] = useState(item.title)
   useEffect(() => {
     const close = (event: KeyboardEvent) => event.key === 'Escape' && onClose()
@@ -633,9 +731,38 @@ function Viewer({
                   </HelpTip>
                 }
                 value={item.folderId}
-                options={folders.map((folder) => ({ id: folder.id, label: folder.name }))}
+                options={folders.map((folder) => ({
+                  id: folder.id,
+                  label: folderLabel(folder, folders),
+                }))}
                 onChange={(folderId) => onChange({ folderId }, 'Foto movida de pasta.')}
               />
+              <div className="media-links">
+                <span>Também aparece em</span>
+                <div className="biz-chips" role="group" aria-label="Também aparece em">
+                  {folders
+                    .filter((folder) => folder.id !== item.folderId && !folder.parentId)
+                    .map((folder) => {
+                      const on = linked.includes(folder.id)
+                      return (
+                        <button
+                          key={folder.id}
+                          type="button"
+                          aria-pressed={on}
+                          onClick={() =>
+                            onLink(
+                              on ? linked.filter((id) => id !== folder.id) : [...linked, folder.id],
+                            )
+                          }
+                        >
+                          {on ? '✓ ' : '+ '}
+                          {folder.name}
+                        </button>
+                      )
+                    })}
+                </div>
+                <small>A mesma foto, sem ocupar mais espaço.</small>
+              </div>
               <Button
                 variant="ghost"
                 onPress={() => onChange({ status: 'trashed' }, 'Foto enviada para a lixeira.')}

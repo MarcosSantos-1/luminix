@@ -853,7 +853,7 @@ function CompleteStep({
         )
       })
       .catch(() => active && setSupplies([]))
-    // Photos go to the "Clientes" folder of the media library, when the person may add there.
+    // Photos go to the client's album inside "Clientes", when the person may add there.
     void api
       .get<{ folders: { id: string; systemKey: string | null }[] }>('library')
       .then((data) => {
@@ -896,14 +896,22 @@ function CompleteStep({
             : null,
       })
       let failed = 0
-      if (folder)
+      // Each client gets her own album inside "Clientes", created on the first photos.
+      const album =
+        folder && photos.length
+          ? await api
+              .post<{ id: string }>('library/client-folder', { clientId: item.clientId })
+              .then((body) => body.id)
+              .catch(() => folder)
+          : folder
+      if (album)
         for (const file of photos) {
           try {
-            const asset = await api.upload('library_photo', file, folder)
+            const asset = await api.upload('library_photo', file, album)
             await api.post('library/items', {
-              folderId: folder,
+              folderId: album,
               assetId: asset.id,
-              title: `${item.client} · ${item.service} · ${dateBr(today)}`.slice(0, 120),
+              title: `${item.service} · ${dateBr(today)}`.slice(0, 120),
             })
           } catch {
             failed += 1

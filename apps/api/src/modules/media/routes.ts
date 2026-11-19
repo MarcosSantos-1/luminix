@@ -69,10 +69,15 @@ export async function mediaRoutes(
         const { rows } = await connection.query(
           `SELECT i.id, i.folder_id, i.title, i.created_at, i.trashed_at,
                   a.small_object_key, a.large_object_key,
-                  coalesce(a.small_bytes, 0) + coalesce(a.large_bytes, 0) AS bytes
+                  coalesce(a.small_bytes, 0) + coalesce(a.large_bytes, 0) AS bytes,
+                  coalesce((SELECT array_agg(l.folder_id) FROM luminix.media_item_links l
+                    WHERE l.clinic_id = i.clinic_id AND l.item_id = i.id), '{}') AS linked
              FROM luminix.media_items i
              JOIN luminix.media_assets a ON a.clinic_id = i.clinic_id AND a.id = i.asset_id
-            WHERE i.clinic_id = $1 AND i.status = $2 AND ($3::uuid IS NULL OR i.folder_id = $3::uuid)
+            WHERE i.clinic_id = $1 AND i.status = $2
+              AND ($3::uuid IS NULL OR i.folder_id = $3::uuid OR EXISTS (
+                SELECT 1 FROM luminix.media_item_links l
+                 WHERE l.clinic_id = i.clinic_id AND l.item_id = i.id AND l.folder_id = $3::uuid))
             ORDER BY i.created_at DESC, i.id LIMIT 300`,
           [tenant.clinicId, trash ? 'trashed' : 'active', trash ? null : request.query.folder],
         )
@@ -82,6 +87,8 @@ export async function mediaRoutes(
             rows.map(async (row) => ({
               id: String(row.id),
               folderId: String(row.folder_id),
+              // Other folders where it also appears.
+              linkedFolderIds: ((row.linked ?? []) as unknown[]).map(String),
               title: row.title ? String(row.title) : '',
               createdAt: new Date(String(row.created_at)).toISOString(),
               bytes: Number(row.bytes),
@@ -90,6 +97,60 @@ export async function mediaRoutes(
             })),
           ),
         }
+      }),
+  )
+
+  // The client's own folder (inside "Clientes"), created on first use.
+  app.post<{ Params: { clinicId: string }; Body: { clientId: string } }>(
+    '/clinics/:clinicId/library/client-folder',
+    {
+      schema: {
+        params: clinicRefParams,
+        body: {
+          type: 'object',
+          additionalProperties: false,
+          required: ['clientId'],
+          properties: { clientId: uuid },
+        },
+      },
+    },
+    async (request, reply) =>
+      authorized(request, reply, 'media:manage', async (connection, tenant) => {
+        const id = (
+          await connection.query('SELECT luminix.client_media_folder($1::uuid, $2::uuid) AS id', [
+            tenant.clinicId,
+            request.body.clientId,
+          ])
+        ).rows[0]?.id
+        return { id: String(id) }
+      }),
+  )
+
+  // Other folders where a photo also appears.
+  app.put<{ Params: { clinicId: string; itemId: string }; Body: { folderIds: string[] } }>(
+    '/clinics/:clinicId/library/items/:itemId/links',
+    {
+      schema: {
+        params: withId('itemId'),
+        body: {
+          type: 'object',
+          additionalProperties: false,
+          required: ['folderIds'],
+          properties: {
+            folderIds: { type: 'array', maxItems: 30, uniqueItems: true, items: uuid },
+          },
+        },
+      },
+    },
+    async (request, reply) =>
+      authorized(request, reply, 'media:manage', async (connection, tenant) => {
+        const count = (
+          await connection.query(
+            'SELECT luminix.set_media_item_links($1::uuid, $2::uuid, $3::uuid[]) AS n',
+            [tenant.clinicId, request.params.itemId, request.body.folderIds],
+          )
+        ).rows[0]?.n
+        return { links: Number(count ?? 0) }
       }),
   )
 
