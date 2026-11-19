@@ -4,6 +4,7 @@ import { Button, Card } from '@heroui/react'
 import {
   AlertTriangle,
   CalendarClock,
+  CalendarPlus,
   Check,
   ChevronDown,
   ChevronLeft,
@@ -23,6 +24,12 @@ import {
   type ClosureRow,
 } from '../appointments/booking-modal'
 import { HolidayPrompt } from '../appointments/holiday-prompt'
+import {
+  DayConfigModal,
+  describeDay,
+  SpecialDays,
+  type SpecialDay,
+} from '../appointments/day-config'
 import {
   clock,
   dayLabel,
@@ -206,9 +213,9 @@ export function AgendaPanel({
   const [booking, setBooking] = useState<{ open: boolean; date?: string }>({ open: false })
   const [schedule, setSchedule] = useState<{
     open: boolean
-    date?: string | null
-    tab?: 'week' | 'dates' | 'closures'
+    tab?: 'week' | 'closures'
   }>({ open: false })
+  const [dayConfig, setDayConfig] = useState<string | null>(null)
   const [opened, setOpened] = useState<AppointmentView | null>(null)
   const [reload, setReload] = useState(0)
   const selectedDayRef = useRef<HTMLDivElement>(null)
@@ -374,9 +381,75 @@ export function AgendaPanel({
   const selected = dayItems(selectedDate)
   const selectedDay = new Date(`${selectedDate}T12:00:00`)
   const canManage = data?.canManage !== false
+  const canManageHours = data?.canManageHours !== false
+  const periodDays =
+    view === 'week' ? days : monthDays.filter((day) => day.getMonth() === month.getMonth())
+  const specialDays: SpecialDay[] = data
+    ? periodDays.flatMap((day) => {
+        const date = ymd(day)
+        const rule = dayRule(date, day.getDay())
+        const weeklyRow = data.weeklyAvailability.find(
+          (row) => Number(row.weekday) === day.getDay(),
+        )
+        const told = describeDay(rule.exception, weeklyRow)
+        const list: SpecialDay[] = []
+        if (rule.closure)
+          list.push({
+            date,
+            kind: 'closed',
+            title: closureKinds[rule.closure.kind] ?? 'Espaço fechado',
+            detail: rule.closure.note || 'Espaço sem atendimento no período',
+          })
+        else if (rule.holiday)
+          list.push({
+            date,
+            kind: 'holiday',
+            title: rule.holiday.name,
+            detail: rule.exception
+              ? told.open
+                ? told.label.replace('Especial ', 'Aberto ')
+                : 'Fechado'
+              : weeklyRow?.is_available
+                ? 'Feriado · ainda sem resposta'
+                : 'Feriado · o espaço já não abre neste dia',
+          })
+        else if (rule.exception)
+          list.push({
+            date,
+            kind: rule.exception.is_available
+              ? weeklyRow?.is_available
+                ? 'special'
+                : 'open'
+              : 'closed',
+            title:
+              rule.exception.reason ||
+              (rule.exception.is_available ? 'Horário especial' : 'Fechado'),
+            detail: rule.exception.is_available
+              ? `${weeklyRow?.is_available ? '' : 'Abertura extra · '}${told.label.replace('Especial ', '')}`
+              : 'Ninguém consegue agendar',
+          })
+        if (rule.away.length)
+          list.push({ date, kind: 'away', title: 'Equipe ausente', detail: awayLabel(rule.away) })
+        return list
+      })
+    : []
+  const configDate = dayConfig ? new Date(`${dayConfig}T12:00:00`) : null
+  const configRule = dayConfig && configDate ? dayRule(dayConfig, configDate.getDay()) : null
 
   return (
     <div className={`manager-section manager-data-section ag${embedded ? ' is-embedded' : ''}`}>
+      {data && canManageHours && !embedded ? (
+        <HolidayPrompt
+          api={api}
+          clinicId={clinicId}
+          today={today}
+          location={data.location}
+          weekly={data.weeklyAvailability}
+          onCustom={setDayConfig}
+          onSaved={changed}
+          refresh={reload}
+        />
+      ) : null}
       <div className="manager-section-toolbar manager-agenda-toolbar">
         <div className="manager-week-nav">
           <Button
@@ -460,18 +533,6 @@ export function AgendaPanel({
           <Check size={16} aria-hidden /> {notice}
         </p>
       ) : null}
-      {data && data.canManageHours !== false && !embedded ? (
-        <HolidayPrompt
-          api={api}
-          clinicId={clinicId}
-          today={today}
-          location={data.location}
-          weekly={data.weeklyAvailability}
-          onCustom={(date) => setSchedule({ open: true, date })}
-          onSaved={changed}
-          refresh={reload}
-        />
-      ) : null}
       {!data ? (
         error ? null : (
           <div className="manager-agenda-skeleton" role="status" aria-label="Carregando agenda">
@@ -519,6 +580,7 @@ export function AgendaPanel({
                       data-closed={!rule.open || undefined}
                       data-heat={heat(count)}
                       data-holiday={rule.holiday ? rule.holiday.scope : undefined}
+                      data-special={rule.exception ? (rule.open ? 'open' : 'closed') : undefined}
                       aria-selected={isSelected}
                       aria-label={`${new Intl.DateTimeFormat('pt-BR', { dateStyle: 'full' }).format(day)}, ${count} ${count === 1 ? 'agendamento' : 'agendamentos'}${rule.open ? '' : ', fechado'}${tag ? `, ${tag}` : ''}`}
                       key={date}
@@ -555,9 +617,11 @@ export function AgendaPanel({
                 ))}
                 <span>Mais</span>
                 <span className="ag-heat-legend-holiday">Feriado</span>
+                <span className="ag-heat-legend-special">Dia configurado</span>
               </div>
             </Card.Content>
           </Card>
+          <SpecialDays days={specialDays} onOpen={setDayConfig} />
           <div ref={selectedDayRef} className="manager-selected-day">
             <Card className="manager-panel">
               <Card.Header className="manager-panel-heading">
@@ -571,14 +635,19 @@ export function AgendaPanel({
                     }).format(selectedDay)}
                   </Card.Title>
                 </div>
-                {canManage ? (
-                  <Button
-                    variant="secondary"
-                    onPress={() => setBooking({ open: true, date: selectedDate })}
-                  >
-                    <Plus size={17} /> Agendar neste dia
+                <div className="ag-selected-actions">
+                  <Button variant="secondary" onPress={() => setDayConfig(selectedDate)}>
+                    <Settings2 size={17} /> Configurar dia
                   </Button>
-                ) : null}
+                  {canManage ? (
+                    <Button
+                      variant="secondary"
+                      onPress={() => setBooking({ open: true, date: selectedDate })}
+                    >
+                      <Plus size={17} /> Agendar neste dia
+                    </Button>
+                  ) : null}
+                </div>
               </Card.Header>
               <Card.Content>
                 {selected.active.length ? (
@@ -655,8 +724,8 @@ export function AgendaPanel({
                       <button
                         type="button"
                         className="ag-day-rule"
-                        title="Ajustar o horário deste dia"
-                        onClick={() => setSchedule({ open: true, date: item.date })}
+                        title="Configurar este dia"
+                        onClick={() => setDayConfig(item.date)}
                       >
                         {item.exception
                           ? item.open
@@ -665,16 +734,17 @@ export function AgendaPanel({
                           : 'Fechado'}
                       </button>
                     ) : null}
-                    {canManage ? (
-                      <button
-                        type="button"
-                        className="ag-day-add"
-                        aria-label={`Agendar em ${dayLabel(`${item.date}T12:00:00`)}`}
-                        onClick={() => setBooking({ open: true, date: item.date })}
-                      >
-                        <Plus size={16} />
-                      </button>
-                    ) : null}
+                    <button
+                      type="button"
+                      className={`ag-day-add${item.exception ? ' is-special' : ''}`}
+                      aria-label={`Configurar ${dayLabel(`${item.date}T12:00:00`)}`}
+                      title={
+                        item.exception ? 'Dia com configuração especial' : 'Configurar este dia'
+                      }
+                      onClick={() => setDayConfig(item.date)}
+                    >
+                      <Settings2 size={16} />
+                    </button>
                   </div>
                 </header>
                 {item.active.length ? (
@@ -694,7 +764,7 @@ export function AgendaPanel({
                     type="button"
                     onClick={() => setBooking({ open: true, date: item.date })}
                   >
-                    <Plus size={16} /> Agendar
+                    <CalendarPlus size={16} /> Agendar
                   </button>
                 ) : (
                   <p className="ag-empty">Livre</p>
@@ -722,6 +792,7 @@ export function AgendaPanel({
               </button>
             </p>
           ) : null}
+          <SpecialDays days={specialDays} onOpen={setDayConfig} />
         </>
       )}
 
@@ -742,11 +813,36 @@ export function AgendaPanel({
           overrides={data.overrides}
           professionals={data.professionals}
           professionalAvailability={data.professionalAvailability ?? []}
-          canManageHours={data.canManageHours !== false}
+          canManageHours={canManageHours}
           canManageTeam={data.canManageTeam !== false}
-          initialDate={schedule.date}
           initialTab={schedule.tab}
           onSaved={changed}
+        />
+      ) : null}
+      {data ? (
+        <DayConfigModal
+          api={api}
+          date={dayConfig}
+          onClose={() => setDayConfig(null)}
+          weekly={data.weeklyAvailability}
+          override={configRule?.exception}
+          holiday={configRule?.holiday}
+          closures={
+            configRule
+              ? [
+                  ...(configRule.closure
+                    ? [`Espaço fechado · ${closureKinds[configRule.closure.kind] ?? 'período'}`]
+                    : []),
+                  ...(configRule.away.length ? [awayLabel(configRule.away)] : []),
+                ]
+              : []
+          }
+          canManage={canManageHours}
+          onSaved={changed}
+          onOpenClosures={() => {
+            setDayConfig(null)
+            setSchedule({ open: true, tab: 'closures' })
+          }}
         />
       ) : null}
       <AppointmentSheet

@@ -1,27 +1,14 @@
 'use client'
 
 import { Button, Label, Spinner, Switch } from '@heroui/react'
-import {
-  CalendarDays,
-  CalendarOff,
-  Coffee,
-  Copy,
-  DoorClosed,
-  DoorOpen,
-  Palmtree,
-  Plus,
-  Store,
-  Trash2,
-  Undo2,
-} from 'lucide-react'
+import { CalendarDays, Coffee, Copy, Palmtree, Plus, Store, Trash2 } from 'lucide-react'
 import { useEffect, useState } from 'react'
-import { DateInputField, TextInputField, TimeInputField } from '@/components/ui/fields'
-import { dateBr, initials } from '../business/format'
+import { TimeInputField } from '@/components/ui/fields'
+import { initials } from '../business/format'
 import type { ClinicApi } from '../settings/clinic-api'
 import { QuickModal } from '../quick-modal'
 import type { BookingProfessional } from './booking-modal'
 import { ClosuresEditor } from './closures-editor'
-import { localDate } from './model'
 
 type Period = { start: string; end: string }
 type Day = { weekday: number; enabled: boolean; start: string; end: string; breaks: Period[] }
@@ -254,12 +241,10 @@ export function ScheduleModal({
   isOpen,
   onOpenChange,
   weekly,
-  overrides,
   professionals,
   professionalAvailability,
   canManageHours,
   canManageTeam,
-  initialDate,
   initialTab,
   onSaved,
 }: {
@@ -272,24 +257,15 @@ export function ScheduleModal({
   professionalAvailability: ProfessionalDayRow[]
   canManageHours: boolean
   canManageTeam: boolean
-  /** Opens straight on "Datas especiais" for this day. */
-  initialDate?: string | null
   /** Opens on this tab (e.g. "Férias e fechamentos" from a closed day). */
-  initialTab?: 'week' | 'dates' | 'closures'
+  initialTab?: 'week' | 'closures'
   onSaved: (message: string) => void
 }) {
   const [who, setWho] = useState('clinic')
-  const [tab, setTab] = useState<'week' | 'dates' | 'closures'>('week')
+  const [tab, setTab] = useState<'week' | 'closures'>('week')
   const [clinicDays, setClinicDays] = useState<Day[]>(() => weekFrom(weekly))
   const [team, setTeam] = useState<TeamMember[] | null>(null)
   const [personDays, setPersonDays] = useState<Record<string, Day[]>>({})
-  const [special, setSpecial] = useState({
-    date: localDate(new Date()),
-    open: false,
-    start: '09:00',
-    end: '18:00',
-    reason: '',
-  })
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const [done, setDone] = useState('')
@@ -300,12 +276,7 @@ export function ScheduleModal({
     setClinicDays(weekFrom(weekly))
     setPersonDays({})
     setWho('clinic')
-    setTab(initialTab ?? (initialDate ? 'dates' : 'week'))
-    setSpecial((current) => ({
-      ...current,
-      date: initialDate ?? localDate(new Date()),
-      reason: '',
-    }))
+    setTab(initialTab ?? 'week')
     setError('')
     setDone('')
     // Only when it opens: saving reloads `weekly`, which must not wipe what is being edited.
@@ -337,10 +308,6 @@ export function ScheduleModal({
   }
   const days = who === 'clinic' ? clinicDays : (personDays[who] ?? savedPersonDays(who))
   const readOnly = who === 'clinic' ? !canManageHours : !canManageTeam || !member
-  const existing = overrides.find((item) => item.local_date.slice(0, 10) === special.date)
-  const upcoming = overrides
-    .filter((item) => item.local_date.slice(0, 10) >= localDate(new Date()))
-    .slice(0, 12)
 
   async function run(work: () => Promise<unknown>, message: string, close: boolean) {
     setSaving(true)
@@ -394,32 +361,6 @@ export function ScheduleModal({
     )
   }
 
-  function saveSpecial(kind: 'open' | 'closed' | 'default', date = special.date) {
-    if (!date) return setError('Escolha a data.')
-    if (kind === 'open' && !(special.start < special.end))
-      return setError('O fechamento precisa ser depois da abertura.')
-    void run(
-      () =>
-        api.put('availability', {
-          mode: 'override',
-          date,
-          ...(kind === 'default'
-            ? { useDefault: true }
-            : {
-                isAvailable: kind === 'open',
-                periods: kind === 'open' ? [{ start: special.start, end: special.end }] : [],
-                reason: special.reason.trim() || undefined,
-              }),
-        }),
-      kind === 'default'
-        ? `${dateBr(date)} voltou ao horário padrão.`
-        : kind === 'open'
-          ? `${dateBr(date)} aberto das ${special.start} às ${special.end}.`
-          : `${dateBr(date)} marcado como fechado.`,
-      false,
-    )
-  }
-
   return (
     <QuickModal
       isOpen={isOpen}
@@ -466,18 +407,6 @@ export function ScheduleModal({
           }}
         >
           <CalendarDays size={17} aria-hidden /> Semana padrão
-        </button>
-        <button
-          type="button"
-          role="tab"
-          aria-selected={tab === 'dates'}
-          onClick={() => {
-            setTab('dates')
-            setWho('clinic')
-            setError('')
-          }}
-        >
-          <CalendarOff size={17} aria-hidden /> Feriados e datas
         </button>
         <button
           type="button"
@@ -551,7 +480,7 @@ export function ScheduleModal({
             <p className="sch-note">Só quem gerencia a equipe pode mudar estes horários.</p>
           ) : null}
         </>
-      ) : tab === 'closures' ? (
+      ) : (
         <ClosuresEditor
           api={api}
           professionals={professionals}
@@ -560,130 +489,6 @@ export function ScheduleModal({
           canManageTeam={canManageTeam}
           onSaved={onSaved}
         />
-      ) : (
-        <div className="sch-dates">
-          <section className="sch-special">
-            <DateInputField
-              label="Data"
-              value={special.date}
-              min={localDate(new Date())}
-              onChange={(date) => setSpecial({ ...special, date })}
-            />
-            <div className="sch-choice" role="group" aria-label="Neste dia o espaço fica">
-              <button
-                type="button"
-                aria-pressed={!special.open}
-                onClick={() => setSpecial({ ...special, open: false })}
-              >
-                <DoorClosed size={22} strokeWidth={1.75} aria-hidden />
-                <strong>Fechado</strong>
-                <small>Ninguém consegue agendar</small>
-              </button>
-              <button
-                type="button"
-                aria-pressed={special.open}
-                onClick={() => setSpecial({ ...special, open: true })}
-              >
-                <DoorOpen size={22} strokeWidth={1.75} aria-hidden />
-                <strong>Aberto</strong>
-                <small>Com um horário só deste dia</small>
-              </button>
-            </div>
-            {special.open ? (
-              <div className="sch-range">
-                <TimeInputField
-                  ariaLabel="Abre às"
-                  value={special.start}
-                  onChange={(start) => setSpecial({ ...special, start })}
-                />
-                <span>até</span>
-                <TimeInputField
-                  ariaLabel="Fecha às"
-                  value={special.end}
-                  onChange={(end) => setSpecial({ ...special, end })}
-                />
-              </div>
-            ) : null}
-            <TextInputField
-              label="Motivo (só a equipe vê)"
-              maxLength={240}
-              placeholder="Ex.: feriado, folga, horário estendido"
-              value={special.reason}
-              onChange={(reason) => setSpecial({ ...special, reason })}
-            />
-            {canManageHours ? (
-              <div className="sch-special-foot">
-                {existing ? (
-                  <Button
-                    variant="ghost"
-                    isDisabled={saving}
-                    onPress={() => saveSpecial('default')}
-                  >
-                    <Undo2 size={15} aria-hidden /> Voltar ao horário padrão
-                  </Button>
-                ) : null}
-                <Button
-                  isDisabled={saving}
-                  onPress={() => saveSpecial(special.open ? 'open' : 'closed')}
-                >
-                  {saving ? 'Salvando…' : special.open ? 'Salvar dia aberto' : 'Salvar dia fechado'}
-                </Button>
-              </div>
-            ) : (
-              <p className="sch-note">Só quem gerencia o espaço pode criar datas especiais.</p>
-            )}
-          </section>
-          <section className="sch-list" aria-label="Datas especiais marcadas">
-            <h3>Já marcadas</h3>
-            {upcoming.length ? (
-              <ul>
-                {upcoming.map((item) => {
-                  const date = item.local_date.slice(0, 10)
-                  return (
-                    <li key={date} className={item.is_available ? 'is-open' : 'is-closed'}>
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setSpecial({
-                            date,
-                            open: item.is_available,
-                            start: item.periods[0]?.start ?? '09:00',
-                            end: item.periods[item.periods.length - 1]?.end ?? '18:00',
-                            reason: item.reason ?? '',
-                          })
-                        }
-                      >
-                        <strong>{dateBr(date)}</strong>
-                        <span>
-                          {item.is_available
-                            ? `Aberto ${item.periods.map((period) => `${period.start}–${period.end}`).join(', ')}`
-                            : 'Fechado'}
-                          {item.reason ? ` · ${item.reason}` : ''}
-                        </span>
-                      </button>
-                      {canManageHours ? (
-                        <Button
-                          isIconOnly
-                          size="sm"
-                          variant="ghost"
-                          aria-label={`Voltar ${dateBr(date)} ao horário padrão`}
-                          isDisabled={saving}
-                          onPress={() => saveSpecial('default', date)}
-                        >
-                          <Undo2 size={15} />
-                        </Button>
-                      ) : null}
-                    </li>
-                  )
-                })}
-              </ul>
-            ) : (
-              <p className="sch-note">
-                Nenhuma data especial no período que a agenda está mostrando.
-              </p>
-            )}
-          </section>
-        </div>
       )}
       {error ? (
         <p className="apt-error" role="alert">

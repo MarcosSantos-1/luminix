@@ -2630,3 +2630,241 @@ button.ag-empty:hover {
 .bk-pack[aria-pressed='true'] > i::after {
   transform: translateX(18px);
 }
+
+/* ---------- Configurar dia ---------- */
+.dc-facts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 14px;
+}
+.dc-fact {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 10px;
+  border: 0;
+  border-radius: 10px;
+  color: inherit;
+  background: #ffffff12;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+}
+.dc-fact.is-holiday {
+  color: #ffd6f0;
+  background: color-mix(in srgb, #c13fff 38%, transparent);
+}
+.dc-fact.is-special {
+  color: #bfe8ff;
+  background: #2d7ab033;
+}
+.dc-fact.is-away {
+  color: #ffe0a1;
+  background: #66401499;
+  cursor: pointer;
+}
+.dc-choice {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin-bottom: 14px;
+}
+.dc-choice button {
+  display: grid;
+  justify-items: start;
+  gap: 4px;
+  padding: 14px;
+  border: 1px solid var(--manager-border);
+  border-radius: 18px;
+  color: inherit;
+  background: #ffffff0a;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition:
+    transform 0.16s ease,
+    background 0.16s ease;
+}
+.dc-choice button:hover:not(:disabled) {
+  transform: translateY(-2px);
+}
+.dc-choice button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+.dc-choice button strong {
+  font-size: 15.5px;
+}
+.dc-choice button small {
+  color: var(--manager-muted);
+  font-size: 12.5px;
+}
+.dc-choice button[aria-checked='true'] {
+  border-color: var(--space-highlight, #ffb5d3);
+  background: color-mix(in srgb, var(--space-accent, #ec287a) 40%, transparent);
+  box-shadow: 0 0 0 1px var(--space-highlight, #ffb5d3);
+}
+.dc-hours {
+  display: grid;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+.dc-add-break {
+  justify-self: start;
+}
+.dc-note {
+  margin: 0 0 14px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  color: #c9f5da;
+  background: #a7f0c414;
+  font-size: 13.5px;
+}
+@media (max-width: 650px) {
+  .dc-choice {
+    grid-template-columns: 1fr;
+  }
+  .dc-choice button {
+    grid-template-columns: auto 1fr;
+    align-items: center;
+    column-gap: 10px;
+  }
+  .dc-choice button svg {
+    grid-row: span 2;
+  }
+}
+
+/* Days with a rule of their own, under the calendar (left aligned). */
+.dc-list {
+  display: grid;
+  justify-self: start;
+  gap: 10px;
+  width: min(100%, 520px);
+  margin-top: 4px;
+}
+.dc-list h3 {
+  margin: 0;
+  color: var(--manager-muted);
+  font-size: 13.5px;
+  font-weight: 650;
+}
+.dc-list ul {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.dc-list li button {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 6px 10px 6px 6px;
+  border: 1px solid #ffffff14;
+  border-left: 4px solid #5aa9e6;
+  border-radius: 14px;
+  color: inherit;
+  background: #ffffff0b;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.dc-list li button:hover {
+  background: #ffffff16;
+}
+.dc-list li[data-kind='holiday'] button {
+  border-left-color: #c13fff;
+  background:
+    radial-gradient(
+      120% 140% at 0% 0%,
+      color-mix(in srgb, #c13fff 22%, transparent),
+      transparent 60%
+    ),
+    #ffffff0a;
+}
+.dc-list li[data-kind='closed'] button {
+  border-left-color: #e0707f;
+}
+.dc-list li[data-kind='open'] button {
+  border-left-color: #5fc98a;
+}
+.dc-list li[data-kind='away'] button {
+  border-left-color: #e8b04a;
+}
+.dc-list time {
+  display: grid;
+  flex: none;
+  justify-items: center;
+  width: 46px;
+  padding: 3px 0;
+  border-radius: 10px;
+  background: #ffffff10;
+  line-height: 1.1;
+}
+.dc-list time small {
+  color: var(--manager-muted);
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+.dc-list time strong {
+  font-size: 17px;
+}
+.dc-list li span {
+  display: grid;
+  min-width: 0;
+}
+.dc-list li span strong {
+  overflow: hidden;
+  font-size: 14px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.dc-list li span small {
+  color: var(--manager-muted);
+  font-size: 12.5px;
+}
+
+/* Day with its own rule: marked on the gear and on the month cell. */
+.ag-day-add.is-special {
+  border-color: #5aa9e6;
+  color: #bfe8ff;
+  background: #2d7ab033;
+}
+.ag .manager-month-day.ag-heat[data-special] {
+  position: relative;
+}
+.ag .manager-month-day.ag-heat[data-special]::after {
+  position: absolute;
+  bottom: 6px;
+  left: 6px;
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: #5aa9e6;
+  box-shadow: 0 0 0 2px #0006;
+  content: '';
+}
+.ag .manager-month-day.ag-heat[data-special='open']::after {
+  background: #5fc98a;
+}
+.ag-heat-legend-special {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-left: 8px;
+}
+.ag-heat-legend-special::before {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: #5aa9e6;
+  content: '';
+}
+.ag-selected-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
