@@ -57,8 +57,25 @@
 }
 .settings-card-body {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: 14px;
   min-width: 0;
+}
+/* On a phone the card's action (e.g. "+ Nova conta") gets its own line instead of squeezing the
+   title into one word per line. */
+@media (max-width: 650px) {
+  .settings-card-head {
+    flex-wrap: wrap;
+  }
+  .settings-card-head > div:not(.settings-card-badge) {
+    flex: 1 1 calc(100% - 60px);
+  }
+  .settings-card-badge {
+    flex: 1 1 100%;
+  }
+  .settings-card-badge > .button {
+    width: 100%;
+  }
 }
 
 .settings-pill {
@@ -1212,5 +1229,126 @@
   .access-actions {
     grid-column: 1 / -1;
     justify-content: flex-start;
+  }
+}
+
+/* ---------- Endereço: accordion com minimapa ---------- */
+.settings-address.fold {
+  border-color: color-mix(in srgb, var(--space-highlight, #ffd4e7) 22%, transparent);
+  border-radius: 22px;
+  background: #ffffff0c;
+}
+.settings-address > summary {
+  padding: 14px 16px;
+}
+.settings-address-pin {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 42px;
+  height: 42px;
+  border-radius: 14px;
+  color: white;
+  background: linear-gradient(
+    135deg,
+    var(--space-accent, #ec247b),
+    var(--space-highlight, #f982b3)
+  );
+  box-shadow: 0 0 18px color-mix(in srgb, var(--space-accent, #ec247b) 45%, transparent);
+}
+.settings-address .fold-copy small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.settings-address[open] .fold-copy small {
+  white-space: normal;
+}
+.settings-address-edit {
+  flex: none;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: #ffffff14;
+  font-size: 12.5px;
+  font-weight: 650;
+}
+.settings-address[open] .settings-address-edit {
+  display: none;
+}
+.settings-address-body {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 14px;
+  padding: 0 16px 16px;
+}
+.settings-address-note {
+  margin: 0;
+  font-size: 13px;
+}
+/* Map pieces shared with the onboarding (its stylesheet is not loaded in the panel). */
+.settings-address .ob2-address-map {
+  min-height: 200px;
+  overflow: hidden;
+  border: 1px solid #ffffff38;
+  border-radius: 18px;
+  background: radial-gradient(circle at 50% 42%, #ffffff29, transparent 58%), #ffffff14;
+}
+.settings-address .ob2-address-map-canvas {
+  height: 220px;
+}
+.settings-address .ob2-map-note {
+  display: grid;
+  place-items: center;
+  min-height: 120px;
+  margin: 0;
+  padding: 18px;
+  color: #ffffffe0;
+  font-size: 14px;
+  text-align: center;
+}
+.settings-address .ob2-address-map .ob2-map-note {
+  min-height: 200px;
+}
+.settings-address .ob2-map-pin {
+  position: absolute;
+  z-index: 2;
+  display: grid;
+  justify-items: center;
+  transform: translate(-50%, -100%);
+  filter: drop-shadow(0 10px 14px #4a082061);
+  pointer-events: none;
+}
+.settings-address .ob2-map-pin-head {
+  display: grid;
+  place-items: center;
+  width: 54px;
+  height: 54px;
+  overflow: hidden;
+  border: 3px solid #fff;
+  border-radius: 999px;
+  color: #fff;
+  background: linear-gradient(160deg, var(--space-accent, #ff5b9d), var(--space-accent, #e21b6d));
+  box-shadow: 0 0 0 5px color-mix(in srgb, var(--space-accent, #ff2d79) 28%, transparent);
+  font-size: 22px;
+  font-weight: 750;
+}
+.settings-address .ob2-map-pin-head img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.settings-address .ob2-map-pin-tip {
+  width: 16px;
+  height: 14px;
+  margin-top: -6px;
+  background: var(--space-accent, #e21b6d);
+  clip-path: polygon(50% 100%, 0 0, 100% 0);
+}
+@media (max-width: 650px) {
+  .settings-address-edit {
+    display: none;
+  }
+  .settings-address-body {
+    padding: 0 12px 12px;
   }
 }

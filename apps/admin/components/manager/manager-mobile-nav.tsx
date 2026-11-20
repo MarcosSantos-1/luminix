@@ -79,6 +79,14 @@ const createActions: CreateAction[] = [
   },
 ]
 
+const menuGroups: { label: string; ids: ManagerSectionId[] }[] = [
+  {
+    label: 'Negócio',
+    ids: ['servicos', 'financeiro', 'estoque', 'marketing', 'relatorios', 'midia'],
+  },
+  { label: 'Espaço', ids: ['configuracoes'] },
+]
+
 /** The four fixed tabs; everything else lives in "Menu". */
 const fixedTabs = new Set<ManagerSectionId>(['inicio', 'agenda', 'clientes'])
 
@@ -115,6 +123,17 @@ export function ManagerMobileNav({
   }, [sheet])
 
   const toggle = (next: Exclude<Sheet, null>) => setSheet((open) => (open === next ? null : next))
+  const pill = (on: boolean) =>
+    on ? (
+      <motion.span
+        layoutId="mnav-pill"
+        className="mnav-pill"
+        aria-hidden
+        transition={
+          reduceMotion ? { duration: 0 } : { type: 'spring', stiffness: 480, damping: 36 }
+        }
+      />
+    ) : null
   const tab = (id: ManagerSectionId, label: string, Icon: LucideIcon) =>
     allowed.has(id) ? (
       <button
@@ -126,6 +145,7 @@ export function ManagerMobileNav({
           onSelect(id)
         }}
       >
+        {pill(current === id && !sheet)}
         <Icon size={21} aria-hidden />
         <span>{label}</span>
       </button>
@@ -214,24 +234,35 @@ export function ManagerMobileNav({
             exit={{ opacity: 0, y: 32 }}
             transition={spring}
           >
-            <div className="mnav-menu-grid">
-              {menuItems.map(({ id, label, icon: Icon }) => (
-                <button
-                  key={id}
-                  type="button"
-                  role="menuitem"
-                  className="mnav-menu-item"
-                  aria-current={current === id ? 'page' : undefined}
-                  onClick={() => {
-                    setSheet(null)
-                    onSelect(id)
-                  }}
-                >
-                  <Icon size={20} aria-hidden />
-                  <span>{label}</span>
-                </button>
-              ))}
-            </div>
+            {menuGroups.map((group) => {
+              const items = menuItems.filter((item) => group.ids.includes(item.id))
+              if (!items.length) return null
+              return (
+                <div key={group.label} className="mnav-menu-group">
+                  <p className="mnav-menu-label">{group.label}</p>
+                  <div className="mnav-menu-grid">
+                    {items.map(({ id, label, icon: Icon }) => (
+                      <button
+                        key={id}
+                        type="button"
+                        role="menuitem"
+                        className="mnav-menu-item"
+                        aria-current={current === id ? 'page' : undefined}
+                        onClick={() => {
+                          setSheet(null)
+                          onSelect(id)
+                        }}
+                      >
+                        <span className="mnav-menu-icon" aria-hidden>
+                          <Icon size={20} />
+                        </span>
+                        <span>{label}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )
+            })}
             <div className="mnav-menu-footer">
               <button
                 type="button"
@@ -301,6 +332,7 @@ export function ManagerMobileNav({
           aria-current={(menuActive && !sheet) || sheet === 'menu' ? 'page' : undefined}
           onClick={() => toggle('menu')}
         >
+          {pill((menuActive && !sheet) || sheet === 'menu')}
           {sheet === 'menu' ? <X size={21} aria-hidden /> : <Menu size={21} aria-hidden />}
           <span>Menu</span>
         </button>

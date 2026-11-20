@@ -159,16 +159,7 @@ export function HomePanels({
           <Card.Content>
             <div className="manager-shortcuts">
               {managerNavigation
-                .filter((item) =>
-                  [
-                    'Agenda',
-                    'Clientes',
-                    'Serviços',
-                    'Financeiro',
-                    'Relatórios',
-                    'Marketing',
-                  ].includes(item.label),
-                )
+                .filter((item) => ['Financeiro', 'Estoque', 'Marketing'].includes(item.label))
                 .map(({ label, icon: Icon }) => (
                   <Button key={label} variant="secondary" onPress={() => onNavigate(label)}>
                     <Icon size={24} strokeWidth={1.5} />

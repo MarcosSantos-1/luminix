@@ -205,8 +205,10 @@ export function HomeDashboard({
         ]
       : []),
   ]
+  // Agenda, Clientes and Serviços already sit in the main actions and the menu.
   const shortcuts = managerNavigation.filter(
-    (item) => item.id !== 'inicio' && item.id !== 'configuracoes' && sections.includes(item.id),
+    (item) =>
+      ['financeiro', 'estoque', 'marketing'].includes(item.id) && sections.includes(item.id),
   )
 
   return (

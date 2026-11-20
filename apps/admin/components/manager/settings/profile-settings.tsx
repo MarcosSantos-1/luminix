@@ -6,6 +6,7 @@ import {
   BadgeCheck,
   Building2,
   CalendarHeart,
+  ChevronDown,
   Copy,
   Globe,
   ImagePlus,
@@ -25,6 +26,7 @@ import { useStaff } from '@/components/staff-provider'
 import { formatBrPhone, toE164Phone } from '@/lib/phone'
 import { useClinicApi, useClinicResource, type ClinicApi } from './clinic-api'
 import { SelectField } from '@/components/ui/fields'
+import { AddressMap } from '@/components/onboarding/address-map'
 import {
   Empty,
   HelpTip,
@@ -152,6 +154,18 @@ function ProfileEditor({
   const lastCep = useRef('')
 
   const errors = showErrors ? validate(form) : {}
+  const hasAddress = Boolean(form.addressLine.trim() && form.city.trim())
+  // Starts open only when there is no address yet; typing never folds it.
+  const [addressOpen, setAddressOpen] = useState(
+    () => !(initial.addressLine.trim() && initial.city.trim()),
+  )
+  const addressSummary = [
+    [form.addressLine.trim(), form.addressNumber.trim()].filter(Boolean).join(', '),
+    form.addressDistrict.trim(),
+    [form.city.trim(), form.state].filter(Boolean).join('/'),
+  ]
+    .filter(Boolean)
+    .join(' · ')
   const dirty = JSON.stringify(form) !== JSON.stringify(saved)
   const set = (patch: Partial<ProfileForm>) => {
     setForm({ ...form, ...patch })
@@ -520,75 +534,99 @@ function ProfileEditor({
         )}
       </SettingsCard>
 
-      <SettingsCard
-        icon={<MapPin size={20} />}
-        title="Endereço"
-        description="Digite o CEP e preenchemos o resto para você."
-        help={{
-          title: 'O endereço aparece para todo mundo?',
-          text: 'Só se você quiser. Em Vitrine e site existe a opção “Mostrar endereço e mapa”. Sem ela, o site pede para a cliente consultar o espaço.',
-        }}
+      <details
+        className="fold settings-address"
+        open={addressOpen}
+        onToggle={(event) => setAddressOpen(event.currentTarget.open)}
       >
-        <div className="settings-grid">
-          <TextInput
-            label="CEP"
-            icon={<MapPinned size={17} />}
-            inputMode="numeric"
-            value={form.postalCode}
-            placeholder="00000-000"
-            error={errors.postalCode}
-            hint={
-              lookup === 'loading'
-                ? 'Procurando o endereço…'
-                : lookup === 'missing'
-                  ? 'Não achamos este CEP. Preencha os campos abaixo.'
-                  : undefined
-            }
-            suffix={lookup === 'loading' ? <Spinner size="sm" aria-hidden /> : null}
-            onChange={(value) => void changeCep(value)}
+        <summary>
+          <span className="settings-address-pin" aria-hidden>
+            <MapPin size={20} />
+          </span>
+          <span className="fold-copy">
+            <strong>Endereço</strong>
+            <small>
+              {hasAddress ? addressSummary : 'Digite o CEP e preenchemos o resto para você.'}
+            </small>
+          </span>
+          <span className="settings-address-edit">Editar</span>
+          <ChevronDown className="fold-chevron" size={20} aria-hidden />
+        </summary>
+        <div className="fold-body settings-address-body">
+          <AddressMap
+            line={form.addressLine}
+            number={form.addressNumber}
+            district={form.addressDistrict}
+            city={form.city}
+            state={form.state}
+            postalCode={form.postalCode}
+            logoUrl={form.logoUrl}
+            clinicName={form.name}
           />
-          <TextInput
-            label="Rua / avenida"
-            value={form.addressLine}
-            maxLength={240}
-            wide
-            onChange={(addressLine) => set({ addressLine })}
-          />
-          <TextInput
-            label="Número"
-            value={form.addressNumber}
-            maxLength={20}
-            onChange={(addressNumber) => set({ addressNumber })}
-          />
-          <TextInput
-            label="Bairro"
-            value={form.addressDistrict}
-            maxLength={120}
-            onChange={(addressDistrict) => set({ addressDistrict })}
-          />
-          <TextInput
-            label="Cidade"
-            value={form.city}
-            maxLength={120}
-            onChange={(city) => set({ city })}
-          />
-          <SelectField
-            label="Estado"
-            value={form.state}
-            placeholder="Escolha"
-            options={states.map((uf) => ({ id: uf, label: uf }))}
-            onChange={(state) => set({ state })}
-          />
-          <TextInput
-            label="Complemento ou referência"
-            value={form.addressNote}
-            maxLength={240}
-            placeholder="Ex.: Sala 3, em frente à padaria"
-            wide
-            onChange={(addressNote) => set({ addressNote })}
-          />
+          <div className="settings-grid">
+            <TextInput
+              label="CEP"
+              icon={<MapPinned size={17} />}
+              inputMode="numeric"
+              value={form.postalCode}
+              placeholder="00000-000"
+              error={errors.postalCode}
+              hint={
+                lookup === 'loading'
+                  ? 'Procurando o endereço…'
+                  : lookup === 'missing'
+                    ? 'Não achamos este CEP. Preencha os campos abaixo.'
+                    : undefined
+              }
+              suffix={lookup === 'loading' ? <Spinner size="sm" aria-hidden /> : null}
+              onChange={(value) => void changeCep(value)}
+            />
+            <TextInput
+              label="Rua / avenida"
+              value={form.addressLine}
+              maxLength={240}
+              wide
+              onChange={(addressLine) => set({ addressLine })}
+            />
+            <TextInput
+              label="Número"
+              value={form.addressNumber}
+              maxLength={20}
+              onChange={(addressNumber) => set({ addressNumber })}
+            />
+            <TextInput
+              label="Bairro"
+              value={form.addressDistrict}
+              maxLength={120}
+              onChange={(addressDistrict) => set({ addressDistrict })}
+            />
+            <TextInput
+              label="Cidade"
+              value={form.city}
+              maxLength={120}
+              onChange={(city) => set({ city })}
+            />
+            <SelectField
+              label="Estado"
+              value={form.state}
+              placeholder="Escolha"
+              options={states.map((uf) => ({ id: uf, label: uf }))}
+              onChange={(state) => set({ state })}
+            />
+            <TextInput
+              label="Complemento ou referência"
+              value={form.addressNote}
+              maxLength={240}
+              placeholder="Ex.: Sala 3, em frente à padaria"
+              wide
+              onChange={(addressNote) => set({ addressNote })}
+            />
+          </div>
+          <p className="settings-muted settings-address-note">
+            Aparece para as clientes só se você ligar “Mostrar endereço e mapa” em Vitrine e site.
+          </p>
         </div>
-      </SettingsCard>
+      </details>
       {saveBar}
       <p className="settings-footnote">
         <AtSign size={14} aria-hidden /> Os contatos ficam na aba Contato.

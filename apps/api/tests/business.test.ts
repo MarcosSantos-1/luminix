@@ -351,6 +351,13 @@ describe('appointments, finance and reports', () => {
     expect(report.appointments.byStatus.completed.count).toBe(1)
     expect(report.topServices[0].name).toBe('Corte')
     expect(report.daily).toHaveLength(1)
+    expect(report.weekdays).toHaveLength(7)
+    expect(report.weekdays.reduce((sum: number, value: number) => sum + value, 0)).toBe(
+      report.daily[0].appointments,
+    )
+    expect(report.previous.appointments).toBe(0)
+    expect(report.clientsServed).toMatchObject({ total: 1, returning: 0 })
+    expect(report.incomeMethods.length).toBeGreaterThan(0)
 
     const ownerHome = (await call('owner-a', 'GET', `/clinics/${c('a').id}/dashboard`)).json()
     expect(ownerHome.appointments.length).toBeGreaterThanOrEqual(2)

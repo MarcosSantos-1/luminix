@@ -105,6 +105,39 @@ button.kpi[aria-pressed='true'] {
 .filter-trigger {
   position: relative;
 }
+.filter-trigger.is-icon {
+  flex: none;
+  width: 46px;
+  min-width: 46px;
+  height: 46px;
+  padding: 0;
+  border-radius: 14px;
+}
+.filter-trigger.is-icon .filter-count {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  font-size: 11px;
+  box-shadow: 0 0 0 2px var(--space-deep, #3a0a22);
+}
+.filter-option.is-radio .filter-box {
+  border-radius: 999px;
+}
+/* Search and the filter icon always share one line; the other actions may wrap below. */
+.data-toolbar .data-searchbar {
+  display: flex;
+  flex: 1 1 320px;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+.data-toolbar .data-searchbar > .data-search {
+  flex: 1 1 auto;
+  min-width: 0;
+}
 .filter-count {
   display: grid;
   min-width: 20px;

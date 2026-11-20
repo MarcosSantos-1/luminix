@@ -3,8 +3,15 @@
 import Image from 'next/image'
 import { Button, Card } from '@heroui/react'
 import { Crown, MessageCircle, PanelLeftClose, PanelLeftOpen } from 'lucide-react'
-import { managerNavigation } from './demo-data'
+import { managerNavigation, type ManagerSectionId } from './demo-data'
 import { supportWhatsAppUrl } from './support'
+
+/** Menu groups: the day-to-day pages first, then the business, then the space. */
+const groups: { label: string; ids: ManagerSectionId[] }[] = [
+  { label: 'Dia a dia', ids: ['inicio', 'agenda', 'clientes', 'servicos'] },
+  { label: 'Negócio', ids: ['financeiro', 'estoque', 'marketing', 'relatorios', 'midia'] },
+  { label: 'Espaço', ids: ['configuracoes'] },
+]
 
 export function ManagerSidebar({
   activeLabel,
@@ -45,21 +52,40 @@ export function ManagerSidebar({
       </div>
       <div className="manager-sidebar-scroll">
         <nav aria-label="Navegação do gestor" className="manager-nav">
-          {managerNavigation
-            .filter((item) => item.id !== 'configuracoes' || canManageSettings)
-            .map(({ id, label, icon: Icon }) => (
-              <Button
-                key={id}
-                variant="ghost"
-                className={`manager-nav-item ${label === activeLabel ? 'is-active' : ''}`}
-                aria-label={label}
-                aria-current={label === activeLabel ? 'page' : undefined}
-                onPress={() => onNavigate(label)}
+          {groups.map((group) => {
+            const items = managerNavigation.filter(
+              (item) =>
+                group.ids.includes(item.id) && (item.id !== 'configuracoes' || canManageSettings),
+            )
+            if (!items.length) return null
+            return (
+              <div
+                key={group.label}
+                className="manager-nav-group"
+                role="group"
+                aria-label={group.label}
               >
-                <Icon size={20} />
-                <span>{label}</span>
-              </Button>
-            ))}
+                <p className="manager-nav-label" aria-hidden="true">
+                  {group.label}
+                </p>
+                {items.map(({ id, label, icon: Icon }) => (
+                  <Button
+                    key={id}
+                    variant="ghost"
+                    className={`manager-nav-item ${label === activeLabel ? 'is-active' : ''}`}
+                    aria-label={label}
+                    aria-current={label === activeLabel ? 'page' : undefined}
+                    onPress={() => onNavigate(label)}
+                  >
+                    <span className="manager-nav-icon" aria-hidden="true">
+                      <Icon size={18} />
+                    </span>
+                    <span>{label}</span>
+                  </Button>
+                ))}
+              </div>
+            )
+          })}
         </nav>
         <Card className="manager-plan">
           <Crown size={20} />
@@ -79,7 +105,9 @@ export function ManagerSidebar({
           aria-label="Suporte: perguntar no WhatsApp"
           title="Suporte no WhatsApp"
         >
-          <MessageCircle size={18} aria-hidden />
+          <span className="manager-support-icon" aria-hidden>
+            <MessageCircle size={18} />
+          </span>
           <span>
             <strong>Suporte</strong>
             <small>Perguntar no WhatsApp</small>

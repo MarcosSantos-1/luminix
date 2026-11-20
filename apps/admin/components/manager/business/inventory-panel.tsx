@@ -7,6 +7,8 @@ import {
   Camera,
   Check,
   ChevronDown,
+  ChevronLeft,
+  ChevronRight,
   CircleAlert,
   History,
   ImagePlus,
@@ -704,6 +706,31 @@ function useAmountInput(item: Pick<Item, 'packageSize' | 'unit'>, initial: strin
   return { text, setText, parsed, base }
 }
 
+const productSteps = [
+  {
+    emoji: '📦',
+    title: 'O produto',
+    hint: 'Uma foto ajuda a achar na prateleira. Só o nome é obrigatório.',
+  },
+  { emoji: '📏', title: 'Medida', hint: 'Como ele é contado e em que embalagem chega.' },
+  { emoji: '🧮', title: 'Quantidade', hint: 'Quanto você tem agora e quanto custa.' },
+  { emoji: '🔔', title: 'Avisos', hint: 'Quando o Luminix deve avisar que está acabando.' },
+]
+
+const unitEmoji: Record<string, string> = {
+  un: '🔢',
+  ml: '💧',
+  g: '⚖️',
+  m: '📏',
+  cm: '📐',
+  folha: '📄',
+  l: '🫙',
+  kg: '🪣',
+  fr: '🧴',
+  cx: '📦',
+  par: '🧤',
+}
+
 function ItemEditor({
   api,
   initial,
@@ -739,6 +766,8 @@ function ItemEditor({
   const [error, setError] = useState('')
   const [saving, setSaving] = useState(false)
   const [uploading, setUploading] = useState(false)
+  const [step, setStep] = useState(0)
+  const [reached, setReached] = useState(0)
   const camera = useRef<HTMLInputElement>(null)
   const gallery = useRef<HTMLInputElement>(null)
   const label = item.packageLabel || defaultPackageLabel(item.unit)
@@ -820,24 +849,336 @@ function ItemEditor({
     }
   }
 
+  const photoBlock = (
+    <div className="inv-photo-row">
+      <span className="inv-photo is-large" aria-hidden>
+        {item.photoUrl ? (
+          // eslint-disable-next-line @next/next/no-img-element -- public media URL
+          <img src={item.photoUrl} alt="" />
+        ) : (
+          <Package size={34} />
+        )}
+      </span>
+      <div className="account-photo-actions">
+        <Button
+          variant="secondary"
+          size="sm"
+          isDisabled={uploading}
+          onPress={() => camera.current?.click()}
+        >
+          <Camera size={16} aria-hidden /> {uploading ? 'Enviando…' : 'Tirar foto'}
+        </Button>
+        <Button
+          variant="ghost"
+          size="sm"
+          isDisabled={uploading}
+          onPress={() => gallery.current?.click()}
+        >
+          <ImagePlus size={16} aria-hidden /> Escolher imagem
+        </Button>
+        {item.photoUrl ? (
+          <Button
+            variant="ghost"
+            size="sm"
+            onPress={() => setItem({ ...item, photoAssetId: '', photoUrl: null })}
+          >
+            <Trash2 size={16} aria-hidden /> Remover
+          </Button>
+        ) : null}
+      </div>
+      {/* `capture` opens the back camera on phones; on a computer it is a normal file picker. */}
+      <input
+        ref={camera}
+        type="file"
+        accept="image/*"
+        capture="environment"
+        hidden
+        onChange={(event) => {
+          const file = event.target.files?.[0]
+          event.target.value = ''
+          void pickPhoto(file)
+        }}
+      />
+      <input
+        ref={gallery}
+        type="file"
+        accept="image/png,image/jpeg,image/webp"
+        hidden
+        onChange={(event) => {
+          const file = event.target.files?.[0]
+          event.target.value = ''
+          void pickPhoto(file)
+        }}
+      />
+    </div>
+  )
+  const nameField = (
+    <TextInputField
+      label="Nome"
+      isRequired
+      autoFocus={isNew && !initial.name}
+      maxLength={120}
+      value={item.name}
+      placeholder="Ex.: Cera quente"
+      onChange={(name) => setItem({ ...item, name })}
+    />
+  )
+  const categoryField = (
+    <CategoryPicker
+      className="manager-field-wide"
+      value={item.category}
+      options={categories}
+      onChange={(category) => setItem({ ...item, category })}
+    />
+  )
+  const unitField = isNew ? (
+    <div className="settings-field manager-field-wide">
+      <span className="settings-field-label">
+        <label>Medido em</label>
+      </span>
+      <div className="inv-units" role="radiogroup" aria-label="Medido em">
+        {unitOptions.map((option) => (
+          <button
+            key={option.id}
+            type="button"
+            role="radio"
+            aria-checked={item.unit === option.id}
+            onClick={() => setItem({ ...item, unit: option.id })}
+          >
+            <span aria-hidden>{unitEmoji[option.id] ?? '📦'}</span>
+            {option.label.replace(/ \(.*\)$/, '')}
+          </button>
+        ))}
+      </div>
+      <small className="settings-muted">A medida que cada atendimento gasta.</small>
+    </div>
+  ) : (
+    <SelectField
+      label="Medido em"
+      value={item.unit}
+      description="A medida que cada atendimento gasta."
+      onChange={(unit) => setItem({ ...item, unit })}
+      options={unitOptions.map(({ id, label: text }) => ({ id, label: text }))}
+    />
+  )
+  const packageField = (
+    <PackageSentence
+      className="manager-field-wide"
+      name={item.name || 'o produto'}
+      unit={item.unit}
+      label={label}
+      size={size}
+      onLabel={(packageLabel) => setItem({ ...item, packageLabel })}
+      onSize={setSize}
+    />
+  )
+  const countField = isNew ? (
+    <div className="manager-field-wide">
+      <StockCount
+        name={item.name || 'o produto'}
+        unit={item.unit}
+        size={packageSize || null}
+        label={label}
+        packs={packs}
+        loose={loose}
+        onPacks={setPacks}
+        onLoose={setLoose}
+      />
+    </div>
+  ) : null
+  const costField = (
+    <MoneyField
+      className="qm-money"
+      label={packageSize ? `Custo de cada ${label}` : 'Custo por unidade'}
+      description="Opcional. Usado no Financeiro."
+      value={cost}
+      onChange={setCost}
+    />
+  )
+  const alertField = (
+    <div className="settings-field manager-field-wide">
+      <span className="settings-field-label">
+        <label>Avisar quando restar</label>
+      </span>
+      <div className="team-choice" role="radiogroup" aria-label="Quando avisar">
+        {[
+          ['50', '50%'],
+          ['25', '25%'],
+          ['10', '10%'],
+          ['qty', 'Uma quantidade'],
+        ].map(([id, text]) => (
+          <button
+            key={id}
+            type="button"
+            role="radio"
+            aria-checked={alert === id}
+            onClick={() => setAlert(id)}
+          >
+            {text}
+          </button>
+        ))}
+      </div>
+      {alert === 'qty' ? (
+        <TextInputField
+          ariaLabel="Quantidade para avisar"
+          inputMode="decimal"
+          value={min}
+          suffix={packageSize ? pluralize(label, 2) : unitShort(item.unit)}
+          onChange={setMin}
+        />
+      ) : (
+        <small className="settings-muted">A porcentagem conta a partir da última reposição.</small>
+      )}
+    </div>
+  )
+  const expiryField = (
+    <ExpiryField
+      className="manager-field-wide"
+      name={item.name || 'o produto'}
+      tracks={tracksExpiry}
+      date={expiresOn}
+      suggested={Boolean(isNew && initial.tracksExpiry)}
+      onTracks={setTracksExpiry}
+      onDate={setExpiresOn}
+    />
+  )
+  const linked = supplies.length ? (
+    <p className="inv-linked">
+      <Scissors size={15} aria-hidden /> Já entra na baixa automática de {supplies.length}{' '}
+      {supplies.length === 1 ? 'serviço' : 'serviços'} seus. Ajuste o gasto de cada um em Serviços.
+    </p>
+  ) : null
+  const errorLine = error ? (
+    <p className="apt-error" role="alert">
+      {error}
+    </p>
+  ) : null
+
+  /** Checks only what the current step asks for, so "Continuar" points at the right field. */
+  function stepProblem(index: number) {
+    if (index === 0 && !item.name.trim()) return 'Escreva o nome do produto.'
+    if (index === 1 && size.trim() && !packageSize) return 'Confira o tamanho da embalagem.'
+    if (index === 2 && startTotal == null) return 'Confira a quantidade que você tem.'
+    if (index === 2 && cost.trim() && parseMoney(cost) == null) return 'Confira o custo.'
+    if (index === 3 && alert === 'qty' && parseQty(min || '0') == null)
+      return 'Confira a quantidade para avisar.'
+    return ''
+  }
+  function next() {
+    const problem = stepProblem(step)
+    if (problem) return setError(problem)
+    setError('')
+    setReached((value) => Math.max(value, step + 1))
+    setStep(step + 1)
+  }
+
+  if (isNew) {
+    const current = productSteps[step]
+    const last = step === productSteps.length - 1
+    return (
+      <QuickModal
+        isOpen
+        onOpenChange={(open) => !open && onClose()}
+        size="lg"
+        className="inv-wizard"
+        badge={`Passo ${step + 1} de ${productSteps.length}`}
+        title={`${current.emoji} ${current.title}`}
+        subtitle={current.hint}
+        footer={
+          <>
+            {step > 0 ? (
+              <Button
+                variant="secondary"
+                onPress={() => {
+                  setError('')
+                  setStep(step - 1)
+                }}
+              >
+                <ChevronLeft size={16} aria-hidden /> Voltar
+              </Button>
+            ) : (
+              <Button variant="secondary" onPress={() => onClose()}>
+                Cancelar
+              </Button>
+            )}
+            {last ? (
+              <Button onPress={() => void save()} isDisabled={saving || uploading}>
+                <Check size={16} aria-hidden /> {saving ? 'Salvando…' : 'Cadastrar produto'}
+              </Button>
+            ) : (
+              <Button onPress={next} isDisabled={uploading}>
+                Continuar <ChevronRight size={16} aria-hidden />
+              </Button>
+            )}
+          </>
+        }
+      >
+        <ol className="inv-steps" aria-label="Etapas">
+          {productSteps.map((entry, index) => (
+            <li key={entry.title}>
+              <button
+                type="button"
+                aria-current={index === step ? 'step' : undefined}
+                className={index < step ? 'is-done' : undefined}
+                disabled={index > reached}
+                onClick={() => {
+                  setError('')
+                  setStep(index)
+                }}
+              >
+                <span aria-hidden>{index < step ? '✓' : entry.emoji}</span>
+                <small>{entry.title}</small>
+              </button>
+            </li>
+          ))}
+        </ol>
+        <div key={step} className="inv-step manager-form-grid">
+          {step === 0 ? (
+            <>
+              <div className="manager-field-wide">{photoBlock}</div>
+              <div className="manager-field-wide">{nameField}</div>
+              {categoryField}
+            </>
+          ) : step === 1 ? (
+            <>
+              {unitField}
+              {packageField}
+            </>
+          ) : step === 2 ? (
+            <>
+              {countField}
+              <div className="manager-field-wide">{costField}</div>
+            </>
+          ) : (
+            <>
+              {alertField}
+              {expiryField}
+              {linked ? <div className="manager-field-wide">{linked}</div> : null}
+            </>
+          )}
+        </div>
+        {errorLine}
+      </QuickModal>
+    )
+  }
+
   return (
     <QuickModal
       isOpen
       onOpenChange={(open) => !open && onClose()}
       size="lg"
-      title={isNew ? 'Novo produto' : `Editar ${initial.name}`}
+      badge="Produto"
+      title={`Editar ${initial.name}`}
       footer={
         <>
-          {!isNew ? (
-            <Button
-              variant="ghost"
-              className="qm-foot-start"
-              onPress={() => void archive()}
-              isDisabled={saving}
-            >
-              <Archive size={15} aria-hidden /> Tirar da lista
-            </Button>
-          ) : null}
+          <Button
+            variant="ghost"
+            className="qm-foot-start"
+            onPress={() => void archive()}
+            isDisabled={saving}
+          >
+            <Archive size={15} aria-hidden /> Tirar da lista
+          </Button>
           <Button variant="secondary" onPress={() => onClose()}>
             Cancelar
           </Button>
@@ -847,177 +1188,17 @@ function ItemEditor({
         </>
       }
     >
-      <div className="inv-photo-row">
-        <span className="inv-photo is-large" aria-hidden>
-          {item.photoUrl ? (
-            // eslint-disable-next-line @next/next/no-img-element -- public media URL
-            <img src={item.photoUrl} alt="" />
-          ) : (
-            <Package size={34} />
-          )}
-        </span>
-        <div className="account-photo-actions">
-          <Button
-            variant="secondary"
-            size="sm"
-            isDisabled={uploading}
-            onPress={() => camera.current?.click()}
-          >
-            <Camera size={16} aria-hidden /> {uploading ? 'Enviando…' : 'Tirar foto'}
-          </Button>
-          <Button
-            variant="ghost"
-            size="sm"
-            isDisabled={uploading}
-            onPress={() => gallery.current?.click()}
-          >
-            <ImagePlus size={16} aria-hidden /> Escolher imagem
-          </Button>
-          {item.photoUrl ? (
-            <Button
-              variant="ghost"
-              size="sm"
-              onPress={() => setItem({ ...item, photoAssetId: '', photoUrl: null })}
-            >
-              <Trash2 size={16} aria-hidden /> Remover
-            </Button>
-          ) : null}
-        </div>
-        {/* `capture` opens the back camera on phones; on a computer it is a normal file picker. */}
-        <input
-          ref={camera}
-          type="file"
-          accept="image/*"
-          capture="environment"
-          hidden
-          onChange={(event) => {
-            const file = event.target.files?.[0]
-            event.target.value = ''
-            void pickPhoto(file)
-          }}
-        />
-        <input
-          ref={gallery}
-          type="file"
-          accept="image/png,image/jpeg,image/webp"
-          hidden
-          onChange={(event) => {
-            const file = event.target.files?.[0]
-            event.target.value = ''
-            void pickPhoto(file)
-          }}
-        />
-      </div>
+      {photoBlock}
       <div className="manager-form-grid">
-        <TextInputField
-          label="Nome"
-          isRequired
-          autoFocus={isNew && !initial.name}
-          maxLength={120}
-          value={item.name}
-          placeholder="Ex.: Cera quente"
-          onChange={(name) => setItem({ ...item, name })}
-        />
-        <SelectField
-          label="Medido em"
-          value={item.unit}
-          description="A medida que cada atendimento gasta."
-          onChange={(unit) => setItem({ ...item, unit })}
-          options={unitOptions.map(({ id, label: text }) => ({ id, label: text }))}
-        />
-        <CategoryPicker
-          className="manager-field-wide"
-          value={item.category}
-          options={categories}
-          onChange={(category) => setItem({ ...item, category })}
-        />
-        <PackageSentence
-          className="manager-field-wide"
-          name={item.name || 'o produto'}
-          unit={item.unit}
-          label={label}
-          size={size}
-          onLabel={(packageLabel) => setItem({ ...item, packageLabel })}
-          onSize={setSize}
-        />
-        {isNew ? (
-          <div className="manager-field-wide">
-            <StockCount
-              name={item.name || 'o produto'}
-              unit={item.unit}
-              size={packageSize || null}
-              label={label}
-              packs={packs}
-              loose={loose}
-              onPacks={setPacks}
-              onLoose={setLoose}
-            />
-          </div>
-        ) : null}
-        <MoneyField
-          label={packageSize ? `Custo de cada ${label}` : 'Custo por unidade'}
-          description="Opcional. Usado no Financeiro."
-          value={cost}
-          onChange={setCost}
-        />
-        <div className="settings-field manager-field-wide">
-          <span className="settings-field-label">
-            <label>Avisar quando restar</label>
-          </span>
-          <div className="team-choice" role="radiogroup" aria-label="Quando avisar">
-            {[
-              ['50', '50%'],
-              ['25', '25%'],
-              ['10', '10%'],
-              ['qty', 'Uma quantidade'],
-            ].map(([id, text]) => (
-              <button
-                key={id}
-                type="button"
-                role="radio"
-                aria-checked={alert === id}
-                onClick={() => setAlert(id)}
-              >
-                {text}
-              </button>
-            ))}
-          </div>
-          {alert === 'qty' ? (
-            <TextInputField
-              ariaLabel="Quantidade para avisar"
-              inputMode="decimal"
-              value={min}
-              suffix={packageSize ? pluralize(label, 2) : unitShort(item.unit)}
-              onChange={setMin}
-            />
-          ) : (
-            <small className="settings-muted">
-              A porcentagem conta a partir da última reposição.
-            </small>
-          )}
-        </div>
-        <ExpiryField
-          className="manager-field-wide"
-          name={item.name || 'o produto'}
-          tracks={tracksExpiry}
-          date={expiresOn}
-          suggested={Boolean(isNew && initial.tracksExpiry)}
-          onTracks={setTracksExpiry}
-          onDate={setExpiresOn}
-        />
+        {nameField}
+        {unitField}
+        {categoryField}
+        {packageField}
+        {costField}
+        {alertField}
+        {expiryField}
       </div>
-      {supplies.length ? (
-        <p className="inv-linked">
-          <Scissors size={15} aria-hidden /> Já entra na baixa automática de {supplies.length}{' '}
-          {supplies.length === 1 ? 'serviço' : 'serviços'} seus. Ajuste o gasto de cada um em
-          Serviços.
-        </p>
-      ) : null}
-      {error ? (
-        <p className="apt-error" role="alert">
-          {error}
-        </p>
-      ) : null}
+      {errorLine}
     </QuickModal>
   )
 }

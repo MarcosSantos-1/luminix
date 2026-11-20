@@ -720,6 +720,11 @@
 }
 .ag-day-head > div:first-child {
   display: grid;
+  flex: none;
+}
+.ag-day-head {
+  flex-wrap: wrap;
+  min-width: 0;
 }
 .ag-day-head span {
   color: var(--manager-muted);
@@ -733,10 +738,17 @@
 }
 .ag-day-tags {
   display: flex;
+  flex: 1 1 0;
   flex-wrap: wrap;
   align-items: center;
   justify-content: flex-end;
   gap: 5px;
+  min-width: 0;
+}
+.ag-day-tags em,
+.ag-day-rule {
+  max-width: 100%;
+  overflow-wrap: anywhere;
 }
 .ag-day-tags em,
 .ag-day-rule {
@@ -2413,7 +2425,7 @@ button.ag-empty:hover {
 }
 .ag-day-tags em.ag-day-holiday,
 .ag-day-tags em.ag-day-away {
-  max-width: 140px;
+  max-width: min(140px, 100%);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -2427,6 +2439,16 @@ button.ag-empty:hover {
   background: #66401499;
 }
 @media (max-width: 650px) {
+  /* The day column is narrow on phones: the holiday becomes a 🎉 badge (its name is in the
+     tooltip and in "Dias especiais neste período" below the week). */
+  .ag-day-tags em.ag-day-holiday {
+    padding: 2px 6px;
+    font-size: 0;
+  }
+  .ag-day-tags em.ag-day-holiday::before {
+    content: '🎉';
+    font-size: 13px;
+  }
   .ag .manager-month-day.ag-heat {
     min-height: 78px;
     padding: 6px;

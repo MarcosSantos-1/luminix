@@ -79,18 +79,98 @@
 .manager-settings-nav {
   display: flex;
   flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 14px;
+  padding: 6px;
+  border: 1px solid color-mix(in srgb, var(--space-highlight, #ffd4e7) 18%, transparent);
+  border-radius: 20px;
+  background: #ffffff0a;
+  backdrop-filter: blur(18px);
+}
+.manager-settings-nav .button {
   gap: 8px;
-  margin-bottom: 18px;
+  min-height: 42px;
+  padding: 0 14px 0 6px;
+  border: 1px solid transparent;
+  border-radius: 14px;
+  color: var(--space-highlight, #f8deea);
+  background: transparent;
+  font-size: 13.5px;
+  font-weight: 600;
+  white-space: nowrap;
+  transition:
+    background 0.2s ease,
+    box-shadow 0.2s ease,
+    color 0.2s ease;
 }
-
+.manager-settings-nav .button:hover {
+  background: #ffffff12;
+}
+.msn-icon {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 10px;
+  background: #ffffff12;
+}
 .manager-settings-nav .button[aria-current='page'] {
-  background: var(--space-highlight, #ffd4e7);
-  border-color: transparent;
-  color: var(--space-deep, #56203c);
+  border-color: #ffffff38;
+  color: white;
+  background: linear-gradient(
+    110deg,
+    var(--space-accent, #ec247b),
+    color-mix(in srgb, var(--space-highlight, #f982b3) 75%, var(--space-accent, #ec247b))
+  );
+  box-shadow:
+    inset 0 1px #ffffff40,
+    0 8px 22px color-mix(in srgb, var(--space-accent, #ec247b) 40%, transparent);
+}
+.manager-settings-nav .button[aria-current='page'] .msn-icon {
+  background: #ffffff33;
+}
+.manager-settings-nav .button[aria-current='page']:hover {
+  background: linear-gradient(
+    110deg,
+    var(--space-accent, #ec247b),
+    color-mix(in srgb, var(--space-highlight, #f982b3) 85%, white)
+  );
 }
 
-.manager-settings-nav .button[aria-current='page']:hover {
-  background: color-mix(in srgb, var(--space-highlight, #ffd4e7) 88%, white);
+/* What this tab is about, right under the tabs. */
+.msn-head {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 16px;
+  padding: 4px 4px 0;
+}
+.msn-head-icon {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 46px;
+  height: 46px;
+  border-radius: 15px;
+  color: white;
+  background: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--space-accent, #ec247b) 80%, transparent),
+    color-mix(in srgb, var(--space-highlight, #f982b3) 50%, transparent)
+  );
+  box-shadow: 0 0 22px color-mix(in srgb, var(--space-accent, #ec247b) 35%, transparent);
+}
+.msn-head h2 {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: -0.3px;
+}
+.msn-head p {
+  margin: 2px 0 0;
+  color: var(--manager-muted);
+  font-size: 14px;
 }
 
 .manager-settings-links {
@@ -101,19 +181,26 @@
 }
 
 @media (max-width: 650px) {
+  /* One row that slides sideways, fading out at the edge. */
   .manager-settings-nav {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    margin-inline: -2px;
+    scroll-snap-type: x proximity;
+    scrollbar-width: none;
+    mask-image: linear-gradient(90deg, #000 calc(100% - 26px), transparent);
   }
-
+  .manager-settings-nav::-webkit-scrollbar {
+    display: none;
+  }
   .manager-settings-nav .button {
-    justify-content: flex-start;
-    padding-inline: 10px;
-    white-space: normal;
-    text-align: start;
+    flex: none;
+    scroll-snap-align: center;
   }
-
-  .manager-settings-nav .button svg {
-    flex-shrink: 0;
+  .msn-head h2 {
+    font-size: 18px;
+  }
+  .msn-head p {
+    font-size: 13px;
   }
 }

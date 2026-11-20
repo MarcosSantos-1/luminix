@@ -224,8 +224,26 @@ export async function insightsRoutes(
         if (to < from || Date.parse(to) - Date.parse(from) > 366 * 86400000)
           throw Object.assign(new Error('Invalid period'), { statusCode: 400 })
         const range = [tenant.clinicId, from, to]
+        // The same number of days right before, for "vs. período anterior".
+        const span = Math.round((Date.parse(to) - Date.parse(from)) / 86400000) + 1
+        const shift = (iso: string, days: number) =>
+          new Date(Date.parse(`${iso}T12:00:00Z`) + days * 86400000).toISOString().slice(0, 10)
+        const previous = [tenant.clinicId, shift(from, -span), shift(from, -1)]
         const inRange = `(a.starts_at AT TIME ZONE '${zone}')::date BETWEEN $2::date AND $3::date`
-        const [status, ledger, services, professionals, clients, daily] = await Promise.all([
+        const booked = `a.status IN ('scheduled', 'confirmed', 'completed')`
+        const [
+          status,
+          ledger,
+          services,
+          professionals,
+          clients,
+          daily,
+          before,
+          rhythm,
+          expenses,
+          methods,
+          served,
+        ] = await Promise.all([
           connection.query(
             `SELECT a.status, count(*) AS total, coalesce(sum(a.price_cents), 0) AS cents
                FROM luminix.appointments a WHERE a.clinic_id = $1 AND ${inRange} GROUP BY a.status`,
@@ -269,7 +287,77 @@ export async function insightsRoutes(
                FROM generate_series($2::date, $3::date, interval '1 day') d ORDER BY d`,
             range,
           ),
+          connection.query(
+            `SELECT
+               (SELECT count(*) FROM luminix.appointments a
+                 WHERE a.clinic_id = $1 AND ${inRange} AND ${booked}) AS appointments,
+               (SELECT coalesce(sum(a.price_cents), 0) FROM luminix.appointments a
+                 WHERE a.clinic_id = $1 AND ${inRange} AND a.status = 'completed') AS completed_cents,
+               (SELECT count(*) FROM luminix.appointments a
+                 WHERE a.clinic_id = $1 AND ${inRange} AND a.status = 'completed') AS completed,
+               (SELECT coalesce(sum(amount_cents) FILTER (WHERE kind = 'income'), 0)
+                  FROM luminix.finance_entries WHERE clinic_id = $1 AND status = 'active'
+                   AND occurred_on BETWEEN $2::date AND $3::date) AS income,
+               (SELECT coalesce(sum(amount_cents) FILTER (WHERE kind = 'expense'), 0)
+                  FROM luminix.finance_entries WHERE clinic_id = $1 AND status = 'active'
+                   AND occurred_on BETWEEN $2::date AND $3::date) AS expense,
+               (SELECT count(*) FROM luminix.clinic_clients WHERE clinic_id = $1
+                 AND (created_at AT TIME ZONE '${zone}')::date BETWEEN $2::date AND $3::date) AS clients`,
+            previous,
+          ),
+          // Busiest weekdays and hours (local time).
+          connection.query(
+            `SELECT extract(isodow FROM a.starts_at AT TIME ZONE '${zone}')::int AS weekday,
+                    extract(hour FROM a.starts_at AT TIME ZONE '${zone}')::int AS hour,
+                    count(*) AS total
+               FROM luminix.appointments a
+              WHERE a.clinic_id = $1 AND ${inRange} AND ${booked}
+              GROUP BY 1, 2`,
+            range,
+          ),
+          connection.query(
+            `SELECT coalesce(nullif(btrim(category), ''), 'Sem categoria') AS name,
+                    sum(amount_cents) AS cents, count(*) AS total
+               FROM luminix.finance_entries
+              WHERE clinic_id = $1 AND status = 'active' AND kind = 'expense'
+                AND occurred_on BETWEEN $2::date AND $3::date
+              GROUP BY 1 ORDER BY cents DESC LIMIT 8`,
+            range,
+          ),
+          connection.query(
+            `SELECT coalesce(nullif(method, ''), 'other') AS method, sum(amount_cents) AS cents,
+                    count(*) AS total
+               FROM luminix.finance_entries
+              WHERE clinic_id = $1 AND status = 'active' AND kind = 'income'
+                AND occurred_on BETWEEN $2::date AND $3::date
+              GROUP BY 1 ORDER BY cents DESC`,
+            range,
+          ),
+          // Clients seen in the period: first time here vs. coming back.
+          connection.query(
+            `WITH seen AS (
+               SELECT DISTINCT a.clinic_client_id AS id FROM luminix.appointments a
+                WHERE a.clinic_id = $1 AND ${inRange} AND a.status = 'completed'
+                  AND a.clinic_client_id IS NOT NULL)
+             SELECT count(*) AS total,
+                    count(*) FILTER (WHERE EXISTS (
+                      SELECT 1 FROM luminix.appointments p
+                       WHERE p.clinic_id = $1 AND p.clinic_client_id = seen.id
+                         AND p.status = 'completed'
+                         AND (p.starts_at AT TIME ZONE '${zone}')::date < $2::date)) AS returning
+               FROM seen`,
+            range,
+          ),
         ])
+        const weekdays = Array.from({ length: 7 }, () => 0)
+        const hours = new Map<number, number>()
+        for (const row of rhythm.rows) {
+          const count = toNumber(row.total)
+          weekdays[(Number(row.weekday) - 1 + 7) % 7] += count
+          hours.set(Number(row.hour), (hours.get(Number(row.hour)) ?? 0) + count)
+        }
+        const prior = before.rows[0] ?? {}
+        const priorCompleted = toNumber(prior.completed)
         const byStatus = Object.fromEntries(
           status.rows.map((row) => [
             String(row.status),
@@ -308,6 +396,36 @@ export async function insightsRoutes(
             appointments: toNumber(row.appointments),
             incomeCents: toNumber(row.income),
           })),
+          previous: {
+            from: previous[1],
+            to: previous[2],
+            appointments: toNumber(prior.appointments),
+            averageTicketCents: priorCompleted
+              ? Math.round(toNumber(prior.completed_cents) / priorCompleted)
+              : 0,
+            incomeCents: toNumber(prior.income),
+            expenseCents: toNumber(prior.expense),
+            newClients: toNumber(prior.clients),
+          },
+          // Monday first.
+          weekdays,
+          hours: [...hours.entries()]
+            .sort((a, b) => a[0] - b[0])
+            .map(([hour, count]) => ({ hour, count })),
+          expenseCategories: expenses.rows.map((row) => ({
+            name: String(row.name),
+            cents: toNumber(row.cents),
+            count: toNumber(row.total),
+          })),
+          incomeMethods: methods.rows.map((row) => ({
+            method: String(row.method),
+            cents: toNumber(row.cents),
+            count: toNumber(row.total),
+          })),
+          clientsServed: {
+            total: toNumber(served.rows[0]?.total),
+            returning: toNumber(served.rows[0]?.returning),
+          },
         }
       }),
   )

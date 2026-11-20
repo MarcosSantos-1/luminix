@@ -78,6 +78,8 @@ export function FilterMenu({
   onChange,
   activeCount,
   onClear,
+  sort,
+  iconOnly = false,
 }: {
   groups: FilterGroup[]
   value: FilterValue
@@ -85,15 +87,47 @@ export function FilterMenu({
   /** Filters that differ from the default; shown on the button. */
   activeCount: number
   onClear: () => void
+  /** "Ordenar por" inside the same menu, as a single choice above the filters. */
+  sort?: { value: string; options: { id: string; label: string }[]; onChange: (id: string) => void }
+  /** Only the funnel icon on the button (it sits beside the search box). */
+  iconOnly?: boolean
 }) {
   return (
     <Popover>
-      <Button variant="secondary" className="filter-trigger">
-        <ListFilter size={17} aria-hidden /> Filtros
+      <Button
+        variant="secondary"
+        isIconOnly={iconOnly}
+        className={`filter-trigger${iconOnly ? ' is-icon' : ''}`}
+        aria-label={activeCount ? `Filtros e ordem (${activeCount} ativos)` : 'Filtros e ordem'}
+      >
+        <ListFilter size={iconOnly ? 19 : 17} aria-hidden /> {iconOnly ? null : 'Filtros'}
         {activeCount ? <span className="filter-count">{activeCount}</span> : null}
       </Button>
       <Popover.Content className="filter-popover" placement="bottom end">
         <Popover.Dialog aria-label="Filtros">
+          {sort ? (
+            <div className="filter-group" role="radiogroup" aria-label="Ordenar por">
+              <span className="filter-group-label">Ordenar por</span>
+              {sort.options.map((option) => {
+                const selected = sort.value === option.id
+                return (
+                  <button
+                    key={option.id}
+                    type="button"
+                    role="radio"
+                    aria-checked={selected}
+                    className="filter-option is-radio"
+                    onClick={() => sort.onChange(option.id)}
+                  >
+                    <span className="filter-box" aria-hidden>
+                      {selected ? <Check size={13} strokeWidth={3} /> : null}
+                    </span>
+                    <span>{option.label}</span>
+                  </button>
+                )
+              })}
+            </div>
+          ) : null}
           {groups.map((group) => (
             <div key={group.id} className="filter-group" role="group" aria-label={group.label}>
               <span className="filter-group-label">{group.label}</span>

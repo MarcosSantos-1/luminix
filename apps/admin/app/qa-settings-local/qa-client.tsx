@@ -1261,6 +1261,34 @@ export default function QASettings({
               appointments: [4, 6, 5, 7, 3, 0, 6, 8, 4][index],
               incomeCents: [48000, 72000, 51000, 90000, 36000, 0, 66000, 98000, 21000][index],
             })),
+            previous: {
+              from: '2026-10-23',
+              to: '2026-10-31',
+              appointments: 39,
+              averageTicketCents: 12900,
+              incomeCents: 410000,
+              expenseCents: 72000,
+              newClients: 4,
+            },
+            weekdays: [6, 7, 8, 5, 11, 9, 0],
+            hours: [
+              { hour: 9, count: 6 },
+              { hour: 10, count: 8 },
+              { hour: 14, count: 12 },
+              { hour: 16, count: 9 },
+              { hour: 18, count: 5 },
+            ],
+            expenseCategories: [
+              { name: 'Aluguel de aparelhos', cents: 34000, count: 2 },
+              { name: 'Produtos', cents: 19000, count: 4 },
+              { name: 'Contas', cents: 8000, count: 1 },
+            ],
+            incomeMethods: [
+              { method: 'pix', cents: 268000, count: 21 },
+              { method: 'credit', cents: 132000, count: 9 },
+              { method: 'cash', cents: 82000, count: 8 },
+            ],
+            clientsServed: { total: 31, returning: 22 },
           } as T
         return structuredClone(fixtures[path]) as T
       },

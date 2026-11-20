@@ -1,7 +1,17 @@
 'use client'
 
 import { Button } from '@heroui/react'
-import { BarChart3, Download, Scissors, UsersRound } from 'lucide-react'
+import {
+  BarChart3,
+  CalendarCheck,
+  CalendarRange,
+  Download,
+  HeartHandshake,
+  ReceiptText,
+  Scissors,
+  UsersRound,
+  Wallet,
+} from 'lucide-react'
 import { useState } from 'react'
 import { DateInputField } from '@/components/ui/fields'
 import { useClinicApi, useClinicResource } from '../settings/clinic-api'
@@ -24,6 +34,62 @@ type Report = {
   topServices: { name: string; count: number; cents: number }[]
   professionals: { name: string; count: number; cents: number }[]
   daily: { day: string; appointments: number; incomeCents: number }[]
+  // Newer fields: optional so an older API answer still renders.
+  previous?: {
+    from: string
+    to: string
+    appointments: number
+    averageTicketCents: number
+    incomeCents: number
+    expenseCents: number
+    newClients: number
+  }
+  weekdays?: number[]
+  hours?: { hour: number; count: number }[]
+  expenseCategories?: { name: string; cents: number; count: number }[]
+  incomeMethods?: { method: string; cents: number; count: number }[]
+  clientsServed?: { total: number; returning: number }
+}
+
+const weekdayNames = ['Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado', 'Domingo']
+const methodNames: Record<string, string> = {
+  pix: '⚡ Pix',
+  cash: '💵 Dinheiro',
+  credit: '💳 Crédito',
+  debit: '💳 Débito',
+  transfer: '🏦 Transferência',
+  card: '💳 Cartão',
+  app: '📱 Pelo app',
+  other: '✨ Outro',
+}
+const statusNames: { id: string; label: string; tone: string }[] = [
+  { id: 'completed', label: 'Concluídos', tone: 'is-done' },
+  { id: 'confirmed', label: 'Confirmados', tone: 'is-confirmed' },
+  { id: 'scheduled', label: 'Marcados', tone: 'is-scheduled' },
+  { id: 'canceled', label: 'Cancelados', tone: 'is-canceled' },
+  { id: 'no_show', label: 'Faltas', tone: 'is-missed' },
+]
+
+/** "▲ 12%" against the period right before; nothing when there is no base to compare. */
+function Delta({
+  now,
+  before,
+  inverse = false,
+}: {
+  now: number
+  before?: number
+  inverse?: boolean
+}) {
+  if (before == null || (!before && !now)) return null
+  if (!before) return <em className="report-delta is-up">novo</em>
+  const change = (now - before) / Math.abs(before)
+  if (Math.abs(change) < 0.005) return <em className="report-delta">= anterior</em>
+  const good = inverse ? change < 0 : change > 0
+  return (
+    <em className={`report-delta ${good ? 'is-up' : 'is-down'}`}>
+      {change > 0 ? '▲' : '▼'} {Math.round(Math.abs(change) * 100)}%
+    </em>
+  )
 }
 
 function presets(today: string) {
@@ -145,12 +211,28 @@ export function ReportsPanel({ clinicId }: { clinicId: string }) {
             <div>
               <span>Atendimentos</span>
               <strong>{data.appointments.total}</strong>
-              <small>{status.completed?.count ?? 0} concluídos</small>
+              <small>
+                {status.completed?.count ?? 0} concluídos{' '}
+                <Delta
+                  now={
+                    (status.completed?.count ?? 0) +
+                    (status.confirmed?.count ?? 0) +
+                    (status.scheduled?.count ?? 0)
+                  }
+                  before={data.previous?.appointments}
+                />
+              </small>
             </div>
             <div>
               <span>Ticket médio</span>
               <strong>{money(data.appointments.averageTicketCents)}</strong>
-              <small>Por atendimento concluído</small>
+              <small>
+                Por atendimento concluído{' '}
+                <Delta
+                  now={data.appointments.averageTicketCents}
+                  before={data.previous?.averageTicketCents}
+                />
+              </small>
             </div>
             <div>
               <span>Faltas</span>
@@ -160,19 +242,38 @@ export function ReportsPanel({ clinicId }: { clinicId: string }) {
             <div>
               <span>Clientes novas</span>
               <strong>{data.newClients}</strong>
-              <small>Cadastradas no período</small>
+              <small>
+                Cadastradas no período{' '}
+                <Delta now={data.newClients} before={data.previous?.newClients} />
+              </small>
             </div>
             <div>
               <span>Entradas</span>
               <strong className="is-positive">{money(data.finance.incomeCents)}</strong>
-              <small>Lançadas no financeiro</small>
+              <small>
+                Lançadas no financeiro{' '}
+                <Delta now={data.finance.incomeCents} before={data.previous?.incomeCents} />
+              </small>
             </div>
             <div>
               <span>Saldo</span>
               <strong>{money(data.finance.balanceCents)}</strong>
-              <small>Saídas: {money(data.finance.expenseCents)}</small>
+              <small>
+                Saídas: {money(data.finance.expenseCents)}{' '}
+                <Delta
+                  inverse
+                  now={data.finance.expenseCents}
+                  before={data.previous?.expenseCents}
+                />
+              </small>
             </div>
           </div>
+          {data.previous ? (
+            <p className="report-compare">
+              Setas comparam com {shortDateBr(data.previous.from)} a {shortDateBr(data.previous.to)}
+              , o mesmo número de dias logo antes.
+            </p>
+          ) : null}
 
           <SettingsCard
             icon={<BarChart3 size={20} />}
@@ -224,6 +325,49 @@ export function ReportsPanel({ clinicId }: { clinicId: string }) {
           </SettingsCard>
 
           <div className="report-columns">
+            {data.weekdays ? (
+              <WeekRhythm weekdays={data.weekdays} hours={data.hours ?? []} />
+            ) : null}
+            <SettingsCard icon={<CalendarCheck size={20} />} title="Como ficaram os horários">
+              <StatusSplit byStatus={status} />
+            </SettingsCard>
+            {data.clientsServed ? (
+              <SettingsCard icon={<HeartHandshake size={20} />} title="Clientes atendidas">
+                <Loyalty served={data.clientsServed} />
+              </SettingsCard>
+            ) : null}
+            {data.incomeMethods ? (
+              <SettingsCard icon={<Wallet size={20} />} title="Como as clientes pagaram">
+                {data.incomeMethods.length ? (
+                  <Bars
+                    metric="Formas de pagamento"
+                    rows={data.incomeMethods.map((item) => ({
+                      label: methodNames[item.method] ?? item.method,
+                      value: item.cents,
+                      text: money(item.cents),
+                    }))}
+                  />
+                ) : (
+                  <p className="settings-muted">Nenhuma entrada no período.</p>
+                )}
+              </SettingsCard>
+            ) : null}
+            {data.expenseCategories ? (
+              <SettingsCard icon={<ReceiptText size={20} />} title="Para onde foi o dinheiro">
+                {data.expenseCategories.length ? (
+                  <Bars
+                    metric="Despesas por categoria"
+                    rows={data.expenseCategories.map((item) => ({
+                      label: item.name,
+                      value: item.cents,
+                      text: money(item.cents),
+                    }))}
+                  />
+                ) : (
+                  <p className="settings-muted">Nenhuma saída no período. 🎉</p>
+                )}
+              </SettingsCard>
+            ) : null}
             <SettingsCard icon={<Scissors size={20} />} title="Serviços mais procurados">
               {data.topServices.length ? (
                 <Bars
@@ -261,6 +405,125 @@ export function ReportsPanel({ clinicId }: { clinicId: string }) {
           </p>
         </>
       )}
+    </div>
+  )
+}
+
+/** Busiest weekdays (bars) and the hours that fill up most (chips), with a one-line takeaway. */
+function WeekRhythm({
+  weekdays,
+  hours,
+}: {
+  weekdays: number[]
+  hours: { hour: number; count: number }[]
+}) {
+  const max = Math.max(1, ...weekdays)
+  const total = weekdays.reduce((sum, value) => sum + value, 0)
+  const best = weekdays.indexOf(Math.max(...weekdays))
+  const peaks = [...hours].sort((a, b) => b.count - a.count).slice(0, 3)
+  return (
+    <SettingsCard icon={<CalendarRange size={20} />} title="Ritmo da semana">
+      {total ? (
+        <>
+          <p className="report-takeaway">
+            📈 <strong>{weekdayNames[best]}</strong> é o dia mais cheio
+            {peaks[0] ? (
+              <>
+                {' '}
+                e o horário preferido é <strong>{String(peaks[0].hour).padStart(2, '0')}h</strong>
+              </>
+            ) : null}
+            .
+          </p>
+          <ul className="report-week" aria-label="Atendimentos por dia da semana">
+            {weekdays.map((value, index) => (
+              <li key={weekdayNames[index]} className={index === best ? 'is-best' : undefined}>
+                <span className="report-week-track" aria-hidden>
+                  <span style={{ height: `${Math.max(value ? 6 : 0, (value / max) * 100)}%` }} />
+                </span>
+                <strong>{value}</strong>
+                <small>{weekdayNames[index].slice(0, 3)}</small>
+              </li>
+            ))}
+          </ul>
+          {peaks.length ? (
+            <div className="report-hours">
+              <span>Horários mais cheios</span>
+              {peaks.map((peak) => (
+                <em key={peak.hour}>
+                  🕐 {String(peak.hour).padStart(2, '0')}h · {peak.count}
+                </em>
+              ))}
+            </div>
+          ) : null}
+        </>
+      ) : (
+        <p className="settings-muted">Sem atendimentos no período.</p>
+      )}
+    </SettingsCard>
+  )
+}
+
+/** One bar split by appointment outcome, with the legend below. */
+function StatusSplit({ byStatus }: { byStatus: Record<string, { count: number; cents: number }> }) {
+  const rows = statusNames
+    .map((entry) => ({ ...entry, count: byStatus[entry.id]?.count ?? 0 }))
+    .filter((entry) => entry.count)
+  const total = rows.reduce((sum, row) => sum + row.count, 0)
+  if (!total) return <p className="settings-muted">Sem agendamentos no período.</p>
+  return (
+    <>
+      <div className="report-split" role="img" aria-label="Agendamentos por situação">
+        {rows.map((row) => (
+          <span key={row.id} className={row.tone} style={{ flexGrow: row.count }} />
+        ))}
+      </div>
+      <ul className="report-legend">
+        {rows.map((row) => (
+          <li key={row.id}>
+            <i className={row.tone} aria-hidden />
+            <span>{row.label}</span>
+            <strong>
+              {row.count} <small>({percent(row.count / total)})</small>
+            </strong>
+          </li>
+        ))}
+      </ul>
+    </>
+  )
+}
+
+/** First visit vs. coming back, as a ring. */
+function Loyalty({ served }: { served: { total: number; returning: number } }) {
+  if (!served.total) return <p className="settings-muted">Nenhuma cliente atendida no período.</p>
+  const share = served.returning / served.total
+  return (
+    <div className="report-loyalty">
+      <div
+        className="report-ring"
+        style={{ ['--share' as string]: `${Math.round(share * 100)}%` }}
+        role="img"
+        aria-label={`${percent(share)} voltaram`}
+      >
+        <strong>{percent(share)}</strong>
+        <small>voltaram</small>
+      </div>
+      <ul className="report-legend">
+        <li>
+          <i className="is-done" aria-hidden />
+          <span>Voltaram</span>
+          <strong>{served.returning}</strong>
+        </li>
+        <li>
+          <i className="is-scheduled" aria-hidden />
+          <span>Primeira vez</span>
+          <strong>{served.total - served.returning}</strong>
+        </li>
+        <li>
+          <span>Total atendidas</span>
+          <strong>{served.total}</strong>
+        </li>
+      </ul>
     </div>
   )
 }

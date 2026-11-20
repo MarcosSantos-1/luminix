@@ -514,14 +514,6 @@ export function ClientsPanel({
             tone: 'good',
           },
           {
-            id: 'upcoming',
-            label: 'Com horário marcado',
-            value: count('upcoming'),
-            hint: 'Voltam nos próximos dias',
-            icon: <CalendarClock size={22} />,
-            tone: 'info',
-          },
-          {
             id: 'away',
             label: 'Sumidas',
             value: count('away'),
@@ -540,50 +532,51 @@ export function ClientsPanel({
       />
 
       <div className="data-toolbar">
-        <SearchInput
-          className="data-search"
-          ariaLabel="Buscar clientes"
-          placeholder="Nome, telefone, e-mail ou CPF"
-          value={query}
-          onChange={setQuery}
-        />
-        <SelectField
-          className="data-sort"
-          ariaLabel="Ordenar clientes"
-          value={sort}
-          onChange={setSort}
-          options={canSeeMoney ? sortOptions : sortOptions.filter(({ id }) => id !== 'spent')}
-        />
-        <FilterMenu
-          value={filters}
-          onChange={setFilters}
-          activeCount={activeFilters}
-          onClear={() => setFilters(defaultFilters)}
-          groups={[
-            {
-              id: 'status',
-              label: 'Situação',
-              options: [
-                { id: 'active', label: 'Ativas' },
-                { id: 'archived', label: 'Arquivadas' },
-              ],
-            },
-            {
-              id: 'only',
-              label: 'Mostrar apenas',
-              options: [
-                { id: 'visited', label: 'Já atendidas', count: count('visited') },
-                { id: 'never', label: 'Sem atendimento ainda', count: count('never') },
-                { id: 'fresh', label: 'Novas (30 dias)', count: count('fresh') },
-                { id: 'upcoming', label: 'Com horário marcado', count: count('upcoming') },
-                { id: 'away', label: 'Sumidas (60+ dias)', count: count('away') },
-                { id: 'birthday', label: 'Aniversário neste mês', count: count('birthday') },
-                { id: 'messages', label: 'Aceitam mensagens', count: count('messages') },
-                { id: 'linked', label: 'Com conta Luminix', count: count('linked') },
-              ],
-            },
-          ]}
-        />
+        <div className="data-searchbar">
+          <SearchInput
+            className="data-search"
+            ariaLabel="Buscar clientes"
+            placeholder="Nome, telefone, e-mail ou CPF"
+            value={query}
+            onChange={setQuery}
+          />
+          <FilterMenu
+            iconOnly
+            sort={{
+              value: sort,
+              onChange: setSort,
+              options: canSeeMoney ? sortOptions : sortOptions.filter(({ id }) => id !== 'spent'),
+            }}
+            value={filters}
+            onChange={setFilters}
+            activeCount={activeFilters}
+            onClear={() => setFilters(defaultFilters)}
+            groups={[
+              {
+                id: 'status',
+                label: 'Situação',
+                options: [
+                  { id: 'active', label: 'Ativas' },
+                  { id: 'archived', label: 'Arquivadas' },
+                ],
+              },
+              {
+                id: 'only',
+                label: 'Mostrar apenas',
+                options: [
+                  { id: 'visited', label: 'Já atendidas', count: count('visited') },
+                  { id: 'never', label: 'Sem atendimento ainda', count: count('never') },
+                  { id: 'fresh', label: 'Novas (30 dias)', count: count('fresh') },
+                  { id: 'upcoming', label: 'Com horário marcado', count: count('upcoming') },
+                  { id: 'away', label: 'Sumidas (60+ dias)', count: count('away') },
+                  { id: 'birthday', label: 'Aniversário neste mês', count: count('birthday') },
+                  { id: 'messages', label: 'Aceitam mensagens', count: count('messages') },
+                  { id: 'linked', label: 'Com conta Luminix', count: count('linked') },
+                ],
+              },
+            ]}
+          />
+        </div>
         <Button variant="secondary" onPress={() => setVoucherOpen(true)}>
           <TicketPercent size={18} /> Voucher
         </Button>
