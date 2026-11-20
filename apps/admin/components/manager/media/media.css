@@ -720,3 +720,41 @@
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
+
+/* Espaço em uso: uma linha discreta no cabeçalho. */
+.media-usage-line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  color: var(--manager-muted);
+  font-size: 13px;
+}
+.media-usage-line strong {
+  color: var(--space-highlight, #ffd4e7);
+  font-weight: 650;
+}
+/* "Enviar fotos" da pasta: o botão em gradiente. */
+.media-folder-head .button.media-upload {
+  gap: 8px;
+  min-height: 46px;
+  padding-inline: 18px;
+  border: 1px solid #ffffff38;
+  border-radius: 14px;
+  color: white;
+  background: linear-gradient(
+    110deg,
+    var(--space-accent, #ec247b),
+    color-mix(in srgb, var(--space-highlight, #f982b3) 80%, white)
+  );
+  box-shadow: 0 8px 22px color-mix(in srgb, var(--space-accent, #ec247b) 40%, transparent);
+}
+.media-folder-head .button.media-upload:hover {
+  box-shadow: 0 12px 28px color-mix(in srgb, var(--space-accent, #ec247b) 55%, transparent);
+}
+@media (max-width: 760px) {
+  .media-folder-head .button.media-upload {
+    width: 100%;
+  }
+}

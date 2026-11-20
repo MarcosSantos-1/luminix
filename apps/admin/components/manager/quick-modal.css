@@ -623,9 +623,15 @@
   box-shadow: 0 8px 24px #e11d4866;
 }
 @media (max-width: 650px) {
+  /* Every action on one line: buttons share the width and keep their words whole. */
+  .qm-glow .modal__footer {
+    gap: 8px;
+  }
   .qm-glow .modal__footer .button {
-    flex: 1 1 96px;
-    padding-inline: 14px;
+    flex: 1 1 auto;
+    min-width: 0;
+    padding-inline: 10px;
+    white-space: nowrap;
   }
   .qm .qm-foot .button.eq-delete {
     flex: 0 0 48px;
@@ -774,4 +780,29 @@
 }
 .qm-glow .modal__body :is(ul, ol) > li > button:not(.button):not([aria-label]):active {
   transform: scale(0.985);
+}
+
+/* Arquivar/Reativar cliente: discreto; no celular só o ícone. */
+.qm .qm-foot .button.cli-archive {
+  gap: 8px;
+  padding-inline: 14px;
+  border: 1px solid #ffffff24;
+  color: var(--manager-muted, #f1cfdf);
+  background: transparent;
+}
+.qm .qm-foot .button.cli-archive:hover {
+  border-color: #ffffff4d;
+  color: white;
+  background: #ffffff12;
+}
+@media (max-width: 650px) {
+  .qm .qm-foot .button.cli-archive {
+    flex: 0 0 48px;
+    width: 48px;
+    min-width: 48px;
+    padding: 0;
+  }
+  .qm .qm-foot .button.cli-archive span {
+    display: none;
+  }
 }

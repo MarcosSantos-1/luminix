@@ -26,6 +26,17 @@ export const createSteps: { id: CreateStep; label: string; emoji: string; option
   { id: 'review', label: 'Revisar', emoji: '✅', optional: false },
 ]
 
+/** Editing reuses the same steps; the anamnesis has its own place in the client's record. */
+export function stepsFor(editing: boolean) {
+  return editing ? createSteps.filter((item) => item.id !== 'anamnesis') : createSteps
+}
+
+/** WhatsApp is required: Brazilian number with area code, or + and a country code. */
+export function phoneOk(phone: string) {
+  const digits = phone.replace(/\D/g, '')
+  return phone.trim().startsWith('+') ? digits.length >= 8 : digits.length >= 10
+}
+
 const careChips = [
   '🤧 Alergia',
   '🤰 Gestante',
@@ -129,6 +140,7 @@ export function ClientCreateSteps({
   onSkipAnamnesis,
   formatPhone,
   formatTaxId,
+  editing = false,
 }: {
   step: CreateStep
   form: ClientDraft
@@ -142,8 +154,12 @@ export function ClientCreateSteps({
   onSkipAnamnesis: () => void
   formatPhone: (value: string) => string
   formatTaxId: (value: string) => string
+  /** "Editar cliente": same screens, without the anamnesis step. */
+  editing?: boolean
 }) {
-  const position = createSteps.findIndex((item) => item.id === step)
+  const steps = stepsFor(editing)
+  const position = steps.findIndex((item) => item.id === step)
+  const ready = Boolean(form.name.trim()) && phoneOk(form.phone)
   const first = form.name.trim().split(/\s+/)[0] || 'a cliente'
   const care = form.notes
   const summary = [
@@ -152,7 +168,7 @@ export function ClientCreateSteps({
       emoji: '👤',
       text: form.name.trim() || 'Sem nome',
       detail: form.phone || 'Sem WhatsApp',
-      done: Boolean(form.name.trim()),
+      done: ready,
     },
     {
       step: 'about' as const,
@@ -187,14 +203,14 @@ export function ClientCreateSteps({
   return (
     <div className="cc">
       <ol className="cc-steps" aria-label="Etapas">
-        {createSteps.map((item, index) => (
+        {steps.map((item, index) => (
           <li
             key={item.id}
             data-state={index < position ? 'done' : index === position ? 'now' : 'next'}
           >
             <button
               type="button"
-              disabled={!form.name.trim() && index > 0}
+              disabled={!ready && index > 0}
               onClick={() => onGoTo(item.id)}
               aria-current={index === position ? 'step' : undefined}
             >
@@ -207,8 +223,10 @@ export function ClientCreateSteps({
 
       {step === 'who' ? (
         <section className="cc-step">
-          <h3>Quem é a cliente?</h3>
-          <p className="cc-hint">Só o nome é obrigatório. O resto dá para completar depois.</p>
+          <h3>{editing ? `Quem é ${first}` : 'Quem é a cliente?'}</h3>
+          <p className="cc-hint">
+            Nome e WhatsApp são obrigatórios. O resto dá para completar depois.
+          </p>
           <TextInputField
             label="Nome"
             isRequired
@@ -220,11 +238,12 @@ export function ClientCreateSteps({
           />
           <TextInputField
             label="WhatsApp"
+            isRequired
             type="tel"
             inputMode="tel"
             placeholder="(11) 98765-4321"
             value={form.phone}
-            description="Recomendado: confirmações e lembretes saem por aqui."
+            description="Com DDD. Confirmações e lembretes saem por aqui."
             onChange={(phone) =>
               setForm({ ...form, phone: phone.startsWith('+') ? phone : formatPhone(phone) })
             }
@@ -366,7 +385,7 @@ export function ClientCreateSteps({
 
       {step === 'review' ? (
         <section className="cc-step">
-          <h3>Tudo certo? ✨</h3>
+          <h3>{editing ? 'Confira e salve ✨' : 'Tudo certo? ✨'}</h3>
           <p className="cc-hint">
             Toque em uma parte para mudar. O que ficou vazio pode ser completado na ficha.
           </p>

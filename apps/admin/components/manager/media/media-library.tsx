@@ -162,7 +162,6 @@ export function MediaLibrary({
   const [quick, setQuick] = useState<{ done: number; total: number } | null>(null)
   const [quickNotice, setQuickNotice] = useState('')
   const [round, setRound] = useState(0)
-  const quickInput = useRef<HTMLInputElement>(null)
   const handledIncoming = useRef<number | null>(null)
   const loaded = library.data
   const incomingInbox = loaded?.folders.find((folder) => folder.systemKey === 'inbox')
@@ -195,19 +194,6 @@ export function MediaLibrary({
   const data = library.data
   const current = selected ?? data.folders[0]?.id ?? TRASH
   const total = data.usage.libraryBytes + data.usage.otherBytes
-  const inbox = data.folders.find((folder) => folder.systemKey === 'inbox')
-
-  /** Loose photos, without choosing a folder first: they wait in "Para organizar". */
-  async function sendLoose(files: File[]) {
-    if (!inbox) return
-    setQuickNotice('')
-    const result = await uploadPhotos(api, files, inbox.id, setQuick)
-    setQuick(null)
-    setQuickNotice(result)
-    setSelected(inbox.id)
-    setRound((value) => value + 1)
-    library.reload()
-  }
 
   return (
     <div className="media-page">
@@ -226,43 +212,16 @@ export function MediaLibrary({
           text: 'Só a sua equipe, de acordo com o nível de acesso de cada pessoa. As fotos não aparecem no site nem para clientes, a não ser que você escolha usar alguma lá.',
         }}
       >
-        <div className="media-usage">
-          <span className="media-usage-icon" aria-hidden>
-            <HardDrive size={18} />
-          </span>
-          <div>
-            <strong>{formatBytes(total)} em uso</strong>
-            <small>
-              {formatBytes(data.usage.libraryBytes)} no acervo ({data.usage.items}{' '}
-              {data.usage.items === 1 ? 'foto' : 'fotos'}) · {formatBytes(data.usage.otherBytes)} em
-              logo, equipe e site
-            </small>
-          </div>
-          {data.canManage && data.storageReady && inbox ? (
-            <Button
-              className="media-quick"
-              isDisabled={quick !== null}
-              onPress={() => quickInput.current?.click()}
-            >
-              <Upload size={16} aria-hidden />{' '}
-              {quick ? `Enviando ${quick.done} de ${quick.total}…` : 'Enviar fotos'}
-            </Button>
-          ) : (
-            <span className="media-usage-note">Limites por plano em breve</span>
-          )}
-          <input
-            ref={quickInput}
-            hidden
-            multiple
-            type="file"
-            accept="image/png,image/jpeg,image/webp"
-            onChange={(event) => {
-              const files = Array.from(event.target.files ?? [])
-              event.target.value = ''
-              void sendLoose(files)
-            }}
-          />
-        </div>
+        <p className="media-usage-line">
+          <HardDrive size={14} aria-hidden /> {formatBytes(total)} em uso · {data.usage.items}{' '}
+          {data.usage.items === 1 ? 'foto' : 'fotos'}
+          {quick ? (
+            <strong>
+              {' '}
+              · Enviando {quick.done} de {quick.total}…
+            </strong>
+          ) : null}
+        </p>
         {incomingError ? (
           <p className="media-banner" role="alert">
             {incomingError}
@@ -579,7 +538,11 @@ function FolderView({
           </p>
         </div>
         {canUpload ? (
-          <Button onPress={() => input.current?.click()} isDisabled={uploading !== null}>
+          <Button
+            className="media-upload"
+            onPress={() => input.current?.click()}
+            isDisabled={uploading !== null}
+          >
             <Upload size={16} aria-hidden /> Enviar fotos
           </Button>
         ) : !trash && canManage ? (

@@ -15,7 +15,7 @@ const typingTarget =
  * under the finger, and an autofocused field does the same: either way the keyboard opens on
  * its own. Right after opening, a field that takes focus is let go and the dialog keeps it.
  */
-function useNoKeyboardOnOpen(isOpen: boolean) {
+export function useNoKeyboardOnOpen(isOpen: boolean) {
   useEffect(() => {
     if (!isOpen || !window.matchMedia('(pointer: coarse)').matches) return
     const until = performance.now() + 650
@@ -43,7 +43,7 @@ function useNoKeyboardOnOpen(isOpen: boolean) {
  * Phones: the sheet follows the area above the keyboard (CSS vars on <html>), and the field being
  * typed in is scrolled into the middle of what is still visible once the keyboard is up.
  */
-function useKeyboardAwareSheet(isOpen: boolean) {
+export function useKeyboardAwareSheet(isOpen: boolean) {
   useEffect(() => {
     const viewport = window.visualViewport
     if (!isOpen || !viewport || !window.matchMedia('(pointer: coarse)').matches) return

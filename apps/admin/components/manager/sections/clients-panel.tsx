@@ -2,6 +2,8 @@
 
 import { Button, Chip, Modal } from '@heroui/react'
 import {
+  Archive,
+  ArchiveRestore,
   Cake,
   CalendarClock,
   CalendarPlus,
@@ -29,14 +31,7 @@ import { useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } 
 import type { Answers, Level } from '@luminix/contracts/anamnesis'
 import { formatBrPhone, toE164Phone } from '@/lib/phone'
 import { isValidBrazilianTaxId } from '@/lib/tax-id'
-import {
-  CheckboxField,
-  DateInputField,
-  SearchInput,
-  SelectField,
-  TextAreaField,
-  TextInputField,
-} from '@/components/ui/fields'
+import { CheckboxField, DateInputField, SearchInput, SelectField } from '@/components/ui/fields'
 import { ClientAvatar } from '../appointments/appointment-sheet'
 import { BookingModal } from '../appointments/booking-modal'
 import { dateBr, money, whatsapp } from '../business/format'
@@ -51,7 +46,13 @@ import {
   type AnamnesisSummary,
   type StaffAnamnesis,
 } from '../clients/anamnesis'
-import { ClientCreateSteps, createSteps, type CreateStep } from '../clients/client-create-steps'
+import {
+  ClientCreateSteps,
+  phoneOk,
+  stepsFor,
+  type CreateStep,
+} from '../clients/client-create-steps'
+import { useKeyboardAwareSheet, useNoKeyboardOnOpen } from '../quick-modal'
 import { FilterMenu, KpiCards, type FilterValue } from '../data-kit'
 import { QuickModal } from '../quick-modal'
 import { ClinicApiError, useClinicApi, type ClinicApi } from '../settings/clinic-api'
@@ -119,12 +120,6 @@ const emptyForm = {
   notes: '',
 }
 
-const sexOptions = [
-  { id: 'unset', label: 'Não informado' },
-  { id: 'female', label: 'Feminino' },
-  { id: 'male', label: 'Masculino' },
-]
-
 const statusLabels: Record<string, string> = {
   scheduled: 'Agendado',
   confirmed: 'Confirmado',
@@ -175,12 +170,12 @@ function clientChecks(now: number) {
 
 export function ClientsPanel({
   clinicId,
-  clinicName,
   createSignal = 0,
   focus,
 }: {
   clinicId: string
-  clinicName: string
+  /** Kept for callers; the pop-up no longer repeats the space name. */
+  clinicName?: string
   createSignal?: number
   focus?: SearchFocus | null
 }) {
@@ -220,6 +215,10 @@ export function ClientsPanel({
   const [booking, setBooking] = useState<string | null>(null)
   // "Adicionar cliente" goes one subject per screen; editing keeps the full form.
   const [createStep, setCreateStep] = useState<CreateStep>('who')
+  const steps = stepsFor(Boolean(editing))
+  const canSave = Boolean(form.name.trim()) && phoneOk(form.phone)
+  useNoKeyboardOnOpen(open)
+  useKeyboardAwareSheet(open)
   const photoInput = useRef<HTMLInputElement>(null)
   const [photoBusy, setPhotoBusy] = useState(false)
   const [photoError, setPhotoError] = useState('')
@@ -338,6 +337,8 @@ export function ClientsPanel({
     setDuplicates(null)
     setFieldErrors({})
     setError('')
+    setIntake({ on: false, index: -1, answers: {}, consent: false })
+    setCreateStep('who')
     setLoadingDetail(true)
     setOpen(true)
     try {
@@ -356,6 +357,11 @@ export function ClientsPanel({
     if (saving || loadingDetail) return
     setError('')
     setFieldErrors({})
+    if (!form.name.trim() || !phoneOk(form.phone)) {
+      setError('Informe o nome e o WhatsApp com DDD.')
+      setCreateStep('who')
+      return
+    }
     const taxDigits = form.taxId.replace(/\D/g, '')
     if (taxDigits && !isValidBrazilianTaxId('cpf', taxDigits)) {
       setFieldErrors({ taxId: 'Confira o CPF informado.' })
@@ -801,24 +807,18 @@ export function ClientsPanel({
       />
 
       <Modal.Backdrop isOpen={open} onOpenChange={setOpen} className="qm-back qm-back-glow">
-        <Modal.Container size="lg">
-          <Modal.Dialog className="manager-dialog qm-glow manager-client-dialog">
+        <Modal.Container size="lg" scroll="inside" className="qm-container">
+          <Modal.Dialog className="manager-dialog qm qm-lg qm-glow manager-client-dialog">
             <Modal.CloseTrigger aria-label="Fechar" />
-            <Modal.Header>
+            <Modal.Header className="qm-head">
               <Modal.Heading className="manager-client-title">
                 <span className="manager-client-title-icon" aria-hidden="true">
                   <UserRound size={22} />
                 </span>
-                <span>
-                  {editing ? 'Editar cliente' : 'Adicionar cliente'}
-                  <small>
-                    Cadastro exclusivo de {clinicName}. Não cria nem vincula conta Luminix
-                    automaticamente.
-                  </small>
-                </span>
+                <span>{editing ? 'Editar cliente' : 'Adicionar cliente'}</span>
               </Modal.Heading>
             </Modal.Header>
-            <Modal.Body className="manager-client-body">
+            <Modal.Body className="qm-body lx-scroll manager-client-body">
               {error && (
                 <p className="manager-data-error" role="alert">
                   {error}
@@ -884,8 +884,13 @@ export function ClientsPanel({
                   )}
                 </div>
               ) : null}
-              {!editing && !(intake.on && intake.index >= 0) ? (
+              {loadingDetail ? (
+                <p className="ws-loading" role="status">
+                  Carregando a ficha…
+                </p>
+              ) : !(intake.on && intake.index >= 0) ? (
                 <ClientCreateSteps
+                  editing={Boolean(editing)}
                   step={createStep}
                   form={form}
                   setForm={(next) => {
@@ -910,161 +915,8 @@ export function ClientsPanel({
                   formatTaxId={formatCpf}
                 />
               ) : null}
-              <form
-                id="manager-client-form"
-                className="manager-client-form"
-                hidden={!editing || (intake.on && intake.index >= 0)}
-                onSubmit={(event) => {
-                  if (intake.on && !editing && !intakeAtEnd) {
-                    event.preventDefault()
-                    startIntake()
-                    return
-                  }
-                  void submit(event)
-                }}
-              >
-                <section className="manager-client-section" aria-labelledby="client-sec-person">
-                  <h3 id="client-sec-person" className="manager-client-section-title">
-                    <IdCard size={18} aria-hidden="true" /> Dados pessoais
-                  </h3>
-                  <div className="manager-client-section-grid is-three">
-                    <TextInputField
-                      className="manager-field-wide"
-                      label="Nome"
-                      isRequired
-                      autoFocus
-                      maxLength={160}
-                      value={form.name}
-                      onChange={(name) => setForm({ ...form, name })}
-                    />
-                    <TextInputField
-                      label="CPF"
-                      inputMode="numeric"
-                      placeholder="000.000.000-00"
-                      maxLength={14}
-                      value={form.taxId}
-                      error={fieldErrors.taxId}
-                      isDisabled={loadingDetail}
-                      description="Opcional. Evita cadastro repetido."
-                      onChange={(taxId) => {
-                        // The server error is tied to the old value; leaving it would keep the
-                        // field invalid and the browser would silently block the next submit.
-                        setFieldErrors((current) => ({ ...current, taxId: undefined }))
-                        setForm({ ...form, taxId: formatCpf(taxId) })
-                      }}
-                    />
-                    <SelectField
-                      label="Sexo biológico"
-                      value={form.sex || 'unset'}
-                      options={sexOptions}
-                      onChange={(value) =>
-                        setForm({ ...form, sex: value === 'unset' ? '' : (value as Sex) })
-                      }
-                    />
-                    <DateInputField
-                      label="Nascimento"
-                      value={form.birthDate}
-                      max={new Date().toLocaleDateString('en-CA')}
-                      description="Lembra o aniversário em Marketing."
-                      onChange={(birthDate) => setForm({ ...form, birthDate })}
-                    />
-                  </div>
-                </section>
-                <section className="manager-client-section" aria-labelledby="client-sec-contact">
-                  <h3 id="client-sec-contact" className="manager-client-section-title">
-                    <Phone size={18} aria-hidden="true" /> Contato
-                  </h3>
-                  <div className="manager-client-section-grid">
-                    <TextInputField
-                      label="WhatsApp"
-                      type="tel"
-                      inputMode="tel"
-                      placeholder="(11) 98765-4321"
-                      value={form.phone}
-                      description="Com DDD. Outros países: use + e o código do país."
-                      onChange={(phone) => {
-                        setDuplicates(null)
-                        setForm({
-                          ...form,
-                          phone: phone.startsWith('+') ? phone : formatBrPhone(phone),
-                        })
-                      }}
-                    />
-                    <TextInputField
-                      label="E-mail"
-                      type="email"
-                      inputMode="email"
-                      maxLength={254}
-                      value={form.email}
-                      error={fieldErrors.email}
-                      onChange={(email) => {
-                        setFieldErrors((current) => ({ ...current, email: undefined }))
-                        setForm({ ...form, email })
-                      }}
-                    />
-                  </div>
-                  <div className="manager-client-consent">
-                    <MessageCircle size={20} aria-hidden="true" />
-                    <CheckboxField
-                      isSelected={form.marketingOptIn}
-                      onChange={(marketingOptIn) => setForm({ ...form, marketingOptIn })}
-                      label="Aceita receber mensagens do estabelecimento"
-                      description="Marque somente se a cliente concordou. A data do aceite fica registrada."
-                    />
-                  </div>
-                </section>
-                <section className="manager-client-section" aria-labelledby="client-sec-notes">
-                  <h3 id="client-sec-notes" className="manager-client-section-title">
-                    <NotebookPen size={18} aria-hidden="true" /> Cuidados e observações
-                  </h3>
-                  <TextAreaField
-                    ariaLabel="Cuidados e observações"
-                    rows={4}
-                    maxLength={4000}
-                    placeholder="Alergias, gestação, medicamentos, pele sensível, preferências…"
-                    description="Aparece em destaque na ficha e no atendimento."
-                    value={form.notes}
-                    onChange={(notes) => setForm({ ...form, notes })}
-                  />
-                </section>
-                {!editing ? (
-                  <button
-                    type="button"
-                    className={`anm-offer${intake.on ? ' is-on' : ''}`}
-                    aria-pressed={intake.on}
-                    onClick={() => setIntake({ ...intake, on: !intake.on })}
-                  >
-                    <span className="anm-offer-icon" aria-hidden>
-                      {intake.on ? <ShieldCheck size={20} /> : <ClipboardCheck size={20} />}
-                    </span>
-                    <span>
-                      <strong>Preencher a anamnese agora</strong>
-                      <small>
-                        Opcional · {levelNames[requiredLevel]} ·{' '}
-                        {staffSteps(requiredLevel, intake.answers).length} etapas rápidas. Dá para
-                        fazer depois pela ficha.
-                      </small>
-                    </span>
-                    <i aria-hidden />
-                  </button>
-                ) : null}
-              </form>
             </Modal.Body>
-            <Modal.Footer>
-              {editing && (
-                <Button
-                  variant="secondary"
-                  isDisabled={saving}
-                  onPress={() =>
-                    void changeStatus(
-                      editing.id,
-                      editing.status === 'active' ? 'archived' : 'active',
-                    )
-                  }
-                >
-                  {editing.status === 'active' ? 'Arquivar' : 'Reativar'}
-                </Button>
-              )}
+            <Modal.Footer className="qm-foot">
               {intake.on && intake.index >= 0 ? (
                 <>
                   <Button
@@ -1087,67 +939,77 @@ export function ClientsPanel({
                     </Button>
                   )}
                 </>
-              ) : !editing ? (
+              ) : (
                 <>
+                  {editing ? (
+                    <Button
+                      variant="ghost"
+                      className="cli-archive qm-foot-start"
+                      aria-label={
+                        editing.status === 'active' ? 'Arquivar cliente' : 'Reativar cliente'
+                      }
+                      isDisabled={saving}
+                      onPress={() =>
+                        void changeStatus(
+                          editing.id,
+                          editing.status === 'active' ? 'archived' : 'active',
+                        )
+                      }
+                    >
+                      {editing.status === 'active' ? (
+                        <Archive size={17} aria-hidden />
+                      ) : (
+                        <ArchiveRestore size={17} aria-hidden />
+                      )}
+                      <span>{editing.status === 'active' ? 'Arquivar' : 'Reativar'}</span>
+                    </Button>
+                  ) : null}
                   {createStep === 'who' ? (
                     <Button variant="secondary" onPress={() => setOpen(false)}>
                       Cancelar
                     </Button>
                   ) : (
                     <Button
-                      variant="ghost"
+                      variant="secondary"
                       onPress={() => {
-                        const index = createSteps.findIndex((item) => item.id === createStep)
-                        setCreateStep(createSteps[index - 1].id)
+                        const index = steps.findIndex((item) => item.id === createStep)
+                        setCreateStep(steps[Math.max(0, index - 1)].id)
                       }}
                     >
                       Voltar
                     </Button>
                   )}
-                  {createStep !== 'review' && form.name.trim() ? (
-                    <Button variant="secondary" isDisabled={saving} onPress={() => void submit()}>
-                      {saving ? 'Salvando…' : 'Salvar agora'}
+                  {createStep !== 'review' && canSave ? (
+                    <Button
+                      variant="secondary"
+                      isDisabled={saving || loadingDetail}
+                      onPress={() => void submit()}
+                    >
+                      {saving ? 'Salvando…' : editing ? 'Salvar' : 'Salvar agora'}
                     </Button>
                   ) : null}
                   {createStep === 'review' ? (
-                    <Button isDisabled={saving} onPress={() => void submit()}>
+                    <Button isDisabled={saving || loadingDetail} onPress={() => void submit()}>
                       <Check size={16} aria-hidden />{' '}
                       {saving
                         ? 'Salvando…'
-                        : intake.on
-                          ? 'Salvar cliente e anamnese'
-                          : 'Salvar cliente'}
+                        : editing
+                          ? 'Salvar alterações'
+                          : intake.on
+                            ? 'Salvar cliente e anamnese'
+                            : 'Salvar cliente'}
                     </Button>
                   ) : createStep !== 'anamnesis' ? (
                     <Button
-                      isDisabled={!form.name.trim()}
+                      isDisabled={!canSave || loadingDetail}
                       onPress={() => {
-                        const index = createSteps.findIndex((item) => item.id === createStep)
-                        setCreateStep(createSteps[index + 1].id)
+                        const index = steps.findIndex((item) => item.id === createStep)
+                        setCreateStep(steps[index + 1].id)
                       }}
                     >
                       {createStep === 'who' ? 'Continuar' : 'Próximo'}
                     </Button>
                   ) : null}
-                </>
-              ) : (
-                <>
-                  <Button variant="secondary" onPress={() => setOpen(false)}>
-                    Cancelar
-                  </Button>
-                  <Button
-                    type="submit"
-                    form="manager-client-form"
-                    isDisabled={saving || loadingDetail}
-                  >
-                    {saving
-                      ? 'Salvando…'
-                      : editing
-                        ? 'Salvar alterações'
-                        : intake.on
-                          ? 'Continuar para a anamnese'
-                          : 'Salvar cliente'}
-                  </Button>
                 </>
               )}
             </Modal.Footer>

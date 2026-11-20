@@ -63,12 +63,11 @@ const createActions: CreateAction[] = [
     upload: true,
   },
   {
-    id: 'produto',
-    label: 'Produto',
-    detail: 'Item no estoque',
+    id: 'estoque',
+    label: 'Estoque',
+    detail: 'Repor ou conferir',
     icon: PackagePlus,
     section: 'estoque',
-    create: true,
   },
   {
     id: 'promocao',

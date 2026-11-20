@@ -2057,12 +2057,6 @@
   justify-content: flex-end;
 }
 
-@media (max-width: 720px) {
-  .manager-client-dialog .modal__footer > .button {
-    flex: 1 1 140px;
-  }
-}
-
 /* ---------- Menu lateral (repaginado) ---------- */
 .manager-sidebar {
   border-color: color-mix(in srgb, var(--space-highlight, #ffd4e7) 22%, transparent);
