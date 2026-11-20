@@ -64,7 +64,7 @@ export function ManagerMessageModal({
 
   return (
     <Modal.Backdrop
-      className="manager-message-backdrop"
+      className="qm-back qm-back-glow manager-message-backdrop"
       isOpen
       isDismissable={false}
       onOpenChange={(open) => {
@@ -72,7 +72,7 @@ export function ManagerMessageModal({
       }}
     >
       <Modal.Container size="md" scroll="inside">
-        <Modal.Dialog className="manager-dialog manager-message">
+        <Modal.Dialog className="manager-dialog qm-glow manager-message">
           <Modal.CloseTrigger aria-label="Fechar" />
           <Modal.Header className="manager-message-header">
             {media ? (

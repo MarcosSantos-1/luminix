@@ -1,16 +1,7 @@
-.modal__backdrop.manager-message-backdrop {
-  background: #170b1c73;
-  backdrop-filter: blur(3px);
-}
-
 .manager-dialog.manager-message {
   --message-line: color-mix(in srgb, var(--space-highlight, #ffd9ea) 24%, transparent);
   --message-glow: color-mix(in srgb, var(--space-accent, #ec287a) 36%, transparent);
-  background:
-    radial-gradient(ellipse at 50% 0%, var(--message-glow), transparent 62%),
-    var(--space-deep, #56203c);
-  border-color: var(--message-line);
-  box-shadow: 0 24px 80px #16091b66;
+  /* Background, edges and glow come from .qm-glow (quick-modal.css). */
 }
 
 .manager-message .button--ghost,

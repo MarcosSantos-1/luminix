@@ -807,9 +807,9 @@ export function ClientsPanel({
         }}
       />
 
-      <Modal.Backdrop isOpen={open} onOpenChange={setOpen}>
+      <Modal.Backdrop isOpen={open} onOpenChange={setOpen} className="qm-back qm-back-glow">
         <Modal.Container size="lg">
-          <Modal.Dialog className="manager-dialog manager-client-dialog">
+          <Modal.Dialog className="manager-dialog qm-glow manager-client-dialog">
             <Modal.CloseTrigger aria-label="Fechar" />
             <Modal.Header>
               <Modal.Heading className="manager-client-title">
@@ -1161,9 +1161,13 @@ export function ClientsPanel({
           </Modal.Dialog>
         </Modal.Container>
       </Modal.Backdrop>
-      <Modal.Backdrop isOpen={voucherOpen} onOpenChange={setVoucherOpen}>
+      <Modal.Backdrop
+        isOpen={voucherOpen}
+        onOpenChange={setVoucherOpen}
+        className="qm-back qm-back-glow"
+      >
         <Modal.Container size="md">
-          <Modal.Dialog className="manager-dialog">
+          <Modal.Dialog className="manager-dialog qm-glow">
             <Modal.CloseTrigger aria-label="Fechar" />
             <Modal.Header>
               <Modal.Heading>Vouchers</Modal.Heading>

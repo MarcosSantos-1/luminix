@@ -40,12 +40,66 @@ function useNoKeyboardOnOpen(isOpen: boolean) {
 }
 
 /**
+ * Phones: the sheet follows the area above the keyboard (CSS vars on <html>), and the field being
+ * typed in is scrolled into the middle of what is still visible once the keyboard is up.
+ */
+function useKeyboardAwareSheet(isOpen: boolean) {
+  useEffect(() => {
+    const viewport = window.visualViewport
+    if (!isOpen || !viewport || !window.matchMedia('(pointer: coarse)').matches) return
+    const root = document.documentElement
+    let field: HTMLElement | null = null
+    let timer = 0
+    const reveal = () => {
+      if (!field || document.activeElement !== field) return
+      const body = field.closest<HTMLElement>('.qm-body')
+      if (!body) return
+      const box = field.getBoundingClientRect()
+      const area = body.getBoundingClientRect()
+      const top = Math.max(area.top, viewport.offsetTop)
+      const bottom = Math.min(area.bottom, viewport.offsetTop + viewport.height)
+      // Center the field (with its label) in the visible part of the body.
+      const wanted = top + (bottom - top) / 2 - box.height / 2
+      if (box.top < top + 8 || box.bottom > bottom - 8)
+        body.scrollBy({ top: box.top - wanted, behavior: 'smooth' })
+    }
+    const sync = () => {
+      root.style.setProperty('--qm-vvh', `${Math.round(viewport.height)}px`)
+      root.style.setProperty('--qm-vvtop', `${Math.round(viewport.offsetTop)}px`)
+      window.clearTimeout(timer)
+      timer = window.setTimeout(reveal, 80)
+    }
+    const onFocus = (event: FocusEvent) => {
+      const target = event.target
+      if (!(target instanceof HTMLElement) || !target.matches(typingTarget)) return
+      if (!target.closest('.qm')) return
+      field = target.closest<HTMLElement>('.lx-field') ?? target
+      // The keyboard may already be up (moving between fields): no resize will come.
+      window.clearTimeout(timer)
+      timer = window.setTimeout(reveal, 320)
+    }
+    sync()
+    viewport.addEventListener('resize', sync)
+    viewport.addEventListener('scroll', sync)
+    document.addEventListener('focusin', onFocus, true)
+    return () => {
+      window.clearTimeout(timer)
+      viewport.removeEventListener('resize', sync)
+      viewport.removeEventListener('scroll', sync)
+      document.removeEventListener('focusin', onFocus, true)
+      root.style.removeProperty('--qm-vvh')
+      root.style.removeProperty('--qm-vvtop')
+    }
+  }, [isOpen])
+}
+
+/**
  * The panel's standard pop-up: blurred backdrop, roomy on desktop, full-height sheet on phones.
  * Quick actions (novo agendamento, agenda, cliente, horários, ficha do atendimento) open here
  * instead of leaving the page.
  *
- * `tone="glow"` is the newer look (translucent glass, gradients and neon edges); `hero` adds the
- * illustrated side panel (on top, compact, on phones).
+ * The look is "glow" (translucent glass, pink/red gradients and neon edges); `tone="plain"` keeps
+ * the older flat one. `hero` adds the illustrated side panel (on top, compact, on phones).
  */
 export function QuickModal({
   isOpen,
@@ -56,7 +110,7 @@ export function QuickModal({
   footer,
   className,
   morph,
-  tone = 'plain',
+  tone = 'glow',
   badge,
   hero,
   children,
@@ -80,6 +134,7 @@ export function QuickModal({
 }) {
   const animated = useRef<DOMRect | null>(null)
   useNoKeyboardOnOpen(isOpen)
+  useKeyboardAwareSheet(isOpen)
   const heading = (
     <>
       {badge ? <span className="qm-badge">{badge}</span> : null}

@@ -587,9 +587,13 @@ export function ManagerHome({
           }}
         />
       )}
-      <Modal.Backdrop isOpen={searchOpen && !message.view} onOpenChange={changeSearch}>
+      <Modal.Backdrop
+        isOpen={searchOpen && !message.view}
+        onOpenChange={changeSearch}
+        className="qm-back qm-back-glow"
+      >
         <Modal.Container>
-          <Modal.Dialog className="manager-dialog">
+          <Modal.Dialog className="manager-dialog qm-glow">
             <Modal.CloseTrigger aria-label="Fechar" />
             <Modal.Header>
               <Modal.Heading>
@@ -655,13 +659,14 @@ export function ManagerHome({
         </Modal.Container>
       </Modal.Backdrop>
       <Modal.Backdrop
+        className="qm-back qm-back-glow"
         isOpen={notice !== null}
         onOpenChange={(open) => {
           if (!open) closeNotice()
         }}
       >
         <Modal.Container size="sm">
-          <Modal.Dialog className="manager-dialog">
+          <Modal.Dialog className="manager-dialog qm-glow">
             <Modal.CloseTrigger aria-label="Fechar" />
             <Modal.Header>
               <Modal.Heading>{notice}</Modal.Heading>

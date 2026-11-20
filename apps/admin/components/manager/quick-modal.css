@@ -65,7 +65,7 @@
     color-mix(in srgb, var(--space-deep, #1b0a12) 42%, transparent);
   backdrop-filter: blur(14px) saturate(1.25);
 }
-.manager-dialog.qm.qm-glow {
+.manager-dialog.qm-glow {
   --qm-accent: var(--space-accent, #ec247b);
   --qm-light: var(--space-highlight, #f982b3);
   --qm-deep: var(--space-deep, #3a0a22);
@@ -102,7 +102,7 @@
   animation: qm-glow-in 0.42s cubic-bezier(0.2, 0.9, 0.25, 1.1);
 }
 /* Light running along the top edge. */
-.manager-dialog.qm.qm-glow::before {
+.manager-dialog.qm-glow::before {
   content: '';
   position: absolute;
   z-index: 2;
@@ -257,7 +257,7 @@
 }
 
 /* Footer: pill buttons, the main one with the laser sweep of the onboarding. */
-.qm-glow .qm-foot {
+.qm-glow .modal__footer {
   border-top-color: #ffffff12;
   background: linear-gradient(
     to top,
@@ -265,22 +265,22 @@
     transparent
   );
 }
-.qm-glow .qm-foot .button {
+.qm-glow .modal__footer .button {
   min-height: 48px;
   padding-inline: 26px;
   border-radius: 999px;
   font-weight: 650;
 }
-.qm-glow .qm-foot .button--secondary,
-.qm-glow .qm-foot .button--tertiary {
+.qm-glow .modal__footer .button--secondary,
+.qm-glow .modal__footer .button--tertiary {
   border: 1px solid color-mix(in srgb, var(--qm-light) 50%, transparent);
   background: #ffffff08;
   color: white;
 }
-.qm-glow .qm-foot .button--secondary:hover {
+.qm-glow .modal__footer .button--secondary:hover {
   background: #ffffff16;
 }
-.qm-glow .qm-foot .button--primary {
+.qm-glow .modal__footer .button--primary {
   position: relative;
   overflow: hidden;
   isolation: isolate;
@@ -301,7 +301,7 @@
     box-shadow 0.25s ease,
     transform 0.2s ease;
 }
-.qm-glow .qm-foot .button--primary::after {
+.qm-glow .modal__footer .button--primary::after {
   content: '';
   position: absolute;
   z-index: -1;
@@ -320,8 +320,8 @@
   transform: translateX(-180%) skewX(-16deg);
   pointer-events: none;
 }
-.qm-glow .qm-foot .button--primary:hover,
-.qm-glow .qm-foot .button--primary:focus-visible {
+.qm-glow .modal__footer .button--primary:hover,
+.qm-glow .modal__footer .button--primary:focus-visible {
   background-position: 100% 50%;
   transform: translateY(-1px);
   box-shadow:
@@ -329,8 +329,8 @@
     0 16px 36px color-mix(in srgb, var(--qm-accent) 60%, transparent),
     0 0 0 1px #ffffff55;
 }
-.qm-glow .qm-foot .button--primary:hover::after,
-.qm-glow .qm-foot .button--primary:focus-visible::after {
+.qm-glow .modal__footer .button--primary:hover::after,
+.qm-glow .modal__footer .button--primary:focus-visible::after {
   animation: qm-laser 0.85s ease;
 }
 @keyframes qm-laser {
@@ -518,20 +518,20 @@
   .qm.has-hero .qm-head {
     padding-top: 6px;
   }
-  .qm-glow .qm-foot {
+  .qm-glow .modal__footer {
     padding-bottom: max(18px, env(safe-area-inset-bottom));
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .manager-dialog.qm.qm-glow,
+  .manager-dialog.qm-glow,
   .qm-glow .qm-body > *,
   .qm-hero::before,
   .qm-hero::after,
   .qm-hero-art img {
     animation: none;
   }
-  .qm-glow .qm-foot .button--primary:hover::after {
+  .qm-glow .modal__footer .button--primary:hover::after {
     animation: none;
   }
 }
@@ -623,7 +623,7 @@
   box-shadow: 0 8px 24px #e11d4866;
 }
 @media (max-width: 650px) {
-  .qm-glow .qm-foot .button {
+  .qm-glow .modal__footer .button {
     flex: 1 1 96px;
     padding-inline: 14px;
   }
@@ -636,4 +636,142 @@
   .qm .qm-foot .button.eq-delete span {
     display: none;
   }
+}
+
+/* ---------- Controles dentro dos modais glow ---------- */
+.qm-glow .modal__body .button--primary {
+  border: 1px solid #ffffff38;
+  color: white;
+  background: linear-gradient(
+    110deg,
+    var(--qm-accent),
+    color-mix(in srgb, var(--qm-light) 80%, white)
+  );
+  box-shadow:
+    inset 0 1px #ffffff4d,
+    0 8px 22px color-mix(in srgb, var(--qm-accent) 40%, transparent);
+}
+.qm-glow .modal__body .button--primary:hover {
+  box-shadow:
+    inset 0 1px #ffffff66,
+    0 12px 28px color-mix(in srgb, var(--qm-accent) 55%, transparent);
+}
+.qm-glow .modal__body :is(.button--secondary, .button--tertiary) {
+  border: 1px solid color-mix(in srgb, var(--qm-light) 34%, transparent);
+  color: white;
+  background: #ffffff0d;
+}
+.qm-glow .modal__body :is(.button--secondary, .button--tertiary):hover {
+  border-color: color-mix(in srgb, var(--qm-light) 60%, transparent);
+  background: #ffffff18;
+}
+
+/* Checkboxes and switches: pink edges, glowing when on. */
+.qm-glow .checkbox__control {
+  border: 1.5px solid color-mix(in srgb, var(--qm-light) 55%, transparent);
+  border-radius: 7px;
+  background: #ffffff0a;
+}
+.qm-glow .checkbox[data-selected='true'] .checkbox__control {
+  border-color: transparent;
+  background: linear-gradient(135deg, var(--qm-accent), var(--qm-light));
+  box-shadow: 0 0 14px color-mix(in srgb, var(--qm-accent) 60%, transparent);
+}
+.qm-glow .switch__control {
+  border: 1px solid color-mix(in srgb, var(--qm-light) 30%, transparent);
+  background: #ffffff1f;
+}
+.qm-glow .switch[data-selected='true'] .switch__control {
+  border-color: transparent;
+  background: linear-gradient(120deg, var(--qm-accent), var(--qm-light));
+  box-shadow: 0 0 14px color-mix(in srgb, var(--qm-accent) 55%, transparent);
+}
+
+/* The panel's own choice buttons (chips, cards, segments) light up when chosen. */
+.qm-glow
+  .modal__body
+  :is([role='checkbox'], [role='radio'], [role='switch'], [aria-pressed]):not(
+    .checkbox,
+    .switch,
+    .radio
+  ) {
+  transition:
+    border-color 0.2s ease,
+    box-shadow 0.2s ease,
+    background-color 0.2s ease;
+}
+.qm-glow
+  .modal__body
+  :is(
+    [role='checkbox'][aria-checked='true'],
+    [role='radio'][aria-checked='true'],
+    [role='switch'][aria-checked='true'],
+    [aria-pressed='true']
+  ):not(.checkbox, .switch, .radio) {
+  border-color: var(--qm-light);
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, var(--qm-light) 35%, transparent),
+    0 0 18px color-mix(in srgb, var(--qm-accent) 30%, transparent);
+}
+.qm-glow .modal__body hr,
+.qm-glow .modal__footer {
+  border-color: #ffffff14;
+}
+.qm-glow .modal__footer .button--danger {
+  gap: 8px;
+  border: 1px solid #ffffff38;
+  color: white;
+  background: linear-gradient(120deg, #e11d48, #ff4d6d);
+  box-shadow: 0 8px 24px #e11d4866;
+}
+
+/* ---------- Celular: a folha acompanha o teclado ---------- */
+@media (pointer: coarse) and (max-width: 650px) {
+  /* --qm-vvh / --qm-vvtop follow the visible area (above the keyboard), set by QuickModal. */
+  .qm-back .qm-container {
+    position: fixed;
+    inset: auto 0 auto 0;
+    top: var(--qm-vvtop, 0px);
+    height: var(--qm-vvh, 100dvh);
+  }
+  .qm-back .manager-dialog.qm {
+    max-height: min(94dvh, calc(var(--qm-vvh, 100dvh) - 12px));
+  }
+}
+
+/* People who asked the system for less transparency get solid pop-ups. */
+@media (prefers-reduced-transparency: reduce) {
+  .qm-back.qm-back-glow {
+    background: #1a0610d9;
+    backdrop-filter: none;
+  }
+  .manager-dialog.qm-glow {
+    background:
+      radial-gradient(
+        90% 60% at 100% 0%,
+        color-mix(in srgb, var(--qm-accent) 30%, transparent),
+        transparent 62%
+      ),
+      #2a0716;
+    backdrop-filter: none;
+  }
+}
+
+/* List rows inside pop-ups (clients, services, times…): pink edge, glowing on hover. */
+.qm-glow .modal__body :is(ul, ol) > li > button:not(.button):not([aria-label]) {
+  border-color: color-mix(in srgb, var(--qm-light) 16%, transparent);
+  transition:
+    border-color 0.2s ease,
+    box-shadow 0.2s ease,
+    background-color 0.2s ease,
+    transform 0.2s ease;
+}
+@media (hover: hover) {
+  .qm-glow .modal__body :is(ul, ol) > li > button:not(.button):not([aria-label]):hover {
+    border-color: color-mix(in srgb, var(--qm-light) 50%, transparent);
+    box-shadow: 0 0 18px color-mix(in srgb, var(--qm-accent) 25%, transparent);
+  }
+}
+.qm-glow .modal__body :is(ul, ol) > li > button:not(.button):not([aria-label]):active {
+  transform: scale(0.985);
 }
