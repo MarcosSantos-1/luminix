@@ -1,0 +1,529 @@
+/* QuickModal: estrutura comum, comportamento no celular e o visual "glow". */
+
+.qm .qm-main {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+}
+.qm .qm-main > .qm-body {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+.qm-badge {
+  justify-self: start;
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  padding: 5px 12px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 750;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: white;
+  background: color-mix(in srgb, var(--space-accent, #ec247b) 70%, transparent);
+}
+
+/* ---------- Celular ---------- */
+@media (pointer: coarse) {
+  /* The tap that opened the pop-up cannot land on a field or button that appeared under it. */
+  .qm .qm-main,
+  .qm .qm-hero {
+    animation: qm-touch-guard 0.5s steps(1);
+  }
+}
+@keyframes qm-touch-guard {
+  from,
+  to {
+    pointer-events: none;
+  }
+}
+@media (pointer: coarse) and (max-width: 650px) {
+  /* While typing, the buttons step aside instead of riding up on the keyboard over the field. */
+  .qm:has(
+      :is(
+        input:not([type='checkbox']):not([type='radio']):not([type='file']),
+        textarea,
+        [contenteditable='true']
+      ):focus
+    )
+    .qm-foot {
+    display: none;
+  }
+}
+
+/* ---------- Visual glow ---------- */
+.qm-back.qm-back-glow {
+  background:
+    radial-gradient(
+      60% 50% at 50% 45%,
+      color-mix(in srgb, var(--space-accent, #ec247b) 16%, transparent),
+      transparent 70%
+    ),
+    color-mix(in srgb, var(--space-deep, #1b0a12) 58%, transparent);
+  backdrop-filter: blur(16px) saturate(1.2);
+}
+.manager-dialog.qm.qm-glow {
+  --qm-accent: var(--space-accent, #ec247b);
+  --qm-light: var(--space-highlight, #f982b3);
+  --qm-deep: var(--space-deep, #3a0a22);
+  position: relative;
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--qm-light) 34%, transparent);
+  border-radius: 28px;
+  color: white;
+  background:
+    radial-gradient(
+      110% 70% at 100% 0%,
+      color-mix(in srgb, var(--qm-accent) 20%, transparent),
+      transparent 62%
+    ),
+    radial-gradient(
+      90% 60% at 0% 100%,
+      color-mix(in srgb, var(--qm-light) 10%, transparent),
+      transparent 60%
+    ),
+    color-mix(in srgb, var(--qm-deep) 74%, transparent);
+  backdrop-filter: blur(30px) saturate(1.45);
+  box-shadow:
+    inset 0 1px #ffffff1f,
+    0 30px 90px #000000a6,
+    0 0 70px color-mix(in srgb, var(--qm-accent) 26%, transparent);
+  animation: qm-glow-in 0.42s cubic-bezier(0.2, 0.9, 0.25, 1.1);
+}
+/* Light running along the top edge. */
+.manager-dialog.qm.qm-glow::before {
+  content: '';
+  position: absolute;
+  z-index: 2;
+  top: 0;
+  left: 12%;
+  right: 12%;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--qm-light), transparent);
+  opacity: 0.8;
+  pointer-events: none;
+}
+@keyframes qm-glow-in {
+  from {
+    opacity: 0;
+    transform: translateY(18px) scale(0.95);
+    filter: blur(6px);
+  }
+}
+
+.qm-glow .modal__close-trigger {
+  z-index: 3;
+  width: 38px;
+  height: 38px;
+  border: 1px solid color-mix(in srgb, var(--qm-light) 40%, transparent);
+  border-radius: 999px;
+  background: #ffffff0f;
+  color: white;
+  transition:
+    background-color 0.2s ease,
+    box-shadow 0.2s ease,
+    transform 0.2s ease;
+}
+.qm-glow .modal__close-trigger:hover {
+  background: #ffffff1f;
+  box-shadow: 0 0 18px color-mix(in srgb, var(--qm-accent) 45%, transparent);
+  transform: rotate(90deg);
+}
+.qm-glow .qm-head .modal__heading {
+  font-size: 22px;
+}
+.qm-glow .qm-sub {
+  color: color-mix(in srgb, white 72%, var(--qm-light));
+}
+.qm-glow .qm-badge {
+  background: linear-gradient(
+    120deg,
+    var(--qm-accent),
+    color-mix(in srgb, var(--qm-light) 80%, white)
+  );
+  box-shadow:
+    0 0 0 1px #ffffff40 inset,
+    0 6px 20px color-mix(in srgb, var(--qm-accent) 55%, transparent);
+}
+
+/* Fields come in one after the other. */
+.qm-glow .qm-body > * {
+  animation: qm-rise 0.45s cubic-bezier(0.2, 0.9, 0.3, 1) both;
+}
+.qm-glow .qm-body > :nth-child(2) {
+  animation-delay: 0.05s;
+}
+.qm-glow .qm-body > :nth-child(3) {
+  animation-delay: 0.1s;
+}
+.qm-glow .qm-body > :nth-child(4) {
+  animation-delay: 0.15s;
+}
+.qm-glow .qm-body > :nth-child(n + 5) {
+  animation-delay: 0.2s;
+}
+@keyframes qm-rise {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+}
+
+/* Neon fields */
+.qm-glow .lx-field-label .label {
+  color: white;
+  font-weight: 550;
+}
+.qm-glow .lx-field :is(.input-group, .date-input-group, .select__trigger, .textarea) {
+  min-height: 50px;
+  border: 1px solid color-mix(in srgb, var(--qm-light) 30%, transparent);
+  border-radius: 14px;
+  background: #ffffff0d;
+  box-shadow: inset 0 1px #ffffff0d;
+  transition:
+    border-color 0.2s ease,
+    box-shadow 0.2s ease,
+    background-color 0.2s ease;
+}
+.qm-glow .lx-field :is(.input-group, .date-input-group, .select__trigger, .textarea):hover {
+  border-color: color-mix(in srgb, var(--qm-light) 55%, transparent);
+  box-shadow:
+    inset 0 1px #ffffff12,
+    0 0 16px color-mix(in srgb, var(--qm-accent) 22%, transparent);
+}
+.qm-glow
+  .lx-field
+  :is(.input-group, .date-input-group, .select__trigger, .textarea):is(
+    :focus-within,
+    [data-focus-within='true'],
+    [data-focused='true']
+  ) {
+  border-color: var(--qm-light);
+  background: #ffffff14;
+  box-shadow:
+    0 0 0 3px color-mix(in srgb, var(--qm-accent) 28%, transparent),
+    0 0 26px color-mix(in srgb, var(--qm-accent) 42%, transparent);
+}
+.qm-glow .lx-field .date-picker__trigger,
+.qm-glow .lx-field .input-group__suffix {
+  color: var(--qm-light);
+}
+
+/* Money: big value, glowing "R$". */
+.qm-glow .qm-money .input-group {
+  min-height: 56px;
+}
+.qm-glow .qm-money .input-group__prefix {
+  font-size: 20px;
+  font-weight: 750;
+  color: var(--qm-light);
+  text-shadow: 0 0 14px color-mix(in srgb, var(--qm-accent) 70%, transparent);
+}
+.qm-glow .qm-money input {
+  font-size: 22px !important;
+  font-weight: 650;
+  letter-spacing: -0.2px;
+}
+
+/* Checkbox as a card. */
+.qm-glow .lx-checkbox {
+  padding: 13px 14px;
+  border: 1px solid color-mix(in srgb, var(--qm-light) 24%, transparent);
+  border-radius: 16px;
+  background: #ffffff08;
+  transition:
+    border-color 0.2s ease,
+    background-color 0.2s ease;
+}
+.qm-glow .lx-checkbox[data-selected='true'] {
+  border-color: color-mix(in srgb, var(--qm-light) 55%, transparent);
+  background: color-mix(in srgb, var(--qm-accent) 12%, transparent);
+}
+.qm-glow .lx-checkbox[data-selected='true'] .checkbox__control {
+  border-color: transparent;
+  background: linear-gradient(135deg, var(--qm-accent), var(--qm-light));
+  box-shadow: 0 0 14px color-mix(in srgb, var(--qm-accent) 60%, transparent);
+}
+
+/* Footer: pill buttons, the main one with the laser sweep of the onboarding. */
+.qm-glow .qm-foot {
+  border-top-color: #ffffff12;
+  background: linear-gradient(
+    to top,
+    color-mix(in srgb, var(--qm-deep) 45%, transparent),
+    transparent
+  );
+}
+.qm-glow .qm-foot .button {
+  min-height: 48px;
+  padding-inline: 26px;
+  border-radius: 999px;
+  font-weight: 650;
+}
+.qm-glow .qm-foot .button--secondary,
+.qm-glow .qm-foot .button--tertiary {
+  border: 1px solid color-mix(in srgb, var(--qm-light) 50%, transparent);
+  background: #ffffff08;
+  color: white;
+}
+.qm-glow .qm-foot .button--secondary:hover {
+  background: #ffffff16;
+}
+.qm-glow .qm-foot .button--primary {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+  border: 1px solid #ffffff38;
+  color: white;
+  background: linear-gradient(
+    110deg,
+    var(--qm-accent),
+    color-mix(in srgb, var(--qm-light) 85%, white) 55%,
+    var(--qm-accent)
+  );
+  background-size: 220% 100%;
+  box-shadow:
+    inset 0 1px #ffffff55,
+    0 10px 28px color-mix(in srgb, var(--qm-accent) 48%, transparent);
+  transition:
+    background-position 0.5s ease,
+    box-shadow 0.25s ease,
+    transform 0.2s ease;
+}
+.qm-glow .qm-foot .button--primary::after {
+  content: '';
+  position: absolute;
+  z-index: -1;
+  top: -60%;
+  bottom: -60%;
+  left: 0;
+  width: 34%;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgb(255 255 255 / 0.15) 35%,
+    rgb(255 255 255 / 0.85) 50%,
+    rgb(255 255 255 / 0.15) 65%,
+    transparent
+  );
+  transform: translateX(-180%) skewX(-16deg);
+  pointer-events: none;
+}
+.qm-glow .qm-foot .button--primary:hover,
+.qm-glow .qm-foot .button--primary:focus-visible {
+  background-position: 100% 50%;
+  transform: translateY(-1px);
+  box-shadow:
+    inset 0 1px #ffffff66,
+    0 16px 36px color-mix(in srgb, var(--qm-accent) 60%, transparent),
+    0 0 0 1px #ffffff55;
+}
+.qm-glow .qm-foot .button--primary:hover::after,
+.qm-glow .qm-foot .button--primary:focus-visible::after {
+  animation: qm-laser 0.85s ease;
+}
+@keyframes qm-laser {
+  to {
+    transform: translateX(420%) skewX(-16deg);
+  }
+}
+
+/* ---------- Painel ilustrado (hero) ---------- */
+.qm-hero {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-width: 0;
+  padding: 26px 22px 22px;
+  overflow: hidden;
+  isolation: isolate;
+  background:
+    radial-gradient(
+      120% 80% at 0% 0%,
+      color-mix(in srgb, var(--qm-accent, #ec247b) 70%, transparent),
+      transparent 62%
+    ),
+    linear-gradient(
+      165deg,
+      color-mix(in srgb, var(--qm-accent, #ec247b) 55%, var(--qm-deep, #3a0a22)),
+      color-mix(in srgb, var(--qm-deep, #3a0a22) 92%, black)
+    );
+  border-right: 1px solid #ffffff1c;
+}
+/* Soft silk waves behind the picture. */
+.qm-hero::before,
+.qm-hero::after {
+  content: '';
+  position: absolute;
+  z-index: -1;
+  border-radius: 50%;
+  pointer-events: none;
+}
+.qm-hero::before {
+  width: 160%;
+  height: 70%;
+  left: -40%;
+  bottom: -18%;
+  background: radial-gradient(
+    closest-side,
+    color-mix(in srgb, var(--qm-light, #f982b3) 38%, transparent),
+    transparent
+  );
+  filter: blur(18px);
+  animation: qm-drift 9s ease-in-out infinite alternate;
+}
+.qm-hero::after {
+  width: 120%;
+  height: 50%;
+  right: -45%;
+  top: 22%;
+  background: radial-gradient(
+    closest-side,
+    color-mix(in srgb, var(--qm-accent, #ec247b) 55%, transparent),
+    transparent
+  );
+  filter: blur(24px);
+  animation: qm-drift 11s ease-in-out infinite alternate-reverse;
+}
+@keyframes qm-drift {
+  to {
+    transform: translate(8%, -6%) scale(1.08);
+  }
+}
+.qm-hero-head {
+  display: grid;
+  gap: 12px;
+}
+.qm-hero-head .modal__heading {
+  font-size: 23px;
+  font-weight: 700;
+  line-height: 1.2;
+  letter-spacing: -0.4px;
+  text-wrap: balance;
+}
+.qm-hero-art {
+  display: grid;
+  place-items: center;
+  flex: 1;
+  min-height: 150px;
+}
+.qm-hero-art img {
+  width: min(100%, 200px);
+  height: auto;
+  filter: drop-shadow(0 18px 26px #00000066)
+    drop-shadow(0 0 22px color-mix(in srgb, var(--qm-light, #f982b3) 45%, transparent));
+  animation: qm-float 5s ease-in-out infinite;
+}
+@keyframes qm-float {
+  50% {
+    transform: translateY(-8px);
+  }
+}
+.qm-hero-facts {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 13px;
+}
+.qm-hero-facts li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.qm-hero-facts svg {
+  flex-shrink: 0;
+  color: var(--qm-light, #f982b3);
+}
+.qm-hero-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.qm-hero-chips span {
+  padding: 4px 10px;
+  border: 1px solid #ffffff26;
+  border-radius: 999px;
+  background: #ffffff14;
+  font-size: 12px;
+}
+
+@media (min-width: 651px) {
+  .manager-dialog.qm.has-hero {
+    display: grid;
+    grid-template-columns: minmax(240px, 37%) minmax(0, 1fr);
+    max-width: min(820px, calc(100vw - 32px));
+  }
+  .qm.has-hero .qm-head {
+    padding-top: 30px;
+  }
+}
+
+@media (max-width: 650px) {
+  .manager-dialog.qm.qm-glow {
+    border-radius: 28px 28px 0 0;
+    border-bottom: 0;
+  }
+  /* Grabber, as in native sheets. */
+  .manager-dialog.qm.qm-glow::after {
+    content: '';
+    position: absolute;
+    z-index: 3;
+    top: 8px;
+    left: 50%;
+    width: 40px;
+    height: 4px;
+    margin-left: -20px;
+    border-radius: 99px;
+    background: #ffffff4d;
+    pointer-events: none;
+  }
+  /* On phones the illustrated panel shrinks to badge + title on top of the form. */
+  .manager-dialog.qm.has-hero {
+    display: flex;
+    flex-direction: column;
+  }
+  .qm.has-hero .qm-hero {
+    flex-shrink: 0;
+    padding: 24px 60px 4px 18px;
+    border-right: 0;
+    background: none;
+  }
+  .qm.has-hero .qm-hero::before,
+  .qm.has-hero .qm-hero::after,
+  .qm.has-hero .qm-hero > :not(.qm-hero-head) {
+    display: none;
+  }
+  .qm.has-hero .qm-hero-head {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .qm.has-hero .qm-hero-head .modal__heading {
+    font-size: 19px;
+  }
+  .qm.has-hero .qm-head {
+    padding-top: 6px;
+  }
+  .qm-glow .qm-foot {
+    padding-bottom: max(18px, env(safe-area-inset-bottom));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .manager-dialog.qm.qm-glow,
+  .qm-glow .qm-body > *,
+  .qm-hero::before,
+  .qm-hero::after,
+  .qm-hero-art img {
+    animation: none;
+  }
+  .qm-glow .qm-foot .button--primary:hover::after {
+    animation: none;
+  }
+}

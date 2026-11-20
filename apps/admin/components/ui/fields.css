@@ -160,3 +160,39 @@
 .manager-dialog :is(.input-group, .search-field__group) input:focus-visible {
   outline: none;
 }
+
+/* Touch screens --------------------------------------------------------------------------------- */
+@media (pointer: coarse) {
+  /* iOS zooms the page into any field under 16px and never zooms back; 16px avoids the zoom. */
+  input:not([type='checkbox']):not([type='radio']):not([type='range']):not([type='file']),
+  textarea,
+  select,
+  [contenteditable='true'] {
+    font-size: 16px !important;
+  }
+
+  /* Dates are picked by tapping: the whole field opens the calendar and the typed segments
+     (which would pop the numeric keyboard) do not take the touch. */
+  .lx-field .date-input-group {
+    position: relative;
+  }
+  .lx-field .date-input-group__input {
+    pointer-events: none;
+  }
+  .lx-field .date-input-group__suffix {
+    position: static;
+  }
+  .lx-field .date-picker__trigger {
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    width: auto;
+    height: auto;
+    padding: 0 14px;
+    border-radius: inherit;
+    background: transparent;
+  }
+}

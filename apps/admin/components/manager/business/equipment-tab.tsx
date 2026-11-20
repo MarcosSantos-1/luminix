@@ -3,6 +3,7 @@
 import { Button } from '@heroui/react'
 import {
   Archive,
+  CalendarCheck,
   CalendarPlus,
   Check,
   Cpu,
@@ -322,6 +323,7 @@ export function EquipmentTab({
         <RentalEditor
           api={api}
           equipment={renting}
+          serviceNames={renting.serviceIds.map(name)}
           today={today}
           canFinance={canFinance}
           onClose={(message) => {
@@ -638,12 +640,14 @@ function EquipmentEditor({
 function RentalEditor({
   api,
   equipment,
+  serviceNames,
   today,
   canFinance,
   onClose,
 }: {
   api: ClinicApi
   equipment: Equipment
+  serviceNames: string[]
   today: string
   canFinance: boolean
   onClose: (message?: string) => void
@@ -685,12 +689,48 @@ function RentalEditor({
     }
   }
 
+  const art = equipmentPresentation(equipment.name)
+  const upcoming = equipment.rentals.filter((rental) => rental.endsOn >= today)
+  const here = upcoming.some((rental) => rental.startsOn <= today)
+  const status = here
+    ? 'No espaço agora'
+    : upcoming.length
+      ? `Próximo aluguel: ${shortDay(upcoming[0].startsOn)}`
+      : 'Sem aluguel marcado'
+
   return (
     <QuickModal
       isOpen
+      tone="glow"
+      badge="Aluguel"
       onOpenChange={(open) => !open && onClose()}
-      title={`Aluguel · ${equipment.name}`}
+      title={equipment.name}
       subtitle="Nesses dias as clientes conseguem agendar os serviços do aparelho."
+      hero={
+        <>
+          <div className="qm-hero-art">
+            <Image src={art.image} alt="" width={220} height={220} sizes="220px" priority />
+          </div>
+          <ul className="qm-hero-facts">
+            <li>
+              <CalendarCheck size={15} aria-hidden /> {status}
+            </li>
+            {equipment.supplier ? (
+              <li>
+                <Store size={15} aria-hidden /> {equipment.supplier}
+              </li>
+            ) : null}
+          </ul>
+          {serviceNames.length ? (
+            <div className="qm-hero-chips" aria-label="Serviços do aparelho">
+              {serviceNames.slice(0, 3).map((service) => (
+                <span key={service}>{service}</span>
+              ))}
+              {serviceNames.length > 3 ? <span>+{serviceNames.length - 3}</span> : null}
+            </div>
+          ) : null}
+        </>
+      }
       footer={
         <>
           {error ? (
@@ -723,6 +763,7 @@ function RentalEditor({
         />
       </div>
       <MoneyField
+        className="qm-money"
         label="Valor do aluguel"
         value={form.cost}
         onChange={(cost) => setForm({ ...form, cost })}

@@ -66,6 +66,14 @@ function FieldLabel({ label, help, isRequired }: Pick<Common, 'label' | 'help' |
   )
 }
 
+/**
+ * On touch screens a field that focuses itself pops the keyboard over the form before the
+ * person chose to type, so autoFocus only applies with a mouse/trackpad.
+ */
+function allowAutoFocus(wanted?: boolean) {
+  return Boolean(wanted) && !window.matchMedia('(pointer: coarse)').matches
+}
+
 export function TextInputField({
   value,
   onChange,
@@ -118,7 +126,7 @@ export function TextInputField({
             inputMode={inputMode}
             autoComplete={autoComplete}
             maxLength={maxLength}
-            autoFocus={autoFocus}
+            autoFocus={typeof window !== 'undefined' && allowAutoFocus(autoFocus)}
             onKeyDown={(event) => {
               if (event.key === 'Enter' && onEnter) {
                 event.preventDefault()
@@ -426,7 +434,10 @@ export function SearchInput({
     >
       <SearchField.Group>
         <SearchField.SearchIcon />
-        <SearchField.Input placeholder={placeholder} autoFocus={autoFocus} />
+        <SearchField.Input
+          placeholder={placeholder}
+          autoFocus={typeof window !== 'undefined' && allowAutoFocus(autoFocus)}
+        />
         <SearchField.ClearButton aria-label="Limpar busca" />
       </SearchField.Group>
     </SearchField>
