@@ -27,6 +27,7 @@ import {
   type ManagerSectionId,
 } from './demo-data'
 import { ManagerMessageModal } from './manager-message-modal'
+import { ManagerMobileNav } from './manager-mobile-nav'
 import { ManagerSidebar } from './manager-sidebar'
 import { firstManagerTourStep, ManagerTour, type ManagerTourStep } from './manager-tour'
 import {
@@ -46,6 +47,11 @@ import {
   type SearchFocus,
 } from './workspace/workspace-signals'
 import { WorkspaceSearch } from './workspace/workspace-search'
+
+export type MediaIncoming = { files: File[]; nonce: number }
+
+/** The search bar lives only where a broad search makes sense. */
+const searchSections = new Set<ManagerSectionId>(['inicio', 'configuracoes'])
 
 function normalize(value: string) {
   return value
@@ -87,8 +93,11 @@ export function ManagerHome({
   settingsTabs?: ManagerSettingsSection[]
   profile?: ReactNode
   payments?: ReactNode
-  /** Media library (Mídia); a placeholder explains it in the demo. */
-  media?: ReactNode
+  /**
+   * Media library (Mídia); a placeholder explains it in the demo. The function form receives
+   * photos picked from the mobile "+" menu, to be sent as soon as the library opens.
+   */
+  media?: ReactNode | ((incoming: MediaIncoming | null) => ReactNode)
   /** Real section content backed by the API; replaces the illustrative sketch. */
   panels?: Partial<
     Record<
@@ -192,9 +201,8 @@ export function ManagerHome({
   const [notice, setNotice] = useState<string | null>(null)
   const [announcement, setAnnouncement] = useState(true)
   const [forceGlass, setForceGlass] = useState(false)
-  const [copied, setCopied] = useState(false)
   const [focus, setFocus] = useState<SearchFocus | null>(null)
-  const [copyError, setCopyError] = useState(false)
+  const [incomingMedia, setIncomingMedia] = useState<MediaIncoming | null>(null)
   const realClinic = shareCode !== undefined
   const isHome = section.id === 'inicio'
 
@@ -218,14 +226,15 @@ export function ManagerHome({
 
   function closeNotice() {
     setNotice(null)
-    setCopied(false)
-    setCopyError(false)
   }
 
   function openNotice(label: string) {
-    setCopied(false)
-    setCopyError(false)
     setNotice(label)
+  }
+
+  function openAccount() {
+    if (workspace) setAccountOpen(true)
+    else openNotice('Minha conta')
   }
 
   function navigate(label: string) {
@@ -348,18 +357,20 @@ export function ManagerHome({
               </>
             )}
           </div>
-          <Button
-            ref={searchTrigger}
-            data-manager-spotlight="search"
-            className="manager-search-trigger"
-            variant="secondary"
-            onPress={() => changeSearch(true)}
-            aria-label={`Buscar em ${section.label} (Control ou Command K)`}
-          >
-            <Search size={19} />
-            <span>{section.searchPlaceholder}</span>
-            <kbd>Ctrl/⌘ K</kbd>
-          </Button>
+          {searchSections.has(section.id) ? (
+            <Button
+              ref={searchTrigger}
+              data-manager-spotlight="search"
+              className="manager-search-trigger"
+              variant="secondary"
+              onPress={() => changeSearch(true)}
+              aria-label={`Buscar em ${section.label} (Control ou Command K)`}
+            >
+              <Search size={19} />
+              <span>{section.searchPlaceholder}</span>
+              <kbd>Ctrl/⌘ K</kbd>
+            </Button>
+          ) : null}
           <div className="manager-header-actions">
             <Button
               isIconOnly
@@ -399,10 +410,7 @@ export function ManagerHome({
                 <Dropdown.Menu
                   aria-label="Conta"
                   onAction={(key) => {
-                    if (key === 'account') {
-                      if (workspace) setAccountOpen(true)
-                      else openNotice('Minha conta')
-                    }
+                    if (key === 'account') openAccount()
                     if (key === 'settings') select('configuracoes')
                     if (key === 'logout') {
                       if (onLogout) onLogout()
@@ -451,6 +459,8 @@ export function ManagerHome({
         {workspace ? (
           <AccountModal
             api={workspace.api}
+            fallbackName={givenName === 'Gestor' ? '' : givenName}
+            fallbackEmail={userEmail}
             isOpen={accountOpen}
             onOpenChange={setAccountOpen}
             onSaved={async (saved) => {
@@ -459,15 +469,8 @@ export function ManagerHome({
             }}
           />
         ) : null}
-        {workspace ? <NoticeCarousel go={go} /> : null}
+        {workspace && isHome ? <NoticeCarousel go={go} /> : null}
         {section.id !== 'configuracoes' && banner}
-        {realClinic && isHome && (
-          <div className="manager-clinic-tools">
-            <Button variant="ghost" onPress={() => openNotice('Código de acesso')}>
-              Código de acesso <ArrowRight size={16} />
-            </Button>
-          </div>
-        )}
         {realPanel ? realPanel({ createSignal, navigate, focus: panelFocus, go }) : null}
         {section.id === 'inicio' && !realPanel && (
           <HomePanels
@@ -495,7 +498,7 @@ export function ManagerHome({
             <div className="fold-body">{payments}</div>
           </details>
         ) : null}
-        {section.id === 'midia' && media}
+        {section.id === 'midia' && (typeof media === 'function' ? media(incomingMedia) : media)}
         {sketch && (
           <SectionSketchView
             sketch={sketch}
@@ -545,23 +548,17 @@ export function ManagerHome({
           </div>
         </footer>
       </main>
-      <nav className="manager-bottom-nav" aria-label="Navegação móvel">
-        {navigation.slice(0, 4).map(({ id, label, icon: Icon }) => (
-          <Button
-            key={id}
-            variant="ghost"
-            aria-current={id === section.id ? 'page' : undefined}
-            onPress={() => select(id)}
-          >
-            <Icon size={21} />
-            <span>{label}</span>
-          </Button>
-        ))}
-        <Button variant="ghost" data-manager-spotlight="search" onPress={() => changeSearch(true)}>
-          <Search size={21} />
-          <span>Buscar</span>
-        </Button>
-      </nav>
+      <ManagerMobileNav
+        navigation={navigation}
+        current={section.id}
+        onSelect={(id) => select(id)}
+        go={go}
+        onAccount={openAccount}
+        onMediaFiles={(files) => {
+          setIncomingMedia({ files, nonce: Date.now() })
+          select('midia')
+        }}
+      />
       {tourOpen && (
         <ManagerTour
           canManageSettings={canManageSettings}
@@ -672,35 +669,6 @@ export function ManagerHome({
             <Modal.Body>
               {notice === 'Minha conta' && profile ? (
                 profile
-              ) : notice === 'Código de acesso' ? (
-                shareCode ? (
-                  <div className="manager-access-code">
-                    <p>
-                      Use este código para o cliente identificar a clínica. Ele não concede acesso à
-                      equipe.
-                    </p>
-                    <code>{shareCode}</code>
-                    <Button
-                      onPress={() =>
-                        void navigator.clipboard
-                          .writeText(shareCode)
-                          .then(() => {
-                            setCopyError(false)
-                            setCopied(true)
-                          })
-                          .catch(() => setCopyError(true))
-                      }
-                    >
-                      Copiar código
-                    </Button>
-                    {copied && <p role="status">Código copiado.</p>}
-                    {copyError && (
-                      <p role="alert">Não foi possível copiar. Selecione o código acima.</p>
-                    )}
-                  </div>
-                ) : (
-                  <p>O código de acesso aparece quando a configuração da clínica é concluída.</p>
-                )
               ) : (
                 <p>
                   Esta funcionalidade ainda está em desenvolvimento. Os agendamentos, atividades e

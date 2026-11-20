@@ -108,7 +108,11 @@ export function ClinicHome({
       initialSection={initialSection}
       initialSettingsTab={initialSettingsTab}
       payments={<ConnectPanel dashboard />}
-      media={permissions.includes('media:read') ? <MediaLibrary clinicId={clinic.id} /> : undefined}
+      media={
+        permissions.includes('media:read')
+          ? (incoming) => <MediaLibrary clinicId={clinic.id} incoming={incoming} />
+          : undefined
+      }
       panels={{
         agenda: ({ createSignal, go }) => (
           <AgendaPanel

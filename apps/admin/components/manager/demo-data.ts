@@ -1,7 +1,6 @@
 import {
   CalendarDays,
   ChartNoAxesCombined,
-  CircleHelp,
   House,
   Megaphone,
   Package,
@@ -127,8 +126,6 @@ export const managerNavigation: ManagerNavItem[] = [
     createLabel: 'Editar clínica',
   },
 ]
-
-export const supportNavigation = [{ label: 'Central de ajuda', icon: CircleHelp }]
 
 // Fixtures exclusivas da prévia. Não usar como fallback de dados reais.
 export const demoAppointments = [

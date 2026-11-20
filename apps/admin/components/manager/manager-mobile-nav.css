@@ -1,0 +1,209 @@
+/* Navegação móvel do gestor: Início · Agenda · (+) · Clientes · Menu. */
+.mnav,
+.mnav-backdrop,
+.mnav-sheet {
+  display: none;
+}
+
+@media (max-width: 900px) {
+  .manager-bottom-nav.mnav {
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    align-items: center;
+    z-index: 32;
+    overflow: visible;
+  }
+  .mnav-tab {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    min-width: 0;
+    height: 54px;
+    padding: 7px 2px;
+    border: 0;
+    border-radius: 14px;
+    background: transparent;
+    color: var(--space-highlight, #f8deea);
+    font: inherit;
+    font-size: 10px;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+    transition:
+      background-color 0.18s ease,
+      color 0.18s ease;
+  }
+  .mnav-tab[aria-current] {
+    background: color-mix(in srgb, var(--space-accent, #e8377b) 43.14%, transparent);
+    color: white;
+  }
+  .mnav-tab.is-empty {
+    pointer-events: none;
+  }
+  .mnav-tab:focus-visible,
+  .mnav-fab:focus-visible,
+  .mnav-create-item:focus-visible,
+  .mnav-menu-item:focus-visible,
+  .mnav-menu-link:focus-visible {
+    outline: 2px solid var(--space-highlight, #ffd4e7);
+    outline-offset: 2px;
+  }
+
+  .mnav-fab-slot {
+    display: flex;
+    justify-content: center;
+  }
+  .mnav-fab {
+    display: grid;
+    place-items: center;
+    width: 54px;
+    height: 54px;
+    margin-top: -26px;
+    border: 1px solid #ffffff40;
+    border-radius: 18px;
+    background: linear-gradient(
+      140deg,
+      var(--space-accent, #ec247b),
+      color-mix(in srgb, var(--space-accent, #ec247b) 55%, var(--space-highlight, #f982b3))
+    );
+    color: white;
+    cursor: pointer;
+    box-shadow:
+      0 10px 24px color-mix(in srgb, var(--space-accent, #ec247b) 45%, transparent),
+      inset 0 1px #ffffff55;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .mnav-backdrop {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 30;
+    background: color-mix(in srgb, var(--space-deep, #210715) 55%, transparent);
+    backdrop-filter: blur(6px);
+  }
+  .mnav-sheet {
+    display: block;
+    position: fixed;
+    z-index: 31;
+    left: 16px;
+    right: 16px;
+    bottom: calc(max(7px, env(safe-area-inset-bottom)) + 92px);
+  }
+
+  .mnav-create {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+  }
+  .mnav-create-item {
+    display: flex;
+    align-items: center;
+    gap: 11px;
+    min-height: 66px;
+    padding: 12px;
+    border: 1px solid #ffffff30;
+    border-radius: 18px;
+    background: color-mix(in srgb, var(--space-deep, #5a1639) 94%, transparent);
+    color: white;
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+    box-shadow: 0 10px 28px color-mix(in srgb, var(--space-deep, #210715) 35%, transparent);
+    -webkit-tap-highlight-color: transparent;
+  }
+  /* The odd last action spans the row, so the grid always closes evenly. */
+  .mnav-create-item:last-child:nth-child(odd) {
+    grid-column: 1 / -1;
+  }
+  .mnav-create-icon {
+    display: grid;
+    place-items: center;
+    flex-shrink: 0;
+    width: 40px;
+    height: 40px;
+    border-radius: 13px;
+    background: color-mix(in srgb, var(--space-accent, #ec247b) 40%, transparent);
+    color: white;
+  }
+  .mnav-create-copy {
+    display: grid;
+    gap: 2px;
+    min-width: 0;
+  }
+  .mnav-create-copy strong {
+    font-size: 14px;
+    font-weight: 600;
+  }
+  .mnav-create-copy small {
+    font-size: 11px;
+    color: var(--manager-muted, #f1cfdf);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .mnav-menu {
+    padding: 12px;
+    border: 1px solid #ffffff30;
+    border-radius: 22px;
+    background: color-mix(in srgb, var(--space-deep, #5a1639) 96%, transparent);
+    box-shadow: 0 14px 36px color-mix(in srgb, var(--space-deep, #210715) 40%, transparent);
+    max-height: calc(100dvh - 140px);
+    overflow-y: auto;
+    scrollbar-width: none;
+  }
+  .mnav-menu::-webkit-scrollbar {
+    display: none;
+  }
+  .mnav-menu-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
+  }
+  .mnav-menu-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+    min-height: 76px;
+    padding: 10px 4px;
+    border: 1px solid #ffffff1a;
+    border-radius: 16px;
+    background: #ffffff0d;
+    color: var(--space-highlight, #f8deea);
+    font: inherit;
+    font-size: 12px;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .mnav-menu-item[aria-current] {
+    background: color-mix(in srgb, var(--space-accent, #e8377b) 43.14%, transparent);
+    color: white;
+  }
+  .mnav-menu-footer {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px solid #ffffff1a;
+  }
+  .mnav-menu-link {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    min-height: 44px;
+    padding: 0 10px;
+    border: 0;
+    border-radius: 12px;
+    background: #ffffff10;
+    color: white;
+    font: inherit;
+    font-size: 12px;
+    cursor: pointer;
+  }
+}

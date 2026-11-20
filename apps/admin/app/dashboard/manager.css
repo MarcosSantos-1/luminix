@@ -607,6 +607,7 @@
   position: fixed;
   z-index: -1;
   inset: 0;
+  pointer-events: none;
   background:
     linear-gradient(
       color-mix(in srgb, var(--space-deep, #31051d) 23.92%, transparent),
@@ -650,11 +651,32 @@
   backdrop-filter: blur(24px);
   box-shadow: 0 16px 45px color-mix(in srgb, var(--space-deep, #270113) 18.82%, transparent);
 }
+.manager-sidebar-top {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding-bottom: 22px;
+}
+.manager-sidebar-scroll {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: none;
+  margin-inline: -4px;
+  padding-inline: 4px;
+}
+.manager-sidebar-scroll::-webkit-scrollbar {
+  display: none;
+}
 .manager-brand {
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 0 9px 28px;
+  padding: 0 9px;
   font-size: 27px;
   font-weight: 650;
   letter-spacing: -0.8px;
@@ -688,8 +710,10 @@
   box-shadow: inset 0 1px #ffffff25;
 }
 .manager-plan.card {
+  flex-shrink: 0;
   margin-top: auto;
-  margin-bottom: 19px;
+  margin-bottom: 12px;
+  padding-top: 17px;
   padding: 17px 14px;
   gap: 9px;
   background: #ffffff0c;
@@ -713,25 +737,55 @@
   margin-top: 6px;
 }
 .manager-support {
+  flex-shrink: 0;
   display: grid;
   border-top: 1px solid #ffffff1a;
-  padding: 10px 0;
+  padding-top: 10px;
 }
-.manager-support .button,
 .manager-support a {
-  justify-content: flex-start;
   display: flex;
   align-items: center;
-  gap: 13px;
-  padding: 0 12px;
-  min-height: 44px;
+  gap: 12px;
+  padding: 8px 12px;
+  min-height: 48px;
+  border-radius: 12px;
   font-size: 12px;
+  transition: background-color 0.15s ease;
+}
+.manager-support a:hover {
+  background: #ffffff14;
+}
+.manager-support a > span {
+  display: grid;
+  gap: 1px;
+}
+.manager-support strong {
+  font-size: 13px;
+  font-weight: 600;
+}
+.manager-support small {
+  font-size: 11px;
+  color: var(--manager-muted);
 }
 .manager-collapse.button {
-  background: #ffffff10;
-  border: 1px solid #ffffff1a;
-  gap: 13px;
-  font-size: 12px;
+  flex-shrink: 0;
+  margin-left: auto;
+  width: 30px;
+  min-width: 30px;
+  height: 30px;
+  padding: 0;
+  border-radius: 9px;
+  background: transparent;
+  color: var(--manager-muted);
+  opacity: 0.7;
+  transition:
+    opacity 0.15s ease,
+    background-color 0.15s ease;
+}
+.manager-collapse.button:hover,
+.manager-collapse.button:focus-visible {
+  opacity: 1;
+  background: #ffffff14;
 }
 .manager-main {
   max-width: 1600px;
@@ -774,6 +828,11 @@
   width: min(36%, 420px);
   border-radius: 14px;
   min-height: 47px;
+}
+@media (pointer: coarse) {
+  .manager-search-trigger kbd {
+    display: none;
+  }
 }
 .manager-search-trigger kbd {
   margin-left: auto;
@@ -1301,6 +1360,14 @@
 .is-collapsed .manager-brand {
   padding-inline: 8px;
 }
+.is-collapsed .manager-sidebar-top {
+  flex-direction: column;
+  gap: 10px;
+  padding-bottom: 18px;
+}
+.is-collapsed .manager-collapse.button {
+  margin-left: 0;
+}
 .is-collapsed .manager-sidebar span,
 .is-collapsed .manager-plan {
   display: none;
@@ -1309,16 +1376,9 @@
   justify-content: center;
   padding: 0;
 }
-.is-collapsed .manager-support {
-  margin-top: auto;
-}
-.is-collapsed .manager-support a,
-.is-collapsed .manager-support .button {
+.is-collapsed .manager-support a {
   justify-content: center;
   padding: 0;
-}
-.is-collapsed .manager-collapse {
-  min-width: 44px;
 }
 @media (min-width: 1700px) {
   .manager-shell {
@@ -1329,14 +1389,6 @@
   }
   .manager-event {
     min-height: 95px;
-  }
-}
-@media (max-height: 900px) and (min-width: 901px) {
-  .manager-plan.card {
-    display: none;
-  }
-  .manager-support {
-    margin-top: auto;
   }
 }
 @media (max-width: 1200px) {
@@ -1441,6 +1493,7 @@
 }
 @media (max-width: 650px) {
   .manager-shell::before {
+    height: 100lvh;
     background-image:
       linear-gradient(
         color-mix(in srgb, var(--space-deep, #31051d) 31.37%, transparent),
@@ -1477,7 +1530,7 @@
     width: 100%;
   }
   .manager-search-trigger kbd {
-    display: block;
+    display: none;
   }
   .manager-demo-label {
     font-size: 8px;
@@ -1617,8 +1670,7 @@
   font-size: 11px;
 }
 .manager-action.button,
-.manager-shortcuts .button,
-.manager-collapse.button {
+.manager-shortcuts .button {
   width: 100%;
 }
 .manager-client-copy strong,

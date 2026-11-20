@@ -148,7 +148,14 @@ export function formatBytes(bytes: number) {
   return `${(bytes / 1024 ** 3).toFixed(2).replace('.', ',')} GB`
 }
 
-export function MediaLibrary({ clinicId }: { clinicId: string }) {
+export function MediaLibrary({
+  clinicId,
+  incoming,
+}: {
+  clinicId: string
+  /** Photos picked in the mobile "+" menu: sent to "Para organizar" once the library loads. */
+  incoming?: { files: File[]; nonce: number } | null
+}) {
   const api = useClinicApi(clinicId)
   const library = useClinicResource<Library>(api, 'library')
   const [selected, setSelected] = useState<string | null>(null)
@@ -156,6 +163,31 @@ export function MediaLibrary({ clinicId }: { clinicId: string }) {
   const [quickNotice, setQuickNotice] = useState('')
   const [round, setRound] = useState(0)
   const quickInput = useRef<HTMLInputElement>(null)
+  const handledIncoming = useRef<number | null>(null)
+  const loaded = library.data
+  const incomingInbox = loaded?.folders.find((folder) => folder.systemKey === 'inbox')
+  // Photos picked elsewhere that this space or access level cannot receive.
+  const incomingError =
+    incoming && loaded && (!loaded.canManage || !loaded.storageReady || !incomingInbox)
+      ? loaded.canManage
+        ? 'O envio de fotos ainda não está disponível neste espaço.'
+        : 'Seu nível de acesso não permite enviar fotos.'
+      : ''
+  useEffect(() => {
+    if (!incoming || handledIncoming.current === incoming.nonce || !loaded) return
+    handledIncoming.current = incoming.nonce
+    if (!loaded.canManage || !loaded.storageReady || !incomingInbox) return
+    const target = incomingInbox.id
+    void (async () => {
+      setQuickNotice('')
+      const result = await uploadPhotos(api, incoming.files, target, setQuick)
+      setQuick(null)
+      setQuickNotice(result)
+      setSelected(target)
+      setRound((value) => value + 1)
+      library.reload()
+    })()
+  }, [incoming, loaded, incomingInbox, api, library])
 
   if (library.error && !library.data)
     return <LoadError message={library.error} onRetry={library.reload} />
@@ -231,6 +263,11 @@ export function MediaLibrary({ clinicId }: { clinicId: string }) {
             }}
           />
         </div>
+        {incomingError ? (
+          <p className="media-banner" role="alert">
+            {incomingError}
+          </p>
+        ) : null}
         {quickNotice ? (
           <p className="media-banner" role="status">
             <Inbox size={16} aria-hidden /> {quickNotice} Elas estão em “Para organizar”.

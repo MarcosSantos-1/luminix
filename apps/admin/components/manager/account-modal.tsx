@@ -48,8 +48,16 @@ export function AccountModal({
   isOpen,
   onOpenChange,
   onSaved,
+  fallbackName = '',
+  fallbackEmail = '',
 }: {
   api: ClinicApi
+  /**
+   * Sign-in name and e-mail. The owner's membership starts without them (only the sign-in
+   * profile has them), so the form starts from these instead of empty fields.
+   */
+  fallbackName?: string
+  fallbackEmail?: string
   isOpen: boolean
   onOpenChange: (open: boolean) => void
   onSaved: (account: OwnAccount) => void | Promise<void>
@@ -68,8 +76,13 @@ export function AccountModal({
       .get<OwnAccount>('account')
       .then((data) => {
         if (!active) return
-        setAccount(data)
-        setName(data.name)
+        const filled = {
+          ...data,
+          name: data.name || fallbackName.trim(),
+          email: data.email || fallbackEmail,
+        }
+        setAccount(filled)
+        setName(filled.name)
         setPhoto(data.photo)
         setError('')
       })
@@ -77,7 +90,7 @@ export function AccountModal({
     return () => {
       active = false
     }
-  }, [isOpen, api])
+  }, [isOpen, api, fallbackName, fallbackEmail])
 
   async function save() {
     if (!account || saving) return

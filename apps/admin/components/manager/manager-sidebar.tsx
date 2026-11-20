@@ -2,8 +2,9 @@
 
 import Image from 'next/image'
 import { Button, Card } from '@heroui/react'
-import { ChevronLeft, ChevronRight, Crown } from 'lucide-react'
-import { managerNavigation, supportNavigation } from './demo-data'
+import { Crown, MessageCircle, PanelLeftClose, PanelLeftOpen } from 'lucide-react'
+import { managerNavigation } from './demo-data'
+import { supportWhatsAppUrl } from './support'
 
 export function ManagerSidebar({
   activeLabel,
@@ -20,59 +21,71 @@ export function ManagerSidebar({
 }) {
   return (
     <aside className="manager-sidebar">
-      <Button
-        variant="ghost"
-        className="manager-brand"
-        aria-label="Luminix — início"
-        onPress={() => onNavigate('Início')}
-      >
-        <Image src="/brand/logo.png" width={35} height={43} alt="" />
-        <span>Luminix</span>
-      </Button>
-      <nav aria-label="Navegação do gestor" className="manager-nav">
-        {managerNavigation
-          .filter((item) => item.id !== 'configuracoes' || canManageSettings)
-          .map(({ id, label, icon: Icon }) => (
-            <Button
-              key={id}
-              variant="ghost"
-              className={`manager-nav-item ${label === activeLabel ? 'is-active' : ''}`}
-              aria-label={label}
-              aria-current={label === activeLabel ? 'page' : undefined}
-              onPress={() => onNavigate(label)}
-            >
-              <Icon size={20} />
-              <span>{label}</span>
-            </Button>
-          ))}
-      </nav>
-      <Card className="manager-plan">
-        <Crown size={20} />
-        <p>Seu próximo capítulo</p>
-        <strong>Mais tempo para cuidar.</strong>
-        <p>Uma rotina mais leve começa aqui.</p>
-        <Button variant="secondary" onPress={() => onNavigate('Planos')}>
-          Conhecer os planos
+      <div className="manager-sidebar-top">
+        <Button
+          variant="ghost"
+          className="manager-brand"
+          aria-label="Luminix — início"
+          onPress={() => onNavigate('Início')}
+        >
+          <Image src="/brand/logo.png" width={35} height={43} alt="" />
+          <span>Luminix</span>
         </Button>
-      </Card>
-      <div className="manager-support">
-        {supportNavigation.map(({ label, icon: Icon }) => (
-          <Button key={label} variant="ghost" aria-label={label} onPress={() => onNavigate(label)}>
-            <Icon size={18} />
-            <span>{label}</span>
-          </Button>
-        ))}
+        <Button
+          isIconOnly
+          size="sm"
+          variant="ghost"
+          className="manager-collapse"
+          aria-label={collapsed ? 'Expandir menu' : 'Recolher menu'}
+          aria-expanded={!collapsed}
+          onPress={onToggle}
+        >
+          {collapsed ? <PanelLeftOpen size={16} /> : <PanelLeftClose size={16} />}
+        </Button>
       </div>
-      <Button
-        className="manager-collapse"
-        variant="secondary"
-        aria-label={collapsed ? 'Expandir menu' : 'Recolher menu'}
-        aria-expanded={!collapsed}
-        onPress={onToggle}
-      >
-        {collapsed ? <ChevronRight size={18} /> : <ChevronLeft size={18} />}
-        <span>Recolher menu</span>
-      </Button>
+      <div className="manager-sidebar-scroll">
+        <nav aria-label="Navegação do gestor" className="manager-nav">
+          {managerNavigation
+            .filter((item) => item.id !== 'configuracoes' || canManageSettings)
+            .map(({ id, label, icon: Icon }) => (
+              <Button
+                key={id}
+                variant="ghost"
+                className={`manager-nav-item ${label === activeLabel ? 'is-active' : ''}`}
+                aria-label={label}
+                aria-current={label === activeLabel ? 'page' : undefined}
+                onPress={() => onNavigate(label)}
+              >
+                <Icon size={20} />
+                <span>{label}</span>
+              </Button>
+            ))}
+        </nav>
+        <Card className="manager-plan">
+          <Crown size={20} />
+          <p>Seu próximo capítulo</p>
+          <strong>Mais tempo para cuidar.</strong>
+          <p>Uma rotina mais leve começa aqui.</p>
+          <Button variant="secondary" onPress={() => onNavigate('Planos')}>
+            Conhecer os planos
+          </Button>
+        </Card>
+      </div>
+      <div className="manager-support">
+        <a
+          href={supportWhatsAppUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          aria-label="Suporte: perguntar no WhatsApp"
+          title="Suporte no WhatsApp"
+        >
+          <MessageCircle size={18} aria-hidden />
+          <span>
+            <strong>Suporte</strong>
+            <small>Perguntar no WhatsApp</small>
+          </span>
+        </a>
+      </div>
     </aside>
   )
 }
