@@ -374,4 +374,29 @@ describe('aparelhos alugados', () => {
       ).json(),
     ).toMatchObject({ removed: true, financeEntryVoided: true })
   })
+
+  it('deletes the equipment with its rentals, only inside its own clinic', async () => {
+    const created = await call('pack-a', 'POST', clinicA, 'catalog/equipment', {
+      name: 'Laser para excluir',
+      serviceIds: [deviceServiceA],
+    })
+    const equipment = created.json().id
+    await call('pack-a', 'POST', clinicA, `catalog/equipment/${equipment}/rentals`, {
+      startsOn: '2030-05-06',
+      endsOn: '2030-05-06',
+      costCents: 50000,
+      registerExpense: true,
+    })
+    expect(
+      (await call('pack-b', 'POST', clinicB, `catalog/equipment/${equipment}/remove`)).statusCode,
+    ).toBe(404)
+    const removed = await call('pack-a', 'POST', clinicA, `catalog/equipment/${equipment}/remove`)
+    expect(removed.statusCode).toBe(200)
+    expect(removed.json()).toMatchObject({ deleted: true, financeEntriesVoided: 1 })
+    const extras = (await call('pack-a', 'GET', clinicA, 'catalog/extras')).json()
+    expect(extras.equipment.some((item: { id: string }) => item.id === equipment)).toBe(false)
+    expect(
+      (await call('pack-a', 'POST', clinicA, `catalog/equipment/${equipment}/remove`)).statusCode,
+    ).toBe(404)
+  })
 })

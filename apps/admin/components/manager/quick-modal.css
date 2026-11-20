@@ -62,13 +62,16 @@
       color-mix(in srgb, var(--space-accent, #ec247b) 16%, transparent),
       transparent 70%
     ),
-    color-mix(in srgb, var(--space-deep, #1b0a12) 58%, transparent);
-  backdrop-filter: blur(16px) saturate(1.2);
+    color-mix(in srgb, var(--space-deep, #1b0a12) 42%, transparent);
+  backdrop-filter: blur(14px) saturate(1.25);
 }
 .manager-dialog.qm.qm-glow {
   --qm-accent: var(--space-accent, #ec247b);
   --qm-light: var(--space-highlight, #f982b3);
   --qm-deep: var(--space-deep, #3a0a22);
+  /* Rosa/vermelho por padrão, translúcido sobre o painel. */
+  --qm-red: #ff2d55;
+  --qm-night: rgb(36 3 16);
   position: relative;
   overflow: hidden;
   border: 1px solid color-mix(in srgb, var(--qm-light) 34%, transparent);
@@ -76,17 +79,22 @@
   color: white;
   background:
     radial-gradient(
-      110% 70% at 100% 0%,
-      color-mix(in srgb, var(--qm-accent) 20%, transparent),
+      90% 60% at 100% 0%,
+      color-mix(in srgb, var(--qm-accent) 42%, transparent),
       transparent 62%
     ),
     radial-gradient(
-      90% 60% at 0% 100%,
-      color-mix(in srgb, var(--qm-light) 10%, transparent),
-      transparent 60%
+      80% 60% at 0% 100%,
+      color-mix(in srgb, var(--qm-red) 30%, transparent),
+      transparent 62%
     ),
-    color-mix(in srgb, var(--qm-deep) 74%, transparent);
-  backdrop-filter: blur(30px) saturate(1.45);
+    linear-gradient(
+      155deg,
+      color-mix(in srgb, var(--qm-accent) 34%, rgb(36 3 16 / 0.5)),
+      rgb(36 3 16 / 0.58) 55%,
+      color-mix(in srgb, var(--qm-red) 24%, rgb(36 3 16 / 0.56))
+    );
+  backdrop-filter: blur(34px) saturate(1.6);
   box-shadow:
     inset 0 1px #ffffff1f,
     0 30px 90px #000000a6,
@@ -349,8 +357,8 @@
     ),
     linear-gradient(
       165deg,
-      color-mix(in srgb, var(--qm-accent, #ec247b) 55%, var(--qm-deep, #3a0a22)),
-      color-mix(in srgb, var(--qm-deep, #3a0a22) 92%, black)
+      color-mix(in srgb, var(--qm-accent, #ec247b) 78%, rgb(255 45 85 / 0.6)),
+      color-mix(in srgb, var(--qm-accent, #ec247b) 30%, rgb(36 3 16 / 0.55))
     );
   border-right: 1px solid #ffffff1c;
 }
@@ -525,5 +533,107 @@
   }
   .qm-glow .qm-foot .button--primary:hover::after {
     animation: none;
+  }
+}
+
+/* ---------- Aparelhos (novo / editar) ---------- */
+.qm-glow .eq-pick {
+  border-color: color-mix(in srgb, var(--qm-light) 30%, transparent);
+  background:
+    radial-gradient(
+      120% 70% at 50% 0%,
+      color-mix(in srgb, var(--qm-accent) 22%, transparent),
+      transparent 70%
+    ),
+    #ffffff0a;
+  transition:
+    transform 0.2s ease,
+    border-color 0.2s ease,
+    box-shadow 0.2s ease;
+}
+.qm-glow .eq-pick:hover:not(:disabled) {
+  border-color: var(--qm-light);
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, var(--qm-light) 40%, transparent),
+    0 12px 30px color-mix(in srgb, var(--qm-accent) 35%, transparent);
+}
+.qm-glow .eq-pick:hover:not(:disabled) .eq-art img {
+  transform: translateY(-4px) scale(1.04);
+}
+.qm-glow .eq-art img {
+  filter: drop-shadow(0 10px 16px #00000059)
+    drop-shadow(0 0 14px color-mix(in srgb, var(--qm-light) 35%, transparent));
+  transition: transform 0.3s cubic-bezier(0.2, 0.9, 0.3, 1.2);
+}
+.qm-glow .eq-art.is-small {
+  border: 1px solid color-mix(in srgb, var(--qm-light) 30%, transparent);
+  background: radial-gradient(
+    circle at 50% 70%,
+    color-mix(in srgb, var(--qm-accent) 40%, transparent),
+    #ffffff08 70%
+  );
+}
+.qm-glow .eq-services {
+  border-color: color-mix(in srgb, var(--qm-light) 26%, transparent);
+  background: #ffffff06;
+}
+.qm-glow .eq-services li button {
+  transition:
+    border-color 0.2s ease,
+    background-color 0.2s ease;
+}
+.qm-glow .eq-services li button:hover {
+  border-color: color-mix(in srgb, var(--qm-light) 45%, transparent);
+}
+.qm-glow .eq-services li button[aria-checked='true'] {
+  border-color: var(--qm-light);
+  background: color-mix(in srgb, var(--qm-accent) 22%, transparent);
+  box-shadow: 0 0 14px color-mix(in srgb, var(--qm-accent) 30%, transparent);
+}
+.qm-glow .eq-services li button[aria-checked='true'] .eq-check {
+  color: white;
+  background: linear-gradient(135deg, var(--qm-accent), var(--qm-light));
+}
+
+/* Excluir aparelho: discreto até o hover; no celular só a lixeira. */
+.qm .qm-foot .button.eq-delete {
+  gap: 8px;
+  padding-inline: 14px;
+  border: 1px solid #ff7a9233;
+  color: #ffb3c1;
+  background: transparent;
+}
+.qm .qm-foot .button.eq-delete:hover {
+  border-color: #ff7a92;
+  color: white;
+  background: #ff2d5526;
+  box-shadow: 0 0 16px #ff2d5540;
+}
+.eq-delete-ask {
+  flex: 1 1 220px;
+  color: #ffd1da;
+  font-size: 13px;
+  line-height: 1.4;
+}
+.qm .qm-foot .button--danger {
+  gap: 8px;
+  border: 1px solid #ffffff38;
+  color: white;
+  background: linear-gradient(120deg, #e11d48, #ff4d6d);
+  box-shadow: 0 8px 24px #e11d4866;
+}
+@media (max-width: 650px) {
+  .qm-glow .qm-foot .button {
+    flex: 1 1 96px;
+    padding-inline: 14px;
+  }
+  .qm .qm-foot .button.eq-delete {
+    flex: 0 0 48px;
+    width: 48px;
+    min-width: 48px;
+    padding: 0;
+  }
+  .qm .qm-foot .button.eq-delete span {
+    display: none;
   }
 }

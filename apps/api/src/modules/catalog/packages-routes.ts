@@ -457,6 +457,31 @@ export async function packageRoutes(
       }),
   )
 
+  // Excluir: the equipment, its links to services and its rental days. Expenses of rentals that
+  // already started stay in the Financeiro; those of rentals still ahead are voided, as when a
+  // single rental is removed, when the person may change the Financeiro.
+  app.post<{ Params: { clinicId: string; equipmentId: string } }>(
+    '/clinics/:clinicId/catalog/equipment/:equipmentId/remove',
+    { schema: { params: clinicItemParams('equipmentId') } },
+    async (request, reply) =>
+      authorized(request, reply, 'service:manage', async (connection, tenant) => {
+        const removed = await connection.query(
+          'SELECT luminix.delete_rented_equipment($1, $2) AS entries',
+          [tenant.clinicId, request.params.equipmentId],
+        )
+        const entries = (removed.rows[0]?.entries ?? []) as string[]
+        const canVoid =
+          entries.length > 0 && (await rolePermissions(connection, tenant)).has('finance:manage')
+        if (canVoid)
+          for (const entry of entries)
+            await connection.query('SELECT luminix.void_finance_entry($1, $2)', [
+              tenant.clinicId,
+              entry,
+            ])
+        return { deleted: true, financeEntriesVoided: canVoid ? entries.length : 0 }
+      }),
+  )
+
   app.post<{
     Params: { clinicId: string; equipmentId: string }
     Body: {

@@ -2,7 +2,6 @@
 
 import { Button } from '@heroui/react'
 import {
-  Archive,
   CalendarCheck,
   CalendarPlus,
   Check,
@@ -109,18 +108,6 @@ export function EquipmentTab({
       )
     } catch {
       onChanged('Não foi possível remover o aluguel.')
-    } finally {
-      setBusy('')
-    }
-  }
-
-  async function archive(item: Equipment) {
-    setBusy(item.id)
-    try {
-      await api.post(`catalog/equipment/${item.id}/archive`, {})
-      onChanged(`${item.name} arquivado. Os serviços ligados saem da agenda das clientes.`)
-    } catch {
-      onChanged('Não foi possível arquivar.')
     } finally {
       setBusy('')
     }
@@ -261,14 +248,6 @@ export function EquipmentTab({
                       <Button size="sm" onPress={() => setRenting(item)}>
                         <CalendarPlus size={14} aria-hidden /> Marcar aluguel
                       </Button>
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        isDisabled={busy === item.id}
-                        onPress={() => void archive(item)}
-                      >
-                        <Archive size={14} aria-hidden /> Arquivar
-                      </Button>
                     </div>
                   ) : null}
                 </div>
@@ -366,6 +345,7 @@ function EquipmentEditor({
   const [serviceQuery, setServiceQuery] = useState('')
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
+  const [confirmDelete, setConfirmDelete] = useState(false)
   const taken = new Set(
     equipment.filter((entry) => entry.id !== initial.id).map((entry) => equipmentKey(entry.name)),
   )
@@ -440,6 +420,25 @@ function EquipmentEditor({
     }
   }
 
+  async function remove() {
+    setSaving(true)
+    setError('')
+    try {
+      const result = await api.post<{ financeEntriesVoided: number }>(
+        `catalog/equipment/${initial.id}/remove`,
+        {},
+      )
+      onClose(
+        `${initial.name} excluído${result.financeEntriesVoided ? '. As despesas dos aluguéis que ainda não aconteceram foram anuladas no Financeiro' : ''}.`,
+      )
+    } catch {
+      setError('Não foi possível excluir o aparelho.')
+      setConfirmDelete(false)
+    } finally {
+      setSaving(false)
+    }
+  }
+
   const card = (pick: Pick & { score: number }) => {
     const art = equipmentPresentation(pick.name)
     const already = taken.has(equipmentKey(pick.name))
@@ -475,6 +474,8 @@ function EquipmentEditor({
   return (
     <QuickModal
       isOpen
+      tone="glow"
+      badge={isNew ? 'Novo aparelho' : 'Aparelho'}
       onOpenChange={(open) => !open && onClose()}
       size="xl"
       className="eq-modal"
@@ -491,27 +492,54 @@ function EquipmentEditor({
           : 'Os serviços marcados só ficam disponíveis para as clientes nos dias de aluguel.'
       }
       footer={
-        <>
-          {error ? (
-            <span className="apt-error qm-foot-start" role="alert">
-              {error}
+        confirmDelete ? (
+          <>
+            <span className="eq-delete-ask qm-foot-start" role="alert">
+              Excluir {initial.name}? Os dias de aluguel saem junto e os serviços deixam de depender
+              dele.
             </span>
-          ) : null}
-          {step === 'details' && isNew ? (
-            <Button variant="ghost" onPress={() => setStep('pick')}>
-              Escolher outro
+            <Button variant="secondary" isDisabled={saving} onPress={() => setConfirmDelete(false)}>
+              Não
             </Button>
-          ) : (
-            <Button variant="secondary" onPress={() => onClose()}>
-              Cancelar
+            <Button variant="danger" isDisabled={saving} onPress={() => void remove()}>
+              <Trash2 size={16} aria-hidden /> {saving ? 'Excluindo…' : 'Excluir de vez'}
             </Button>
-          )}
-          {step === 'details' ? (
-            <Button isDisabled={saving} onPress={() => void save()}>
-              {saving ? 'Salvando…' : isNew ? 'Cadastrar aparelho' : 'Salvar'}
-            </Button>
-          ) : null}
-        </>
+          </>
+        ) : (
+          <>
+            {!isNew ? (
+              <Button
+                variant="ghost"
+                className="eq-delete qm-foot-start"
+                aria-label="Excluir aparelho"
+                isDisabled={saving}
+                onPress={() => setConfirmDelete(true)}
+              >
+                <Trash2 size={17} aria-hidden />
+                <span>Excluir aparelho</span>
+              </Button>
+            ) : null}
+            {error ? (
+              <span className="apt-error qm-foot-start" role="alert">
+                {error}
+              </span>
+            ) : null}
+            {step === 'details' && isNew ? (
+              <Button variant="ghost" onPress={() => setStep('pick')}>
+                Escolher outro
+              </Button>
+            ) : (
+              <Button variant="secondary" onPress={() => onClose()}>
+                Cancelar
+              </Button>
+            )}
+            {step === 'details' ? (
+              <Button isDisabled={saving} onPress={() => void save()}>
+                {saving ? 'Salvando…' : isNew ? 'Cadastrar aparelho' : 'Salvar'}
+              </Button>
+            ) : null}
+          </>
+        )
       }
     >
       {step === 'pick' ? (
@@ -572,7 +600,12 @@ function EquipmentEditor({
                   value={item.supplier}
                   onChange={(supplier) => setItem({ ...item, supplier })}
                 />
-                <MoneyField label="Valor de costume por aluguel" value={cost} onChange={setCost} />
+                <MoneyField
+                  className="qm-money"
+                  label="Valor de costume por aluguel"
+                  value={cost}
+                  onChange={setCost}
+                />
               </div>
             </div>
           </div>

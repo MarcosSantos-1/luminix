@@ -163,6 +163,7 @@ describe('versioned core migration', () => {
       { name: '0051_marketing_posts.sql' },
       { name: '0052_access_levels_and_options.sql' },
       { name: '0053_team_access_level.sql' },
+      { name: '0054_delete_rented_equipment.sql' },
     ])
   })
 
