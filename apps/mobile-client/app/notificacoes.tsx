@@ -1,4 +1,4 @@
-import { useRouter } from 'expo-router'
+import { useFocusEffect, useRouter } from 'expo-router'
 import { ScrollView, Text, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { timeAgo } from '../src/format'
@@ -11,7 +11,8 @@ export default function Notices() {
   const router = useRouter()
   const insets = useSafeAreaInsets()
   const palette = usePalette()
-  const { notices, unread, markRead } = useStore()
+  const { notices, unread, markRead, refreshNotices } = useStore()
+  useFocusEffect(refreshNotices)
   return (
     <ScrollView
       style={{ flex: 1, backgroundColor: colors.bg }}
@@ -83,7 +84,9 @@ export default function Notices() {
                 }}
               >
                 <Icon
-                  name={item.kind === 'booking' ? 'calendar' : 'home'}
+                  name={
+                    item.kind === 'booking' ? 'calendar' : item.kind === 'promo' ? 'tag' : 'home'
+                  }
                   size={18}
                   color={palette.deep}
                 />

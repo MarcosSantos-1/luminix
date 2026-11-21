@@ -79,6 +79,7 @@ export function ClinicHome({
     <ManagerHome
       key={`${staff.user?.uid}/${clinic.id}`}
       clinicName={clinic.name}
+      trialEndsAt={clinic.trial_ends_at}
       userName={staff.user?.displayName || 'Gestor'}
       userEmail={staff.user?.email || undefined}
       onAccountSaved={async (name) => {
@@ -141,6 +142,9 @@ export function ClinicHome({
               ),
               servicos: ({ createSignal, navigate, focus }) => (
                 <ServicesPanel
+                  canSellPackages={
+                    permissions.includes('client:manage') && permissions.includes('client:read')
+                  }
                   clinicId={clinic.id}
                   createSignal={createSignal}
                   focus={focus}

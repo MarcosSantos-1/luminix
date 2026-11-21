@@ -710,31 +710,55 @@
   box-shadow: inset 0 1px #ffffff25;
 }
 .manager-plan.card {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
   flex-shrink: 0;
-  margin-top: auto;
-  margin-bottom: 12px;
-  padding-top: 17px;
-  padding: 17px 14px;
-  gap: 9px;
-  background: #ffffff0c;
+  width: 100%;
+  margin: 20px 0;
+  padding: 14px;
+  gap: 10px;
   border: 1px solid var(--manager-border);
   border-radius: 16px;
   color: inherit;
   box-shadow: none;
+  text-align: left;
+  cursor: pointer;
 }
-.manager-plan p {
+.manager-plan:hover {
+  filter: brightness(1.12);
+}
+.manager-plan span {
+  display: grid;
+  gap: 2px;
+  overflow-wrap: anywhere;
+}
+.manager-plan small {
   color: var(--manager-muted);
   font-size: 12px;
-  line-height: 1.6;
 }
 .manager-plan strong {
   font-size: 14px;
-  font-weight: 600;
+  font-weight: 650;
 }
-.manager-plan .button {
-  background: #ffffff13;
-  font-size: 12px;
-  margin-top: 6px;
+.mnav-sheet .manager-plan {
+  margin: 12px 0;
+}
+.manager-plan-details,
+.manager-plan-details section {
+  display: grid;
+  gap: 8px;
+  justify-items: start;
+}
+.manager-plan-details {
+  gap: 18px;
+}
+.manager-plan-details h3,
+.manager-plan-details p {
+  margin: 0;
+}
+.manager-plan-details p {
+  color: var(--manager-muted);
 }
 .manager-support {
   flex-shrink: 0;
@@ -2159,13 +2183,8 @@
     ),
     #ffffff0c;
 }
-.manager-plan.card > svg {
+.manager-plan.card > svg:first-child {
   color: #ffd98a;
-  filter: drop-shadow(0 0 8px #ffd98a99);
-}
-.manager-plan .button {
-  border: 1px solid #ffffff2e;
-  background: #ffffff1a;
 }
 .manager-support a {
   border: 1px solid #ffffff14;

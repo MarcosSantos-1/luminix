@@ -3756,3 +3756,27 @@
     gap: 4px;
   }
 }
+
+.inv-category-filters {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.inv-category-filters button {
+  max-width: 100%;
+  overflow-wrap: anywhere;
+}
+.inv-category-filters .inv-category-manage {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  border-style: dashed;
+}
+.inv-cat-list .lx-field,
+.inv-cat-list .input-group {
+  min-width: 0;
+  width: 100%;
+}
+.inv-cat-list li > span {
+  color: var(--manager-muted);
+  font-size: 13px;
+}

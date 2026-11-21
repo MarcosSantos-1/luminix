@@ -11,17 +11,27 @@ import {
   Layers,
   Moon,
   Pencil,
+  Plus,
   Sparkles,
+  TicketPercent,
   Sun,
   Sunrise,
   UserRound,
   UsersRound,
 } from 'lucide-react'
-import { useEffect, useMemo, useState, type FormEvent } from 'react'
-import { DateInputField, SearchInput, TextAreaField, TextInputField } from '@/components/ui/fields'
+import { useId, useEffect, useMemo, useState, type FormEvent } from 'react'
+import {
+  DateInputField,
+  SearchInput,
+  SelectField,
+  TextAreaField,
+  TextInputField,
+} from '@/components/ui/fields'
 import { formatBrPhone, toE164Phone } from '@/lib/phone'
 import { holidaysBetween, shiftDate } from '@/lib/holidays'
-import { initials } from '../business/format'
+import { dateBr, initials, money } from '../business/format'
+import { ClientAvatar } from '../client-photo'
+import { voucherDiscount, type ClientVoucher } from '../clients/voucher-modal'
 import { ClinicApiError, type ClinicApi } from '../settings/clinic-api'
 import { QuickModal } from '../quick-modal'
 import { clock, localDate, type BookingWarning } from './model'
@@ -36,9 +46,25 @@ export type ClosureRow = {
   note: string | null
 }
 export type BookingProfessional = { id: string; display_name: string; photo_url?: string | null }
+type BookingClient = {
+  id: string
+  display_name: string
+  contact_phone?: string | null
+  photo_url?: string | null
+  photo_large_url?: string | null
+  account_photo?: boolean
+}
+
 export type BookingOptions = {
-  clients: { id: string; display_name: string }[]
-  services: { id: string; name: string; duration_minutes: number }[]
+  clients: BookingClient[]
+  services: {
+    id: string
+    name: string
+    duration_minutes: number
+    price_cents?: number | null
+    price_type?: string
+  }[]
+  canOpenClients?: boolean
   professionals: BookingProfessional[]
   timezone: string
 }
@@ -127,7 +153,7 @@ function closureOn(data: WindowData, date: string, professionalId: string) {
 }
 
 /**
- * Start times in blocks of the service (up to 1h), from 2h before opening to 2h after closing.
+ * Start times in blocks of the service (up to 1h), from 2h before opening to 4h after closing.
  * Times outside the hours, taken or already gone stay visible but marked: the manager may still
  * use them (chave mestra), the API asks for confirmation.
  */
@@ -143,22 +169,31 @@ export function buildSlots(
   const close = periods.length ? Math.max(...periods.map((item) => minutes(item.end))) : 20 * 60
   const step = Math.min(60, Math.max(15, Math.round(Math.min(duration, 60) / 15) * 15))
   const first = Math.max(0, open - (periods.length ? 120 : 0))
-  const last = Math.min(24 * 60, close + (periods.length ? 120 : 0))
+  const last = close + (periods.length ? 240 : 0)
+  const previousPeriods = dayPeriods(data, shiftDate(date, -1))
+  const spillover = Math.max(
+    0,
+    ...previousPeriods.map((period) => minutes(period.end) + 240 - 1440),
+  )
   const today = localDate(now, data.timezone)
   const nowClock = clock(now.toISOString(), data.timezone)
+  function relativeMinutes(instant: string) {
+    const localDay = localDate(instant, data.timezone)
+    const days = (Date.parse(localDay) - Date.parse(date)) / 86400000
+    return days * 1440 + minutes(clock(instant, data.timezone))
+  }
   const taken = data.appointments
     .filter(
       (item) =>
         (item.status === 'scheduled' || item.status === 'confirmed') &&
-        localDate(item.starts_at, data.timezone) === date &&
         (!professionalId || !item.professional_id || item.professional_id === professionalId),
     )
-    .map((item) => ({
-      start: minutes(clock(item.starts_at, data.timezone)),
-      end: minutes(clock(item.ends_at, data.timezone)) || 24 * 60,
-    }))
+    .map((item) => ({ start: relativeMinutes(item.starts_at), end: relativeMinutes(item.ends_at) }))
+  const starts = new Set<number>()
+  for (let start = 0; start + duration <= spillover; start += step) starts.add(start)
+  for (let start = first; start < 1440 && start + duration <= last; start += step) starts.add(start)
   const slots: Slot[] = []
-  for (let start = first; start + duration <= last; start += step) {
+  for (const start of [...starts].sort((a, b) => a - b)) {
     const end = start + duration
     const time = hhmm(start)
     const inside = periods.some((item) => minutes(item.start) <= start && minutes(item.end) >= end)
@@ -176,6 +211,12 @@ export function buildSlots(
     })
   }
   return slots
+}
+
+function durationLabel(value: number) {
+  return value < 60
+    ? `${value} min`
+    : `${Math.floor(value / 60)}h${String(value % 60).padStart(2, '0')}`
 }
 
 function Face({ name, photo, size = 44 }: { name: string; photo?: string | null; size?: number }) {
@@ -223,15 +264,28 @@ export function BookingModal({
   const [time, setTime] = useState('')
   const [stripStart, setStripStart] = useState('')
   const [query, setQuery] = useState('')
+  const [clientForm, setClientForm] = useState(false)
+  const [newClients, setNewClients] = useState<BookingClient[]>([])
   const [agendaWindow, setAgendaWindow] = useState<{ key: string; data: WindowData } | null>(null)
   const [warnings, setWarnings] = useState<BookingWarning[]>([])
   // Active packages of the chosen client for the chosen service; one session can pay the visit.
   const [packs, setPacks] = useState<PackOption[]>([])
   const [usePack, setUsePack] = useState(true)
+  const [voucherList, setVoucherList] = useState<{
+    clientId: string
+    items: ClientVoucher[]
+  } | null>(null)
+  const [voucherId, setVoucherId] = useState('')
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
 
-  const lists: BookingOptions | null = options ?? agendaWindow?.data ?? null
+  const lists = agendaWindow?.data ?? options ?? null
+  const clients = useMemo(() => {
+    const existing = lists?.clients ?? []
+    const ids = new Set(newClients.map((item) => item.id))
+    return [...newClients, ...existing.filter((item) => !ids.has(item.id))]
+  }, [lists, newClients])
+  const today = localDate(new Date(), lists?.timezone)
   const professionals = useMemo(() => lists?.professionals ?? [], [lists])
   // One professional (or none): the agenda is the space's own, no "Com quem?" step.
   const asksProfessional = professionals.length > 1
@@ -243,7 +297,7 @@ export function BookingModal({
   useEffect(() => {
     if (!isOpen) return
     // A day that already went by cannot be booked: it opens on today.
-    const todayDate = localDate(new Date())
+    const todayDate = localDate(new Date(), options?.timezone)
     const start = initialDate && initialDate >= todayDate ? initialDate : todayDate
     // eslint-disable-next-line react-hooks/set-state-in-effect -- a fresh flow each time it opens
     setStep(initialClientId ? 'service' : 'client')
@@ -257,10 +311,14 @@ export function BookingModal({
     setAgendaWindow(null)
     setPacks([])
     setUsePack(true)
+    setVoucherList(null)
+    setVoucherId('')
     setQuery('')
+    setClientForm(false)
+    setNewClients([])
     setWarnings([])
     setError('')
-  }, [isOpen, initialDate, initialClientId])
+  }, [isOpen, initialDate, initialClientId, options?.timezone])
 
   // Two weeks of agenda around the strip: hours, special dates, closures and who is booked.
   const windowKey = stripStart
@@ -297,7 +355,19 @@ export function BookingModal({
     }
   }, [isOpen, clientId, api])
 
-  const client = lists?.clients.find((item) => item.id === clientId)
+  useEffect(() => {
+    if (!isOpen || !clientId) return
+    let active = true
+    void api
+      .get<{ vouchers: ClientVoucher[] }>(`clients/${clientId}/vouchers`)
+      .then((body) => active && setVoucherList({ clientId, items: body.vouchers }))
+      .catch(() => active && setVoucherList({ clientId, items: [] }))
+    return () => {
+      active = false
+    }
+  }, [api, clientId, isOpen])
+
+  const client = clients.find((item) => item.id === clientId)
   const service = lists?.services.find((item) => item.id === serviceId)
   const person = professionals.find((item) => item.id === professionalId)
   const data = agendaWindow?.key === windowKey ? agendaWindow.data : null
@@ -334,36 +404,40 @@ export function BookingModal({
     .find((item) => item.left > 0)
   const comboMinutes =
     usePack && pack?.kind === 'combo' && pack.durationMinutes ? pack.durationMinutes : null
-  const slots = useMemo(
-    () =>
-      data && service && date
-        ? buildSlots(data, date, comboMinutes ?? Number(service.duration_minutes), professionalId)
-        : [],
-    [data, service, date, professionalId, comboMinutes],
-  )
+  const slots =
+    data && service && date && step === 'when'
+      ? buildSlots(data, date, comboMinutes ?? Number(service.duration_minutes), professionalId)
+      : []
+  const validVouchers =
+    service?.price_type === 'fixed' &&
+    Number(service.price_cents) > 0 &&
+    voucherList?.clientId === clientId
+      ? voucherList.items.filter((item) => item.status === 'available' && item.expires_on >= date)
+      : []
+  const chosenVoucher = validVouchers.find((item) => item.id === voucherId)
   const recent = useMemo(() => {
     const seen = new Set<string>()
     const source = [...(agendaWindow?.data.appointments ?? [])].sort((left, right) =>
       right.starts_at.localeCompare(left.starts_at),
     )
-    const result: { id: string; display_name: string }[] = []
+    const result: BookingClient[] = []
     for (const item of source) {
       if (seen.has(item.client_id)) continue
       seen.add(item.client_id)
-      const found = lists?.clients.find((entry) => entry.id === item.client_id)
+      const found = clients.find((entry) => entry.id === item.client_id)
       if (found) result.push(found)
       if (result.length === 8) break
     }
     return result
-  }, [agendaWindow, lists])
+  }, [agendaWindow, clients])
   const filtered = useMemo(() => {
     const needle = query.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim()
-    const all = lists?.clients ?? []
+    const all = clients
     if (!needle) return all
     return all.filter((item) =>
       item.display_name.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().includes(needle),
     )
-  }, [lists, query])
+  }, [clients, query])
 
   function go(next: Step) {
     setStep(next)
@@ -400,7 +474,11 @@ export function BookingModal({
         professionalId: professionalId || undefined,
         localStartsAt: `${date}T${time}`,
         confirmedWarnings: confirm ? warnings.map((warning) => warning.code) : [],
-        ...(pack && usePack ? { clientPackageId: pack.id } : {}),
+        ...(pack && usePack
+          ? { clientPackageId: pack.id }
+          : chosenVoucher
+            ? { voucherId: chosenVoucher.id }
+            : {}),
       })
       onOpenChange(false)
       onCreated(
@@ -408,9 +486,19 @@ export function BookingModal({
       )
     } catch (caught) {
       const body =
-        caught instanceof ClinicApiError ? (caught.body as { warnings?: BookingWarning[] }) : null
+        caught instanceof ClinicApiError
+          ? (caught.body as { warnings?: BookingWarning[]; error?: string })
+          : null
       if (caught instanceof ClinicApiError && caught.status === 409 && body?.warnings)
         setWarnings(body.warnings)
+      else if (body?.error === 'Voucher unavailable')
+        setError(
+          'O voucher não está disponível para este horário. Escolha outro ou retire o desconto.',
+        )
+      else if (body?.error === 'Outside manager booking window')
+        setError(
+          'O atendimento precisa caber entre 2 horas antes da abertura e 4 horas depois do fechamento.',
+        )
       else setError('Não foi possível criar o agendamento.')
     } finally {
       setSaving(false)
@@ -429,7 +517,7 @@ export function BookingModal({
     { label: 'Noite', icon: Moon, items: slots.filter((slot) => slot.time >= '18:00') },
   ].filter((group) => group.items.length)
 
-  return (
+  const booking = (
     <QuickModal
       isOpen={isOpen}
       onOpenChange={onOpenChange}
@@ -485,6 +573,16 @@ export function BookingModal({
 
       {lists && step === 'client' ? (
         <div className="bk-step">
+          {lists.canOpenClients ? (
+            <Button
+              className="bk-new-client"
+              variant="ghost"
+              size="sm"
+              onPress={() => setClientForm(true)}
+            >
+              <Plus size={16} aria-hidden /> Novo cliente
+            </Button>
+          ) : null}
           <SearchInput
             ariaLabel="Buscar cliente"
             placeholder="Buscar pelo nome"
@@ -493,6 +591,7 @@ export function BookingModal({
             onEnter={() => {
               if (filtered.length === 1) {
                 setClientId(filtered[0].id)
+                setVoucherId('')
                 advance()
               }
             }}
@@ -508,10 +607,15 @@ export function BookingModal({
                     aria-pressed={item.id === clientId}
                     onClick={() => {
                       setClientId(item.id)
+                      setVoucherId('')
                       advance()
                     }}
                   >
-                    <Face name={item.display_name} size={48} />
+                    <ClientAvatar
+                      name={item.display_name}
+                      photoUrl={item.photo_url}
+                      account={item.account_photo ? { api, clientId: item.id } : null}
+                    />
                     <span>{item.display_name.split(' ')[0]}</span>
                   </button>
                 ))}
@@ -521,17 +625,31 @@ export function BookingModal({
           {filtered.length ? (
             <ul className="bk-list" aria-label="Clientes">
               {filtered.slice(0, 80).map((item) => (
-                <li key={item.id}>
+                <li className="bk-client-row" key={item.id}>
+                  <ClientAvatar
+                    name={item.display_name}
+                    photoUrl={item.photo_url}
+                    largeUrl={item.photo_large_url}
+                    account={item.account_photo ? { api, clientId: item.id } : null}
+                    size="lg"
+                    lazy
+                    viewable
+                  />
                   <button
                     type="button"
                     aria-pressed={item.id === clientId}
                     onClick={() => {
                       setClientId(item.id)
+                      setVoucherId('')
                       advance()
                     }}
                   >
-                    <Face name={item.display_name} size={38} />
-                    <strong>{item.display_name}</strong>
+                    <span className="bk-client-copy">
+                      <strong>{item.display_name}</strong>
+                      {item.contact_phone ? (
+                        <small>{formatBrPhone(item.contact_phone)}</small>
+                      ) : null}
+                    </span>
                     <ChevronRight size={17} aria-hidden />
                   </button>
                 </li>
@@ -566,9 +684,19 @@ export function BookingModal({
                   <Sparkles size={18} aria-hidden />
                 </span>
                 <strong>{item.name}</strong>
-                <small>
-                  <Clock size={13} aria-hidden /> {item.duration_minutes} min
-                </small>
+                <span className="bk-service-meta">
+                  <small>
+                    <Clock size={13} aria-hidden /> {durationLabel(item.duration_minutes)}
+                  </small>
+                  {item.price_type === 'quote' ? (
+                    <small>Sob consulta</small>
+                  ) : item.price_cents != null ? (
+                    <small>
+                      {item.price_type === 'from' ? 'A partir de ' : ''}
+                      {money(item.price_cents)}
+                    </small>
+                  ) : null}
+                </span>
               </button>
             </li>
           ))}
@@ -633,7 +761,7 @@ export function BookingModal({
                 size="sm"
                 variant="ghost"
                 aria-label="Semana anterior"
-                isDisabled={stripStart <= localDate(new Date())}
+                isDisabled={stripStart <= mondayOf(today)}
                 onPress={() => setStripStart(shiftDate(stripStart, -7))}
               >
                 <ChevronLeft size={17} />
@@ -650,39 +778,42 @@ export function BookingModal({
             </div>
           </div>
           <div className="bk-strip lx-scroll" role="listbox" aria-label="Dia">
-            {strip.map((day) => {
-              const open = data ? dayPeriods(data, day).length > 0 : true
-              const closure = data ? closureOn(data, day, professionalId) : undefined
-              const holiday = holidays.find((item) => item.date === day)
-              const value = new Date(`${day}T12:00:00`)
-              return (
-                <button
-                  key={day}
-                  type="button"
-                  role="option"
-                  aria-selected={day === date}
-                  data-closed={!open || closure ? true : undefined}
-                  data-today={day === localDate(new Date()) || undefined}
-                  disabled={day < localDate(new Date())}
-                  title={holiday?.name ?? (closure ? closureKinds[closure.kind] : undefined)}
-                  onClick={() => pickDate(day)}
-                >
-                  <small>
-                    {new Intl.DateTimeFormat('pt-BR', { weekday: 'short' })
-                      .format(value)
-                      .replace('.', '')}
-                  </small>
-                  <strong>{value.getDate()}</strong>
-                  {holiday || closure ? <i aria-hidden /> : null}
-                </button>
-              )
-            })}
+            {strip
+              .filter((day) => day >= today)
+              .map((day) => {
+                const open = data ? dayPeriods(data, day).length > 0 : true
+                const closure = data ? closureOn(data, day, professionalId) : undefined
+                const holiday = holidays.find((item) => item.date === day)
+                const value = new Date(`${day}T12:00:00`)
+                return (
+                  <button
+                    key={day}
+                    type="button"
+                    role="option"
+                    aria-selected={day === date}
+                    data-closed={!open || closure ? true : undefined}
+                    data-today={day === today || undefined}
+                    aria-current={day === today ? 'date' : undefined}
+                    title={holiday?.name ?? (closure ? closureKinds[closure.kind] : undefined)}
+                    onClick={() => pickDate(day)}
+                  >
+                    <small>
+                      {new Intl.DateTimeFormat('pt-BR', { weekday: 'short' })
+                        .format(value)
+                        .replace('.', '')}
+                    </small>
+                    <strong>{value.getDate()}</strong>
+                    {day === today ? <small>Hoje</small> : null}
+                    {holiday || closure ? <i aria-hidden /> : null}
+                  </button>
+                )
+              })}
           </div>
           <DateInputField
             className="bk-date-more"
             label="Outra data"
             value={date}
-            min={localDate(new Date())}
+            min={today}
             onChange={(next) => next && pickDate(next)}
           />
           {dayHoliday || dayClosure ? (
@@ -798,12 +929,32 @@ export function BookingModal({
             </span>
             <Pencil size={15} aria-label="Trocar" />
           </button>
+          {validVouchers.length && !(pack && usePack) ? (
+            <div className="bk-voucher">
+              <TicketPercent size={18} aria-hidden />
+              <SelectField
+                label="Voucher"
+                value={chosenVoucher?.id ?? 'none'}
+                onChange={(id) => setVoucherId(id === 'none' ? '' : id)}
+                options={[
+                  { id: 'none', label: 'Sem voucher' },
+                  ...validVouchers.map((item) => ({
+                    id: item.id,
+                    label: `${voucherDiscount(item)} de desconto · até ${dateBr(item.expires_on)}`,
+                  })),
+                ]}
+              />
+            </div>
+          ) : null}
           {pack ? (
             <button
               type="button"
               className="bk-pack"
               aria-pressed={usePack}
-              onClick={() => setUsePack(!usePack)}
+              onClick={() => {
+                setUsePack(!usePack)
+                setVoucherId('')
+              }}
             >
               <span className="bk-icon">
                 <Layers size={18} aria-hidden />
@@ -851,6 +1002,25 @@ export function BookingModal({
       )}
     </QuickModal>
   )
+
+  return (
+    <>
+      {booking}
+      {isOpen && clientForm ? (
+        <QuickClientModal
+          api={api}
+          isOpen
+          onOpenChange={setClientForm}
+          onCreated={(_, created) => {
+            setNewClients((current) => [created, ...current])
+            setQuery('')
+            setClientId(created.id)
+            setVoucherId('')
+          }}
+        />
+      ) : null}
+    </>
+  )
 }
 
 type Duplicate = { id: string; display_name: string }
@@ -866,9 +1036,10 @@ export function QuickClientModal({
   api: ClinicApi
   isOpen: boolean
   onOpenChange: (open: boolean) => void
-  onCreated: (message: string) => void
+  onCreated: (message: string, client: BookingClient) => void
   onOpenFull?: () => void
 }) {
+  const formId = useId()
   const [form, setForm] = useState({ name: '', phone: '', birthDate: '', notes: '' })
   const [duplicates, setDuplicates] = useState<Duplicate[] | null>(null)
   const [saving, setSaving] = useState(false)
@@ -891,7 +1062,7 @@ export function QuickClientModal({
     setSaving(true)
     setError('')
     try {
-      await api.post('clients', {
+      const { client } = await api.post<{ client: BookingClient }>('clients', {
         name: form.name.trim(),
         phone,
         birthDate: form.birthDate,
@@ -899,7 +1070,7 @@ export function QuickClientModal({
         confirmDuplicatePhone,
       })
       onOpenChange(false)
-      onCreated(`${form.name.trim()} cadastrada.`)
+      onCreated(`${form.name.trim()} cadastrada.`, client)
     } catch (caught) {
       const body =
         caught instanceof ClinicApiError ? (caught.body as { duplicates?: Duplicate[] }) : null
@@ -939,14 +1110,14 @@ export function QuickClientModal({
               {saving ? 'Salvando…' : 'Cadastrar mesmo assim'}
             </Button>
           ) : (
-            <Button type="submit" form="manager-quick-client" isDisabled={saving}>
+            <Button type="submit" form={formId} isDisabled={saving}>
               {saving ? 'Salvando…' : 'Cadastrar'}
             </Button>
           )}
         </>
       }
     >
-      <form id="manager-quick-client" className="manager-form-grid" onSubmit={save}>
+      <form id={formId} className="manager-form-grid" onSubmit={save}>
         <TextInputField
           className="manager-field-wide"
           label="Nome"

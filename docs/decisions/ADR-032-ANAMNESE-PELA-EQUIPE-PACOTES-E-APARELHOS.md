@@ -18,7 +18,7 @@ nenhum dos dois: o cadastro inicial só guardava o nome do aparelho ligado aos s
   sobrescreve a ficha de uma cliente que compartilha a da própria conta (`anamnesis_shared`): 409.
   A lista recebe só o resumo (nível, data, quem preencheu) por `clinic_client_anamnesis_summary`;
   as respostas só saem no detalhe, por `staff_client_anamnesis`, que reautoriza `client:manage`.
-  Opcional no "Adicionar cliente" (etapas dentro do modal) e na aba Anamnese da ficha.
+  Opcional no "Adicionar cliente" e disponível em Dados → Ver anamnese na ficha.
 - **Pacotes:** catálogo `service_packages` (um serviço, 2–100 sessões, preço, validade opcional).
   A venda (`client_packages`) copia nome, sessões e preço, e pode lançar a receita no Financeiro
   na mesma transação (`finance:manage`). Cada agendamento ligado (`appointments.client_package_id`)
@@ -40,3 +40,6 @@ nenhum dos dois: o cadastro inicial só guardava o nome do aparelho ligado aos s
 
 - Migration 0042 é aditiva; novas tabelas com RLS + FORCE, auditoria e trava de tenant.
 - Pendências em [TD-014](../technical-debt/TD-014-ANAMNESE-PACOTES-E-APARELHOS.md).
+
+A ficha da cliente concentra os pacotes vendidos em Histórico, junto dos atendimentos,
+remarcações, cancelamentos e sessões associadas. A venda é registrada em Serviços → Pacotes.

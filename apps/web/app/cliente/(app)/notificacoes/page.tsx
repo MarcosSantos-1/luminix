@@ -1,8 +1,9 @@
 'use client'
 
+import { useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { Bell, CalendarDays, Smartphone, Store, Tag } from 'lucide-react'
-import { markNoticesRead, useClient } from '../../../../lib/client-app/store'
+import { markNoticesRead, refreshSpace, useClient } from '../../../../lib/client-app/store'
 import { timeAgo } from '../../../../lib/client-app/format'
 import { Empty, PageHeader } from '../../../../components/client-app/ui'
 
@@ -11,8 +12,11 @@ const icons = { booking: CalendarDays, promo: Tag, space: Store, app: Smartphone
 export default function NoticesPage() {
   const router = useRouter()
   const { space } = useClient()
-  if (!space) return null
-  const slug = space.summary.slug
+  const slug = space?.summary.slug
+  useEffect(() => {
+    if (slug) void refreshSpace(slug)
+  }, [slug])
+  if (!space || !slug) return null
   const unread = space.notices.filter((item) => !item.read).length
 
   return (

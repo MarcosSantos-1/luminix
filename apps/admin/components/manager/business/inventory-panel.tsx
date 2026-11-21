@@ -362,8 +362,12 @@ export function InventoryPanel({
               value={query}
               onChange={setQuery}
             />
-            {categories.length > 1 ? (
-              <div className="biz-chips" role="group" aria-label="Filtrar por categoria">
+            {categories.length > 0 ? (
+              <div
+                className="biz-chips inv-category-filters"
+                role="group"
+                aria-label="Filtrar por categoria"
+              >
                 <button type="button" aria-pressed={!category} onClick={() => setCategory('')}>
                   Todas
                 </button>
@@ -377,12 +381,14 @@ export function InventoryPanel({
                     {name}
                   </button>
                 ))}
+                <button
+                  className="inv-category-manage"
+                  type="button"
+                  onClick={() => setManaging(true)}
+                >
+                  <Pencil size={14} aria-hidden /> Categorias
+                </button>
               </div>
-            ) : null}
-            {categories.length ? (
-              <Button size="sm" variant="ghost" onPress={() => setManaging(true)}>
-                <Pencil size={14} aria-hidden /> Categorias
-              </Button>
             ) : null}
           </div>
         ) : null}
@@ -1776,75 +1782,126 @@ function CategoryManager({
   items: Item[]
   onClose: (message?: string) => void
 }) {
-  const counts = items.reduce<Record<string, number>>((all, item) => {
-    if (item.category) all[item.category] = (all[item.category] ?? 0) + 1
-    return all
-  }, {})
-  const names = Object.keys(counts).sort((a, b) => a.localeCompare(b, 'pt-BR'))
-  const [drafts, setDrafts] = useState<Record<string, string>>(() =>
-    Object.fromEntries(names.map((name) => [name, name])),
-  )
+  const [counts, setCounts] = useState(() => {
+    const values = new Map<string, number>()
+    for (const item of items) {
+      if (item.category) values.set(item.category, (values.get(item.category) ?? 0) + 1)
+    }
+    return values
+  })
+  const names = [...counts.keys()].sort((a, b) => a.localeCompare(b, 'pt-BR'))
+  const [drafts, setDrafts] = useState<Record<string, string>>({})
   const [busy, setBusy] = useState('')
+  const saving = useRef(false)
+  const changed = useRef(false)
+  const closePending = useRef(false)
+  const [status, setStatus] = useState('')
   const [error, setError] = useState('')
-  const [changed, setChanged] = useState(false)
+  const [remove, setRemove] = useState<string | null>(null)
 
   async function apply(from: string, to: string) {
+    if (saving.current || to === from) return
+    saving.current = true
     setBusy(from)
     setError('')
+    setStatus('')
     try {
-      await api.post('inventory/categories', { from, to })
-      setChanged(true)
-      onClose(
-        to
-          ? `“${from}” agora é “${to}”.`
-          : `“${from}” foi removida; os produtos ficaram sem categoria.`,
+      const result = await api.post<{ changed: number }>('inventory/categories', { from, to })
+      changed.current = true
+      setCounts((current) => {
+        const next = new Map(current)
+        next.delete(from)
+        if (to) next.set(to, (next.get(to) ?? 0) + result.changed)
+        return next
+      })
+      setDrafts((current) => {
+        const next = { ...current }
+        delete next[from]
+        return next
+      })
+      setStatus(
+        to ? 'Categoria atualizada.' : 'Categoria removida. Os produtos ficaram sem categoria.',
       )
+      setRemove(null)
+      if (closePending.current) onClose('Categorias atualizadas.')
     } catch {
-      setError('Não foi possível alterar. Tente de novo.')
+      setError('Não foi possível alterar a categoria. Tente de novo.')
+    } finally {
+      closePending.current = false
+      saving.current = false
       setBusy('')
     }
+  }
+
+  function rename(name: string) {
+    const value = (drafts[name] ?? name).trim()
+    if (value && value !== name) void apply(name, value)
+    else setDrafts((current) => ({ ...current, [name]: name }))
   }
 
   return (
     <QuickModal
       isOpen
-      onOpenChange={(open) => !open && onClose(changed ? 'Categorias atualizadas.' : undefined)}
+      onOpenChange={(open) => {
+        if (open) return
+        if (saving.current) {
+          closePending.current = true
+          return
+        }
+        const dirty = names.find((name) => drafts[name]?.trim() && drafts[name].trim() !== name)
+        if (dirty) {
+          closePending.current = true
+          rename(dirty)
+        } else onClose(changed.current ? 'Categorias atualizadas.' : undefined)
+      }}
       title="Categorias do estoque"
-      subtitle="Renomeie para corrigir ou juntar (use o nome de outra existente). Remover não apaga produtos."
+      subtitle="O nome é salvo ao sair do campo ou apertar Enter. Use um nome existente para juntar categorias."
     >
       <ul className="inv-cat-list">
-        {names.map((name) => {
-          const draft = drafts[name] ?? name
-          return (
-            <li key={name}>
-              <TextInputField
-                ariaLabel={`Nome da categoria ${name}`}
-                maxLength={60}
-                value={draft}
-                suffix={`${counts[name]}`}
-                onChange={(value) => setDrafts({ ...drafts, [name]: value })}
-              />
-              <Button
-                size="sm"
-                isDisabled={Boolean(busy) || !draft.trim() || draft.trim() === name}
-                onPress={() => void apply(name, draft.trim())}
-              >
-                <Check size={14} aria-hidden /> Salvar
-              </Button>
-              <Button
-                size="sm"
-                variant="ghost"
-                isIconOnly
-                aria-label={`Remover a categoria ${name}`}
-                isDisabled={Boolean(busy)}
-                onPress={() => void apply(name, '')}
-              >
-                <Trash2 size={15} />
-              </Button>
-            </li>
-          )
-        })}
+        {names.map((name) => (
+          <li key={name}>
+            <TextInputField
+              ariaLabel={`Nome da categoria ${name}`}
+              maxLength={60}
+              value={drafts[name] ?? name}
+              isDisabled={Boolean(busy)}
+              onChange={(value) => setDrafts((current) => ({ ...current, [name]: value }))}
+              onBlur={() => rename(name)}
+              onEnter={() => rename(name)}
+            />
+            <span
+              aria-label={`${counts.get(name)} ${counts.get(name) === 1 ? 'produto' : 'produtos'}`}
+            >
+              {counts.get(name)}
+            </span>
+            <Button
+              size="sm"
+              variant="ghost"
+              isIconOnly
+              aria-label={`Remover a categoria ${name}`}
+              isDisabled={Boolean(busy)}
+              onPress={() => setRemove(name)}
+            >
+              <Trash2 size={15} aria-hidden />
+            </Button>
+          </li>
+        ))}
       </ul>
+      {!names.length ? <p className="apt-hint">Nenhuma categoria em uso.</p> : null}
+      {remove && counts.has(remove) ? (
+        <div className="manager-warning-box">
+          <p>Remover “{remove}”? Os produtos serão mantidos sem categoria.</p>
+          <Button variant="secondary" onPress={() => setRemove(null)}>
+            Voltar
+          </Button>
+          <Button isDisabled={Boolean(busy)} onPress={() => void apply(remove, '')}>
+            Remover categoria
+          </Button>
+        </div>
+      ) : null}
+      <p className="apt-hint" role="status">
+        {busy ? 'Salvando…' : status}
+      </p>
       {error ? (
         <p className="apt-error" role="alert">
           {error}

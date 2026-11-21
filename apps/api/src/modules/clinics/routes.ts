@@ -552,7 +552,14 @@ export async function clinicRoutes(
       authorized(request, reply, null, async (connection, tenant) => {
         const clinic = (
           await connection.query(
-            'SELECT c.id, c.name, c.slug, c.status, c.share_code, s.theme FROM luminix.clinics c JOIN luminix.clinic_settings s ON s.clinic_id = c.id WHERE c.id = $1',
+            `SELECT c.id, c.name, c.slug, c.status, c.share_code, s.theme,
+                    CASE WHEN c.status = 'active'
+                      THEN coalesce(d.completed_at, c.created_at) + interval '288 hours'
+                    END AS trial_ends_at
+               FROM luminix.clinics c
+               JOIN luminix.clinic_settings s ON s.clinic_id = c.id
+               LEFT JOIN luminix.onboarding_drafts d ON d.clinic_id = c.id
+              WHERE c.id = $1`,
             [tenant.clinicId],
           )
         ).rows[0]

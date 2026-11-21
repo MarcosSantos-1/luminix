@@ -53,3 +53,21 @@ outra clínica 403, pausa remove do site e mantém um ativo; promoção 20% no s
 atendimento (recepção marcando), serviço de outra clínica 400, pausa remove desconto; concluir
 atendimento → “a lançar” → lançamento único (409 no repetido) → totais e relatório; painel do dia
 sem dinheiro para a recepção; estoque com saída acima do saldo recusada e contagem; aniversariantes.
+
+## Vouchers por cliente
+
+A migration 0055 registra vouchers de uso único vinculados à clínica e à cliente. A emissão
+exige `finance:manage`, aceita percentual ou valor fixo e tem validade inclusiva de até dois
+anos no fuso da clínica. O uso ocorre no novo agendamento do gestor, em serviços com preço
+fixo e saldo positivo. A função de resgate bloqueia a linha do voucher e aplica o desconto
+sobre o preço registrado (já considerando promoção), limitado ao valor do atendimento.
+Pacotes e vouchers são alternativas na mesma reserva. O resgate se mantém registrado se o
+atendimento for cancelado ou remarcado. O histórico registra o identificador do agendamento
+e o valor efetivamente descontado.
+
+A cliente vinculada vê o voucher ativo na central de notificações web ou mobile. Para cliente
+sem vínculo e com autorização de mensagens, a API solicita o envio por e-mail quando houver
+endereço e provedor configurado. A equipe pode compartilhar manualmente por WhatsApp com
+autorização de mensagens. A remoção de categoria de estoque preserva os produtos, que ficam
+sem categoria. A API de categorias é a mesma usada pelo salvamento automático ao sair do
+campo ou pressionar Enter.

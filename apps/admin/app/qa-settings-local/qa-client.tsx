@@ -746,6 +746,8 @@ function qaClosures(at: (offset: number, time: string) => string) {
 }
 
 /** Agenda of the current week: confirmed, pending, paid, canceled and rescheduled examples. */
+const qaCreatedClients: { id: string; display_name: string; contact_phone: string | null }[] = []
+
 function qaAgenda() {
   const monday = new Date()
   monday.setHours(0, 0, 0, 0)
@@ -794,11 +796,22 @@ function qaAgenda() {
       service_name: service,
       professional_name: qaPeople[index % 2].name,
     })),
-    clients: ['Juliana Lima', 'Camila Santos', 'Beatriz Alves'].map((display_name, index) => ({
-      id: `a1b2c3d4-0000-4000-8000-00000000010${index + 1}`,
-      display_name,
+    clients: [
+      ...qaCreatedClients,
+      ...['Juliana Lima', 'Camila Santos', 'Beatriz Alves'].map((display_name, index) => ({
+        id: `a1b2c3d4-0000-4000-8000-00000000010${index + 1}`,
+        display_name,
+        contact_phone: '+5511987654321',
+        photo_url: index === 0 ? qaPhoto : null,
+      })),
+    ],
+    services: services.map(([id, name, , price_cents], index) => ({
+      id,
+      name,
+      duration_minutes: index === 1 ? 240 : 60,
+      price_cents,
+      price_type: 'fixed',
     })),
-    services: services.map(([id, name]) => ({ id, name, duration_minutes: 60 })),
     professionals: qaPeople.map(({ id, name }, index) => ({
       id,
       display_name: name,
@@ -1120,7 +1133,7 @@ export default function QASettings({
               (!query?.status || query.status === 'all' || client.status === query.status) &&
               qaFold(client.display_name).includes(qaFold(query?.q ?? '')),
           )
-          return { canSeeMoney: true, clients: rows } as T
+          return { canSeeMoney: true, canIssueVouchers: true, clients: rows } as T
         }
         if (/^appointments\/[^/]+\/supplies$/.test(path))
           return {
@@ -1162,6 +1175,7 @@ export default function QASettings({
               },
             ],
           } as T
+        if (/^clients\/[^/]+\/vouchers$/.test(path)) return { vouchers: [] } as T
         if (path.startsWith('clients/'))
           return {
             anamnesis: {
@@ -1307,6 +1321,23 @@ export default function QASettings({
             if (qaActivity[index].state === 'gone') qaActivity.splice(index, 1)
           return { changed: 1 } as T
         }
+        if (path === 'clients' && body && typeof body === 'object' && 'name' in body) {
+          const client = {
+            id: crypto.randomUUID(),
+            display_name: String(body.name),
+            contact_phone: 'phone' in body && body.phone ? String(body.phone) : null,
+          }
+          qaCreatedClients.unshift(client)
+          return { client } as T
+        }
+        if (path === 'inventory/categories') return { changed: 1 } as T
+        if (
+          /^clients\/[^/]+\/vouchers$/.test(path) &&
+          body &&
+          typeof body === 'object' &&
+          'id' in body
+        )
+          return { id: body.id, destination: 'app' } as T
         return (
           path === 'staff'
             ? { accountCreated: true, member: { id: 'x' } }
@@ -1351,6 +1382,7 @@ export default function QASettings({
         ) : (
           <ManagerHome
             clinicName={clinic.name}
+            trialEndsAt={qaAgo(-8)}
             userName="Maria"
             canManageSettings
             initialSection={section ?? 'configuracoes'}
@@ -1378,6 +1410,7 @@ export default function QASettings({
               ),
               servicos: ({ createSignal, navigate, focus }) => (
                 <ServicesPanel
+                  canSellPackages
                   clinicId={clinic.id}
                   createSignal={createSignal}
                   focus={focus}

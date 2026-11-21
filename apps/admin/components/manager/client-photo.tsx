@@ -1,7 +1,7 @@
 'use client'
 
 import { Eye } from 'lucide-react'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { QuickModal } from './quick-modal'
 import type { ClinicApi } from './settings/clinic-api'
 
@@ -43,6 +43,7 @@ export function ClientAvatar({
   account,
   size = 'md',
   viewable = false,
+  lazy = false,
 }: {
   name: string
   photoUrl?: string | null
@@ -51,31 +52,56 @@ export function ClientAvatar({
   account?: { api: ClinicApi; clientId: string } | null
   size?: 'md' | 'lg'
   viewable?: boolean
+  lazy?: boolean
 }) {
   const [loaded, setLoaded] = useState<{ id: string; photo: string | null } | null>(null)
   const [open, setOpen] = useState(false)
   const accountId = !photoUrl && account ? account.clientId : ''
   const accountApi = account?.api
+  const placeholder = useRef<HTMLSpanElement>(null)
   useEffect(() => {
     if (!accountId || !accountApi) return
     let active = true
-    void accountPhoto(accountApi, accountId).then(
-      (photo) => active && setLoaded({ id: accountId, photo }),
+    const load = () => {
+      void accountPhoto(accountApi, accountId).then(
+        (photo) => active && setLoaded({ id: accountId, photo }),
+      )
+    }
+    const node = placeholder.current
+    if (!lazy || !node || typeof IntersectionObserver === 'undefined') {
+      load()
+      return () => {
+        active = false
+      }
+    }
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (!entries.some((entry) => entry.isIntersecting)) return
+        observer.disconnect()
+        load()
+      },
+      { rootMargin: '80px' },
     )
+    observer.observe(node)
     return () => {
       active = false
+      observer.disconnect()
     }
-  }, [accountId, accountApi])
+  }, [accountId, accountApi, lazy])
 
   const src = photoUrl ?? (loaded && loaded.id === accountId ? loaded.photo : null)
   const tone = [...name].reduce((sum, letter) => sum + letter.charCodeAt(0), 0) % 4
   const className = `apt-avatar apt-avatar-${size} tone-${tone}`
-  // eslint-disable-next-line @next/next/no-img-element -- signed, short-lived private URL or data URI
-  const picture = src ? <img src={src} alt="" /> : initials(name)
+  const picture = src ? (
+    // eslint-disable-next-line @next/next/no-img-element -- signed, short-lived private URL or data URI
+    <img src={src} alt="" loading={lazy ? 'lazy' : undefined} />
+  ) : (
+    initials(name)
+  )
 
   if (!viewable || !src)
     return (
-      <span className={className} aria-hidden>
+      <span ref={placeholder} className={className} aria-hidden>
         {picture}
       </span>
     )

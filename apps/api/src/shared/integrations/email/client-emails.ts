@@ -288,3 +288,30 @@ export function clientBirthdayEmail(
     ].join('\n'),
   } satisfies OutgoingEmail
 }
+
+export function clientVoucherEmail(
+  input: ClinicContact & {
+    to: string
+    clientName: string
+    type: 'fixed' | 'percent'
+    value: number
+    expiresOn: string
+  },
+): OutgoingEmail {
+  const discount =
+    input.type === 'percent'
+      ? `${input.value}%`
+      : new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(
+          input.value / 100,
+        )
+  const date = input.expiresOn.split('-').reverse().join('/')
+  const text = `Olá, ${firstName(input.clientName)}! Você recebeu um voucher de ${discount} de desconto em ${input.clinicName}. Válido para um atendimento até ${date}. Fale com o espaço para usar.`
+  return {
+    to: input.to,
+    subject: 'Você recebeu um voucher',
+    text,
+    html: `<p>${escapeHtml(text)}</p>`,
+    tag: 'client_voucher',
+    ...fromClinic(input),
+  }
+}

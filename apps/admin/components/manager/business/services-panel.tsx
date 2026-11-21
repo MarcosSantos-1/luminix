@@ -134,6 +134,7 @@ function durationLabel(minutes: number) {
 export function ServicesPanel({
   clinicId,
   clinicName = '',
+  canSellPackages = false,
   createSignal,
   onOpenTeam,
   onOpenMarketing,
@@ -141,6 +142,7 @@ export function ServicesPanel({
 }: {
   clinicId: string
   clinicName?: string
+  canSellPackages?: boolean
   createSignal: number
   onOpenTeam: () => void
   /** Promotions live in Marketing; Serviços shows a strip that leads there. */
@@ -416,6 +418,8 @@ export function ServicesPanel({
             services={data.services}
             packages={packages}
             canManage={data.canManage}
+            canSell={canSellPackages}
+            canFinance={extras.data.canFinance}
             onChanged={changed}
           />
         ) : (

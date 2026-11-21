@@ -85,6 +85,7 @@ export function TextInputField({
   prefix,
   suffix,
   onEnter,
+  onBlur,
   autoFocus,
   ...common
 }: Common & {
@@ -98,6 +99,7 @@ export function TextInputField({
   prefix?: ReactNode
   suffix?: ReactNode
   onEnter?: () => void
+  onBlur?: () => void
   autoFocus?: boolean
 }) {
   return (
@@ -126,6 +128,7 @@ export function TextInputField({
             inputMode={inputMode}
             autoComplete={autoComplete}
             maxLength={maxLength}
+            onBlur={onBlur}
             autoFocus={typeof window !== 'undefined' && allowAutoFocus(autoFocus)}
             onKeyDown={(event) => {
               if (event.key === 'Enter' && onEnter) {

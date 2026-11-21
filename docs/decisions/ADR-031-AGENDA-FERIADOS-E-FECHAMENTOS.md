@@ -16,7 +16,9 @@ atendimento (férias da equipe, recesso, luto, manutenção): só datas avulsas 
 - **Agendamento em etapas** (`booking-modal.tsx`): Cliente → Serviço → Profissional → Dia e
   horário → Confirmar. A etapa Profissional só aparece com mais de uma profissional ativa; com uma,
   ela fica implícita. O horário é escolhido em blocos (passo = duração do serviço, entre 15 e
-  60 min), de 2 h antes da abertura a 2 h depois do fechamento. Blocos fora do expediente,
+  60 min). Em dias com expediente, o atendimento do gestor pode começar até 2 h antes da
+  abertura e precisa terminar até 4 h depois do fechamento, inclusive quando passa da meia-noite.
+  Em dias sem expediente, a chave mestra continua disponível após confirmação. Blocos fora do expediente,
   ocupados ou passados continuam tocáveis e passam pela confirmação da chave mestra (ADR-012).
   Observações internas saíram do fluxo de criação; o campo continua no banco e na ficha.
 - **Fechamentos por período**: tabela `schedule_closures` (migration 0041) com

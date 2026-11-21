@@ -10,13 +10,22 @@ import {
   Minus,
   Pause,
   Pencil,
+  PackagePlus,
   Play,
   Plus,
   Sparkles,
   TrendingDown,
 } from 'lucide-react'
-import { useState } from 'react'
-import { maskMoney, SearchInput, TextInputField } from '@/components/ui/fields'
+import { useState, type FormEvent } from 'react'
+import {
+  CheckboxField,
+  DateInputField,
+  maskMoney,
+  SearchInput,
+  SelectField,
+  TextInputField,
+} from '@/components/ui/fields'
+import { ClientPicker, type ClientChoice } from '../clients/client-picker'
 import { QuickModal } from '../quick-modal'
 import { ClinicApiError, type ClinicApi } from '../settings/clinic-api'
 import { StatusPill } from '../settings/settings-kit'
@@ -72,7 +81,7 @@ function fullPrice(items: Item[], services: Service[]) {
 
 /**
  * Pacotes: um combo de tratamentos diferentes (o padrão) ou várias sessões de um mesmo
- * tratamento, por um preço fechado. Vendidos na ficha da cliente; cada agendamento usa uma
+ * tratamento, por um preço fechado. Cada agendamento usa uma
  * sessão do serviço certo.
  */
 export function PackagesTab({
@@ -80,14 +89,19 @@ export function PackagesTab({
   services,
   packages,
   canManage,
+  canSell,
+  canFinance,
   onChanged,
 }: {
   api: ClinicApi
   services: Service[]
   packages: CatalogPackage[]
   canManage: boolean
+  canSell: boolean
+  canFinance: boolean
   onChanged: (message: string) => void
 }) {
+  const [selling, setSelling] = useState<CatalogPackage | null>(null)
   const [editing, setEditing] = useState<CatalogPackage | null>(null)
   const [busy, setBusy] = useState('')
   const active = services.filter(
@@ -119,7 +133,7 @@ export function PackagesTab({
           <strong>Pacotes e combos</strong>
           <p>
             Junte tratamentos diferentes num combo ou venda várias sessões de um mesmo tratamento.
-            Na ficha da cliente você registra a venda e cada agendamento usa uma sessão.
+            Registre a venda aqui e acompanhe as sessões na ficha da cliente.
           </p>
         </div>
         {canManage && active.length ? (
@@ -226,6 +240,11 @@ export function PackagesTab({
                 <div className="biz-tags">
                   {item.status === 'archived' ? <StatusPill tone="off">Pausado</StatusPill> : null}
                 </div>
+                {canSell && item.status === 'active' ? (
+                  <Button size="sm" variant="secondary" onPress={() => setSelling(item)}>
+                    <PackagePlus size={15} aria-hidden /> Registrar venda
+                  </Button>
+                ) : null}
                 {canManage ? (
                   <div className="biz-tile-actions">
                     <Button size="sm" variant="secondary" onPress={() => setEditing(item)}>
@@ -266,6 +285,17 @@ export function PackagesTab({
         </div>
       )}
 
+      {selling ? (
+        <PackageSale
+          api={api}
+          item={selling}
+          canFinance={canFinance}
+          onClose={(message) => {
+            setSelling(null)
+            if (message) onChanged(message)
+          }}
+        />
+      ) : null}
       {editing ? (
         <PackageEditor
           key={editing.id}
@@ -280,6 +310,108 @@ export function PackagesTab({
         />
       ) : null}
     </div>
+  )
+}
+
+const paymentMethods = [
+  { id: 'pix', label: 'Pix' },
+  { id: 'cash', label: 'Dinheiro' },
+  { id: 'credit', label: 'Crédito' },
+  { id: 'debit', label: 'Débito' },
+  { id: 'transfer', label: 'Transferência' },
+  { id: 'other', label: 'Outro' },
+]
+
+function PackageSale({
+  api,
+  item,
+  canFinance,
+  onClose,
+}: {
+  api: ClinicApi
+  item: CatalogPackage
+  canFinance: boolean
+  onClose: (message?: string) => void
+}) {
+  const [client, setClient] = useState<ClientChoice | null>(null)
+  const [soldOn, setSoldOn] = useState(() =>
+    new Date().toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' }),
+  )
+  const [registerIncome, setRegisterIncome] = useState(canFinance && item.priceCents > 0)
+  const [method, setMethod] = useState('pix')
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState('')
+
+  async function submit(event: FormEvent) {
+    event.preventDefault()
+    if (!client || !soldOn || busy) return
+    setBusy(true)
+    setError('')
+    try {
+      await api.post(`clients/${client.id}/packages`, {
+        packageId: item.id,
+        soldOn,
+        ...(registerIncome ? { registerIncome: true, method } : {}),
+      })
+      onClose(`${item.name} vendido para ${client.display_name}.`)
+    } catch {
+      setError('Não foi possível registrar a venda.')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <QuickModal
+      isOpen
+      onOpenChange={(open) => !open && !busy && onClose()}
+      title="Registrar venda"
+      subtitle={`${item.name} · ${money(item.priceCents)}`}
+    >
+      {client ? (
+        <form className="bk-step" onSubmit={(event) => void submit(event)}>
+          <div>
+            <strong>{client.display_name}</strong>{' '}
+            <Button variant="ghost" size="sm" isDisabled={busy} onPress={() => setClient(null)}>
+              Escolher outra cliente
+            </Button>
+          </div>
+          <DateInputField
+            label="Data da venda"
+            value={soldOn}
+            onChange={setSoldOn}
+            isDisabled={busy}
+          />
+          {canFinance && item.priceCents > 0 ? (
+            <CheckboxField
+              label={`Lançar ${money(item.priceCents)} como recebido`}
+              isSelected={registerIncome}
+              onChange={setRegisterIncome}
+              isDisabled={busy}
+            />
+          ) : null}
+          {registerIncome ? (
+            <SelectField
+              label="Forma de pagamento"
+              value={method}
+              options={paymentMethods}
+              onChange={setMethod}
+              isDisabled={busy}
+            />
+          ) : null}
+          <Button type="submit" isDisabled={busy || !soldOn}>
+            {busy ? 'Salvando…' : 'Confirmar venda'}
+          </Button>
+        </form>
+      ) : (
+        <ClientPicker api={api} onPick={setClient} />
+      )}
+      {error ? (
+        <p className="apt-error" role="alert">
+          {error}
+        </p>
+      ) : null}
+    </QuickModal>
   )
 }
 

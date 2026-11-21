@@ -23,6 +23,7 @@ type ClinicContext = {
     status: string
     share_code: string | null
     theme?: string
+    trial_ends_at?: string | null
   }
   permissions: string[]
 }

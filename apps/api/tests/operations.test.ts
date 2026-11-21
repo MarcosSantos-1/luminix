@@ -564,3 +564,22 @@ describe('closures (férias, fechamento por período)', () => {
     expect((await call('agenda-a', 'GET', clinicA, 'closures')).json().closures).toEqual([])
   })
 })
+
+it('allows 4 hours after closing and rejects times beyond the manager window', async () => {
+  const base = {
+    clientId: clientA,
+    serviceId: serviceA,
+    confirmedWarnings: ['outside_availability'],
+  }
+  const request = (hour: string) =>
+    call('agenda-a', 'POST', clinicA, 'appointments', {
+      ...base,
+      localStartsAt: `2030-02-04T${hour}`,
+    })
+  expect((await request('21:00')).statusCode).toBe(201)
+  for (const hour of ['06:59', '21:01']) {
+    const refused = await request(hour)
+    expect(refused.statusCode).toBe(409)
+    expect(refused.json().error).toBe('Outside manager booking window')
+  }
+})

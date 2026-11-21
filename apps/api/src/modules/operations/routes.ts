@@ -1,5 +1,8 @@
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify'
-import { clientWelcomeEmail } from '../../shared/integrations/email/client-emails.js'
+import {
+  clientVoucherEmail,
+  clientWelcomeEmail,
+} from '../../shared/integrations/email/client-emails.js'
 import { loadClinicContact, sendLater, type ClinicMail } from '../notifications/clinic-mail.js'
 import type { SqlConnection } from '../../shared/database/migrations.js'
 import { withClinicTransaction, type TenantPool } from '../../shared/tenant/clinic-transaction.js'
@@ -137,24 +140,34 @@ async function bookingWarnings(
   ignoreAppointmentId: string | null,
 ): Promise<BookingWarning[]> {
   const local = localDateTime(slot.startsAt, slot.timezone)
-  const override = (
-    await connection.query(
-      `SELECT is_available, periods FROM luminix.schedule_overrides
-        WHERE clinic_id = $1 AND local_date = $2`,
-      [clinicId, local.date],
-    )
-  ).rows[0]
-  const weekly = override
-    ? null
-    : (
-        await connection.query(
-          `SELECT is_available, periods FROM luminix.weekly_availability
-            WHERE clinic_id = $1 AND weekday = $2`,
-          [clinicId, local.weekday],
-        )
-      ).rows[0]
-  const availability = override ?? weekly
+  const previousDate = new Date(Date.parse(`${local.date}T00:00:00Z`) - 86400000)
+    .toISOString()
+    .slice(0, 10)
+  const hours = await connection.query(
+    `SELECT dates.day::text, coalesce(o.is_available, w.is_available, false) AS is_available,
+            coalesce(o.periods, w.periods, '[]'::jsonb) AS periods
+       FROM (VALUES ($2::date), ($3::date)) AS dates(day)
+       LEFT JOIN luminix.schedule_overrides o ON o.clinic_id = $1 AND o.local_date = dates.day
+       LEFT JOIN luminix.weekly_availability w ON w.clinic_id = $1 AND w.weekday = extract(dow FROM dates.day)`,
+    [clinicId, local.date, previousDate],
+  )
+  const availability = hours.rows.find((row) => row.day === local.date)
+  const previous = hours.rows.find((row) => row.day === previousDate)
   const periods = (availability?.periods ?? []) as Period[]
+  if (availability?.is_available && periods.length) {
+    const start = minutes(local.clock)
+    const endLocal = localDateTime(slot.endsAt, slot.timezone)
+    const days = (Date.parse(endLocal.date) - Date.parse(local.date)) / 86400000
+    const end = days * 1440 + minutes(endLocal.clock)
+    const first = Math.max(0, Math.min(...periods.map((period) => minutes(period.start))) - 120)
+    const last = Math.max(...periods.map((period) => minutes(period.end))) + 240
+    const previousPeriods = (previous?.periods ?? []) as Period[]
+    const lateFromPrevious =
+      previous?.is_available &&
+      previousPeriods.some((period) => end <= minutes(period.end) + 240 - 1440)
+    if ((start < first || end > last) && !lateFromPrevious)
+      throw Object.assign(new Error('Outside manager booking window'), { code: '55000' })
+  }
   const overlap = await connection.query(
     `SELECT id FROM luminix.appointments
       WHERE clinic_id = $1 AND status = ANY($2::text[])
@@ -434,6 +447,7 @@ export async function operationRoutes(
         ])
         return {
           canSeeMoney,
+          canIssueVouchers: canSeeMoney,
           anamnesisLevel: Number(level.rows[0]?.level ?? 1),
           clients: await Promise.all(
             result.rows.map(async ({ photo_key, ...row }) => ({
@@ -551,6 +565,98 @@ export async function operationRoutes(
     properties: { ...clinicParams.properties, clientId: { type: 'string', pattern: uuid } },
   } as const
 
+  app.get<{ Params: { clinicId: string; clientId: string } }>(
+    '/clinics/:clinicId/clients/:clientId/vouchers',
+    { schema: { params: clientParams } },
+    async (request, reply) =>
+      authorized(request, reply, 'agenda:manage', async (connection, tenant) => {
+        const { rows } = await connection.query(
+          `SELECT v.id, v.discount_type, v.discount_value, v.expires_on::text, v.appointment_id,
+                  CASE WHEN v.appointment_id IS NOT NULL THEN 'used'
+                    WHEN v.expires_on < (now() AT TIME ZONE s.timezone)::date THEN 'expired'
+                    ELSE 'available' END AS status
+             FROM luminix.client_vouchers v
+             JOIN luminix.clinic_settings s ON s.clinic_id = v.clinic_id
+            WHERE v.clinic_id = $1 AND v.clinic_client_id = $2
+            ORDER BY v.created_at DESC LIMIT 100`,
+          [tenant.clinicId, request.params.clientId],
+        )
+        return { vouchers: rows }
+      }),
+  )
+
+  app.post<{
+    Params: { clinicId: string; clientId: string }
+    Body: { id: string; type: 'fixed' | 'percent'; value: number; expiresOn: string }
+  }>(
+    '/clinics/:clinicId/clients/:clientId/vouchers',
+    {
+      schema: {
+        params: clientParams,
+        body: {
+          type: 'object',
+          additionalProperties: false,
+          required: ['id', 'type', 'value', 'expiresOn'],
+          properties: {
+            id: { type: 'string', pattern: uuid },
+            type: { type: 'string', enum: ['fixed', 'percent'] },
+            value: { type: 'integer', minimum: 1, maximum: 100000000 },
+            expiresOn: { type: 'string', format: 'date' },
+          },
+        },
+      },
+    },
+    async (request, reply) => {
+      const result = await authorized(
+        request,
+        reply,
+        'finance:manage',
+        async (connection, tenant) => {
+          const { id, type, value, expiresOn } = request.body
+          const issued =
+            (
+              await connection.query(
+                'SELECT luminix.issue_client_voucher($1, $2, $3, $4, $5, $6) AS created',
+                [tenant.clinicId, request.params.clientId, id, type, value, expiresOn],
+              )
+            ).rows[0]?.created === true
+          const client = (
+            await connection.query(
+              `SELECT contact_email, display_name, marketing_opt_in, client_profile_id IS NOT NULL AND client_removed_at IS NULL AS linked
+             FROM luminix.clinic_clients WHERE clinic_id = $1 AND id = $2`,
+              [tenant.clinicId, request.params.clientId],
+            )
+          ).rows[0]
+          const destination = client.linked
+            ? 'app'
+            : client.contact_email && client.marketing_opt_in && mail?.mailer
+              ? 'email'
+              : 'manual'
+          const email =
+            issued && destination === 'email'
+              ? clientVoucherEmail({
+                  ...(await loadClinicContact(connection, tenant.clinicId)),
+                  to: String(client.contact_email),
+                  clientName: String(client.display_name),
+                  type,
+                  value,
+                  expiresOn,
+                })
+              : null
+          return { id, destination, email }
+        },
+      )
+      if (reply.sent || !result || typeof result !== 'object' || !('email' in result)) return result
+      const { email, ...body } = result as {
+        email: ReturnType<typeof clientVoucherEmail> | null
+        id: string
+        destination: string
+      }
+      sendLater(mail, email, request.log)
+      return reply.code(201).send(body)
+    },
+  )
+
   // Detail for editing: whole CPF and recent history, so it needs client:manage.
   app.get<{ Params: { clinicId: string; clientId: string } }>(
     '/clinics/:clinicId/clients/:clientId',
@@ -568,7 +674,14 @@ export async function operationRoutes(
         const history = await connection.query(
           `SELECT a.id, a.starts_at, a.status, s.name AS service_name, s.price_type,
                   a.price_cents, p.display_name AS professional_name, a.booking_source,
-                  a.status_note, a.client_payment_method,
+                  a.status_note, a.client_payment_method, a.previous_starts_at, a.rescheduled_at,
+                  cp.name AS package_name,
+                  CASE WHEN cp.kind = 'combo' THEN cp.sessions_total ELSE coalesce(pi.sessions, cp.sessions_total) END AS package_sessions,
+                  (SELECT count(*)::integer FROM luminix.appointments v
+                    WHERE v.clinic_id = a.clinic_id AND v.client_package_id = a.client_package_id
+                      AND (cp.kind = 'combo' OR v.service_id = a.service_id)
+                      AND v.status IN ('scheduled', 'confirmed', 'completed', 'no_show')
+                      AND (v.starts_at, v.id) <= (a.starts_at, a.id)) AS package_session,
                   luminix.appointment_paid_cents(a.clinic_id, a.id) AS paid_cents,
                   (SELECT e.method FROM luminix.finance_entries e
                     WHERE e.clinic_id = a.clinic_id AND e.appointment_id = a.id
@@ -578,6 +691,8 @@ export async function operationRoutes(
              JOIN luminix.services s ON s.clinic_id = a.clinic_id AND s.id = a.service_id
              LEFT JOIN luminix.professionals p
                ON p.clinic_id = a.clinic_id AND p.id = a.professional_id
+             LEFT JOIN luminix.client_packages cp ON cp.clinic_id = a.clinic_id AND cp.id = a.client_package_id
+             LEFT JOIN luminix.client_package_items pi ON pi.clinic_id = cp.clinic_id AND pi.client_package_id = cp.id AND pi.service_id = a.service_id
             WHERE a.clinic_id = $1 AND a.clinic_client_id = $2
             ORDER BY a.starts_at DESC LIMIT 50`,
           [tenant.clinicId, request.params.clientId],
@@ -847,12 +962,19 @@ export async function operationRoutes(
             [tenant.clinicId, from.toISOString(), to.toISOString()],
           ),
           connection.query(
-            `SELECT id, display_name FROM luminix.clinic_clients
-                WHERE clinic_id = $1 AND status = 'active' ORDER BY lower(display_name) LIMIT 500`,
-            [tenant.clinicId],
+            `SELECT c.id, c.display_name,
+                      CASE WHEN $2::boolean THEN c.contact_phone END AS contact_phone,
+                      m.small_object_key AS photo_key,
+                      CASE WHEN $2::boolean THEN luminix.clinic_client_has_account_photo(c.clinic_id, c.id)
+                        ELSE false END AS account_photo
+                 FROM luminix.clinic_clients c
+                 LEFT JOIN luminix.media_assets m ON $2::boolean AND m.clinic_id = c.clinic_id
+                   AND m.id = c.photo_asset_id AND m.status = 'ready'
+                WHERE c.clinic_id = $1 AND c.status = 'active' ORDER BY lower(c.display_name) LIMIT 500`,
+            [tenant.clinicId, can.has('client:read')],
           ),
           connection.query(
-            `SELECT id, name, duration_minutes FROM luminix.services
+            `SELECT id, name, duration_minutes, price_cents, price_type FROM luminix.services
                 WHERE clinic_id = $1 AND status = 'active' ORDER BY lower(name) LIMIT 200`,
             [tenant.clinicId],
           ),
@@ -936,7 +1058,14 @@ export async function operationRoutes(
           canOpenClients: can.has('client:manage'),
           professionalAvailability: professionalDays.rows,
           professionalOverrides: professionalOverrides.rows,
-          clients: clients.rows,
+          clients: await Promise.all(
+            clients.rows.map(async ({ photo_key, ...row }) => ({
+              ...row,
+              photo_url: await clientPhotoUrl(photo_key),
+              photo_large_url: await clientPhotoUrl(largeKey(photo_key)),
+              account_photo: !photo_key && row.account_photo === true,
+            })),
+          ),
           services: services.rows,
           professionals: professionals.rows.map(({ photo_key, ...row }) => {
             let photo_url: string | null = null
@@ -969,6 +1098,7 @@ export async function operationRoutes(
       notes?: string
       confirmedWarnings?: WarningCode[]
       clientPackageId?: string
+      voucherId?: string
     }
   }>(
     '/clinics/:clinicId/appointments',
@@ -988,15 +1118,18 @@ export async function operationRoutes(
             notes: { type: 'string', maxLength: 4000 },
             confirmedWarnings: confirmedWarningsSchema,
             clientPackageId: { type: 'string', pattern: uuid },
+            voucherId: { type: 'string', pattern: uuid },
           },
         },
       },
     },
     async (request, reply) =>
       authorized(request, reply, 'agenda:manage', async (connection, tenant) => {
+        if (request.body.voucherId && request.body.clientPackageId)
+          return reply.code(400).send({ error: 'Choose either a voucher or a package' })
         const service = (
           await connection.query(
-            `SELECT id, name, duration_minutes FROM luminix.services
+            `SELECT id, name, duration_minutes, price_cents, price_type FROM luminix.services
               WHERE clinic_id = $1 AND id = $2 AND status = 'active'`,
             [tenant.clinicId, request.body.serviceId],
           )
@@ -1078,6 +1211,12 @@ export async function operationRoutes(
             tenant.clinicId,
             result.rows[0].id,
             request.body.clientPackageId,
+          ])
+        if (request.body.voucherId)
+          await connection.query('SELECT luminix.redeem_client_voucher($1, $2, $3)', [
+            tenant.clinicId,
+            result.rows[0].id,
+            request.body.voucherId,
           ])
         return reply.code(201).send({ appointment: result.rows[0], warnings })
       }),
@@ -1339,9 +1478,11 @@ export async function operationRoutes(
       authorized(request, reply, 'agenda:manage', async (connection, tenant) => {
         const current = (
           await connection.query(
-            `SELECT a.professional_id, a.status, s.duration_minutes, a.service_id
+            `SELECT a.professional_id, a.status, coalesce(cp.duration_minutes, s.duration_minutes) AS duration_minutes, a.service_id
                FROM luminix.appointments a
                JOIN luminix.services s ON s.clinic_id = a.clinic_id AND s.id = a.service_id
+               LEFT JOIN luminix.client_packages cp ON cp.clinic_id = a.clinic_id
+                 AND cp.id = a.client_package_id AND cp.kind = 'combo'
               WHERE a.clinic_id = $1 AND a.id = $2`,
             [tenant.clinicId, request.params.appointmentId],
           )

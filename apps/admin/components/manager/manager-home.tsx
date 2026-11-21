@@ -28,6 +28,7 @@ import {
 } from './demo-data'
 import { ManagerMessageModal } from './manager-message-modal'
 import { ManagerMobileNav } from './manager-mobile-nav'
+import { PlanModal, planStatus } from './manager-plan'
 import { ManagerSidebar } from './manager-sidebar'
 import { firstManagerTourStep, ManagerTour, type ManagerTourStep } from './manager-tour'
 import {
@@ -82,6 +83,7 @@ export function ManagerHome({
   onLogout,
   signingOut = false,
   logoutError,
+  trialEndsAt,
 }: {
   clinicName?: string
   userName?: string
@@ -128,6 +130,7 @@ export function ManagerHome({
   onLogout?: () => void
   signingOut?: boolean
   logoutError?: string
+  trialEndsAt?: string | null
 } = {}) {
   const navigation = useMemo(
     () =>
@@ -198,6 +201,13 @@ export function ManagerHome({
   const { collapsed, setCollapsed, searchOpen, changeSearch, query, setQuery, searchTrigger } =
     useManagerLayout(!message.view && !spotlight)
   const sectionHeading = useRef<HTMLHeadingElement>(null)
+  const [planOpen, setPlanOpen] = useState(false)
+  const [planNow, setPlanNow] = useState(() => Date.now())
+  const currentPlanStatus = planStatus(trialEndsAt, planNow)
+  const openPlan = () => {
+    setPlanNow(Date.now())
+    setPlanOpen(true)
+  }
   const [notice, setNotice] = useState<string | null>(null)
   const [announcement, setAnnouncement] = useState(true)
   const [forceGlass, setForceGlass] = useState(false)
@@ -335,6 +345,8 @@ export function ManagerHome({
         activeLabel={section.label}
         canManageSettings={canManageSettings}
         collapsed={collapsed}
+        planStatus={currentPlanStatus}
+        onPlan={openPlan}
         onToggle={() => setCollapsed((value) => !value)}
         onNavigate={navigate}
       />
@@ -554,10 +566,18 @@ export function ManagerHome({
         onSelect={(id) => select(id)}
         go={go}
         onAccount={openAccount}
+        planStatus={currentPlanStatus}
+        onPlan={openPlan}
         onMediaFiles={(files) => {
           setIncomingMedia({ files, nonce: Date.now() })
           select('midia')
         }}
+      />
+      <PlanModal
+        isOpen={planOpen}
+        onOpenChange={setPlanOpen}
+        status={currentPlanStatus}
+        endsAt={trialEndsAt}
       />
       {tourOpen && (
         <ManagerTour

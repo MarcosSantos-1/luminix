@@ -19,6 +19,7 @@ import {
 } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import type { ManagerNavItem, ManagerSectionId } from './demo-data'
+import { PlanCard } from './manager-plan'
 import { supportWhatsAppUrl } from './support'
 import type { GoTarget } from './workspace/workspace-signals'
 import './manager-mobile-nav.css'
@@ -96,6 +97,8 @@ export function ManagerMobileNav({
   go,
   onMediaFiles,
   onAccount,
+  planStatus,
+  onPlan,
 }: {
   navigation: ManagerNavItem[]
   current: ManagerSectionId
@@ -103,6 +106,8 @@ export function ManagerMobileNav({
   go: (target: GoTarget) => void
   onMediaFiles: (files: File[]) => void
   onAccount: () => void
+  planStatus: string
+  onPlan: () => void
 }) {
   const [sheet, setSheet] = useState<Sheet>(null)
   const reduceMotion = useReducedMotion()
@@ -262,6 +267,13 @@ export function ManagerMobileNav({
                 </div>
               )
             })}
+            <PlanCard
+              status={planStatus}
+              onOpen={() => {
+                setSheet(null)
+                onPlan()
+              }}
+            />
             <div className="mnav-menu-footer">
               <button
                 type="button"

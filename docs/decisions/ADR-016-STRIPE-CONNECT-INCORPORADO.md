@@ -83,15 +83,18 @@ Teste real isolado: `pnpm --filter @luminix/api exec tsx scripts/check-stripe-co
 --allow-test-account`, confere plataforma e modo, cria conta sintética e encerra no finally. Não
 substitui teste manual do formulário, autenticação popup e verificação KYC.
 
-## Assinatura do Luminix — direção, ainda não implementada
+## Assinatura do Luminix
 
-Fluxo separado clínica → Luminix. Não criar subscription, cobrança ou bloqueio na configuração
-Connect. Regras solicitadas: 10 dias gratuitos, R$ 100 via Pix ou R$ 119,99 no cartão, possibilidade
-de pagamento antecipado, promessa de pagamento por mais 10 dias e bloqueio após 30 dias sem pagar.
-Ainda definir marco inicial, fórmula do vencimento do pagamento antecipado, relação entre carência/
-promessa/limite de 30 dias e se o bloqueio atinge portal cliente ou gestão da clínica. Implementar
-futuramente um domínio de billing separado, sem reaproveitar o saldo recebido dos pacientes como
-pagamento da assinatura e sem bloquear cadastros nesta fase.
+O painel mostra o período gratuito de **12 dias**, contado da conclusão do cadastro do espaço
+(`onboarding_drafts.completed_at`). Para espaços já ativos sem conclusão registrada, usa a
+data de criação da clínica. O card no menu desktop e mobile mostra o prazo restante e abre
+os detalhes da assinatura e o contato de suporte.
+
+Cobrança, renovação automática, promessa de pagamento e bloqueio continuam na frente clínica →
+Luminix. A direção anterior previa R$ 100 via Pix ou R$ 119,99 no cartão, pagamento antecipado,
+promessa por 10 dias e bloqueio após 30 dias sem pagamento. Confirmar preços e critérios de
+carência, vencimento e abrangência do bloqueio antes de ativar. A assinatura terá domínio de
+billing separado do Connect usado para receber pelos atendimentos.
 
 ## Referências
 

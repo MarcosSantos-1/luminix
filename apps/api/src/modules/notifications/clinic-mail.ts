@@ -74,13 +74,11 @@ export function sendLater(
   log: FastifyBaseLogger,
 ) {
   if (!mail?.mailer || !email) return
-  void mail.mailer
-    .send(email)
-    .catch((error) =>
-      log.warn({
-        event: 'notification_email_failed',
-        kind: email.tag,
-        cause: accessMailFailure(error),
-      }),
-    )
+  void mail.mailer.send(email).catch((error) =>
+    log.warn({
+      event: 'notification_email_failed',
+      kind: email.tag,
+      cause: accessMailFailure(error),
+    }),
+  )
 }

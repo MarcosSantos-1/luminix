@@ -3363,3 +3363,87 @@ button.ag-empty:hover {
 .ag-day-rule:disabled {
   cursor: default;
 }
+
+.bk-new-client {
+  justify-self: start;
+}
+.bk-client-row {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  padding-left: 14px;
+  border: 1px solid var(--manager-border);
+  border-radius: 16px;
+  background: #ffffff0b;
+}
+.bk-client-row > button:not(.apt-avatar) {
+  flex: 1;
+  min-width: 0;
+  min-height: 68px;
+  background: transparent;
+}
+.bk-client-row > button:not(.apt-avatar):hover {
+  background: #ffffff10;
+}
+.bk-client-row > .apt-avatar {
+  flex: 0 0 50px;
+  width: 50px;
+  height: 50px;
+  min-height: 50px;
+  padding: 0;
+}
+.bk-client-copy {
+  display: grid;
+  flex: 1;
+  min-width: 0;
+  gap: 2px;
+  overflow-wrap: anywhere;
+}
+.bk-client-copy small {
+  color: var(--manager-muted);
+  font-size: 13px;
+}
+.bk-services button {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+}
+.bk-services strong {
+  overflow-wrap: anywhere;
+}
+.bk-service-meta {
+  display: grid;
+  justify-items: end;
+  gap: 3px;
+}
+.bk-strip button[data-today] {
+  outline: 1px solid var(--space-highlight, #ffb5d3);
+  outline-offset: -2px;
+}
+.bk-strip button[data-today] small:last-child {
+  color: var(--space-highlight, #ffb5d3);
+  font-weight: 700;
+}
+@media (max-width: 380px) {
+  .bk-services button {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+  .bk-service-meta {
+    grid-column: 2;
+    display: flex;
+    flex-wrap: wrap;
+  }
+}
+
+.bk-voucher {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  border: 1px solid var(--manager-border);
+  border-radius: 14px;
+}
+.bk-services .bk-service-meta small {
+  white-space: normal;
+  text-align: right;
+}

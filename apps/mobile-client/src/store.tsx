@@ -61,9 +61,11 @@ export type Payment = {
   status: 'paid' | 'pending' | 'refunded'
   at: string
 }
+type VoucherNotice = { id: string; title: string; body: string; at: string }
+
 export type Notice = {
   id: string
-  kind: 'booking' | 'space'
+  kind: 'booking' | 'space' | 'promo'
   title: string
   body: string
   at: string
@@ -349,6 +351,7 @@ type Store = {
   notices: Notice[]
   unread: number
   refreshing: boolean
+  refreshNotices: () => void
   finishIntro: () => void
   markPermissionsSeen: () => void
   signUp: (input: {
@@ -398,9 +401,12 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<{ uid: string; email: string } | null>(null)
   const [me, setMe] = useState<Me | null>(null)
   const [summaries, setSummaries] = useState<Record<string, SpaceSummary>>({})
-  const [data, setData] = useState<Record<string, { policy: Policy; appointments: Appointment[] }>>(
-    {},
-  )
+  const [data, setData] = useState<
+    Record<
+      string,
+      { policy: Policy; appointments: Appointment[]; voucherNotices?: VoucherNotice[] }
+    >
+  >({})
   const [refreshing, setRefreshing] = useState(false)
   const signingUp = useRef(false)
   const summariesRef = useRef(summaries)
@@ -424,12 +430,18 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 
   const loadAppointments = useCallback(async (slug: string) => {
     try {
-      const result = await api<{ policy: Policy; appointments: ApiAppointment[] }>(
-        `/client/spaces/${encodeURIComponent(slug)}/appointments`,
-      )
+      const result = await api<{
+        policy: Policy
+        appointments: ApiAppointment[]
+        voucherNotices?: VoucherNotice[]
+      }>(`/client/spaces/${encodeURIComponent(slug)}/appointments`)
       setData((current) => ({
         ...current,
-        [slug]: { policy: result.policy, appointments: result.appointments.map(toAppointment) },
+        [slug]: {
+          policy: result.policy,
+          appointments: result.appointments.map(toAppointment),
+          voucherNotices: result.voucherNotices,
+        },
       }))
     } catch {
       // Keeps what is shown; pull to refresh tries again.
@@ -529,9 +541,21 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const appointments = current?.appointments ?? null
   const read = useMemo(() => new Set(local?.read ?? []), [local?.read])
   const notices = useMemo(
-    () => (space && appointments ? noticesOf(space, appointments, read) : []),
-    [space, appointments, read],
+    () =>
+      [
+        ...(space && appointments ? noticesOf(space, appointments, read) : []),
+        ...(current?.voucherNotices ?? []).map((item) => ({
+          ...item,
+          kind: 'promo' as const,
+          read: read.has(item.id),
+        })),
+      ].sort((a, b) => b.at.localeCompare(a.at)),
+    [space, appointments, current?.voucherNotices, read],
   )
+
+  const refreshNotices = useCallback(() => {
+    if (slug) void loadAppointments(slug)
+  }, [slug, loadAppointments])
 
   const store = useMemo<Store>(
     () => ({
@@ -551,6 +575,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       notices,
       unread: notices.filter((item) => !item.read).length,
       refreshing,
+      refreshNotices,
       finishIntro: () => patchLocal({ seenIntro: true }),
       markPermissionsSeen: () => patchLocal({ permissionsSeen: true }),
       async signUp({ name, email: rawEmail, phone, password }) {
@@ -764,6 +789,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       current,
       notices,
       refreshing,
+      refreshNotices,
       slug,
       patchLocal,
       loadMe,

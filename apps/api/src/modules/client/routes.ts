@@ -413,7 +413,26 @@ export async function clientRoutes(app: FastifyInstance, dependencies: AuthDepen
             [scope!.clinicId],
           )
         ).rows[0]
+        const { rows: vouchers } = await connection.query(
+          `SELECT id, discount_type, discount_value, expires_on::text, created_at
+             FROM luminix.client_voucher_notices($1, $2)`,
+          [scope!.clinicId, scope!.clientId],
+        )
         return {
+          voucherNotices: vouchers.map((row) => {
+            const discount =
+              row.discount_type === 'percent'
+                ? `${row.discount_value}%`
+                : new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(
+                    Number(row.discount_value) / 100,
+                  )
+            return {
+              id: `voucher-${row.id}`,
+              title: 'Você recebeu um voucher',
+              body: `${discount} de desconto até ${String(row.expires_on).split('-').reverse().join('/')}. Fale com o espaço para usar.`,
+              at: row.created_at,
+            }
+          }),
           timezone,
           policy: {
             allowCancellation: policy?.allow_client_cancellation ?? true,

@@ -67,13 +67,18 @@ type ApiAppointment = {
 }
 type Prefs = Pick<Account, 'language' | 'notify'> & { activeSlug: string | null; read: string[] }
 
+type VoucherNotice = { id: string; title: string; body: string; at: string }
+
 type State = {
   authReady: boolean
   user: { uid: string; email: string } | null
   me: Me | null
   error: string | null
   summaries: Record<string, SpaceSummary>
-  spaceData: Record<string, { policy: BookingPolicy; appointments: Appointment[] }>
+  spaceData: Record<
+    string,
+    { policy: BookingPolicy; appointments: Appointment[]; voucherNotices?: VoucherNotice[] }
+  >
   prefs: Prefs
 }
 
@@ -364,10 +369,12 @@ function accountOf(current: State): Account | null {
         policy: data?.policy ?? null,
         appointments,
         payments: paymentsOf(appointments),
-        notices: noticesOf({ summary, linkedAt: link.linkedAt }, appointments).map((item) => ({
-          ...item,
-          read: read.has(item.id),
-        })),
+        notices: [
+          ...noticesOf({ summary, linkedAt: link.linkedAt }, appointments),
+          ...(data?.voucherNotices ?? []).map((item) => ({ ...item, kind: 'promo' as const })),
+        ]
+          .sort((a, b) => b.at.localeCompare(a.at))
+          .map((item) => ({ ...item, read: read.has(item.id) })),
       }
     }
     // A new device has no preference yet: the oldest linked space opens.
@@ -408,13 +415,19 @@ async function refreshMe() {
 
 export async function refreshSpace(slug: string) {
   try {
-    const data = await api<{ policy: BookingPolicy; appointments: ApiAppointment[] }>(
-      `/client/spaces/${encodeURIComponent(slug)}/appointments`,
-    )
+    const data = await api<{
+      policy: BookingPolicy
+      appointments: ApiAppointment[]
+      voucherNotices?: VoucherNotice[]
+    }>(`/client/spaces/${encodeURIComponent(slug)}/appointments`)
     set({
       spaceData: {
         ...state.spaceData,
-        [slug]: { policy: data.policy, appointments: data.appointments.map(toAppointment) },
+        [slug]: {
+          policy: data.policy,
+          appointments: data.appointments.map(toAppointment),
+          voucherNotices: data.voucherNotices,
+        },
       },
     })
   } catch {

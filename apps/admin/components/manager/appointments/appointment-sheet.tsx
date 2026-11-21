@@ -410,12 +410,18 @@ function SheetBody({
       onClose()
     } catch (caught) {
       const body =
-        caught instanceof ClinicApiError ? (caught.body as { warnings?: BookingWarning[] }) : null
+        caught instanceof ClinicApiError
+          ? (caught.body as { warnings?: BookingWarning[]; error?: string })
+          : null
       if (caught instanceof ClinicApiError && caught.status === 409 && body?.warnings) {
         setWarnings(body.warnings)
         return
       }
-      setError('Não foi possível salvar. Tente de novo.')
+      setError(
+        body?.error === 'Outside manager booking window'
+          ? 'O atendimento precisa caber entre 2 horas antes da abertura e 4 horas depois do fechamento.'
+          : 'Não foi possível salvar. Tente de novo.',
+      )
     } finally {
       setBusy(false)
     }

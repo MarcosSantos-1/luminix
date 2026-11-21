@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto'
 import { PGlite } from '@electric-sql/pglite'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { buildApp } from '../src/app.js'
@@ -567,6 +568,82 @@ describe('área do cliente', () => {
       paymentMethod: 'pix',
     })
     expect(paid.statusCode).toBe(201)
+  })
+
+  it('publica voucher apenas na conta vinculada e registra um único resgate', async () => {
+    const date = new Date(Date.parse(nextWeekday()) + 21 * 86400000).toISOString().slice(0, 10)
+    const base = `/clinics/${clinicA}`
+    const recipient = 'cliente-voucher'
+    expect(
+      (
+        await call(recipient, 'PUT', '/client/me', {
+          name: 'Cliente Voucher',
+          email: 'voucher@example.com',
+        })
+      ).statusCode,
+    ).toBe(200)
+    expect(
+      (await call(recipient, 'POST', '/client/spaces', { slug: slugA, shareAnamnesis: false }))
+        .statusCode,
+    ).toBe(201)
+    const clients = (await call('owner-a', 'GET', `${base}/clients`)).json().clients
+    const clientId = clients.find(
+      (client: { display_name: string }) => client.display_name === 'Cliente Voucher',
+    ).id
+    const other = await call('owner-a', 'POST', `${base}/clients`, { name: 'Outra cliente' })
+    expect(other.statusCode).toBe(201)
+    const otherId = other.json().client.id
+    const voucherId = randomUUID()
+    const voucher = { id: voucherId, type: 'percent', value: 25, expiresOn: date }
+    const endpoint = `${base}/clients/${clientId}/vouchers`
+    expect((await call('owner-b', 'POST', endpoint, voucher)).statusCode).toBe(403)
+    expect((await call('owner-a', 'POST', endpoint, { ...voucher, value: 101 })).statusCode).toBe(
+      400,
+    )
+    expect(
+      (await call('owner-a', 'POST', endpoint, { ...voucher, expiresOn: '2000-01-01' })).statusCode,
+    ).toBe(400)
+    const issued = await call('owner-a', 'POST', endpoint, voucher)
+    expect(issued.statusCode, issued.body).toBe(201)
+    expect(issued.json().destination).toBe('app')
+    expect((await call('owner-a', 'POST', endpoint, voucher)).statusCode).toBe(201)
+    const customerPath = `/client/spaces/${slugA}/appointments`
+    const inbox = () => call(recipient, 'GET', customerPath)
+    expect((await call('cliente-2', 'GET', customerPath)).json().voucherNotices).toEqual([])
+    expect((await inbox()).json().voucherNotices).toEqual([
+      expect.objectContaining({ id: `voucher-${voucherId}` }),
+    ])
+    const book = {
+      clientId,
+      serviceId: solo,
+      localStartsAt: `${date}T14:00`,
+      confirmedWarnings: ['outside_availability'],
+      voucherId,
+    }
+    expect(
+      (await call('owner-a', 'POST', `${base}/appointments`, { ...book, clientId: otherId }))
+        .statusCode,
+    ).toBe(409)
+    const created = await call('owner-a', 'POST', `${base}/appointments`, book)
+    expect(created.statusCode, created.body).toBe(201)
+    expect(
+      (
+        await call('owner-a', 'POST', `${base}/appointments`, {
+          ...book,
+          localStartsAt: `${date}T15:00`,
+        })
+      ).statusCode,
+    ).toBe(409)
+    const result = (await inbox()).json()
+    expect(
+      result.appointments.find(
+        (entry: { id: string }) => entry.id === created.json().appointment.id,
+      ).priceCents,
+    ).toBe(6000)
+    expect(result.voucherNotices).toEqual([])
+    expect((await call('owner-a', 'GET', endpoint)).json().vouchers).toEqual([
+      expect.objectContaining({ status: 'used' }),
+    ])
   })
 
   it('responde CORS só para as origens da área do cliente', async () => {

@@ -1,9 +1,10 @@
 'use client'
 
 import Image from 'next/image'
-import { Button, Card } from '@heroui/react'
-import { Crown, MessageCircle, PanelLeftClose, PanelLeftOpen } from 'lucide-react'
+import { Button } from '@heroui/react'
+import { MessageCircle, PanelLeftClose, PanelLeftOpen } from 'lucide-react'
 import { managerNavigation, type ManagerSectionId } from './demo-data'
+import { PlanCard } from './manager-plan'
 import { supportWhatsAppUrl } from './support'
 
 /** Menu groups: the day-to-day pages first, then the business, then the space. */
@@ -18,12 +19,16 @@ export function ManagerSidebar({
   canManageSettings,
   collapsed,
   onToggle,
+  planStatus,
+  onPlan,
   onNavigate,
 }: {
   activeLabel: string
   canManageSettings: boolean
   collapsed: boolean
   onToggle: () => void
+  planStatus: string
+  onPlan: () => void
   onNavigate: (label: string) => void
 }) {
   return (
@@ -87,15 +92,7 @@ export function ManagerSidebar({
             )
           })}
         </nav>
-        <Card className="manager-plan">
-          <Crown size={20} />
-          <p>Seu próximo capítulo</p>
-          <strong>Mais tempo para cuidar.</strong>
-          <p>Uma rotina mais leve começa aqui.</p>
-          <Button variant="secondary" onPress={() => onNavigate('Planos')}>
-            Conhecer os planos
-          </Button>
-        </Card>
+        <PlanCard status={planStatus} onOpen={onPlan} />
       </div>
       <div className="manager-support">
         <a

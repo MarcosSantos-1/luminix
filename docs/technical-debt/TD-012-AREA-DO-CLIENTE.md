@@ -11,7 +11,9 @@ Problema:
 2. Ficha nível I e foto não aparecem para a equipe no admin.
 3. Regras de cliente (mapeamento de horários, avisos derivados, pagamentos simulados) duplicadas
    entre web e app.
-4. Avisos derivados no cliente: sem push, sem histórico no servidor; "lido" é por aparelho.
+4. Avisos derivados no cliente: sem push; "lido" é por aparelho. O voucher de uso único fica
+   persistido e aparece na central enquanto disponível. A entrega do e-mail atual é assíncrona,
+   sem fila de reenvio. WhatsApp é compartilhamento manual com autorização de mensagens.
 5. Variáveis `NEXT_PUBLIC_FIREBASE_*` e `NEXT_PUBLIC_API_URL` configuradas só em Production na
    Vercel (`luminix-web`); Preview não tem login de cliente.
 6. Nível da ficha só é derivado dos serviços: falta a escolha do gestor

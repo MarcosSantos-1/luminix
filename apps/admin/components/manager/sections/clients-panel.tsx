@@ -1,6 +1,6 @@
 'use client'
 
-import { Button, Chip, Modal } from '@heroui/react'
+import { Button, Modal } from '@heroui/react'
 import {
   Archive,
   ArchiveRestore,
@@ -8,7 +8,6 @@ import {
   CalendarClock,
   CalendarPlus,
   Check,
-  Camera,
   ClipboardCheck,
   Gift,
   History,
@@ -31,7 +30,7 @@ import { useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } 
 import type { Answers, Level } from '@luminix/contracts/anamnesis'
 import { formatBrPhone, toE164Phone } from '@/lib/phone'
 import { isValidBrazilianTaxId } from '@/lib/tax-id'
-import { CheckboxField, DateInputField, SearchInput, SelectField } from '@/components/ui/fields'
+import { CheckboxField, SearchInput } from '@/components/ui/fields'
 import { ClientAvatar } from '../appointments/appointment-sheet'
 import { BookingModal } from '../appointments/booking-modal'
 import { dateBr, money, whatsapp } from '../business/format'
@@ -55,6 +54,7 @@ import {
 import { useKeyboardAwareSheet, useNoKeyboardOnOpen } from '../quick-modal'
 import { FilterMenu, KpiCards, type FilterValue } from '../data-kit'
 import { QuickModal } from '../quick-modal'
+import { VoucherModal } from '../clients/voucher-modal'
 import { ClinicApiError, useClinicApi, type ClinicApi } from '../settings/clinic-api'
 import { useSearchFocus, type SearchFocus } from '../workspace/workspace-signals'
 
@@ -103,6 +103,11 @@ type HistoryItem = {
   paid_cents?: number | null
   paid_method?: string | null
   status_note?: string | null
+  previous_starts_at?: string | null
+  rescheduled_at?: string | null
+  package_name?: string | null
+  package_sessions?: number | null
+  package_session?: number | null
   /** Receipt of an in-app (Stripe) payment, when there is one. */
   receipt_url?: string | null
 }
@@ -181,6 +186,7 @@ export function ClientsPanel({
 }) {
   const api = useClinicApi(clinicId)
   const [clients, setClients] = useState<Client[]>([])
+  const [canIssueVouchers, setCanIssueVouchers] = useState(false)
   const [canSeeMoney, setCanSeeMoney] = useState(false)
   const [query, setQuery] = useState('')
   useSearchFocus(focus, setQuery)
@@ -190,7 +196,7 @@ export function ClientsPanel({
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
   const [open, setOpen] = useState(false)
-  const [voucherOpen, setVoucherOpen] = useState(false)
+  const [voucherClient, setVoucherClient] = useState<Client | null | undefined>(undefined)
   const [form, setForm] = useState(emptyForm)
   const [editing, setEditing] = useState<{ id: string; status: 'active' | 'archived' } | null>(null)
   const [loadingDetail, setLoadingDetail] = useState(false)
@@ -253,6 +259,7 @@ export function ClientsPanel({
       const body = await api.get<{
         clients: Client[]
         canSeeMoney?: boolean
+        canIssueVouchers?: boolean
         anamnesisLevel?: number
       }>('clients', {
         status,
@@ -261,6 +268,7 @@ export function ClientsPanel({
       if (!active()) return
       setClients(body.clients)
       setCanSeeMoney(body.canSeeMoney === true)
+      setCanIssueVouchers(body.canIssueVouchers === true)
       setRequiredLevel(Math.min(3, Math.max(1, body.anamnesisLevel ?? 1)) as Level)
     } catch {
       if (active()) setError('Não foi possível carregar os clientes deste espaço.')
@@ -583,9 +591,11 @@ export function ClientsPanel({
             ]}
           />
         </div>
-        <Button variant="secondary" onPress={() => setVoucherOpen(true)}>
-          <TicketPercent size={18} /> Voucher
-        </Button>
+        {canIssueVouchers ? (
+          <Button variant="secondary" onPress={() => setVoucherClient(null)}>
+            <TicketPercent size={18} /> Voucher
+          </Button>
+        ) : null}
         <Button data-manager-spotlight="add-client" onPress={openCreate}>
           <Plus size={18} /> Adicionar cliente
         </Button>
@@ -722,17 +732,18 @@ export function ClientsPanel({
               <span className="sh-who">
                 {selected.display_name}
                 <small>
-                  {[
-                    selected.contact_phone && formatBrPhone(selected.contact_phone),
-                    selected.contact_email,
-                  ]
-                    .filter(Boolean)
-                    .join(' · ') || 'Sem contato informado'}
+                  {selected.contact_phone ? (
+                    <span>{formatBrPhone(selected.contact_phone)}</span>
+                  ) : null}
+                  {selected.contact_email ? <span>{selected.contact_email}</span> : null}
+                  {!selected.contact_phone && !selected.contact_email
+                    ? 'Sem contato informado'
+                    : null}
                 </small>
               </span>
               {selected.contact_phone ? (
                 <a
-                  className="button button--ghost button--icon-only sh-whats cli-whats"
+                  className="cli-whats"
                   aria-label={`Conversar com ${selected.display_name} no WhatsApp`}
                   href={
                     whatsapp(
@@ -743,7 +754,7 @@ export function ClientsPanel({
                   target="_blank"
                   rel="noopener noreferrer"
                 >
-                  <MessageCircle size={21} aria-hidden />
+                  <MessageCircle size={17} aria-hidden /> <span>WhatsApp</span>
                 </a>
               ) : null}
             </span>
@@ -774,7 +785,11 @@ export function ClientsPanel({
               setBooking(selected.id)
             }}
             onEdit={() => void openEdit(selected)}
-            onVoucher={() => setVoucherOpen(true)}
+            onVoucher={
+              canIssueVouchers && selected.status === 'active'
+                ? () => setVoucherClient(selected)
+                : undefined
+            }
             onPhoto={() => photoInput.current?.click()}
             onRemovePhoto={() => void changePhoto(selected.id, null)}
             onStatus={() =>
@@ -1016,40 +1031,13 @@ export function ClientsPanel({
           </Modal.Dialog>
         </Modal.Container>
       </Modal.Backdrop>
-      <Modal.Backdrop
-        isOpen={voucherOpen}
-        onOpenChange={setVoucherOpen}
-        className="qm-back qm-back-glow"
-      >
-        <Modal.Container size="md">
-          <Modal.Dialog className="manager-dialog qm-glow">
-            <Modal.CloseTrigger aria-label="Fechar" />
-            <Modal.Header>
-              <Modal.Heading>Vouchers</Modal.Heading>
-            </Modal.Header>
-            <Modal.Body>
-              <div className="manager-voucher-intro">
-                <span aria-hidden="true">
-                  <TicketPercent size={24} />
-                </span>
-                <div>
-                  <Chip size="sm" variant="soft">
-                    Em preparação
-                  </Chip>
-                  <p>
-                    O acesso já está posicionado na tela de clientes. A emissão será ativada junto
-                    das regras de valor, validade, uso e auditoria financeira, para não criar
-                    vouchers sem controle.
-                  </p>
-                </div>
-              </div>
-            </Modal.Body>
-            <Modal.Footer>
-              <Button onPress={() => setVoucherOpen(false)}>Entendi</Button>
-            </Modal.Footer>
-          </Modal.Dialog>
-        </Modal.Container>
-      </Modal.Backdrop>
+      {voucherClient !== undefined ? (
+        <VoucherModal
+          api={api}
+          initialClient={voucherClient}
+          onClose={() => setVoucherClient(undefined)}
+        />
+      ) : null}
     </div>
   )
 }
@@ -1130,6 +1118,23 @@ function Visit({ item }: { item: HistoryItem }) {
           {item.professional_name ? ` · ${item.professional_name}` : ''}
           {item.status === 'canceled' && item.status_note ? ` · ${item.status_note}` : ''}
         </small>
+        {item.previous_starts_at ? (
+          <small>
+            Remarcado · antes em{' '}
+            {new Date(item.previous_starts_at).toLocaleString('pt-BR', {
+              dateStyle: 'short',
+              timeStyle: 'short',
+            })}
+          </small>
+        ) : null}
+        {item.package_name ? (
+          <small>
+            {item.package_name}
+            {item.package_session && item.package_sessions && item.status !== 'canceled'
+              ? ` · Sessão ${item.package_session} de ${item.package_sessions}`
+              : ''}
+          </small>
+        ) : null}
         <span className="cli-visit-tags">
           <span className={`sh-mini is-${item.status}`}>
             {statusLabels[item.status] ?? item.status}
@@ -1152,7 +1157,7 @@ function Visit({ item }: { item: HistoryItem }) {
   )
 }
 
-type ProfileTab = 'cover' | 'data' | 'anamnesis' | 'packages' | 'history'
+type ProfileTab = 'cover' | 'data' | 'history'
 type ClientPackage = {
   id: string
   serviceId: string
@@ -1170,17 +1175,6 @@ type ClientPackage = {
   expiresOn: string | null
   status: 'active' | 'finished' | 'expired' | 'canceled'
 }
-type CatalogPackage = {
-  id: string
-  name: string
-  kind?: 'sessions' | 'combo'
-  items?: { serviceId: string; sessions: number }[]
-  durationMinutes?: number | null
-  sessions: number
-  priceCents: number
-  validityDays: number | null
-  status: string
-}
 const packageStatus: Record<ClientPackage['status'], string> = {
   active: 'Em uso',
   finished: 'Concluído',
@@ -1190,7 +1184,7 @@ const packageStatus: Record<ClientPackage['status'], string> = {
 
 /**
  * The client as a profile, in tabs: the cover (numbers, next visit, care and actions), personal
- * data, anamnese, packages and the history of visits.
+ * data with anamnese, and the history of visits and packages.
  */
 function ClientProfile({
   api,
@@ -1222,7 +1216,7 @@ function ClientProfile({
   saving: boolean
   onBook: () => void
   onEdit: () => void
-  onVoucher: () => void
+  onVoucher?: () => void
   onPhoto: () => void
   onRemovePhoto: () => void
   onStatus: () => void
@@ -1230,6 +1224,7 @@ function ClientProfile({
 }) {
   const [tab, setTab] = useState<ProfileTab>('cover')
   const [visits, setVisits] = useState<'next' | 'past'>('past')
+  const [showAnamnesis, setShowAnamnesis] = useState(false)
   // Opening time of the sheet: what is still ahead and what already happened.
   const [now] = useState(() => Date.now())
   const [packages, setPackages] = useState<ClientPackage[] | null>(null)
@@ -1243,7 +1238,6 @@ function ClientProfile({
     .reverse()
   const past = (history ?? []).filter((item) => !upcoming.includes(item))
   const shown = visits === 'next' ? upcoming : past
-  const hasPhoto = Boolean(client.photo_url || client.account_photo)
   const birth = client.birth_date?.slice(0, 10)
   const activePackages = (packages ?? []).filter((item) => item.status === 'active')
 
@@ -1261,13 +1255,6 @@ function ClientProfile({
   const tabs: { id: ProfileTab; label: string; icon: ReactNode; count?: number }[] = [
     { id: 'cover', label: 'Resumo', icon: <Sparkles size={15} aria-hidden /> },
     { id: 'data', label: 'Dados', icon: <IdCard size={15} aria-hidden /> },
-    { id: 'anamnesis', label: 'Anamnese', icon: <ClipboardCheck size={15} aria-hidden /> },
-    {
-      id: 'packages',
-      label: 'Pacotes',
-      icon: <Package size={15} aria-hidden />,
-      count: activePackages.length || undefined,
-    },
     {
       id: 'history',
       label: 'Histórico',
@@ -1350,7 +1337,7 @@ function ClientProfile({
           </div>
 
           {activePackages.length ? (
-            <button type="button" className="cpf-pack-strip" onClick={() => setTab('packages')}>
+            <button type="button" className="cpf-pack-strip" onClick={() => setTab('history')}>
               <Package size={18} aria-hidden />
               {activePackages.map((item) => (
                 <span key={item.id}>
@@ -1367,7 +1354,7 @@ function ClientProfile({
               <span className="cli-notes">{client.notes}</span>
             </p>
           ) : (
-            <button type="button" className="cli-add-note" onClick={onEdit}>
+            <button type="button" className="cli-add-note" onClick={() => setTab('data')}>
               <NotebookPen size={16} aria-hidden /> Sem cuidados anotados. Registrar alergias,
               gestação ou medicamentos
             </button>
@@ -1379,39 +1366,13 @@ function ClientProfile({
               <button type="button" onClick={onBook} disabled={client.status !== 'active'}>
                 <CalendarPlus size={20} aria-hidden /> Agendar
               </button>
-              <button type="button" onClick={() => setTab('packages')}>
-                <Package size={20} aria-hidden /> Vender pacote
-              </button>
-              <button type="button" onClick={() => setTab('anamnesis')}>
-                <ClipboardCheck size={20} aria-hidden /> Anamnese
-              </button>
-              <button type="button" onClick={onEdit}>
-                <Pencil size={20} aria-hidden /> Editar
-              </button>
-              <button type="button" onClick={onVoucher}>
-                <Gift size={20} aria-hidden /> Voucher
-              </button>
-              <button type="button" disabled={photoBusy} onClick={onPhoto}>
-                <Camera size={20} aria-hidden />{' '}
-                {photoBusy ? 'Enviando…' : hasPhoto ? 'Trocar foto' : 'Foto'}
-              </button>
-            </div>
-            {photoError ? (
-              <p className="apt-error" role="alert">
-                {photoError}
-              </p>
-            ) : null}
-            <div className="cli-quiet-actions">
-              {client.photo_url ? (
-                <button
-                  type="button"
-                  className="team-link"
-                  disabled={photoBusy}
-                  onClick={onRemovePhoto}
-                >
-                  Remover foto
+              {onVoucher ? (
+                <button type="button" onClick={onVoucher}>
+                  <Gift size={20} aria-hidden /> Voucher
                 </button>
               ) : null}
+            </div>
+            <div className="cli-quiet-actions">
               <button type="button" className="team-link" disabled={saving} onClick={onStatus}>
                 {client.status === 'active' ? 'Arquivar cliente' : 'Reativar cliente'}
               </button>
@@ -1421,7 +1382,8 @@ function ClientProfile({
       ) : null}
 
       {tab === 'data' ? (
-        <section className="sh-actions">
+        <section className="sh-actions cpf-data">
+          <h3>Dados pessoais</h3>
           <dl className="apt-client">
             <div>
               <dt>WhatsApp</dt>
@@ -1472,30 +1434,47 @@ function ClientProfile({
             <Button variant="secondary" onPress={onEdit}>
               <Pencil size={17} aria-hidden /> Editar dados
             </Button>
+            <Button
+              variant="ghost"
+              onPress={() => setShowAnamnesis((visible) => !visible)}
+              aria-expanded={showAnamnesis}
+            >
+              <ClipboardCheck size={17} aria-hidden />{' '}
+              {showAnamnesis ? 'Ocultar anamnese' : 'Ver anamnese'}
+            </Button>
           </div>
+          <div className="cli-quiet-actions">
+            {!client.photo_url && !client.account_photo ? (
+              <button type="button" className="team-link" disabled={photoBusy} onClick={onPhoto}>
+                {photoBusy ? 'Enviando…' : 'Adicionar foto'}
+              </button>
+            ) : null}
+            {client.photo_url ? (
+              <button
+                type="button"
+                className="team-link"
+                disabled={photoBusy}
+                onClick={onRemovePhoto}
+              >
+                Remover foto
+              </button>
+            ) : null}
+          </div>
+          {photoError ? (
+            <p className="apt-error" role="alert">
+              {photoError}
+            </p>
+          ) : null}
+          {showAnamnesis ? (
+            <AnamnesisTab
+              api={api}
+              client={client}
+              detail={detail}
+              requiredLevel={requiredLevel}
+              onSaved={onChanged}
+            />
+          ) : null}
         </section>
-      ) : null}
-
-      {tab === 'anamnesis' ? (
-        <AnamnesisTab
-          api={api}
-          client={client}
-          detail={detail}
-          requiredLevel={requiredLevel}
-          onSaved={onChanged}
-        />
-      ) : null}
-
-      {tab === 'packages' ? (
-        <PackagesTab
-          api={api}
-          client={client}
-          packages={packages}
-          onChanged={(message) => {
-            setReloadPackages((value) => value + 1)
-            onChanged(message)
-          }}
-        />
       ) : null}
 
       {tab === 'history' ? (
@@ -1532,6 +1511,15 @@ function ClientProfile({
               {visits === 'next' ? 'Nenhum horário marcado.' : 'Nenhum atendimento ainda.'}
             </p>
           )}
+          <h3>Pacotes e sessões</h3>
+          <PackagesTab
+            api={api}
+            packages={packages}
+            onChanged={(message) => {
+              setReloadPackages((value) => value + 1)
+              onChanged(message)
+            }}
+          />
         </section>
       ) : null}
     </div>
@@ -1701,38 +1689,22 @@ function AnamnesisTab({
   )
 }
 
-/** Packages of the client: balance of sessions and selling a new one. */
+/** Packages shown alongside the appointment history. */
 function PackagesTab({
   api,
-  client,
   packages,
   onChanged,
 }: {
   api: ClinicApi
-  client: Client
   packages: ClientPackage[] | null
   onChanged: (message: string) => void
 }) {
-  const [catalog, setCatalog] = useState<{
-    packages: CatalogPackage[]
-    canFinance: boolean
-  } | null>(null)
-  const [selling, setSelling] = useState<{
-    packageId: string
-    soldOn: string
-    registerIncome: boolean
-    method: string
-  } | null>(null)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const [serviceNames, setServiceNames] = useState<Record<string, string>>({})
 
   useEffect(() => {
     let active = true
-    void api
-      .get<{ packages: CatalogPackage[]; canFinance: boolean }>('catalog/extras')
-      .then((body) => active && setCatalog(body))
-      .catch(() => active && setCatalog({ packages: [], canFinance: false }))
     // Names of the services in combos ("2 de 3 limpezas").
     void api
       .get<{ services: { id: string; name: string }[] }>('catalog')
@@ -1746,30 +1718,6 @@ function PackagesTab({
       active = false
     }
   }, [api])
-
-  const offer = (catalog?.packages ?? []).filter((item) => item.status === 'active')
-  const chosen = offer.find((item) => item.id === selling?.packageId)
-
-  async function sell() {
-    if (!selling?.packageId) return setError('Escolha o pacote.')
-    setBusy(true)
-    setError('')
-    try {
-      await api.post(`clients/${client.id}/packages`, {
-        packageId: selling.packageId,
-        soldOn: selling.soldOn,
-        ...(selling.registerIncome
-          ? { registerIncome: true, method: selling.method || undefined }
-          : {}),
-      })
-      setSelling(null)
-      onChanged(`${chosen?.name ?? 'Pacote'} vendido para ${client.display_name.split(' ')[0]}.`)
-    } catch {
-      setError('Não foi possível registrar a venda.')
-    } finally {
-      setBusy(false)
-    }
-  }
 
   async function cancel(item: ClientPackage) {
     setBusy(true)
@@ -1852,82 +1800,6 @@ function PackagesTab({
         <p className="apt-hint">Nenhum pacote ainda.</p>
       )}
 
-      {selling ? (
-        <div className="cpf-sell">
-          <h4>Vender pacote</h4>
-          {offer.length ? (
-            <div className="cpf-offer" role="radiogroup" aria-label="Pacote">
-              {offer.map((item) => (
-                <button
-                  key={item.id}
-                  type="button"
-                  role="radio"
-                  aria-checked={selling.packageId === item.id}
-                  onClick={() => setSelling({ ...selling, packageId: item.id })}
-                >
-                  <strong>{item.name}</strong>
-                  <small>
-                    {item.kind === 'combo' && item.items?.length
-                      ? `${item.sessions} ${item.sessions === 1 ? 'sessão' : 'sessões'} de ${item.items
-                          .map((line) => serviceNames[line.serviceId] ?? 'serviço')
-                          .join(' + ')}`
-                      : `${item.sessions} sessões`}{' '}
-                    · {money(item.priceCents)}
-                    {item.validityDays ? ` · ${item.validityDays} dias` : ''}
-                  </small>
-                </button>
-              ))}
-            </div>
-          ) : (
-            <p className="apt-hint">Crie pacotes em Serviços → Pacotes para vender aqui.</p>
-          )}
-          <DateInputField
-            label="Data da venda"
-            value={selling.soldOn}
-            onChange={(soldOn) => setSelling({ ...selling, soldOn })}
-          />
-          {catalog?.canFinance ? (
-            <>
-              <CheckboxField
-                isSelected={selling.registerIncome}
-                onChange={(registerIncome) => setSelling({ ...selling, registerIncome })}
-                label={`Lançar ${chosen ? money(chosen.priceCents) : 'o valor'} como recebido`}
-                description="Entra no Financeiro como receita de pacote."
-              />
-              {selling.registerIncome ? (
-                <SelectField
-                  label="Forma de pagamento"
-                  value={selling.method || 'pix'}
-                  onChange={(method) => setSelling({ ...selling, method })}
-                  options={Object.entries(methodLabels).map(([id, label]) => ({ id, label }))}
-                />
-              ) : null}
-            </>
-          ) : null}
-          <div className="anm-nav">
-            <Button variant="ghost" onPress={() => setSelling(null)}>
-              Cancelar
-            </Button>
-            <Button isDisabled={busy || !selling.packageId} onPress={() => void sell()}>
-              {busy ? 'Salvando…' : 'Confirmar venda'}
-            </Button>
-          </div>
-        </div>
-      ) : client.status === 'active' ? (
-        <Button
-          variant="secondary"
-          onPress={() =>
-            setSelling({
-              packageId: offer[0]?.id ?? '',
-              soldOn: new Date().toLocaleDateString('en-CA'),
-              registerIncome: true,
-              method: 'pix',
-            })
-          }
-        >
-          <Plus size={16} aria-hidden /> Vender pacote
-        </Button>
-      ) : null}
       {error ? (
         <p className="apt-error" role="alert">
           {error}
