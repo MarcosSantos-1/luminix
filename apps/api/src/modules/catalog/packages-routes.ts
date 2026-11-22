@@ -587,7 +587,7 @@ export async function packageRoutes(
           if (!validWindow(body)) return reply.code(400).send({ error: 'Invalid rental hours' })
           const before = body.exclusive
             ? await fittingAppointments(connection, tenant.clinicId)
-            : new Set<string>()
+            : (new Map() as Awaited<ReturnType<typeof fittingAppointments>>)
           const span = days(body.startsOn, body.endsOn)
           if (!(span >= 0 && span <= 62)) return reply.code(400).send({ error: 'Invalid period' })
           if (body.registerExpense && !body.costCents)

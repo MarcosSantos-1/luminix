@@ -1,7 +1,7 @@
 'use client'
 
 import { Button } from '@heroui/react'
-import { CalendarX2, Mail, Phone } from 'lucide-react'
+import { CalendarX2, Clock3, Mail, Phone } from 'lucide-react'
 import { useCallback, useRef, useState, type ReactNode } from 'react'
 import { formatBrPhone } from '@/lib/phone'
 import { initials } from '../business/format'
@@ -17,13 +17,21 @@ export type AffectedClient = {
   appointments: {
     id: string
     startsAt: string
+    endsAt?: string
     date: string
     time: string
     service: string
     professional: string | null
   }[]
 }
-type Impact = { affected: AffectedClient[]; total: number }
+type Impact = {
+  /** Canceled (and notified) when the manager confirms. */
+  affected: AffectedClient[]
+  total: number
+  /** Kept: they only run past the new closing time. */
+  overrun?: AffectedClient[]
+  overrunTotal?: number
+}
 
 function impactOf(error: unknown): Impact | null {
   if (!(error instanceof ClinicApiError) || error.status !== 409) return null
@@ -115,6 +123,59 @@ export function useCancellationGuard(context?: string) {
   return { guard, dialog }
 }
 
+const clock = (iso: string) =>
+  new Date(iso).toLocaleTimeString('pt-BR', {
+    hour: '2-digit',
+    minute: '2-digit',
+    timeZone: 'America/Sao_Paulo',
+  })
+
+function ClientList({ clients, showEnd }: { clients: AffectedClient[]; showEnd?: boolean }) {
+  return (
+    <ul className="cxl-list">
+      {clients.map((client) => (
+        <li key={client.clientId} className="cxl-client">
+          <span className="cxl-face" aria-hidden>
+            {client.photoUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element -- signed client photo
+              <img src={client.photoUrl} alt="" />
+            ) : (
+              initials(client.name)
+            )}
+          </span>
+          <div className="cxl-who">
+            <strong>{client.name}</strong>
+            {client.phone ? (
+              <a href={`tel:${client.phone}`} className="cxl-phone">
+                <Phone size={13} aria-hidden /> {formatBrPhone(client.phone)}
+              </a>
+            ) : (
+              <span className="cxl-phone is-missing">Sem telefone</span>
+            )}
+            <ul className="cxl-times">
+              {client.appointments.map((item) => (
+                <li key={item.id}>
+                  <span className="cxl-when">
+                    {dayLabel(item.date)} · {item.time}
+                    {showEnd && item.endsAt ? `–${clock(item.endsAt)}` : ''}
+                  </span>
+                  <span>
+                    {item.service}
+                    {item.professional ? ` com ${item.professional}` : ''}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </div>
+          <span className="cxl-count" aria-label={`${client.appointments.length} horários`}>
+            {client.appointments.length}
+          </span>
+        </li>
+      ))}
+    </ul>
+  )
+}
+
 function AffectedClientsDialog({
   impact,
   busy,
@@ -132,6 +193,9 @@ function AffectedClientsDialog({
 }) {
   const total = impact?.total ?? 0
   const people = impact?.affected.length ?? 0
+  const overrun = impact?.overrun ?? []
+  const overrunTotal = impact?.overrunTotal ?? 0
+  const cancels = total > 0
   return (
     <QuickModal
       isOpen={Boolean(impact)}
@@ -146,69 +210,55 @@ function AffectedClientsDialog({
         </>
       }
       title={
-        total === 1
-          ? '1 horário marcado será cancelado'
-          : `${total} horários marcados serão cancelados`
+        cancels
+          ? total === 1
+            ? '1 horário marcado será cancelado'
+            : `${total} horários marcados serão cancelados`
+          : overrunTotal === 1
+            ? '1 atendimento vai passar do novo horário'
+            : `${overrunTotal} atendimentos vão passar do novo horário`
       }
       subtitle={
-        context ??
-        `Com essa mudança, ${people === 1 ? 'esta cliente perde' : `estas ${people} clientes perdem`} o horário. Se continuar, cancelamos e avisamos cada uma por e-mail e na área da cliente.`
+        cancels
+          ? (context ??
+            `Com essa mudança, ${people === 1 ? 'esta cliente perde' : `estas ${people} clientes perdem`} o horário. Se continuar, cancelamos e avisamos cada uma por e-mail e na área da cliente.`)
+          : 'Eles começam dentro do expediente e continuam marcados. Só terminam depois do novo fechamento: combine com a cliente se precisar.'
       }
       footer={
         <>
           <Button variant="secondary" isDisabled={busy} onPress={onBack}>
             Voltar sem salvar
           </Button>
-          <Button variant="danger" isDisabled={busy} onPress={onConfirm}>
-            {busy ? 'Cancelando…' : 'Cancelar horários e avisar'}
+          <Button variant={cancels ? 'danger' : 'primary'} isDisabled={busy} onPress={onConfirm}>
+            {busy
+              ? cancels
+                ? 'Cancelando…'
+                : 'Salvando…'
+              : cancels
+                ? 'Cancelar horários e avisar'
+                : 'Salvar assim mesmo'}
           </Button>
         </>
       }
     >
-      <ul className="cxl-list">
-        {impact?.affected.map((client) => (
-          <li key={client.clientId} className="cxl-client">
-            <span className="cxl-face" aria-hidden>
-              {client.photoUrl ? (
-                // eslint-disable-next-line @next/next/no-img-element -- signed client photo
-                <img src={client.photoUrl} alt="" />
-              ) : (
-                initials(client.name)
-              )}
-            </span>
-            <div className="cxl-who">
-              <strong>{client.name}</strong>
-              {client.phone ? (
-                <a href={`tel:${client.phone}`} className="cxl-phone">
-                  <Phone size={13} aria-hidden /> {formatBrPhone(client.phone)}
-                </a>
-              ) : (
-                <span className="cxl-phone is-missing">Sem telefone</span>
-              )}
-              <ul className="cxl-times">
-                {client.appointments.map((item) => (
-                  <li key={item.id}>
-                    <span className="cxl-when">
-                      {dayLabel(item.date)} · {item.time}
-                    </span>
-                    <span>
-                      {item.service}
-                      {item.professional ? ` com ${item.professional}` : ''}
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-            <span className="cxl-count" aria-label={`${client.appointments.length} horários`}>
-              {client.appointments.length}
-            </span>
-          </li>
-        ))}
-      </ul>
-      <p className="cxl-note">
-        <Mail size={14} aria-hidden /> O aviso vai por e-mail para quem tem e-mail no cadastro e
-        aparece nas notificações da área da cliente. Sessões de pacote voltam para o saldo.
-      </p>
+      {cancels ? <ClientList clients={impact?.affected ?? []} /> : null}
+      {cancels ? (
+        <p className="cxl-note">
+          <Mail size={14} aria-hidden /> O aviso vai por e-mail para quem tem e-mail no cadastro e
+          aparece nas notificações da área da cliente. Sessões de pacote voltam para o saldo.
+        </p>
+      ) : null}
+      {overrun.length ? (
+        <section className="cxl-overrun" aria-label="Continuam marcados">
+          {cancels ? (
+            <h4>
+              <Clock3 size={15} aria-hidden /> Continuam marcados, mas passam do horário (
+              {overrunTotal})
+            </h4>
+          ) : null}
+          <ClientList clients={overrun} showEnd />
+        </section>
+      ) : null}
       {error ? (
         <p className="apt-error" role="alert">
           {error}

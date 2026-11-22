@@ -3638,3 +3638,39 @@ button.ag-empty:hover {
 .ag .manager-month-day.ag-heat[data-special='reserved']::after {
   background: #fbbf24;
 }
+.cxl-overrun {
+  display: grid;
+  gap: 10px;
+  margin-top: 14px;
+}
+.cxl-overrun h4 {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  color: #fde68a;
+  font-size: 14px;
+}
+.cxl-overrun .cxl-count {
+  color: #fde68a;
+  background: #78350f80;
+}
+
+/* Horários: the tab's save button lives next to "Fechar". */
+.sch-foot-slot {
+  display: contents;
+}
+.sch-foot-slot .wp-foot,
+.sch-foot-slot .sch-standard-foot {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+.sch-unsaved {
+  color: #fde68a;
+  font-size: 13.5px;
+  font-weight: 600;
+}

@@ -13,6 +13,7 @@ import {
   Undo2,
 } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { TimeInputField } from '@/components/ui/fields'
 import { holidaysBetween } from '@/lib/holidays'
 import { initials } from '../business/format'
@@ -74,6 +75,8 @@ export function WeekPlanner({
   timezone,
   location,
   onSaved,
+  footerSlot,
+  onDirtyChange,
 }: {
   api: ClinicApi
   weekly: WeeklyRow[]
@@ -83,6 +86,10 @@ export function WeekPlanner({
   timezone: string
   location?: { city: string | null; state: string | null }
   onSaved: (message: string) => void
+  /** Footer of the pop-up: the save button sits next to "Fechar". */
+  footerSlot?: HTMLElement | null
+  /** Unsaved days, so "Fechar" can warn before discarding them. */
+  onDirtyChange?: (dirty: boolean) => void
 }) {
   const today = localDate(new Date(), timezone)
   const first = monday(today)
@@ -97,6 +104,10 @@ export function WeekPlanner({
   const [error, setError] = useState('')
   const [done, setDone] = useState('')
   const { guard, dialog } = useCancellationGuard()
+  const dirty = Object.keys(drafts).length > 0
+  useEffect(() => {
+    onDirtyChange?.(dirty)
+  }, [dirty, onDirtyChange])
 
   const dates = useMemo(() => Array.from({ length: 7 }, (_, index) => shift(start, index)), [start])
   const holidays = useMemo(
@@ -239,6 +250,35 @@ export function WeekPlanner({
       : start === shift(first, 7)
         ? 'Próxima semana'
         : `Daqui a ${Math.round((Date.parse(start) - Date.parse(first)) / (7 * 86_400_000))} semanas`
+
+  const saveBar = (
+    <div className="wp-foot">
+      {clip && week ? (
+        <Button
+          variant="ghost"
+          onPress={() =>
+            dates
+              .filter((date) => date >= today)
+              .forEach((date) =>
+                patch(date, {
+                  ...clip,
+                  breaks: withBreaks ? clip.breaks.map((item) => ({ ...item })) : [],
+                }),
+              )
+          }
+        >
+          <ClipboardPaste size={15} aria-hidden /> Colar na semana toda
+        </Button>
+      ) : null}
+      <Button isDisabled={saving || !pending.length} onPress={() => void save()}>
+        {saving
+          ? 'Salvando…'
+          : pending.length
+            ? `Salvar ${pending.length} ${pending.length === 1 ? 'dia' : 'dias'}`
+            : 'Nada para salvar'}
+      </Button>
+    </div>
+  )
 
   return (
     <div className="wp">
@@ -527,34 +567,7 @@ export function WeekPlanner({
           {done}
         </p>
       ) : null}
-      {canEdit ? (
-        <div className="wp-foot">
-          {clip && week ? (
-            <Button
-              variant="ghost"
-              onPress={() =>
-                dates
-                  .filter((date) => date >= today)
-                  .forEach((date) =>
-                    patch(date, {
-                      ...clip,
-                      breaks: withBreaks ? clip.breaks.map((item) => ({ ...item })) : [],
-                    }),
-                  )
-              }
-            >
-              <ClipboardPaste size={15} aria-hidden /> Colar na semana toda
-            </Button>
-          ) : null}
-          <Button isDisabled={saving || !pending.length} onPress={() => void save()}>
-            {saving
-              ? 'Salvando…'
-              : pending.length
-                ? `Salvar ${pending.length} ${pending.length === 1 ? 'dia' : 'dias'}`
-                : 'Nada para salvar'}
-          </Button>
-        </div>
-      ) : null}
+      {canEdit ? (footerSlot ? createPortal(saveBar, footerSlot) : saveBar) : null}
     </div>
   )
 }

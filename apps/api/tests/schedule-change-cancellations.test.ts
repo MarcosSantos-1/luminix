@@ -12,6 +12,8 @@ let clinicA: string
 let clinicB: string
 let facial: string
 let laser: string
+let tattoo: string
+let massage: string
 let client: string
 
 beforeAll(async () => {
@@ -59,6 +61,18 @@ beforeAll(async () => {
       )
     ).rows[0].id,
   )
+  const service = async (name: string, minutes: number) =>
+    String(
+      (
+        await connection.query(
+          `INSERT INTO luminix.services (clinic_id, name, price_cents, duration_minutes)
+           VALUES ($1, $2, 50000, $3) RETURNING id`,
+          [clinicA, name, minutes],
+        )
+      ).rows[0].id,
+    )
+  tattoo = await service('Cobertura de tatuagem', 240)
+  massage = await service('Massagem', 90)
   await db.exec('SET ROLE luminix_api')
 })
 
@@ -317,5 +331,57 @@ describe('cancelamentos por mudança de agenda', () => {
     expect(saved.statusCode).toBe(201)
     expect(saved.json().canceledAppointments).toBe(1)
     expect((await status(other)).status).toBe('canceled')
+  })
+
+  it('a shorter day keeps long treatments that start inside, cancels the rest', async () => {
+    const day = { mode: 'override', date: '2030-06-03', isAvailable: true }
+    expect(
+      (
+        await call('impact-a', 'PUT', clinicA, 'availability', {
+          ...day,
+          periods: [{ start: '08:00', end: '18:00' }],
+        })
+      ).statusCode,
+    ).toBe(200)
+    const both = ['overlap']
+    const fits = (await book('2030-06-03T13:00', tattoo, both)).json().appointment.id
+    const longer = (await book('2030-06-03T14:00', tattoo, both)).json().appointment.id
+    const late = (await book('2030-06-03T16:30', massage, both)).json().appointment.id
+    const shorter = { ...day, periods: [{ start: '08:00', end: '17:00' }] }
+    const preview = await call('impact-a', 'PUT', clinicA, 'availability', shorter)
+    expect(preview.statusCode).toBe(409)
+    const body = preview.json()
+    // 16:30 + 1h30 with closing at 17:00: canceled. 14:00 + 4h: only runs past closing.
+    expect(body.total).toBe(1)
+    expect(body.affected[0].appointments[0].id).toBe(late)
+    expect(body.overrunTotal).toBe(1)
+    expect(body.overrun[0].appointments[0].id).toBe(longer)
+    const saved = await call('impact-a', 'PUT', clinicA, 'availability', {
+      ...shorter,
+      confirmCancellations: true,
+    })
+    expect(saved.json().canceledAppointments).toBe(1)
+    expect((await status(late)).status).toBe('canceled')
+    expect((await status(longer)).status).toBe('confirmed')
+    expect((await status(fits)).status).toBe('confirmed')
+
+    // Closing the day cancels everything on it, even what was booked outside the hours.
+    const outside = (
+      await book('2030-06-03T19:00', facial, ['outside_availability', 'overlap'])
+    ).json().appointment.id
+    const closed = await call('impact-a', 'PUT', clinicA, 'availability', {
+      ...day,
+      isAvailable: false,
+      periods: [],
+    })
+    expect(closed.statusCode).toBe(409)
+    expect(closed.json().total).toBe(3)
+    await call('impact-a', 'PUT', clinicA, 'availability', {
+      ...day,
+      isAvailable: false,
+      periods: [],
+      confirmCancellations: true,
+    })
+    for (const id of [fits, longer, outside]) expect((await status(id)).status).toBe('canceled')
   })
 })

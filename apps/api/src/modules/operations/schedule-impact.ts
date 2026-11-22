@@ -8,15 +8,16 @@ import { loadClinicContact, sendLater, type ClinicMail } from '../notifications/
 /**
  * Cancelamentos por mudança de agenda (ADR-035). A route that changes hours, closes days or
  * makes a rental day exclusive:
- *   1. reads which future appointments fit the agenda (`fittingAppointments`) before the change;
+ *   1. reads the state of every future appointment (`fittingAppointments`) before the change;
  *   2. applies the change in the same transaction;
- *   3. calls `settleScheduleImpact`. Appointments that fit before and no longer fit are the
- *      affected ones. Without `confirmCancellations` the transaction is rolled back and the API
- *      answers 409 with the list (photo, name, phone and times) for the confirmation dialog.
- *      With it, they are canceled and each client gets an e-mail after commit and a notice in
- *      the client area (status canceled + cancellation_origin).
- * Appointments the manager placed outside the hours on purpose never "fit", so they are never
- * canceled by a later change.
+ *   3. calls `settleScheduleImpact`, which compares (migration 0059):
+ *      - canceled: could happen before and now cannot, or its day was just closed (closed day,
+ *        closure, vacation, day off) — then every appointment of that day goes;
+ *      - overrun: fit before and now only runs past closing (starts inside, at least half
+ *        fits): kept, listed as a warning.
+ *      Without `confirmCancellations` the transaction is rolled back and the API answers 409
+ *      with both lists (photo, name, phone and times). With it, the first list is canceled and
+ *      each client gets an e-mail after commit and a notice in the client area.
  */
 
 export const confirmCancellationsSchema = { type: 'boolean' } as const
@@ -37,21 +38,42 @@ export type AffectedClient = {
   }[]
 }
 
+type ImpactBody = {
+  error: string
+  /** Will be canceled (and notified) on confirm. */
+  affected: AffectedClient[]
+  total: number
+  /** Kept, but now run past the closing time (only a warning). */
+  overrun: AffectedClient[]
+  overrunTotal: number
+}
+
 /** Thrown inside the tenant transaction so it rolls back; the route answers 409 with `responseBody`. */
 export class ScheduleImpactError extends Error {
   readonly statusCode = 409
   readonly code = 'schedule_impact'
-  constructor(readonly responseBody: { error: string; affected: AffectedClient[]; total: number }) {
+  constructor(readonly responseBody: ImpactBody) {
     super('Schedule impact')
   }
 }
 
-export async function fittingAppointments(connection: SqlConnection, clinicId: string) {
+/** ok = fits; overrun = starts inside and at least half fits; out = cannot happen. */
+export type ScheduleSnapshot = Map<string, { state: 'ok' | 'overrun' | 'out'; closed: boolean }>
+
+export async function fittingAppointments(
+  connection: SqlConnection,
+  clinicId: string,
+): Promise<ScheduleSnapshot> {
   const { rows } = await connection.query(
-    'SELECT appointment_id FROM luminix.schedule_fitting_appointments($1)',
+    'SELECT appointment_id, state, closed FROM luminix.schedule_appointment_states($1)',
     [clinicId],
   )
-  return new Set(rows.map((row) => String(row.appointment_id)))
+  return new Map(
+    rows.map((row) => [
+      String(row.appointment_id),
+      { state: row.state as 'ok' | 'overrun' | 'out', closed: row.closed === true },
+    ]),
+  )
 }
 
 /** "sexta-feira, 27 de novembro" for a local YYYY-MM-DD. */
@@ -70,13 +92,23 @@ const dateLabel = (date: string) =>
 export async function settleScheduleImpact(
   connection: SqlConnection,
   clinicId: string,
-  before: Set<string>,
+  before: ScheduleSnapshot,
   options: { confirm: boolean; reason: string; permission: string },
 ): Promise<{ canceled: number; emails: OutgoingEmail[] }> {
   if (!before.size) return { canceled: 0, emails: [] }
   const after = await fittingAppointments(connection, clinicId)
-  const ids = [...before].filter((id) => !after.has(id))
-  if (!ids.length) return { canceled: 0, emails: [] }
+  // Canceled: it could happen before and now cannot, or its day was just closed (closed day,
+  // closure, vacation) even if it had been booked outside the hours on purpose.
+  const ids: string[] = []
+  // Kept: it fit and now only runs past the closing time.
+  const overrunIds: string[] = []
+  for (const [id, was] of before) {
+    const now = after.get(id)
+    if (!now) continue
+    if (now.state === 'out' && (was.state !== 'out' || (now.closed && !was.closed))) ids.push(id)
+    else if (now.state === 'overrun' && was.state === 'ok') overrunIds.push(id)
+  }
+  if (!ids.length && (!overrunIds.length || options.confirm)) return { canceled: 0, emails: [] }
   const { rows } = await connection.query(
     `SELECT a.id, a.starts_at, a.ends_at, a.clinic_client_id, c.display_name, c.contact_phone,
             c.contact_email, s.name AS service_name, p.display_name AS professional_name,
@@ -93,37 +125,44 @@ export async function settleScheduleImpact(
        LEFT JOIN luminix.professionals p ON p.clinic_id = a.clinic_id AND p.id = a.professional_id
       WHERE a.clinic_id = $1 AND a.id = ANY($2::uuid[])
       ORDER BY a.starts_at, a.id`,
-    [clinicId, ids],
+    [clinicId, [...ids, ...overrunIds]],
   )
+  const cancelRows = rows.filter((row) => ids.includes(String(row.id)))
   if (!options.confirm) {
-    const clients = new Map<string, AffectedClient>()
-    for (const row of rows) {
-      const clientId = String(row.clinic_client_id)
-      let client = clients.get(clientId)
-      if (!client) {
-        client = {
-          clientId,
-          name: String(row.display_name),
-          phone: row.contact_phone ? String(row.contact_phone) : null,
-          photoUrl: await clientPhotoUrl(row.photo_key as string | null),
-          appointments: [],
+    const group = async (list: typeof rows) => {
+      const clients = new Map<string, AffectedClient>()
+      for (const row of list) {
+        const clientId = String(row.clinic_client_id)
+        let client = clients.get(clientId)
+        if (!client) {
+          client = {
+            clientId,
+            name: String(row.display_name),
+            phone: row.contact_phone ? String(row.contact_phone) : null,
+            photoUrl: await clientPhotoUrl(row.photo_key as string | null),
+            appointments: [],
+          }
+          clients.set(clientId, client)
         }
-        clients.set(clientId, client)
+        client.appointments.push({
+          id: String(row.id),
+          startsAt: new Date(String(row.starts_at)).toISOString(),
+          endsAt: new Date(String(row.ends_at)).toISOString(),
+          date: String(row.local_date),
+          time: String(row.local_time),
+          service: String(row.service_name),
+          professional: row.professional_name ? String(row.professional_name) : null,
+        })
       }
-      client.appointments.push({
-        id: String(row.id),
-        startsAt: new Date(String(row.starts_at)).toISOString(),
-        endsAt: new Date(String(row.ends_at)).toISOString(),
-        date: String(row.local_date),
-        time: String(row.local_time),
-        service: String(row.service_name),
-        professional: row.professional_name ? String(row.professional_name) : null,
-      })
+      return [...clients.values()]
     }
+    const overrunRows = rows.filter((row) => overrunIds.includes(String(row.id)))
     throw new ScheduleImpactError({
       error: 'Schedule impact',
-      affected: [...clients.values()],
-      total: rows.length,
+      affected: await group(cancelRows),
+      total: cancelRows.length,
+      overrun: await group(overrunRows),
+      overrunTotal: overrunRows.length,
     })
   }
   const canceled = Number(
@@ -134,7 +173,7 @@ export async function settleScheduleImpact(
       )
     ).rows[0]?.total ?? 0,
   )
-  const withEmail = rows.filter((row) => row.contact_email)
+  const withEmail = cancelRows.filter((row) => row.contact_email)
   if (!withEmail.length) return { canceled, emails: [] }
   const contact = await loadClinicContact(connection, clinicId)
   const emails = withEmail.map((row) =>

@@ -49,6 +49,22 @@ A opção **Liberar agendamento nesta locação** controla a agenda da equipe e 
 
 **Deixar disponível** (no cadastro do aparelho, `resources.promote`) marca o aparelho para a divulgação: banner 2:1 na página das clientes e post para as redes, ainda a gerar em Marketing. Não muda a agenda.
 
+## Revisão 2026-11-22 — dia fechado × horário reduzido (migration 0059)
+
+`schedule_appointment_states` substitui a comparação "cabia/não cabe" por três estados:
+`ok`, `overrun` (começa dentro do expediente e ao menos metade cabe) e `out`.
+
+- **Dia fechado** (data especial fechada, fechamento do espaço, férias/afastamento ou folga da
+  profissional): todos os atendimentos daquele dia (ou daquela profissional) são listados e
+  cancelados ao confirmar, inclusive os marcados de propósito fora do horário.
+- **Horário reduzido:** cancela o que deixa de poder acontecer (`out`). Um atendimento que só
+  passa a terminar depois do fechamento (`overrun`) continua marcado e aparece no diálogo em
+  "Continuam marcados, mas passam do horário". Ex.: tatuagem 15h–19h com fechamento às 17h fica;
+  massagem 16h30–18h com fechamento às 17h é cancelada. Só com `overrun`, o diálogo pede
+  "Salvar assim mesmo".
+- Horários de atendimento: o botão de salvar de cada aba fica no rodapé, ao lado de "Fechar";
+  fechar ou trocar de aba com alterações pendentes pede "Descartar e fechar".
+
 ## Consequências
 
 - O e-mail sai em melhor esforço (falha registrada em log, sem fila/retry).

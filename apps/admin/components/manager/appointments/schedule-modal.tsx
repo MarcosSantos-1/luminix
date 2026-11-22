@@ -11,7 +11,8 @@ import {
   Store,
   Trash2,
 } from 'lucide-react'
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { TimeInputField } from '@/components/ui/fields'
 import { initials } from '../business/format'
 import type { ClinicApi } from '../settings/clinic-api'
@@ -263,6 +264,8 @@ export function StandardWeek({
   canManageTeam,
   onSaved,
   onCancel,
+  footerSlot,
+  onDirtyChange,
 }: {
   api: ClinicApi
   weekly: WeeklyRow[]
@@ -273,6 +276,10 @@ export function StandardWeek({
   onSaved: (message: string) => void
   /** Shown as "Cancelar" next to save (inside the pop-up). */
   onCancel?: () => void
+  /** Footer of the pop-up: the save button sits next to "Fechar". */
+  footerSlot?: HTMLElement | null
+  /** Unsaved changes, so "Fechar" can warn before discarding them. */
+  onDirtyChange?: (dirty: boolean) => void
 }) {
   const [who, setWho] = useState('clinic')
   const [clinicDays, setClinicDays] = useState<Day[]>(() => weekFrom(weekly))
@@ -282,6 +289,10 @@ export function StandardWeek({
   const [error, setError] = useState('')
   const [done, setDone] = useState('')
   const { guard, dialog } = useCancellationGuard()
+  const [touched, setTouched] = useState(false)
+  useEffect(() => {
+    onDirtyChange?.(touched)
+  }, [touched, onDirtyChange])
 
   useEffect(() => {
     if (!canManageTeam || !professionals.length) return
@@ -317,6 +328,7 @@ export function StandardWeek({
       const saved = await guard(work)
       // Went back from the list of affected clients: nothing was saved.
       if (saved === null) return
+      setTouched(false)
       onSaved(message + canceledNote(saved))
       setDone(message + canceledNote(saved))
     } catch {
@@ -361,6 +373,23 @@ export function StandardWeek({
       `Rotina de ${member.name} atualizada.`,
     )
   }
+
+  const saveBar = (
+    <div className="sch-standard-foot">
+      {onCancel ? (
+        <Button variant="secondary" onPress={onCancel}>
+          Cancelar
+        </Button>
+      ) : null}
+      <Button isDisabled={saving} onPress={saveWeek}>
+        {saving
+          ? 'Salvando…'
+          : person
+            ? `Salvar rotina de ${person.display_name.split(' ')[0]}`
+            : 'Salvar rotina do espaço'}
+      </Button>
+    </div>
+  )
 
   return (
     <div className="sch-standard">
@@ -409,6 +438,7 @@ export function StandardWeek({
           readOnly={readOnly}
           onChange={(next) => {
             setDone('')
+            setTouched(true)
             if (who === 'clinic') setClinicDays(next)
             else setPersonDays((current) => ({ ...current, [who]: next }))
           }}
@@ -427,22 +457,7 @@ export function StandardWeek({
           {done}
         </p>
       ) : null}
-      {readOnly ? null : (
-        <div className="sch-standard-foot">
-          {onCancel ? (
-            <Button variant="secondary" onPress={onCancel}>
-              Cancelar
-            </Button>
-          ) : null}
-          <Button isDisabled={saving} onPress={saveWeek}>
-            {saving
-              ? 'Salvando…'
-              : person
-                ? `Salvar rotina de ${person.display_name.split(' ')[0]}`
-                : 'Salvar rotina do espaço'}
-          </Button>
-        </div>
-      )}
+      {readOnly ? null : footerSlot ? createPortal(saveBar, footerSlot) : saveBar}
     </div>
   )
 }
@@ -485,12 +500,28 @@ export function ScheduleModal({
 }) {
   const [tab, setTab] = useState<Tab>('plan')
   const [round, setRound] = useState(0)
+  const [slot, setSlot] = useState<HTMLElement | null>(null)
+  const [dirty, setDirty] = useState(false)
+  const [askDiscard, setAskDiscard] = useState(false)
+  const markDirty = useCallback((value: boolean) => {
+    setDirty(value)
+    if (!value) setAskDiscard(false)
+  }, [])
+  // Closing with unsaved hours asks first: "Fechar" alone used to drop them silently.
+  const close = () => {
+    if (dirty && !askDiscard) return setAskDiscard(true)
+    setAskDiscard(false)
+    setDirty(false)
+    onOpenChange(false)
+  }
 
   useEffect(() => {
     if (!isOpen) return
     // eslint-disable-next-line react-hooks/set-state-in-effect -- starts on the asked tab each time it opens
     setTab(initialTab ?? 'plan')
     setRound((value) => value + 1)
+    setDirty(false)
+    setAskDiscard(false)
     // eslint-disable-next-line react-hooks/exhaustive-deps -- only when it opens
   }, [isOpen])
 
@@ -503,7 +534,7 @@ export function ScheduleModal({
   return (
     <QuickModal
       isOpen={isOpen}
-      onOpenChange={onOpenChange}
+      onOpenChange={(open) => (open ? onOpenChange(true) : close())}
       size="xl"
       className="sch"
       title="Horários de atendimento"
@@ -513,9 +544,17 @@ export function ScheduleModal({
           : 'Quando as clientes podem agendar com você.'
       }
       footer={
-        <Button variant="secondary" onPress={() => onOpenChange(false)}>
-          Fechar
-        </Button>
+        <>
+          {askDiscard ? (
+            <span className="sch-unsaved qm-foot-start" role="alert">
+              Há alterações não salvas.
+            </span>
+          ) : null}
+          <Button variant="secondary" onPress={close}>
+            {askDiscard ? 'Descartar e fechar' : 'Fechar'}
+          </Button>
+          <div className="sch-foot-slot" ref={setSlot} />
+        </>
       }
     >
       <div className="sch-tabs" role="tablist" aria-label="O que ajustar">
@@ -525,7 +564,13 @@ export function ScheduleModal({
             type="button"
             role="tab"
             aria-selected={tab === id}
-            onClick={() => setTab(id)}
+            onClick={() => {
+              if (id === tab) return
+              if (dirty && !askDiscard) return setAskDiscard(true)
+              setDirty(false)
+              setAskDiscard(false)
+              setTab(id)
+            }}
           >
             <Icon size={17} aria-hidden /> {label}
           </button>
@@ -543,6 +588,8 @@ export function ScheduleModal({
           timezone={timezone}
           location={location}
           onSaved={onSaved}
+          footerSlot={slot}
+          onDirtyChange={markDirty}
         />
       ) : tab === 'week' ? (
         <StandardWeek
@@ -554,6 +601,8 @@ export function ScheduleModal({
           canManageHours={canManageHours}
           canManageTeam={canManageTeam}
           onSaved={onSaved}
+          footerSlot={slot}
+          onDirtyChange={markDirty}
         />
       ) : (
         <ClosuresEditor
