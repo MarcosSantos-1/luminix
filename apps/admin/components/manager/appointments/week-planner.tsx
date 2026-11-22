@@ -31,6 +31,7 @@ import {
   type WeeklyRow,
 } from './schedule-modal'
 import { canceledNote, confirmFlag, useCancellationGuard } from './cancellation-guard'
+import { ToastNotice } from '@/components/ui/toast-notice'
 
 type Week = {
   overrides: OverrideRow[]
@@ -562,11 +563,7 @@ export function WeekPlanner({
           {error}
         </p>
       ) : null}
-      {done ? (
-        <p className="apt-done" role="status">
-          {done}
-        </p>
-      ) : null}
+      <ToastNotice message={done} onShown={() => setDone('')} />
       {canEdit ? (footerSlot ? createPortal(saveBar, footerSlot) : saveBar) : null}
     </div>
   )

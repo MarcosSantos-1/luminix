@@ -18,7 +18,6 @@ import {
 } from 'lucide-react'
 import { useState, type FormEvent } from 'react'
 import {
-  CheckboxField,
   DateInputField,
   maskMoney,
   SearchInput,
@@ -337,8 +336,13 @@ function PackageSale({
   const [soldOn, setSoldOn] = useState(() =>
     new Date().toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' }),
   )
-  const [registerIncome, setRegisterIncome] = useState(canFinance && item.priceCents > 0)
+  // Como a cliente paga: tudo agora, uma parte a cada sessão ("pedalada") ou depois.
+  const [plan, setPlan] = useState<'paid' | 'per_visit' | 'later'>(
+    canFinance && item.priceCents > 0 ? 'paid' : 'later',
+  )
+  const registerIncome = plan === 'paid' && canFinance && item.priceCents > 0
   const [method, setMethod] = useState('pix')
+  const installment = Math.ceil(item.priceCents / Math.max(1, item.sessions))
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
 
@@ -351,6 +355,7 @@ function PackageSale({
       await api.post(`clients/${client.id}/packages`, {
         packageId: item.id,
         soldOn,
+        paymentPlan: plan,
         ...(registerIncome ? { registerIncome: true, method } : {}),
       })
       onClose(`${item.name} vendido para ${client.display_name}.`)
@@ -382,13 +387,32 @@ function PackageSale({
             onChange={setSoldOn}
             isDisabled={busy}
           />
-          {canFinance && item.priceCents > 0 ? (
-            <CheckboxField
-              label={`Lançar ${money(item.priceCents)} como recebido`}
-              isSelected={registerIncome}
-              onChange={setRegisterIncome}
-              isDisabled={busy}
-            />
+          {item.priceCents > 0 ? (
+            <div className="pk-plan" role="radiogroup" aria-label="Como a cliente paga">
+              {(
+                [
+                  ['paid', 'Pago agora', `${money(item.priceCents)} entra hoje no Financeiro`],
+                  [
+                    'per_visit',
+                    'A cada sessão',
+                    `${money(installment)} por sessão, recebido em cada visita`,
+                  ],
+                  ['later', 'Paga depois', 'Registre os pagamentos quando receber'],
+                ] as const
+              ).map(([id, title, detail]) => (
+                <button
+                  key={id}
+                  type="button"
+                  role="radio"
+                  aria-checked={plan === id}
+                  disabled={busy || (id === 'paid' && !canFinance)}
+                  onClick={() => setPlan(id)}
+                >
+                  <strong>{title}</strong>
+                  <small>{detail}</small>
+                </button>
+              ))}
+            </div>
           ) : null}
           {registerIncome ? (
             <SelectField
@@ -415,7 +439,7 @@ function PackageSale({
   )
 }
 
-type Step = 'kind' | 'items' | 'price' | 'finish'
+type Step = 'kind' | 'items' | 'sessions' | 'price' | 'finish'
 
 function Counter({
   value,
@@ -486,7 +510,10 @@ function PackageEditor({
   const [name, setName] = useState(initial.name)
   const [nameTouched, setNameTouched] = useState(!isNew)
   const [query, setQuery] = useState('')
-  const steps: Step[] = isNew ? ['kind', 'items', 'price', 'finish'] : ['items', 'price', 'finish']
+  // 1 tipo · 2 tratamentos · 3 sessões · 4 preço · 5 validade e nome.
+  const steps: Step[] = isNew
+    ? ['kind', 'items', 'sessions', 'price', 'finish']
+    : ['items', 'sessions', 'price', 'finish']
   const [step, setStep] = useState<Step>(steps[0])
   const position = steps.indexOf(step)
   const [saving, setSaving] = useState(false)
@@ -557,6 +584,8 @@ function PackageEditor({
         return setError(kind === 'combo' ? 'Escolha os serviços do combo.' : 'Escolha o serviço.')
       if (kind === 'combo' && items.length < 2)
         return setError('Um combo junta pelo menos 2 tratamentos.')
+    }
+    if (step === 'sessions') {
       if (kind === 'combo' && !visitMinutes)
         return setError('Escolha quanto tempo leva cada sessão.')
       if (kind === 'sessions' && total < 2) return setError('Pelo menos 2 sessões.')
@@ -724,59 +753,73 @@ function PackageEditor({
                       </small>
                     </span>
                   </button>
-                  {line && kind === 'sessions' ? (
-                    <Counter
-                      value={line.sessions}
-                      min={kind === 'sessions' ? 2 : 1}
-                      label={service.name}
-                      onChange={(sessions) =>
-                        setItems((current) =>
-                          current.map((item) =>
-                            item.serviceId === service.id ? { ...item, sessions } : item,
-                          ),
-                        )
-                      }
-                    />
-                  ) : null}
                 </li>
               )
             })}
           </ul>
-          {kind === 'combo' && items.length ? (
+        </div>
+      ) : null}
+
+      {step === 'sessions' ? (
+        <div className="pk-step">
+          <h3>Quantas sessões?</h3>
+          {kind === 'sessions' && items[0] ? (
             <div className="pk-combo-setup">
               <div className="pk-combo-row">
                 <span>
-                  <strong>Quantas sessões?</strong>
-                  <small>Em cada uma a cliente faz todos os tratamentos marcados.</small>
+                  <strong>{serviceOf(items[0].serviceId)?.name ?? 'Tratamento'}</strong>
+                  <small>Cada sessão é um atendimento na agenda.</small>
                 </span>
-                <Counter value={visits} min={1} label="o combo" onChange={setVisits} />
-              </div>
-              <div className="pk-combo-row is-column">
-                <span>
-                  <strong>Quanto tempo leva cada sessão?</strong>
-                  <small>
-                    É o horário que fica reservado na agenda.
-                    {sumMinutes ? ` Somando os tratamentos: ${minutesLabel(sumMinutes)}.` : ''}
-                  </small>
-                </span>
-                <div className="team-choice" role="radiogroup" aria-label="Duração da sessão">
-                  {[...new Set([...comboDurations, ...(sumMinutes ? [sumMinutes] : [])])]
-                    .filter((minutes) => minutes >= 15 && minutes <= 1440)
-                    .sort((a, b) => a - b)
-                    .map((minutes) => (
-                      <button
-                        key={minutes}
-                        type="button"
-                        role="radio"
-                        aria-checked={visitMinutes === minutes}
-                        onClick={() => setDuration(minutes)}
-                      >
-                        {minutesLabel(minutes)}
-                      </button>
-                    ))}
-                </div>
+                <Counter
+                  value={items[0].sessions}
+                  min={2}
+                  label={serviceOf(items[0].serviceId)?.name ?? 'o tratamento'}
+                  onChange={(sessions) => setItems([{ ...items[0], sessions }])}
+                />
               </div>
             </div>
+          ) : null}
+          {kind === 'combo' ? (
+            <>
+              <p className="settings-muted">
+                O número de sessões vale para o combo inteiro: em cada visita a cliente faz todos os
+                tratamentos e conta 1 sessão (1/{visits}, 2/{visits}…).
+              </p>
+              <div className="pk-combo-setup">
+                <div className="pk-combo-row">
+                  <span>
+                    <strong>Quantas sessões?</strong>
+                    <small>Em cada uma a cliente faz todos os tratamentos marcados.</small>
+                  </span>
+                  <Counter value={visits} min={1} label="o combo" onChange={setVisits} />
+                </div>
+                <div className="pk-combo-row is-column">
+                  <span>
+                    <strong>Quanto tempo leva cada sessão?</strong>
+                    <small>
+                      É o horário que fica reservado na agenda.
+                      {sumMinutes ? ` Somando os tratamentos: ${minutesLabel(sumMinutes)}.` : ''}
+                    </small>
+                  </span>
+                  <div className="team-choice" role="radiogroup" aria-label="Duração da sessão">
+                    {[...new Set([...comboDurations, ...(sumMinutes ? [sumMinutes] : [])])]
+                      .filter((minutes) => minutes >= 15 && minutes <= 1440)
+                      .sort((a, b) => a - b)
+                      .map((minutes) => (
+                        <button
+                          key={minutes}
+                          type="button"
+                          role="radio"
+                          aria-checked={visitMinutes === minutes}
+                          onClick={() => setDuration(minutes)}
+                        >
+                          {minutesLabel(minutes)}
+                        </button>
+                      ))}
+                  </div>
+                </div>
+              </div>
+            </>
           ) : null}
         </div>
       ) : null}

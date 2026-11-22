@@ -4,7 +4,6 @@ import { Button, Spinner } from '@heroui/react'
 import {
   BadgePercent,
   CalendarRange,
-  Check,
   Copy,
   Eye,
   EyeOff,
@@ -43,6 +42,7 @@ import {
   type Service,
 } from './catalog-model'
 import { dateBr, money, moneyInput, parseMoney } from './format'
+import { ToastNotice } from '@/components/ui/toast-notice'
 
 export function blankPromotion(today: string): Promotion {
   return {
@@ -110,11 +110,7 @@ export function PromotionsSection({
 
   return (
     <>
-      {notice ? (
-        <p className="team-notice" role="status">
-          <Check size={16} aria-hidden /> {notice}
-        </p>
-      ) : null}
+      <ToastNotice message={notice} onShown={() => setNotice('')} />
       <SettingsCard
         icon={<BadgePercent size={20} />}
         title="Promoções"
@@ -620,11 +616,7 @@ export function PromotionEditor({
         ) : (
           <Empty>Escolha os serviços para ver a lista.</Empty>
         )}
-        {copied ? (
-          <p className="team-notice" role="status">
-            <Check size={16} aria-hidden /> {copied}
-          </p>
-        ) : null}
+        <ToastNotice message={copied} onShown={() => setCopied('')} />
       </SettingsCard>
       <div className="team-danger">
         {!isNew && initial.status === 'active' ? (

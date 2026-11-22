@@ -21,6 +21,7 @@ import type { BookingProfessional } from './booking-modal'
 import { canceledNote, confirmFlag, useCancellationGuard } from './cancellation-guard'
 import { ClosuresEditor } from './closures-editor'
 import { WeekPlanner } from './week-planner'
+import { ToastNotice } from '@/components/ui/toast-notice'
 
 export type Period = { start: string; end: string }
 export type Day = {
@@ -452,11 +453,7 @@ export function StandardWeek({
           {error}
         </p>
       ) : null}
-      {done ? (
-        <p className="apt-done" role="status">
-          {done}
-        </p>
-      ) : null}
+      <ToastNotice message={done} onShown={() => setDone('')} />
       {readOnly ? null : footerSlot ? createPortal(saveBar, footerSlot) : saveBar}
     </div>
   )

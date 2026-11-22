@@ -82,6 +82,7 @@ import {
   useSearchFocus,
   type SearchFocus,
 } from '../workspace/workspace-signals'
+import { ToastNotice } from '@/components/ui/toast-notice'
 
 export type { Service } from './catalog-model'
 export { promotionState } from './catalog-model'
@@ -466,11 +467,7 @@ export function ServicesPanel({
         </div>
       </header>
 
-      {notice ? (
-        <p className="team-notice" role="status">
-          <Check size={16} aria-hidden /> {notice}
-        </p>
-      ) : null}
+      <ToastNotice message={notice} onShown={() => setNotice('')} />
 
       {tab === 'packages' ? (
         extras.data ? (

@@ -312,7 +312,14 @@ export async function packageRoutes(
                   (SELECT count(*)::int FROM luminix.appointments a
                     WHERE a.clinic_id = cp.clinic_id AND a.client_package_id = cp.id
                       AND a.status IN ('completed', 'no_show')) AS done,
-                  luminix.clinic_today()::text AS today
+                  luminix.clinic_today()::text AS today, cp.payment_plan,
+                  luminix.client_package_paid(cp.clinic_id, cp.id) AS paid_cents,
+                  (SELECT coalesce(jsonb_agg(jsonb_build_object(
+                      'id', a.id, 'startsAt', a.starts_at, 'status', a.status)
+                    ORDER BY a.starts_at, a.id), '[]'::jsonb)
+                     FROM luminix.appointments a
+                    WHERE a.clinic_id = cp.clinic_id AND a.client_package_id = cp.id
+                      AND a.status IN ('scheduled', 'confirmed', 'completed', 'no_show')) AS visits
              FROM luminix.client_packages cp
             WHERE cp.clinic_id = $1 AND cp.clinic_client_id = $2
             ORDER BY cp.status, cp.sold_on DESC, cp.id LIMIT 50`,
@@ -343,6 +350,24 @@ export async function packageRoutes(
                 left: Math.max(0, Number(item.sessions) - Number(item.used)),
               })),
               priceCents: permissions.has('finance:manage') ? Number(row.price_cents) : null,
+              // Payment (only with money access): paid in full, per visit ("pedalada") or later.
+              paymentPlan: String(row.payment_plan),
+              paidCents: permissions.has('finance:manage') ? Number(row.paid_cents) : null,
+              remainingCents: permissions.has('finance:manage')
+                ? Math.max(0, Number(row.price_cents) - Number(row.paid_cents))
+                : null,
+              installmentCents: permissions.has('finance:manage')
+                ? Math.ceil(Number(row.price_cents) / Math.max(1, total))
+                : null,
+              // Each visit that used a session, in order (1/N, 2/N…).
+              visits: (
+                (row.visits ?? []) as { id: string; startsAt: string; status: string }[]
+              ).map((visit, index) => ({
+                id: String(visit.id),
+                number: index + 1,
+                startsAt: new Date(String(visit.startsAt)).toISOString(),
+                status: String(visit.status),
+              })),
               soldOn: String(row.sold_on),
               expiresOn: row.expires_on ? String(row.expires_on) : null,
               status:
@@ -361,7 +386,13 @@ export async function packageRoutes(
 
   app.post<{
     Params: { clinicId: string; clientId: string }
-    Body: { packageId: string; soldOn: string; registerIncome?: boolean; method?: string }
+    Body: {
+      packageId: string
+      soldOn: string
+      registerIncome?: boolean
+      method?: string
+      paymentPlan?: 'paid' | 'per_visit' | 'later'
+    }
   }>(
     '/clinics/:clinicId/clients/:clientId/packages',
     {
@@ -377,6 +408,7 @@ export async function packageRoutes(
             soldOn: dateSchema,
             registerIncome: { type: 'boolean' },
             method: methodSchema,
+            paymentPlan: { type: 'string', enum: ['paid', 'per_visit', 'later'] },
           },
         },
       },
@@ -415,7 +447,82 @@ export async function packageRoutes(
             entry,
           ],
         )
-        return reply.code(201).send({ id: String(sold.rows[0].id), financeEntry: entry })
+        const soldId = String(sold.rows[0].id)
+        const plan = request.body.paymentPlan ?? (entry ? 'paid' : 'later')
+        if (plan !== 'paid')
+          await connection.query('SELECT luminix.set_client_package_plan($1, $2, $3)', [
+            tenant.clinicId,
+            soldId,
+            plan,
+          ])
+        if (entry)
+          await connection.query('SELECT luminix.add_client_package_payment($1, $2, $3, NULL)', [
+            tenant.clinicId,
+            soldId,
+            entry,
+          ])
+        return reply.code(201).send({ id: soldId, financeEntry: entry })
+      }),
+  )
+
+  // Uma parcela do pacote (ou o restante): receita no Financeiro ligada ao pacote.
+  app.post<{
+    Params: { clinicId: string; clientPackageId: string }
+    Body: { amountCents: number; method?: string; occurredOn: string; appointmentId?: string }
+  }>(
+    '/clinics/:clinicId/client-packages/:clientPackageId/payments',
+    {
+      bodyLimit: 1024,
+      schema: {
+        params: clinicItemParams('clientPackageId'),
+        body: {
+          type: 'object',
+          additionalProperties: false,
+          required: ['amountCents', 'occurredOn'],
+          properties: {
+            amountCents: { type: 'integer', minimum: 1, maximum: 100000000 },
+            method: methodSchema,
+            occurredOn: dateSchema,
+            appointmentId: uuidSchema,
+          },
+        },
+      },
+    },
+    async (request, reply) =>
+      authorized(request, reply, 'finance:manage', async (connection, tenant) => {
+        const item = (
+          await connection.query(
+            `SELECT cp.name, c.display_name FROM luminix.client_packages cp
+               JOIN luminix.clinic_clients c ON c.clinic_id = cp.clinic_id
+                AND c.id = cp.clinic_client_id
+              WHERE cp.clinic_id = $1 AND cp.id = $2`,
+            [tenant.clinicId, request.params.clientPackageId],
+          )
+        ).rows[0]
+        if (!item) return reply.code(404).send({ error: 'Package not found' })
+        const entry = await financeEntry(connection, tenant, {
+          kind: 'income',
+          amountCents: request.body.amountCents,
+          occurredOn: request.body.occurredOn,
+          description: `Parcela ${String(item.name)} · ${String(item.display_name)}`.slice(0, 160),
+          category: 'Pacotes',
+          method: request.body.method,
+        })
+        await connection.query('SELECT luminix.add_client_package_payment($1, $2, $3, $4)', [
+          tenant.clinicId,
+          request.params.clientPackageId,
+          entry,
+          request.body.appointmentId ?? null,
+        ])
+        const paid = Number(
+          (
+            await connection.query('SELECT luminix.client_package_paid($1, $2) AS paid', [
+              tenant.clinicId,
+              request.params.clientPackageId,
+            ])
+          ).rows[0]?.paid ?? 0,
+        )
+        return reply.code(201).send({ financeEntry: entry, paidCents: paid })
       }),
   )
 

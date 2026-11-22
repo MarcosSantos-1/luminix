@@ -4,7 +4,6 @@ import { Button, Spinner, Switch, Label } from '@heroui/react'
 import {
   ArrowLeft,
   CalendarClock,
-  Check,
   Coffee,
   Copy,
   HandHeart,
@@ -38,6 +37,7 @@ import {
   TextInput,
   type SaveState,
 } from './settings-kit'
+import { ToastNotice } from '@/components/ui/toast-notice'
 
 type Period = { start: string; end: string }
 type Day = { weekday: number; enabled: boolean; start: string; end: string; breaks: Period[] }
@@ -200,11 +200,7 @@ export function TeamSettings({
         }}
         badge={<StatusPill tone="info">{data.professionals.length}</StatusPill>}
       >
-        {notice ? (
-          <p className="team-notice" role="status">
-            <Check size={16} aria-hidden /> {notice}
-          </p>
-        ) : null}
+        <ToastNotice message={notice} onShown={() => setNotice('')} />
         <ul className="team-grid">
           {data.professionals.map((person) => (
             <li key={person.id}>

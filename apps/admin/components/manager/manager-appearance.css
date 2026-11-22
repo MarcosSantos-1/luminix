@@ -391,3 +391,16 @@
   color: var(--manager-muted);
   line-height: 1.5;
 }
+/* Header: icon only, next to the bell (also on phones). */
+.manager-design-trigger:not(.has-label) {
+  width: 44px;
+  padding: 0;
+}
+.manager-header-actions .manager-design-trigger:not(.has-label) {
+  display: inline-flex;
+}
+.manager-design-trigger.has-label {
+  width: fit-content;
+  font-size: 14px;
+  font-weight: 600;
+}

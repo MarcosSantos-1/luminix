@@ -41,6 +41,7 @@ import {
 } from '@/components/manager/settings/settings-kit'
 import { SelectField, TextInputField } from '@/components/ui/fields'
 import './media.css'
+import { ToastNotice } from '@/components/ui/toast-notice'
 
 type FolderInfo = {
   id: string
@@ -570,11 +571,11 @@ function FolderView({
           <span style={{ width: `${(uploading.done / uploading.total) * 100}%` }} />
         </div>
       ) : null}
-      {notice ? (
-        <p className={`access-notice is-${notice.kind}`} role="status">
-          {notice.text}
-        </p>
-      ) : null}
+      <ToastNotice
+        message={notice?.text}
+        kind={notice?.kind === 'ok' ? 'success' : 'error'}
+        onShown={() => setNotice(null)}
+      />
 
       {children.length || (items.data?.items.length ?? 0) > 8 ? (
         <div className="media-explorer-bar">

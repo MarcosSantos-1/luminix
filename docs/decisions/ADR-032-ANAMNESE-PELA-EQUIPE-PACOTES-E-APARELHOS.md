@@ -43,3 +43,17 @@ nenhum dos dois: o cadastro inicial só guardava o nome do aparelho ligado aos s
 
 A ficha da cliente concentra os pacotes vendidos em Histórico, junto dos atendimentos,
 remarcações, cancelamentos e sessões associadas. A venda é registrada em Serviços → Pacotes.
+
+## Revisão 2026-11-22 — pagamento do pacote, progresso e voucher de serviço (migration 0060)
+
+- **Pagamento:** na venda escolhe-se `payment_plan` = pago agora, a cada sessão ("pedalada") ou
+  depois. Cada parcela é uma receita no Financeiro ligada ao pacote em
+  `client_package_payments`; saldo = preço − parcelas ativas (nunca passa do preço).
+  `POST client-packages/:id/payments` exige `finance:manage`.
+- **Progresso:** a lista de pacotes da cliente devolve as visitas em ordem (1/N, 2/N…). Ao
+  agendar, os pacotes ativos aparecem antes dos serviços com uma barrinha por sessão (feita,
+  marcada, falta, livre), o valor pago/restante e "Receber R$ X".
+- **Combo:** o número de sessões vale para o combo inteiro (cada visita faz todos os
+  tratamentos), escolhido na etapa 3 do "Novo pacote".
+- **Voucher "Serviço grátis":** `discount_type = 'service'` com `service_id`; só serve para
+  aquele serviço e zera o preço do atendimento.

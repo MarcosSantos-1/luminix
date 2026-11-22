@@ -35,6 +35,7 @@ import { voucherDiscount, type ClientVoucher } from '../clients/voucher-modal'
 import { ClinicApiError, type ClinicApi } from '../settings/clinic-api'
 import { QuickModal } from '../quick-modal'
 import { clock, localDate, type BookingWarning } from './model'
+import { PackageProgress, type ClientPackage } from '../business/package-progress'
 
 type Period = { start: string; end: string }
 export type ClosureRow = {
@@ -106,16 +107,7 @@ export const closureKinds: Record<string, string> = {
 }
 
 type Step = 'client' | 'service' | 'professional' | 'when' | 'review'
-type PackOption = {
-  id: string
-  serviceId: string
-  name: string
-  left: number
-  status: string
-  kind?: 'sessions' | 'combo'
-  durationMinutes?: number | null
-  items?: { serviceId: string; left: number }[]
-}
+type PackOption = ClientPackage
 type Slot = {
   conflicts?: WindowData['appointments']
   time: string
@@ -294,6 +286,7 @@ export function BookingModal({
   const [warnings, setWarnings] = useState<BookingWarning[]>([])
   // Active packages of the chosen client for the chosen service; one session can pay the visit.
   const [packs, setPacks] = useState<PackOption[]>([])
+  const [packsRound, setPacksRound] = useState(0)
   const [usePack, setUsePack] = useState(true)
   const [voucherList, setVoucherList] = useState<{
     clientId: string
@@ -379,7 +372,7 @@ export function BookingModal({
     return () => {
       active = false
     }
-  }, [isOpen, clientId, api])
+  }, [isOpen, clientId, api, packsRound])
 
   useEffect(() => {
     if (!isOpen || !clientId) return
@@ -478,7 +471,13 @@ export function BookingModal({
     service?.price_type === 'fixed' &&
     Number(service.price_cents) > 0 &&
     voucherList?.clientId === clientId
-      ? voucherList.items.filter((item) => item.status === 'available' && item.expires_on >= date)
+      ? voucherList.items.filter(
+          (item) =>
+            item.status === 'available' &&
+            item.expires_on >= date &&
+            // "Serviço grátis" only for its own service.
+            (item.discount_type !== 'service' || item.service_id === serviceId),
+        )
       : []
   const chosenVoucher = validVouchers.find((item) => item.id === voucherId)
   const recent = useMemo(() => {
@@ -740,6 +739,47 @@ export function BookingModal({
         </div>
       ) : null}
 
+      {lists && step === 'service' && packs.some((item) => item.left > 0) ? (
+        <section className="bk-packs" aria-label="Pacotes da cliente">
+          <h4>Pacotes da cliente</h4>
+          {packs
+            .filter((item) => item.left > 0)
+            .map((item) => {
+              // Tapping the package books its next session: the first service still open.
+              const first =
+                item.kind === 'combo' || !item.items?.length
+                  ? (item.items?.[0]?.serviceId ?? item.serviceId)
+                  : (item.items.find((line) => line.left > 0)?.serviceId ?? item.serviceId)
+              const offered = selectableServices.some((service) => service.id === first)
+              return (
+                <div key={item.id} className="bk-pack-card">
+                  <PackageProgress
+                    api={api}
+                    item={item}
+                    canCharge={item.remainingCents != null}
+                    onChanged={() => setPacksRound((value) => value + 1)}
+                    compact
+                  />
+                  <Button
+                    size="sm"
+                    className="lx-laser"
+                    isDisabled={!offered}
+                    onPress={() => {
+                      setServiceId(first)
+                      setUsePack(true)
+                      setVoucherId('')
+                      setTime('')
+                      advance()
+                    }}
+                  >
+                    Agendar sessão {item.used + 1}/{item.sessionsTotal}
+                  </Button>
+                </div>
+              )
+            })}
+          <h4>Outros serviços</h4>
+        </section>
+      ) : null}
       {lists && step === 'service' ? (
         <ul className="bk-list bk-services" aria-label="Serviços">
           {selectableServices.map((item) => (
@@ -1061,7 +1101,7 @@ export function BookingModal({
                   { id: 'none', label: 'Sem voucher' },
                   ...validVouchers.map((item) => ({
                     id: item.id,
-                    label: `${voucherDiscount(item)} de desconto · até ${dateBr(item.expires_on)}`,
+                    label: `${voucherDiscount(item)}${item.discount_type === 'service' ? '' : ' de desconto'} · até ${dateBr(item.expires_on)}`,
                   })),
                 ]}
               />

@@ -9,7 +9,6 @@ import {
   ChevronDown,
   ChevronLeft,
   ChevronRight,
-  CircleAlert,
   History,
   ImagePlus,
   Minus,
@@ -59,6 +58,7 @@ import { Empty, LoadError, SettingsCard, SettingsSkeleton } from '../settings/se
 import { money, moneyInput, parseMoney, shortDateBr, timeBr } from './format'
 import './business.css'
 import { useSearchFocus, type SearchFocus } from '../workspace/workspace-signals'
+import { ToastNotice } from '@/components/ui/toast-notice'
 
 type Item = {
   id: string
@@ -310,16 +310,11 @@ export function InventoryPanel({
           },
         ]}
       />
-      {notice ? (
-        <p className={`access-notice is-${notice.kind}`} role="status">
-          {notice.kind === 'ok' ? (
-            <Check size={16} aria-hidden />
-          ) : (
-            <CircleAlert size={16} aria-hidden />
-          )}{' '}
-          {notice.text}
-        </p>
-      ) : null}
+      <ToastNotice
+        message={notice?.text}
+        kind={notice?.kind === 'ok' ? 'success' : 'error'}
+        onShown={() => setNotice(null)}
+      />
 
       {!data.items.length || suggestions.length ? (
         <div className="inv-setup-cta">

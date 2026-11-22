@@ -169,6 +169,7 @@ describe('versioned core migration', () => {
       { name: '0057_schedule_change_cancellations.sql' },
       { name: '0058_rental_hours.sql' },
       { name: '0059_schedule_overrun_rule.sql' },
+      { name: '0060_package_payments_and_service_vouchers.sql' },
     ])
   })
 
@@ -376,7 +377,7 @@ describe('authorized database scope', () => {
     }>(
       "SELECT relname, relrowsecurity, relforcerowsecurity FROM pg_class WHERE relnamespace = 'luminix'::regnamespace AND relkind = 'r' AND relname NOT IN ('identities', 'client_profiles', 'permissions')",
     )
-    expect(tables.rows).toHaveLength(50)
+    expect(tables.rows).toHaveLength(51)
     expect(tables.rows.every((row) => row.relrowsecurity && row.relforcerowsecurity)).toBe(true)
   })
 

@@ -27,6 +27,7 @@ import { AddClientIcon, NewBookingIcon, WeekAgendaIcon } from '../appointments/q
 import { QuickModal } from '../quick-modal'
 import { AgendaPanel } from '../sections/agenda-panel'
 import './business.css'
+import { ToastNotice } from '@/components/ui/toast-notice'
 
 type Dashboard = {
   today: string
@@ -261,11 +262,7 @@ export function HomeDashboard({
             </Button>
           ))}
       </section>
-      {notice ? (
-        <p className="team-notice" role="status">
-          <Check size={16} aria-hidden /> {notice}
-        </p>
-      ) : null}
+      <ToastNotice message={notice} onShown={() => setNotice('')} />
       <div className="manager-grid">
         <Card className="manager-panel manager-agenda">
           <Card.Header className="manager-panel-heading">

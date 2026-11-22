@@ -58,6 +58,11 @@ import { QuickModal } from '../quick-modal'
 import { VoucherModal } from '../clients/voucher-modal'
 import { ClinicApiError, useClinicApi, type ClinicApi } from '../settings/clinic-api'
 import { useSearchFocus, type SearchFocus } from '../workspace/workspace-signals'
+import { ToastNotice } from '@/components/ui/toast-notice'
+import {
+  PackageProgress,
+  type ClientPackage as ClientPackageView,
+} from '../business/package-progress'
 
 // Biological sex (waxing, intimate treatments), not gender identity.
 type Sex = 'female' | 'male'
@@ -602,11 +607,7 @@ export function ClientsPanel({
         </Button>
       </div>
 
-      {notice ? (
-        <p className="team-notice" role="status">
-          {notice}
-        </p>
-      ) : null}
+      <ToastNotice message={notice} onShown={() => setNotice('')} />
       {error && !open && (
         <p className="manager-data-error" role="alert">
           {error}
@@ -1779,17 +1780,13 @@ function PackagesTab({
                   {packageStatus[item.status]}
                 </span>
               </div>
-              <div
-                className="cpf-dots"
-                aria-label={`${item.used} de ${item.sessionsTotal} sessões usadas`}
-              >
-                {Array.from({ length: item.sessionsTotal }, (_, index) => (
-                  <i
-                    key={index}
-                    data-state={index < item.done ? 'done' : index < item.used ? 'booked' : 'free'}
-                  />
-                ))}
-              </div>
+              <PackageProgress
+                api={api}
+                item={item as ClientPackageView}
+                canCharge={item.status === 'active' && item.priceCents != null}
+                onChanged={() => onChanged(`Pagamento registrado em ${item.name}.`)}
+                compact
+              />
               {item.kind === 'combo' && item.items?.length ? (
                 <p className="cpf-pack-combo">
                   🎁 Cada sessão:{' '}

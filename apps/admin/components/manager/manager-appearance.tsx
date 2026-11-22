@@ -31,6 +31,15 @@ const controls = [
 ] as const
 type Glass = Record<(typeof controls)[number]['key'], number> & { tint: string }
 const initial: Glass = { opacity: 46, blur: 20, saturation: 120, edge: 38, tint: '#bc7398' }
+/** Phones start here (the owner's tuned look); "Restaurar padrão" comes back to it. */
+const mobileInitial: Glass = { opacity: 42, blur: 40, saturation: 120, edge: 65, tint: '#bc7398' }
+const mobileQuery = '(max-width: 900px)'
+function subscribeMobile(notify: () => void) {
+  const media = window.matchMedia(mobileQuery)
+  media.addEventListener('change', notify)
+  return () => media.removeEventListener('change', notify)
+}
+const mobileSnapshot = () => window.matchMedia(mobileQuery).matches
 const presets = [
   { label: 'Cristal', icon: Droplets, values: { opacity: 18, blur: 8, saturation: 120, edge: 75 } },
   { label: 'Acetinado', icon: Blend, values: { opacity: 46, blur: 20, saturation: 135, edge: 42 } },
@@ -101,16 +110,18 @@ function save(value: Appearance) {
   window.dispatchEvent(new Event(deviceKey))
 }
 
-export function ManagerDesignButton() {
+/** Opens the glass panel. Icon only in the header; with its label in Configurações. */
+export function ManagerDesignButton({ withLabel = false }: { withLabel?: boolean }) {
   return (
     <button
       type="button"
-      className="manager-design-trigger"
+      className={`manager-design-trigger${withLabel ? ' has-label' : ''}`}
       popoverTarget="manager-glass-panel"
       title="Ajustar design"
+      aria-label="Ajustar design"
     >
       <SlidersHorizontal size={18} aria-hidden />
-      <span>Ajustar design</span>
+      {withLabel ? <span>Ajustar design</span> : null}
     </button>
   )
 }
@@ -126,7 +137,10 @@ export function ManagerAppearanceShell({
 }) {
   const raw = useSyncExternalStore(subscribe, snapshot, serverSnapshot)
   const appearance = useMemo(() => parseAppearance(raw), [raw])
-  const { glass: active, theme } = appearance
+  const { glass: saved, theme } = appearance
+  const mobile = useSyncExternalStore(subscribeMobile, mobileSnapshot, () => false)
+  // Nothing saved: phones use their own default, larger screens keep the stylesheet's.
+  const active = saved ?? (mobile ? mobileInitial : null)
   const value = active ?? initial
 
   useEffect(() => {
@@ -247,7 +261,7 @@ export function ManagerAppearanceShell({
         <button
           className="manager-glass-reset"
           type="button"
-          disabled={!active && !theme}
+          disabled={!saved && !theme}
           onClick={() => save(defaults)}
         >
           <RotateCcw size={15} aria-hidden />

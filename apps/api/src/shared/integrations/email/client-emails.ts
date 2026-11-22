@@ -293,18 +293,31 @@ export function clientVoucherEmail(
   input: ClinicContact & {
     to: string
     clientName: string
-    type: 'fixed' | 'percent'
+    type: 'fixed' | 'percent' | 'service'
     value: number
     expiresOn: string
+    /** "Serviço grátis": the service it pays for. */
+    serviceName?: string | null
   },
 ): OutgoingEmail {
+  const date = input.expiresOn.split('-').reverse().join('/')
+  if (input.type === 'service') {
+    const text = `Olá, ${firstName(input.clientName)}! Você ganhou um voucher de ${input.serviceName ?? 'um serviço'} grátis em ${input.clinicName}. Válido até ${date}. Fale com o espaço para agendar.`
+    return {
+      to: input.to,
+      subject: 'Você ganhou um serviço grátis',
+      text,
+      html: `<p>${escapeHtml(text)}</p>`,
+      tag: 'client_voucher',
+      ...fromClinic(input),
+    }
+  }
   const discount =
     input.type === 'percent'
       ? `${input.value}%`
       : new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(
           input.value / 100,
         )
-  const date = input.expiresOn.split('-').reverse().join('/')
   const text = `Olá, ${firstName(input.clientName)}! Você recebeu um voucher de ${discount} de desconto em ${input.clinicName}. Válido para um atendimento até ${date}. Fale com o espaço para usar.`
   return {
     to: input.to,

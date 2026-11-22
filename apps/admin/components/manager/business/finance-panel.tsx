@@ -36,6 +36,7 @@ import { LoadError, SettingsCard, SettingsSkeleton, StatusPill } from '../settin
 import { dateBr, money, moneyInput, parseMoney, shortDateBr, timeBr, todayIso } from './format'
 import { BillWizard, billEmoji, EntryWizard, expenseCategories } from './finance-wizards'
 import './business.css'
+import { ToastNotice } from '@/components/ui/toast-notice'
 
 type Entry = {
   id: string
@@ -375,16 +376,11 @@ export function FinancePanel({
         ]}
       />
 
-      {notice ? (
-        <p className={`access-notice is-${notice.kind}`} role="status">
-          {notice.kind === 'ok' ? (
-            <Check size={16} aria-hidden />
-          ) : (
-            <CircleAlert size={16} aria-hidden />
-          )}{' '}
-          {notice.text}
-        </p>
-      ) : null}
+      <ToastNotice
+        message={notice?.text}
+        kind={notice?.kind === 'ok' ? 'success' : 'error'}
+        onShown={() => setNotice(null)}
+      />
 
       {alerts.length ? (
         <div className="fin-alert" role="status">

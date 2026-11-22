@@ -47,6 +47,7 @@ import {
 import { appointmentStatus } from '../business/format'
 import { useClinicApi } from '../settings/clinic-api'
 import '../appointments/appointments.css'
+import { ToastNotice } from '@/components/ui/toast-notice'
 
 type Row = {
   id: string
@@ -577,11 +578,7 @@ export function AgendaPanel({
           {error}
         </p>
       )}
-      {notice ? (
-        <p className="apt-done" role="status">
-          <Check size={16} aria-hidden /> {notice}
-        </p>
-      ) : null}
+      <ToastNotice message={notice} onShown={() => setNotice('')} />
       {!data ? (
         error ? null : (
           <div className="manager-agenda-skeleton" role="status" aria-label="Carregando agenda">

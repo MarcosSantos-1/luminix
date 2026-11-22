@@ -4066,3 +4066,190 @@
 .eq-rental-actions .button {
   margin: 0 2px;
 }
+/* Desconto: campo e atalhos em linhas próprias (antes os atalhos cobriam o campo). */
+.pk-discount {
+  grid-template-columns: 1fr;
+  align-items: start;
+}
+.pk-discount > .lx-field {
+  max-width: 220px;
+}
+.pk-discount .input-group,
+.pk-discount [data-slot='input-group'] {
+  min-width: 0;
+  width: 100%;
+}
+
+/* ---------- Progresso do pacote (sessões + pagamento) ---------- */
+.pkp {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+}
+.pkp-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+.pkp-head strong {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.pkp-head em {
+  padding: 2px 9px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--space-accent, #ec287a) 55%, transparent);
+  font-size: 12.5px;
+  font-style: normal;
+  font-weight: 700;
+}
+.pkp-icon {
+  display: inline-grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 9px;
+  background: #ffffff1a;
+}
+.pkp-bar {
+  display: flex;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.pkp-bar li {
+  display: grid;
+  flex: 1 1 0;
+  place-items: center;
+  min-width: 10px;
+  height: 12px;
+  border-radius: 999px;
+  background: #ffffff24;
+}
+.pkp-bar li[data-state='done'] {
+  color: #052e16;
+  background: linear-gradient(90deg, #22c55e, #4ade80);
+}
+.pkp-bar li[data-state='booked'] {
+  background: linear-gradient(90deg, #3b82f6, #60a5fa);
+  box-shadow: 0 0 10px #60a5fa66;
+}
+.pkp-bar li[data-state='missed'] {
+  background: #ef4444;
+}
+.pkp-meta {
+  margin: 0;
+  color: var(--manager-muted);
+  font-size: 12.5px;
+}
+.pkp-money {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 8px;
+  padding: 8px 10px;
+  border-radius: 12px;
+  color: #fde68a;
+  background: #78350f4d;
+  font-size: 13px;
+  font-weight: 600;
+}
+.pkp-money > span {
+  flex: 1 1 160px;
+}
+.pkp-money.is-paid {
+  color: #bbf7d0;
+  background: #14532d59;
+}
+.bk-packs {
+  display: grid;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+.bk-packs h4 {
+  margin: 4px 0 0;
+  color: var(--manager-muted);
+  font-size: 12.5px;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+}
+.bk-pack-card {
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid var(--space-highlight, #ffb5d3);
+  border-radius: 16px;
+  background: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--space-accent, #ec287a) 26%, transparent),
+    #ffffff0d
+  );
+}
+.pk-plan {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+.pk-plan button {
+  display: grid;
+  gap: 4px;
+  padding: 10px;
+  border: 1px solid var(--manager-border);
+  border-radius: 14px;
+  color: inherit;
+  background: #ffffff0d;
+  text-align: left;
+  cursor: pointer;
+}
+.pk-plan button[aria-checked='true'] {
+  border-color: var(--space-highlight, #ffb5d3);
+  background: color-mix(in srgb, var(--space-accent, #ec287a) 40%, transparent);
+}
+.pk-plan button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+.pk-plan small {
+  color: var(--manager-muted);
+  font-size: 12px;
+  line-height: 1.3;
+}
+@media (max-width: 650px) {
+  .pk-plan {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Voucher "Serviço grátis": the chosen service sits in the form like a field. */
+.vch-service {
+  display: grid;
+  gap: 6px;
+}
+.vch-service-pick {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 52px;
+  padding: 8px 14px;
+  border: 1px dashed var(--space-highlight, #ffb5d3);
+  border-radius: 14px;
+  color: inherit;
+  background: #ffffff10;
+  text-align: left;
+  cursor: pointer;
+}
+.vch-service-pick span {
+  display: grid;
+  gap: 2px;
+}
+.vch-service-pick small {
+  color: var(--manager-muted);
+}
+.vch-service-pick.is-missing {
+  border-color: #fb923c;
+}

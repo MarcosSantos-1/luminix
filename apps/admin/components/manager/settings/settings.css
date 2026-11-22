@@ -1352,3 +1352,10 @@
     padding: 0 12px 12px;
   }
 }
+.settings-design-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 14px;
+  margin-top: 14px;
+}

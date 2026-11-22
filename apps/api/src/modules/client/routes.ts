@@ -419,7 +419,7 @@ export async function clientRoutes(app: FastifyInstance, dependencies: AuthDepen
           )
         ).rows[0]
         const { rows: vouchers } = await connection.query(
-          `SELECT id, discount_type, discount_value, expires_on::text, created_at
+          `SELECT id, discount_type, discount_value, expires_on::text, created_at, service_name
              FROM luminix.client_voucher_notices($1, $2)`,
           [scope!.clinicId, scope!.clientId],
         )
@@ -431,6 +431,13 @@ export async function clientRoutes(app: FastifyInstance, dependencies: AuthDepen
                 : new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(
                     Number(row.discount_value) / 100,
                   )
+            if (row.discount_type === 'service')
+              return {
+                id: `voucher-${row.id}`,
+                title: 'Você ganhou um serviço grátis',
+                body: `${String(row.service_name ?? 'Um serviço')} por conta do espaço, até ${String(row.expires_on).split('-').reverse().join('/')}. Fale com o espaço para agendar.`,
+                at: row.created_at,
+              }
             return {
               id: `voucher-${row.id}`,
               title: 'Você recebeu um voucher',

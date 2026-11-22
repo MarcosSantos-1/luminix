@@ -449,7 +449,6 @@ export function ManagerHome({
                 </Dropdown.Popover>
               </Dropdown>
             )}
-            <ManagerDesignButton />
             {workspace ? (
               <NotificationBell api={workspace.api} go={go} onOpenUpdates={message.openUpdates} />
             ) : (
@@ -462,6 +461,7 @@ export function ManagerHome({
                 <Bell size={20} />
               </Button>
             )}
+            <ManagerDesignButton />
             <Dropdown>
               <Dropdown.Trigger className="manager-profile" aria-label={`Conta: ${userName}`}>
                 <Avatar size="sm">

@@ -8,6 +8,7 @@ import { useStaff } from '@/components/staff-provider'
 import type { SpaceTheme } from '@/lib/space-theme'
 import { useClinicApi } from './clinic-api'
 import { SettingsCard } from './settings-kit'
+import { ManagerDesignButton } from '../manager-appearance'
 
 /** Simple inline flags: emoji flags do not render on Windows. */
 function Flag({ code }: { code: 'br' | 'us' | 'es' }) {
@@ -81,6 +82,10 @@ export function PersonalizationSettings({ clinicId }: { clinicId: string }) {
         }}
       >
         <ThemePicker value={theme} disabled={saving} onChange={(next) => void changeTheme(next)} />
+        <div className="settings-design-row">
+          <ManagerDesignButton withLabel />
+          <span className="settings-muted">Opacidade, desfoque e cor do vidro neste aparelho.</span>
+        </div>
         <p className="settings-muted" role="status">
           {saving ? 'Salvando tema…' : message}
         </p>

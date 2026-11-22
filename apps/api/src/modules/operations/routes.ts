@@ -590,6 +590,8 @@ export async function operationRoutes(
       authorized(request, reply, 'agenda:manage', async (connection, tenant) => {
         const { rows } = await connection.query(
           `SELECT v.id, v.discount_type, v.discount_value, v.expires_on::text, v.appointment_id,
+                  v.service_id, (SELECT name FROM luminix.services sv
+                    WHERE sv.clinic_id = v.clinic_id AND sv.id = v.service_id) AS service_name,
                   CASE WHEN v.appointment_id IS NOT NULL THEN 'used'
                     WHEN v.expires_on < (now() AT TIME ZONE s.timezone)::date THEN 'expired'
                     ELSE 'available' END AS status
@@ -605,7 +607,13 @@ export async function operationRoutes(
 
   app.post<{
     Params: { clinicId: string; clientId: string }
-    Body: { id: string; type: 'fixed' | 'percent'; value: number; expiresOn: string }
+    Body: {
+      id: string
+      type: 'fixed' | 'percent' | 'service'
+      value: number
+      expiresOn: string
+      serviceId?: string
+    }
   }>(
     '/clinics/:clinicId/clients/:clientId/vouchers',
     {
@@ -617,9 +625,11 @@ export async function operationRoutes(
           required: ['id', 'type', 'value', 'expiresOn'],
           properties: {
             id: { type: 'string', pattern: uuid },
-            type: { type: 'string', enum: ['fixed', 'percent'] },
+            type: { type: 'string', enum: ['fixed', 'percent', 'service'] },
             value: { type: 'integer', minimum: 1, maximum: 100000000 },
             expiresOn: { type: 'string', format: 'date' },
+            // "Serviço grátis": the service it pays for.
+            serviceId: { type: 'string', pattern: uuid },
           },
         },
       },
@@ -630,14 +640,31 @@ export async function operationRoutes(
         reply,
         'finance:manage',
         async (connection, tenant) => {
-          const { id, type, value, expiresOn } = request.body
+          const { id, type, value, expiresOn, serviceId } = request.body
+          if (type === 'service' && !serviceId)
+            return reply.code(400).send({ error: 'Service required' })
           const issued =
-            (
-              await connection.query(
-                'SELECT luminix.issue_client_voucher($1, $2, $3, $4, $5, $6) AS created',
-                [tenant.clinicId, request.params.clientId, id, type, value, expiresOn],
-              )
+            (type === 'service'
+              ? await connection.query(
+                  'SELECT luminix.issue_service_voucher($1, $2, $3, $4, $5) AS created',
+                  [tenant.clinicId, request.params.clientId, id, serviceId, expiresOn],
+                )
+              : await connection.query(
+                  'SELECT luminix.issue_client_voucher($1, $2, $3, $4, $5, $6) AS created',
+                  [tenant.clinicId, request.params.clientId, id, type, value, expiresOn],
+                )
             ).rows[0]?.created === true
+          const serviceName =
+            type === 'service'
+              ? String(
+                  (
+                    await connection.query(
+                      'SELECT name FROM luminix.services WHERE clinic_id = $1 AND id = $2',
+                      [tenant.clinicId, serviceId],
+                    )
+                  ).rows[0]?.name ?? 'Serviço',
+                )
+              : null
           const client = (
             await connection.query(
               `SELECT contact_email, display_name, marketing_opt_in, client_profile_id IS NOT NULL AND client_removed_at IS NULL AS linked
@@ -659,6 +686,7 @@ export async function operationRoutes(
                   type,
                   value,
                   expiresOn,
+                  serviceName,
                 })
               : null
           return { id, destination, email }
