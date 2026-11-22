@@ -154,7 +154,7 @@ async function bookingWarnings(
   const hours = await connection.query(
     `SELECT dates.day::text, coalesce(o.is_available, w.is_available, false) AS is_available,
             coalesce(o.periods, w.periods, '[]'::jsonb) AS periods,
-            cardinality(luminix.service_rental_days($1,$4,$2::date,$5::date)) < ($5::date - $2::date + 1) AS missing_equipment
+            NOT luminix.rental_fits($1,$4,NULL,$5::timestamptz AT TIME ZONE $7,$6::timestamptz AT TIME ZONE $7) AS missing_equipment
        FROM (VALUES ($2::date), ($3::date)) AS dates(day)
        LEFT JOIN luminix.schedule_overrides o ON o.clinic_id = $1 AND o.local_date = dates.day
        LEFT JOIN luminix.weekly_availability w ON w.clinic_id = $1 AND w.weekday = extract(dow FROM dates.day)`,
@@ -163,7 +163,9 @@ async function bookingWarnings(
       local.date,
       previousDate,
       slot.serviceId,
-      localDateTime(new Date(slot.endsAt.getTime() - 1), slot.timezone).date,
+      slot.startsAt.toISOString(),
+      slot.endsAt.toISOString(),
+      slot.timezone,
     ],
   )
   if (hours.rows[0]?.missing_equipment)
@@ -216,7 +218,7 @@ async function bookingWarnings(
   const exclusive = await connection.query(
     `SELECT r.name FROM luminix.resource_rentals rr
        JOIN luminix.resources r ON r.clinic_id = rr.clinic_id AND r.id = rr.resource_id
-      WHERE rr.clinic_id = $1 AND rr.exclusive AND r.status = 'active'
+      WHERE rr.clinic_id = $1 AND rr.available AND rr.exclusive AND r.status = 'active'
         AND $2::date BETWEEN rr.starts_on AND rr.ends_on
         AND luminix.exclusive_rental_blocks($1, $3, $2::date)
       ORDER BY r.name LIMIT 3`,
@@ -992,9 +994,12 @@ export async function operationRoutes(
             [tenant.clinicId, can.has('client:read')],
           ),
           connection.query(
-            `SELECT id, name, duration_minutes, price_cents, price_type, luminix.service_rental_days(clinic_id, id, luminix.clinic_today(), 'infinity') AS rental_dates FROM luminix.services
+            `SELECT id, name, duration_minutes, price_cents, price_type, luminix.service_rental_days(clinic_id, id, luminix.clinic_today(), 'infinity') AS rental_dates,
+              (SELECT jsonb_object_agg(day::text,luminix.minute_pairs(spans)) FROM
+                luminix.service_rental_calendar(s.clinic_id,s.id,$2::date,$3::date)) AS rental_hours
+              FROM luminix.services s
                 WHERE clinic_id = $1 AND status = 'active' ORDER BY lower(name) LIMIT 200`,
-            [tenant.clinicId],
+            [tenant.clinicId, request.query.from.slice(0, 10), request.query.to.slice(0, 10)],
           ),
           connection.query(
             `SELECT p.id, p.display_name, photo.small_object_key AS photo_key
@@ -1053,7 +1058,7 @@ export async function operationRoutes(
             `SELECT rr.starts_on::text AS starts_on, rr.ends_on::text AS ends_on, r.name
                  FROM luminix.resource_rentals rr
                  JOIN luminix.resources r ON r.clinic_id = rr.clinic_id AND r.id = rr.resource_id
-                WHERE rr.clinic_id = $1 AND rr.exclusive AND r.status = 'active'
+                WHERE rr.clinic_id = $1 AND rr.available AND rr.exclusive AND r.status = 'active'
                   AND rr.ends_on >= $2::date AND rr.starts_on <= $3::date
                 ORDER BY rr.starts_on LIMIT 100`,
             [tenant.clinicId, request.query.from.slice(0, 10), request.query.to.slice(0, 10)],

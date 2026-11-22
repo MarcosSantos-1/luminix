@@ -461,6 +461,8 @@ describe('área do cliente', () => {
           {
             startsOn: availableDate,
             endsOn: availableDate,
+            durationHours: 4,
+            startMinute: 10 * 60 + 15,
           },
         )
       ).statusCode,
@@ -476,11 +478,15 @@ describe('área do cliente', () => {
         await call('cliente-1', 'GET', base + `/availability?serviceId=${service}&date=${day}`)
       ).json().slots
     expect(Object.values(await slots(date)).flat()).toHaveLength(0)
-    expect(Object.values(await slots(availableDate)).flat()).toContain('09:00')
+    const offered = Object.values(await slots(availableDate)).flat()
+    expect(offered).toContain('10:15')
+    expect(offered).not.toContain('09:00')
+    expect(offered).not.toContain('11:45') // 30 minutes would cross the noon closing.
+
     const book = (day: string) =>
       call('cliente-1', 'POST', base + '/appointments', {
         serviceId: service,
-        localStartsAt: day + 'T09:00',
+        localStartsAt: day + 'T10:15',
         paymentMethod: 'local',
       })
     expect((await book(date)).statusCode).toBe(409)

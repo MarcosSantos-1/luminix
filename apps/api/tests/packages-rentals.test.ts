@@ -339,6 +339,32 @@ describe('aparelhos alugados', () => {
     })
     expect(created.statusCode).toBe(201)
     const equipment = created.json().id
+    // "Deixar disponível" (divulgação) is saved on the device and stays inside the clinic.
+    expect(
+      (
+        await call('pack-a', 'PUT', clinicA, `catalog/equipment/${equipment}`, {
+          name: 'Laser alugado',
+          supplier: 'Loja X',
+          defaultCostCents: 80000,
+          serviceIds: [deviceServiceA],
+          promote: true,
+        })
+      ).statusCode,
+    ).toBe(200)
+    expect(
+      (await call('pack-a', 'GET', clinicA, 'catalog/extras'))
+        .json()
+        .equipment.find((item: { id: string }) => item.id === equipment).promote,
+    ).toBe(true)
+    expect(
+      (
+        await call('pack-b', 'PUT', clinicB, `catalog/equipment/${equipment}`, {
+          name: 'Laser alugado',
+          serviceIds: [],
+          promote: true,
+        })
+      ).statusCode,
+    ).not.toBe(200)
     const outside = await call('pack-a', 'POST', clinicA, 'appointments', {
       clientId: clientA,
       serviceId: deviceServiceA,
@@ -404,6 +430,70 @@ describe('aparelhos alugados', () => {
         })
       ).json(),
     ).toMatchObject({ removed: true, financeEntryVoided: true, canceledAppointments: 1 })
+  })
+
+  it('keeps drafts private and requires the entire visit to fit the daily window', async () => {
+    const device = (
+      await call('pack-a', 'POST', clinicA, 'catalog/equipment', {
+        name: 'Laser de turno',
+        serviceIds: [deviceServiceA],
+      })
+    ).json().id
+    const day = '2030-03-18'
+    const path = `catalog/equipment/${device}/rentals`
+    const dates = { startsOn: day, endsOn: day }
+    expect(
+      (
+        await call('pack-a', 'POST', clinicA, path, {
+          ...dates,
+          durationHours: 4,
+          startMinute: 1300,
+        })
+      ).statusCode,
+    ).toBe(400)
+    const draft = await call('pack-a', 'POST', clinicA, path, {
+      ...dates,
+      available: false,
+      durationHours: 4,
+      startMinute: 615,
+      exclusive: true,
+    })
+    expect(draft.statusCode).toBe(201)
+    const change = `catalog/rentals/${draft.json().id}/availability`
+    const book = (time: string) =>
+      call('pack-a', 'POST', clinicA, 'appointments', {
+        clientId: clientA,
+        serviceId: deviceServiceA,
+        localStartsAt: day + 'T' + time,
+      })
+    expect((await book('10:15')).json()).toEqual({ error: 'Equipment unavailable' })
+    expect(
+      (await call('pack-b', 'POST', clinicB, change, { available: true })).statusCode,
+    ).not.toBe(200)
+    expect(
+      (
+        await call('pack-a', 'POST', clinicA, change, {
+          available: true,
+          startMinute: 615,
+          durationHours: 4,
+        })
+      ).statusCode,
+    ).toBe(200)
+    expect((await book('10:14')).statusCode).toBe(409)
+    expect((await book('13:16')).statusCode).toBe(409)
+    expect((await book('13:15')).statusCode).toBe(201)
+    expect(
+      (await call('pack-a', 'POST', clinicA, change, { available: false })).json(),
+    ).toMatchObject({ error: 'Schedule impact', total: 1 })
+    const agenda = await call(
+      'pack-a',
+      'GET',
+      clinicA,
+      `agenda?from=${day}T00:00:00Z&to=${day}T23:59:59Z`,
+    )
+    expect(
+      agenda.json().services.find((s: { id: string }) => s.id === deviceServiceA).rental_hours[day],
+    ).toEqual([[615, 855]])
   })
 
   it('deletes the equipment with its rentals, only inside its own clinic', async () => {

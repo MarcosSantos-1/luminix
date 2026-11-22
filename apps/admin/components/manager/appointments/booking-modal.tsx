@@ -61,6 +61,7 @@ export type BookingOptions = {
     id: string
     name: string
     rental_dates?: string[] | null
+    rental_hours?: Record<string, [number, number][]> | null
     duration_minutes: number
     price_cents?: number | null
     price_type?: string
@@ -172,6 +173,7 @@ export function buildSlots(
   duration: number,
   professionalId: string,
   now = new Date(),
+  rentalPeriods?: [number, number][],
 ): Slot[] {
   const periods = dayPeriods(data, date)
   const open = periods.length ? Math.min(...periods.map((item) => minutes(item.start))) : 8 * 60
@@ -203,8 +205,14 @@ export function buildSlots(
       end: relativeMinutes(item.ends_at),
     }))
   const starts = new Set<number>()
-  for (let start = 0; start + duration <= spillover; start += step) starts.add(start)
-  for (let start = first; start < 1440 && start + duration <= last; start += step) starts.add(start)
+  if (rentalPeriods) {
+    for (const [from, to] of rentalPeriods)
+      for (let start = from; start + duration <= to; start += step) starts.add(start)
+  } else {
+    for (let start = 0; start + duration <= spillover; start += step) starts.add(start)
+    for (let start = first; start < 1440 && start + duration <= last; start += step)
+      starts.add(start)
+  }
   const slots: Slot[] = []
   for (const start of [...starts].sort((a, b) => a - b)) {
     const end = start + duration
@@ -430,36 +438,40 @@ export function BookingModal({
           ? item.rental_dates.includes(initialDate < today ? today : initialDate)
           : item.rental_dates.some((day) => day >= today)),
     ) ?? []
-  const calendars = [
-    service?.rental_dates,
+  const rentalServices = [
+    service,
     ...(usePack && pack?.kind === 'combo'
-      ? (pack.items ?? []).map(
-          (line) => lists?.services.find((s) => s.id === line.serviceId)?.rental_dates,
-        )
+      ? (pack.items ?? []).map((line) => lists?.services.find((item) => item.id === line.serviceId))
       : []),
-  ].filter((days): days is string[] => Array.isArray(days))
+  ].filter((item) => item?.rental_dates)
+  const calendars = rentalServices
+    .map((item) => item?.rental_dates)
+    .filter((days): days is string[] => Array.isArray(days))
   const rentalDays = calendars.length
     ? calendars[0].filter((day) => calendars.every((days) => days.includes(day)))
     : null
+  const rentalPeriods = rentalServices.reduce<[number, number][]>(
+    (common, item) => {
+      const windows = item?.rental_hours?.[date] ?? []
+      return common.flatMap(([from, to]) =>
+        windows.flatMap(([start, end]) => {
+          const left = Math.max(from, start)
+          const right = Math.min(to, end)
+          return left < right ? [[left, right] as [number, number]] : []
+        }),
+      )
+    },
+    [[0, 1440]],
+  )
   const slots =
-    data && service && date && (!rentalDays || rentalDays.includes(date)) && step === 'when'
+    data && service && date && step === 'when'
       ? buildSlots(
           data,
           date,
           comboMinutes ?? Number(service.duration_minutes),
           professionalId,
-        ).filter(
-          (slot) =>
-            !rentalDays ||
-            rentalDays.includes(
-              shiftDate(
-                date,
-                Math.floor(
-                  (minutes(slot.time) + (comboMinutes ?? Number(service.duration_minutes)) - 1) /
-                    1440,
-                ),
-              ),
-            ),
+          undefined,
+          rentalDays ? rentalPeriods : undefined,
         )
       : []
   const validVouchers =

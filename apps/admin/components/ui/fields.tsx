@@ -346,7 +346,11 @@ export function DateInputField({
             </DateField.Suffix>
           </DateField.Group>
           <DatePicker.Popover className="lx-popover">
-            <Calendar aria-label="Calendário">
+            <Calendar
+              aria-label="Calendário"
+              minValue={toDate(min) ?? undefined}
+              maxValue={toDate(max) ?? undefined}
+            >
               <Calendar.Header>
                 <Calendar.NavButton slot="previous" />
                 <Calendar.Heading />
@@ -356,7 +360,14 @@ export function DateInputField({
                 <Calendar.GridHeader>
                   {(day) => <Calendar.HeaderCell>{day}</Calendar.HeaderCell>}
                 </Calendar.GridHeader>
-                <Calendar.GridBody>{(date) => <Calendar.Cell date={date} />}</Calendar.GridBody>
+                <Calendar.GridBody>
+                  {(date) => (
+                    <Calendar.Cell
+                      date={date}
+                      className={min && date.toString() < min ? 'lx-past-limit' : undefined}
+                    />
+                  )}
+                </Calendar.GridBody>
               </Calendar.Grid>
             </Calendar>
           </DatePicker.Popover>

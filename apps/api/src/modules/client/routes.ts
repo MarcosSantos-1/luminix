@@ -531,11 +531,14 @@ export async function clientRoutes(app: FastifyInstance, dependencies: AuthDepen
   ) {
     const weekday = new Date(`${date}T12:00:00Z`).getUTCDay()
     const calendar = await connection.query(
-      `SELECT luminix.service_rental_days($1, $2, $3::date, $3::date) AS days,
+      `SELECT luminix.minute_pairs(luminix.booking_rental_hours($1,$2,
+          (SELECT client_package_id FROM luminix.appointments WHERE clinic_id=$1 AND id=$4 AND clinic_client_id=$5 AND service_id=$2),$3::date)) AS windows,
               luminix.exclusive_rental_blocks($1, $2, $3::date) AS reserved`,
-      [scope.clinicId, serviceId, date],
+      [scope.clinicId, serviceId, date, ignoreAppointmentId, scope.clientId],
     )
-    const deviceMissing = Array.isArray(calendar.rows[0]?.days) && !calendar.rows[0].days.length
+    const windows = calendar.rows[0]?.windows as [number, number][] | null
+    const rentalPeriods = windows?.map(([start, end]) => ({ start: clock(start), end: clock(end) }))
+    const deviceMissing = rentalPeriods?.length === 0
     // Dia exclusivo de locação (ADR-035): only the rented device's treatments are offered.
     const reservedForRental = calendar.rows[0]?.reserved === true
     const [override, weekly, professionalDays, policy, busy, closures, ownDates] =
@@ -626,7 +629,7 @@ export async function clientRoutes(app: FastifyInstance, dependencies: AuthDepen
       const taken = busy.rows.filter(
         (row) => !professionalId || String(row.professional_id) === professionalId,
       )
-      for (const period of periods)
+      for (const period of rentalPeriods ? intersect(periods, rentalPeriods) : periods)
         for (
           let start = minutes(period.start);
           start + durationMinutes <= minutes(period.end);

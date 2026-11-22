@@ -33,7 +33,7 @@ type Dashboard = {
   appointments: AppointmentView[]
   /** Next open appointments after today. */
   upcoming?: AppointmentView[]
-  missingRentals?: string[]
+  unlinkedRentalServices?: string[]
   upcomingWeek: number
   canManageAgenda: boolean
   canCharge?: boolean
@@ -177,12 +177,12 @@ export function HomeDashboard({
     { label: 'Próximos 7 dias', value: String(data.upcomingWeek), detail: 'atendimentos marcados' },
   ]
   const alerts = [
-    ...(data.missingRentals?.length
+    ...(data.unlinkedRentalServices?.length
       ? [
           {
             icon: CalendarDays,
-            title: 'Quando chega o próximo aparelho?',
-            detail: data.missingRentals.join(' · '),
+            title: 'Vincule um aparelho a estes serviços',
+            detail: data.unlinkedRentalServices.join(' · '),
             target: 'Programar locação',
           },
         ]

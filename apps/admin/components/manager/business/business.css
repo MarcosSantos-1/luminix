@@ -3805,3 +3805,19 @@
 .settings-help-body p + p {
   margin-top: 8px;
 }
+
+.eq-day-hours {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem 0.8rem;
+  flex-wrap: wrap;
+  padding: 0.8rem 1rem;
+  border: 1px solid var(--space-border, #ffffff30);
+  border-radius: 14px;
+}
+.eq-day-hours > span {
+  font-variant-numeric: tabular-nums;
+}
+.eq-day-hours > button {
+  margin-inline-start: auto;
+}

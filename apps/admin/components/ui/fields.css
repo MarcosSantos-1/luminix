@@ -132,7 +132,13 @@
   color: #fff;
   background: var(--space-accent, #ec287a);
 }
-.lx-popover .calendar__cell[data-disabled='true'],
+.lx-popover .lx-past-limit,
+.lx-popover .calendar__cell[data-disabled],
+.lx-popover .calendar__cell[aria-disabled='true'] {
+  opacity: 0.28;
+  cursor: default;
+}
+
 .lx-popover .calendar__cell[data-outside-month='true'] {
   opacity: 0.35;
 }

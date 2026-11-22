@@ -26,6 +26,31 @@ const methodSchema = {
   enum: ['pix', 'cash', 'credit', 'debit', 'transfer', 'other'],
 } as const
 
+type RentalWindow = { available?: boolean; startMinute?: number; durationHours?: number }
+const windowProperties = {
+  available: { type: 'boolean' },
+  startMinute: { type: 'integer', minimum: 0, maximum: 1439 },
+  durationHours: { type: 'integer', enum: [4, 6, 8, 10] },
+}
+function validWindow({ startMinute, durationHours }: RentalWindow) {
+  return startMinute === undefined
+    ? durationHours === undefined
+    : durationHours !== undefined && startMinute + durationHours * 60 <= 1440
+}
+async function setRentalWindow(
+  connection: SqlConnection,
+  clinicId: string,
+  id: string,
+  body: RentalWindow,
+) {
+  await connection.query('SELECT luminix.set_rental_window($1,$2,$3,$4,$5)', [
+    clinicId,
+    id,
+    body.available ?? true,
+    body.startMinute ?? null,
+    body.durationHours ?? null,
+  ])
+}
 function days(from: string, to: string) {
   return (Date.parse(`${to}T12:00:00Z`) - Date.parse(`${from}T12:00:00Z`)) / 86_400_000
 }
@@ -84,7 +109,7 @@ export async function packageRoutes(
             [tenant.clinicId],
           ),
           connection.query(
-            `SELECT id, name, supplier, default_cost_cents, status FROM luminix.resources
+            `SELECT id, name, supplier, default_cost_cents, status, promote FROM luminix.resources
               WHERE clinic_id = $1 AND type = 'equipment'
               ORDER BY status, lower(name), id LIMIT 100`,
             [tenant.clinicId],
@@ -95,7 +120,7 @@ export async function packageRoutes(
           ),
           connection.query(
             `SELECT id, resource_id, starts_on::text AS starts_on, ends_on::text AS ends_on,
-                    cost_cents, note, finance_entry_id IS NOT NULL AS in_finance, exclusive
+                    cost_cents, note, finance_entry_id IS NOT NULL AS in_finance, exclusive, available, start_minute, duration_hours
                FROM luminix.resource_rentals
               WHERE clinic_id = $1 AND ends_on >= luminix.clinic_today() - 60
               ORDER BY starts_on, id LIMIT 300`,
@@ -138,6 +163,7 @@ export async function packageRoutes(
             id: String(row.id),
             name: String(row.name),
             supplier: row.supplier ? String(row.supplier) : '',
+            promote: row.promote === true,
             defaultCostCents:
               seesMoney && row.default_cost_cents != null ? Number(row.default_cost_cents) : null,
             status: row.status,
@@ -155,6 +181,9 @@ export async function packageRoutes(
                 note: rental.note ? String(rental.note) : '',
                 inFinance: rental.in_finance === true,
                 exclusive: rental.exclusive === true,
+                available: rental.available,
+                startMinute: rental.start_minute,
+                durationHours: rental.duration_hours,
               })),
           })),
         }
@@ -415,6 +444,8 @@ export async function packageRoutes(
         anyOf: [{ type: 'integer', minimum: 1, maximum: 100000000 }, { type: 'null' }],
       },
       serviceIds: { type: 'array', maxItems: 60, uniqueItems: true, items: uuidSchema },
+      // "Deixar disponível": the device goes into the future banner/post (Marketing).
+      promote: { type: 'boolean' },
     },
   } as const
   type EquipmentBody = {
@@ -422,6 +453,20 @@ export async function packageRoutes(
     supplier?: string
     defaultCostCents?: number | null
     serviceIds: string[]
+    promote?: boolean
+  }
+  async function savePromotion(
+    connection: SqlConnection,
+    clinicId: string,
+    id: string,
+    promote: boolean | undefined,
+  ) {
+    if (promote === undefined) return
+    await connection.query('SELECT luminix.set_equipment_promotion($1, $2, $3)', [
+      clinicId,
+      id,
+      promote,
+    ])
   }
 
   app.post<{ Params: { clinicId: string }; Body: EquipmentBody }>(
@@ -429,11 +474,14 @@ export async function packageRoutes(
     { bodyLimit: 8192, schema: { params: clinicRefParams, body: equipmentBody } },
     async (request, reply) =>
       authorized(request, reply, 'service:manage', async (connection, tenant) => {
+        const { promote, ...equipment } = request.body
         const saved = await connection.query(
           'SELECT luminix.save_rented_equipment($1, $2::jsonb) AS id',
-          [tenant.clinicId, JSON.stringify(request.body)],
+          [tenant.clinicId, JSON.stringify(equipment)],
         )
-        return reply.code(201).send({ id: String(saved.rows[0].id) })
+        const id = String(saved.rows[0].id)
+        await savePromotion(connection, tenant.clinicId, id, promote)
+        return reply.code(201).send({ id })
       }),
   )
 
@@ -445,10 +493,12 @@ export async function packageRoutes(
     },
     async (request, reply) =>
       authorized(request, reply, 'service:manage', async (connection, tenant) => {
+        const { promote, ...equipment } = request.body
         await connection.query('SELECT luminix.save_rented_equipment($1, $2::jsonb)', [
           tenant.clinicId,
-          JSON.stringify({ ...request.body, id: request.params.equipmentId }),
+          JSON.stringify({ ...equipment, id: request.params.equipmentId }),
         ])
+        await savePromotion(connection, tenant.clinicId, request.params.equipmentId, promote)
         return { id: request.params.equipmentId }
       }),
   )
@@ -493,7 +543,7 @@ export async function packageRoutes(
 
   app.post<{
     Params: { clinicId: string; equipmentId: string }
-    Body: {
+    Body: RentalWindow & {
       startsOn: string
       endsOn: string
       costCents?: number | null
@@ -520,6 +570,7 @@ export async function packageRoutes(
               anyOf: [{ type: 'integer', minimum: 1, maximum: 100000000 }, { type: 'null' }],
             },
             note: { type: 'string', maxLength: 240 },
+            ...windowProperties,
             registerExpense: { type: 'boolean' },
             method: methodSchema,
             // Dia exclusivo: other treatments leave the client agenda on these days (ADR-035).
@@ -533,6 +584,7 @@ export async function packageRoutes(
       withCancellationMail(mail, reply, (outbox) =>
         authorized(request, reply, 'service:manage', async (connection, tenant) => {
           const body = request.body
+          if (!validWindow(body)) return reply.code(400).send({ error: 'Invalid rental hours' })
           const before = body.exclusive
             ? await fittingAppointments(connection, tenant.clinicId)
             : new Set<string>()
@@ -572,6 +624,7 @@ export async function packageRoutes(
             ],
           )
           const id = String(saved.rows[0].id)
+          await setRentalWindow(connection, tenant.clinicId, id, body)
           let canceledAppointments = 0
           if (body.exclusive) {
             await connection.query('SELECT luminix.set_rental_exclusive($1, $2, true)', [
@@ -587,6 +640,41 @@ export async function packageRoutes(
             canceledAppointments = result.canceled
           }
           return reply.code(201).send({ id, financeEntry: entry, canceledAppointments })
+        }),
+      ),
+  )
+
+  app.post<{
+    Params: { clinicId: string; rentalId: string }
+    Body: RentalWindow & { confirmCancellations?: boolean }
+  }>(
+    '/clinics/:clinicId/catalog/rentals/:rentalId/availability',
+    {
+      bodyLimit: 1024,
+      schema: {
+        params: clinicItemParams('rentalId'),
+        body: {
+          type: 'object',
+          additionalProperties: false,
+          required: ['available'],
+          properties: { ...windowProperties, confirmCancellations: confirmCancellationsSchema },
+        },
+      },
+    },
+    async (request, reply) =>
+      withCancellationMail(mail, reply, (outbox) =>
+        authorized(request, reply, 'service:manage', async (connection, tenant) => {
+          if (!validWindow(request.body))
+            return reply.code(400).send({ error: 'Invalid rental hours' })
+          const before = await fittingAppointments(connection, tenant.clinicId)
+          await setRentalWindow(connection, tenant.clinicId, request.params.rentalId, request.body)
+          const result = await settleScheduleImpact(connection, tenant.clinicId, before, {
+            confirm: request.body.confirmCancellations === true,
+            permission: 'service:manage',
+            reason: 'A disponibilidade do aparelho alugado mudou.',
+          })
+          outbox.push(...result.emails)
+          return { canceledAppointments: result.canceled }
         }),
       ),
   )

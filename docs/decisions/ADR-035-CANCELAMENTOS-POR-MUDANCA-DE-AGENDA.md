@@ -41,6 +41,14 @@ appointments[] }] }`. O admin (`useCancellationGuard`) mostra foto, nome, telefo
   outro tratamento, com o aviso `exclusive` (chave mestra). A Agenda marca o dia como
   "Reservado · aparelho".
 
+## Disponibilidade diária do aparelho
+
+Cada locação pode liberar o expediente inteiro ou um turno diário de 4, 6, 8 ou 10 horas com início definido pela equipe. A migration 0058 mantém as locações anteriores disponíveis pelo expediente inteiro. A data especial da clínica prevalece sobre a rotina semanal. Pausas e fechamentos interrompem a janela. Para combos, o atendimento inteiro precisa caber na interseção dos horários dos aparelhos necessários.
+
+A opção **Liberar agendamento nesta locação** controla a agenda da equipe e das clientes. Uma locação pausada mantém suas datas e seu lançamento financeiro. Editar o turno ou pausar a locação passa pela mesma prévia de cancelamentos. O lembrete mensal na Home (carrossel de avisos) abre o aparelho específico quando ele está sem horários liberados até o fim do mês.
+
+**Deixar disponível** (no cadastro do aparelho, `resources.promote`) marca o aparelho para a divulgação: banner 2:1 na página das clientes e post para as redes, ainda a gerar em Marketing. Não muda a agenda.
+
 ## Consequências
 
 - O e-mail sai em melhor esforço (falha registrada em log, sem fila/retry).

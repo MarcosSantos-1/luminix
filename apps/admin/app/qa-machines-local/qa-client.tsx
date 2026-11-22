@@ -1,7 +1,18 @@
 'use client'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Button } from '@heroui/react'
-import { CatalogStep } from '@/components/onboarding/steps'
+import {
+  CatalogStep,
+  ClinicStep,
+  ServicesStep,
+  TeamStep,
+  ScheduleStep,
+  PaymentsStep,
+} from '@/components/onboarding/steps'
+import { OnboardingShell } from '@/components/onboarding/shell'
+import { HoursStep } from '@/components/onboarding/hours-editor'
+import { ClinicVisualFixture } from '@/components/clinic-workspace'
+import { SpaceThemeProvider } from '@/components/space-theme'
 import { SpecialTreatments } from '@/components/onboarding/special-treatments'
 import { RulesStep, ReviewStep } from '@/components/onboarding/rules-review'
 import {
@@ -18,7 +29,13 @@ const initial = {
   phone: '',
   teamMode: 'solo',
   professionals: [],
-  businessHours: [],
+  businessHours: Array.from({ length: 7 }, (_, weekday) => ({
+    weekday,
+    enabled: weekday > 0 && weekday < 6,
+    start: '09:00',
+    end: '18:00',
+    breaks: [],
+  })),
   professionalSchedules: [],
   clinic: {
     defaultAudience: 'all',
@@ -42,7 +59,12 @@ const initial = {
     .filter((item) =>
       /microfocado|CO2|laser|ozônio|Carbox|plasma|Pump|Microagulhamento/.test(item.nome),
     )
-    .map((item) => serviceFromCatalog(item, 'all')),
+    .map((item) => ({
+      ...serviceFromCatalog(item, 'all'),
+      ...(item.nome.includes('laser')
+        ? { bookingMode: 'manual_release' as const, resourceName: 'Laser alugado' }
+        : {}),
+    })),
   preferences: {
     specialTreatmentsDismissed: false,
     cancellationHours: 4,
@@ -54,49 +76,178 @@ const initial = {
     packagePaymentMode: 'clinic_only',
   },
 } satisfies Payload
-export default function QA() {
-  const [payload, setPayload] = useState<Payload>(initial)
-  const [catalog, setCatalog] = useState(false)
-  const [view, setView] = useState<'equipment' | 'rules' | 'review'>('equipment')
+const views = [
+  'space',
+  'catalog',
+  'services',
+  'team',
+  'schedule',
+  'hours',
+  'payments',
+  'rules',
+  'review',
+  'equipment',
+  'manager',
+] as const
+type View = (typeof views)[number]
+const labels = [
+  'Espaço',
+  'Catálogo',
+  'Tratamentos',
+  'Equipe',
+  'Endereço',
+  'Horários',
+  'Pagamentos',
+  'Regras',
+  'Revisão',
+  'Aparelhos',
+  'Painel',
+]
+function LayoutProbe() {
+  const [report, setReport] = useState('Medindo layout…')
+  useEffect(() => {
+    const measure = () => {
+      const root = document.documentElement
+      const main = document.querySelector('main.ob2')
+      if (!main) return
+      const overflow = [...main.querySelectorAll<HTMLElement>('*')].filter((element) => {
+        const rect = element.getBoundingClientRect()
+        return (
+          rect.width > 1 && rect.height > 1 && (rect.right > root.clientWidth + 1 || rect.left < -1)
+        )
+      })
+      const bg = getComputedStyle(main, '::before')
+      setReport(
+        `${root.clientWidth}px / página ${root.scrollWidth}px / fora: ${overflow.length}${
+          overflow.length
+            ? ' (' +
+              overflow
+                .slice(0, 3)
+                .map((element) => element.className)
+                .join(', ') +
+              ')'
+            : ''
+        } / fundo: ${bg.position} ${bg.top} / overscroll: ${getComputedStyle(root).overscrollBehaviorY}`,
+      )
+    }
+    const observer = new ResizeObserver(measure)
+    observer.observe(document.documentElement)
+    const main = document.querySelector('main.ob2')
+    if (main) observer.observe(main)
+    window.addEventListener('scroll', measure, { passive: true })
+    measure()
+    return () => {
+      observer.disconnect()
+      window.removeEventListener('scroll', measure)
+    }
+  }, [])
   return (
-    <main
-      className="ob2"
-      style={{ padding: 24, minHeight: '100vh', height: 'auto', overflow: 'auto' }}
+    <output
+      style={{ display: 'block', background: '#241020', color: 'white', padding: 8, fontSize: 11 }}
     >
-      <div style={{ maxWidth: 1200, margin: 'auto', display: 'grid', gap: 24 }}>
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12 }}>
-          <Button
-            onPress={() => {
-              setView('equipment')
-              setCatalog(!catalog)
-            }}
-          >
-            Alternar catálogo
-          </Button>
-          <Button onPress={() => setView('rules')}>Conferir regras</Button>
-          <Button onPress={() => setView('review')}>Conferir revisão</Button>
-        </div>
-        {view === 'rules' ? (
-          <RulesStep payload={payload} setPayload={setPayload} error="" footer={null} />
-        ) : view === 'review' ? (
-          <ReviewStep payload={payload} error="" footer={null} onEdit={() => setView('rules')} />
-        ) : catalog ? (
-          <CatalogStep payload={payload} setPayload={setPayload} error="" footer={null} />
-        ) : (
-          <SpecialTreatments payload={payload} setPayload={setPayload} />
-        )}
-        <p>
-          {payload.services.filter((s) => s.bookingMode === 'manual_release').length} serviços com
-          aparelho
-        </p>
-        {payload.services
-          .filter((s) => s.name.startsWith('Avaliação'))
-          .map((s) => (
-            <p key={s.id}>
-              {s.name}: {s.priceCents} / {s.priceType}
-            </p>
+      {report}
+    </output>
+  )
+}
+
+export default function QA({
+  embedded = false,
+  initialView,
+}: {
+  embedded?: boolean
+  initialView?: string
+}) {
+  const [payload, setPayload] = useState<Payload>(initial)
+  const [view, setView] = useState<View>(views.find((value) => value === initialView) ?? 'space')
+  const [width, setWidth] = useState(390)
+  if (!embedded)
+    return (
+      <main style={{ padding: 16, background: '#241020', color: 'white', minHeight: '100vh' }}>
+        <p>Prévia local com dados sintéticos. Não enviar imagens ou informações reais.</p>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBlock: 12 }}>
+          {views.map((value, index) => (
+            <Button key={value} onPress={() => setView(value)} aria-pressed={view === value}>
+              {labels[index]}
+            </Button>
           ))}
-      </div>
-    </main>
+        </div>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 12 }}>
+          {[320, 360, 390, 430, 768, 1280].map((value) => (
+            <Button key={value} onPress={() => setWidth(value)} aria-pressed={width === value}>
+              {value}px
+            </Button>
+          ))}
+        </div>
+        <iframe
+          key={view}
+          title="Prévia responsiva"
+          src={view === 'manager' ? '/dashboard' : `/qa-machines-local?embedded=1&view=${view}`}
+          style={{
+            display: 'block',
+            width,
+            maxWidth: '100%',
+            height: 820,
+            marginInline: 'auto',
+            border: '1px solid #ffffff55',
+            borderRadius: 12,
+          }}
+        />
+      </main>
+    )
+  const step = Math.min(9, Math.max(1, views.indexOf(view) + 1))
+  const props = {
+    payload,
+    setPayload,
+    error: '',
+    footer: (
+      <Button
+        className="ob2-cta"
+        fullWidth
+        onPress={() => setView(views[Math.min(8, views.indexOf(view) + 1)])}
+      >
+        Continuar na prévia
+      </Button>
+    ),
+  }
+  return (
+    <ClinicVisualFixture>
+      <SpaceThemeProvider key={payload.clinic.theme} initialTheme={payload.clinic.theme}>
+        <OnboardingShell
+          step={step}
+          availableThrough={9}
+          busy={false}
+          onBack={() => setView(views[Math.max(0, views.indexOf(view) - 1)])}
+          onSelectStep={(value) => setView(views[Math.max(0, value - 1)])}
+        >
+          {view === 'space' ? (
+            <ClinicStep {...props} />
+          ) : view === 'catalog' ? (
+            <CatalogStep {...props} />
+          ) : view === 'services' ? (
+            <ServicesStep {...props} />
+          ) : view === 'team' ? (
+            <TeamStep {...props} />
+          ) : view === 'schedule' ? (
+            <ScheduleStep {...props} />
+          ) : view === 'hours' ? (
+            <HoursStep {...props} />
+          ) : view === 'payments' ? (
+            <PaymentsStep
+              {...props}
+              clinicId="visual-fixture"
+              onReadyChange={() => {}}
+              onSettledChange={() => {}}
+            />
+          ) : view === 'rules' ? (
+            <RulesStep {...props} />
+          ) : view === 'review' ? (
+            <ReviewStep {...props} onEdit={(value) => setView(views[value - 1])} />
+          ) : (
+            <SpecialTreatments {...props} />
+          )}
+        </OnboardingShell>
+        <LayoutProbe />
+      </SpaceThemeProvider>
+    </ClinicVisualFixture>
   )
 }

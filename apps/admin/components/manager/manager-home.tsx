@@ -309,7 +309,13 @@ export function ManagerHome({
     if (target.create) requestCreate(target.section)
     setFocus(
       target.query || (target.section === 'servicos' && target.tab)
-        ? { section: target.section, query: target.query ?? '', tab: target.tab, nonce: Date.now() }
+        ? {
+            section: target.section,
+            query: target.query ?? '',
+            tab: target.tab,
+            equipmentId: target.equipmentId,
+            nonce: Date.now(),
+          }
         : null,
     )
     if (target.anchor) highlightAnchor(target.anchor)

@@ -29,7 +29,7 @@ type Notice = {
   tone: 'info' | 'warning' | 'success'
   title: string
   text: string
-  action?: { label: string; target: string; tab?: string }
+  action?: { label: string; target: string; tab?: string; equipmentId?: string }
 }
 
 /** Panel-wide features: activity inbox, notices (avisos) and the indexed search. */
@@ -208,6 +208,32 @@ export async function workspaceRoutes(
           ])
         ).rows[0]?.status
         if (status !== 'active') return { notices }
+        if (can.has('service:manage')) {
+          const missing = await connection.query(
+            `SELECT id,name FROM luminix.resources r WHERE clinic_id=$1 AND type='equipment'
+              AND availability_mode='manual_release' AND status='active' AND NOT EXISTS (
+                SELECT FROM luminix.equipment_windows($1,r.id,$2::date,
+                  (date_trunc('month',$2::date) + interval '1 month - 1 day')::date))
+              ORDER BY lower(name),id`,
+            [tenant.clinicId, today],
+          )
+          const month = new Intl.DateTimeFormat('pt-BR', { month: 'long' }).format(
+            new Date(today + 'T12:00:00Z'),
+          )
+          for (const row of missing.rows)
+            notices.push({
+              id: `rental-${today.slice(0, 7)}-${row.id}`,
+              tone: 'info',
+              title: `Quando o ${row.name} estará disponível em ${month}?`,
+              text: 'Escolha a data e o horário da locação para liberar os tratamentos na agenda.',
+              action: {
+                label: 'Ir',
+                target: 'servicos',
+                tab: 'equipment',
+                equipmentId: String(row.id),
+              },
+            })
+        }
         if (can.has('settings:manage')) {
           const site = (
             await connection.query(

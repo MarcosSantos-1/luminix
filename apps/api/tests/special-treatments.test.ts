@@ -145,12 +145,56 @@ it('persists dismissal, resumes equipment selections and materializes one shared
     ).statusCode,
   ).toBe(201)
   expect((await call('GET', 'dashboard')).json().missingRentals).toEqual([])
+  const notice = (await call('GET', 'notices'))
+    .json()
+    .notices.find(
+      (n: { action?: { equipmentId?: string } }) => n.action?.equipmentId === equipment.id,
+    )
+  expect(notice.action).toEqual({
+    label: 'Ir',
+    target: 'servicos',
+    tab: 'equipment',
+    equipmentId: equipment.id,
+  })
   const agenda = (
     await call('GET', 'agenda?from=2030-02-04T00:00:00Z&to=2030-02-06T00:00:00Z')
   ).json()
   expect(agenda.services.map((item: { rental_dates: string[] }) => item.rental_dates)).toEqual([
     ['2030-02-04', '2030-02-05'],
     ['2030-02-04', '2030-02-05'],
+  ])
+  const today = (await call('GET', 'dashboard')).json().today
+  expect(
+    (
+      await call('PUT', 'availability', {
+        mode: 'override',
+        date: today,
+        isAvailable: true,
+        periods: [
+          { start: '09:00', end: '12:00' },
+          { start: '13:00', end: '21:00' },
+        ],
+      })
+    ).statusCode,
+  ).toBe(200)
+  const draft = await call('POST', `catalog/equipment/${equipment.id}/rentals`, {
+    startsOn: today,
+    endsOn: today,
+    available: false,
+  })
+  expect(draft.statusCode).toBe(201)
+  const monthlyNotices = async () =>
+    (await call('GET', 'notices')).json().notices.map((n: { id: string }) => n.id)
+  expect(await monthlyNotices()).toContain(notice.id)
+  expect(
+    (await call('POST', `catalog/rentals/${draft.json().id}/availability`, { available: true }))
+      .statusCode,
+  ).toBe(200)
+  expect(await monthlyNotices()).not.toContain(notice.id)
+  const released = await call('GET', `agenda?from=${today}T00:00:00Z&to=${today}T23:59:59Z`)
+  expect(released.json().services[0].rental_hours[today]).toEqual([
+    [540, 720],
+    [780, 1260],
   ])
   await db.query("SELECT set_config('luminix.clinic_id', $1, false)", [otherClinic])
   expect(

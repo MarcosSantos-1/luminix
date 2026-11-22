@@ -16,7 +16,7 @@ import {
   TriangleAlert,
 } from 'lucide-react'
 import Image from 'next/image'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import {
   equipmentCatalog,
   equipmentKey,
@@ -30,7 +30,10 @@ import {
   SearchInput,
   SelectField,
   TextInputField,
+  TimeInputField,
 } from '@/components/ui/fields'
+import { DayConfigModal } from '../appointments/day-config'
+import type { WeeklyRow, OverrideRow } from '../appointments/schedule-modal'
 import { canceledNote, confirmFlag, useCancellationGuard } from '../appointments/cancellation-guard'
 import { QuickModal } from '../quick-modal'
 import { type ClinicApi } from '../settings/clinic-api'
@@ -45,6 +48,9 @@ export type Rental = {
   costCents: number | null
   note: string
   inFinance: boolean
+  available?: boolean
+  startMinute?: number | null
+  durationHours?: number | null
   /** Dia exclusivo: only this device's treatments can be booked on these days. */
   exclusive?: boolean
 }
@@ -56,6 +62,8 @@ export type Equipment = {
   status: 'active' | 'archived'
   serviceIds: string[]
   rentals: Rental[]
+  /** "Deixar disponível": goes into the future banner and social post (Marketing). */
+  promote?: boolean
 }
 
 const methods = [
@@ -85,6 +93,8 @@ export function EquipmentTab({
   canManage,
   canFinance,
   onChanged,
+  requestedEquipment,
+  onRequestClosed,
 }: {
   api: ClinicApi
   services: Service[]
@@ -92,10 +102,18 @@ export function EquipmentTab({
   today: string
   canManage: boolean
   canFinance: boolean
+  requestedEquipment?: string
+  onRequestClosed: () => void
   onChanged: (message: string) => void
 }) {
   const [editing, setEditing] = useState<Equipment | null>(null)
-  const [renting, setRenting] = useState<Equipment | null>(null)
+  const [existingRental, setExistingRental] = useState<Rental | null>(null)
+  const [selectedEquipment, setRenting] = useState<Equipment | null>(null)
+  const renting =
+    selectedEquipment ??
+    (canManage && requestedEquipment
+      ? equipment.find((e) => e.id === requestedEquipment && e.status === 'active')
+      : null)
   const [busy, setBusy] = useState('')
   const name = (id: string) => services.find((service) => service.id === id)?.name ?? 'Serviço'
   const shown = equipment.filter((item) => item.status === 'active')
@@ -251,7 +269,27 @@ export function EquipmentTab({
                               ) : null}
                               {rental.note ? ` · ${rental.note}` : ''}
                             </span>
-                            {rental.exclusive ? (
+                            <span className="biz-row-meta">
+                              {rental.available === false ? 'Agendamento pausado' : 'Disponível'} ·{' '}
+                              {rental.durationHours && rental.startMinute != null
+                                ? rentalRange(rental.startMinute, rental.durationHours)
+                                : 'Dia inteiro'}
+                            </span>
+                            {canManage && (
+                              <Button
+                                isIconOnly
+                                size="sm"
+                                variant="ghost"
+                                aria-label={`Editar disponibilidade de ${dateBr(rental.startsOn)}`}
+                                onPress={() => {
+                                  setExistingRental(rental)
+                                  setRenting(item)
+                                }}
+                              >
+                                <Pencil size={14} />
+                              </Button>
+                            )}
+                            {rental.exclusive && rental.available !== false ? (
                               <span className="eq-exclusive">
                                 <Lock size={12} aria-hidden /> Exclusivo
                               </span>
@@ -261,13 +299,15 @@ export function EquipmentTab({
                                 isIconOnly
                                 size="sm"
                                 variant="ghost"
-                                aria-pressed={rental.exclusive === true}
+                                aria-pressed={
+                                  rental.available !== false && rental.exclusive === true
+                                }
                                 aria-label={
                                   rental.exclusive
                                     ? `Liberar outros tratamentos em ${dateBr(rental.startsOn)}`
                                     : `Reservar ${dateBr(rental.startsOn)} só para a locação`
                                 }
-                                isDisabled={busy === rental.id}
+                                isDisabled={busy === rental.id || rental.available === false}
                                 onPress={() => void toggleExclusive(rental)}
                               >
                                 {rental.exclusive ? <LockOpen size={14} /> : <Lock size={14} />}
@@ -358,11 +398,14 @@ export function EquipmentTab({
         <RentalEditor
           api={api}
           equipment={renting}
+          existing={existingRental}
           serviceNames={renting.serviceIds.map(name)}
           today={today}
           canFinance={canFinance}
           onClose={(message) => {
+            setExistingRental(null)
             setRenting(null)
+            onRequestClosed()
             if (message) onChanged(message)
           }}
         />
@@ -462,6 +505,7 @@ function EquipmentEditor({
       supplier: item.supplier.trim(),
       defaultCostCents: cents,
       serviceIds: item.serviceIds,
+      promote: item.promote === true,
     }
     try {
       if (isNew) await api.post('catalog/equipment', body)
@@ -720,20 +764,118 @@ function EquipmentEditor({
               })}
             </ul>
           </div>
+          <div className="eq-exclusive-field">
+            <CheckboxField
+              isSelected={item.promote === true}
+              onChange={(promote) => setItem({ ...item, promote })}
+              label="Deixar disponível"
+              description="Mostrar este aparelho na divulgação do espaço."
+            />
+            <HelpTip title="Deixar disponível">
+              <p>
+                Com a opção marcada, o aparelho entra na divulgação: em breve vamos montar um banner
+                (formato 2:1) para a página das clientes e um post para as redes sociais do espaço,
+                com as datas da locação.
+              </p>
+              <p>Isso não muda a agenda: os horários continuam definidos em cada aluguel.</p>
+            </HelpTip>
+          </div>
         </div>
       )}
     </QuickModal>
   )
 }
 
+function minuteClock(minute: number) {
+  return `${String(Math.floor(minute / 60)).padStart(2, '0')}:${String(minute % 60).padStart(2, '0')}`
+}
+function rentalRange(start: number, hours: number) {
+  return `${minuteClock(start)} às ${minuteClock(start + hours * 60)}`
+}
+
+type DaySchedule = {
+  weeklyAvailability: WeeklyRow[]
+  overrides: OverrideRow[]
+  closures?: { professional_id: string | null; starts_on: string; ends_on: string }[]
+  canManageHours: boolean
+}
+
+function RentalDayHours({ api, date }: { api: ClinicApi; date: string }) {
+  const [loaded, setLoaded] = useState<{ date: string; data?: DaySchedule }>()
+  const [editing, setEditing] = useState(false)
+  const [revision, setRevision] = useState(0)
+  useEffect(() => {
+    if (!date) return
+    let active = true
+    void api
+      .get<DaySchedule>('agenda', { from: date + 'T00:00:00Z', to: date + 'T23:59:59Z' })
+      .then((data) => active && setLoaded({ date, data }))
+      .catch(() => active && setLoaded({ date }))
+    return () => {
+      active = false
+    }
+  }, [api, date, revision])
+  if (!date || loaded?.date !== date) return null
+  const data = loaded.data
+  if (!data)
+    return (
+      <p className="settings-footnote">
+        Expediente indisponível.{' '}
+        <button type="button" onClick={() => setRevision((n) => n + 1)}>
+          Tentar novamente
+        </button>
+      </p>
+    )
+  const override = data.overrides.find((row) => row.local_date.slice(0, 10) === date)
+  const day =
+    override ??
+    data.weeklyAvailability.find(
+      (row) => Number(row.weekday) === new Date(date + 'T12:00:00').getDay(),
+    )
+  const closure = data.closures?.some(
+    (row) => row.professional_id === null && row.starts_on <= date && row.ends_on >= date,
+  )
+  return (
+    <div className="eq-day-hours">
+      <strong>Expediente de {shortDay(date)}</strong>
+      <span>
+        {closure
+          ? 'Fechamento do espaço'
+          : day?.is_available && day.periods.length
+            ? day.periods.map((p) => p.start + ' às ' + p.end).join(' · ')
+            : 'Espaço fechado'}
+      </span>
+      {data.canManageHours && (
+        <Button variant="secondary" size="sm" onPress={() => setEditing(true)}>
+          Alterar só este dia
+        </Button>
+      )}
+      {editing && (
+        <DayConfigModal
+          api={api}
+          date={date}
+          weekly={data.weeklyAvailability}
+          override={override}
+          closures={closure ? ['Fechamento do espaço'] : []}
+          canManage={data.canManageHours}
+          onSaved={() => setRevision((n) => n + 1)}
+          onClose={() => setEditing(false)}
+        />
+      )}
+    </div>
+  )
+}
+
 function RentalEditor({
   api,
+  existing,
   equipment,
   serviceNames,
   today,
   canFinance,
   onClose,
 }: {
+  existing: Rental | null
   api: ClinicApi
   equipment: Equipment
   serviceNames: string[]
@@ -742,23 +884,37 @@ function RentalEditor({
   onClose: (message?: string) => void
 }) {
   const [form, setForm] = useState({
-    startsOn: today,
-    endsOn: today,
+    startsOn: existing?.startsOn ?? today,
+    endsOn: existing?.endsOn ?? today,
+    available: existing?.available ?? true,
+    duration: existing?.durationHours?.toString() ?? 'full',
+    start: minuteClock(existing?.startMinute ?? 540),
     cost: equipment.defaultCostCents != null ? moneyInput(equipment.defaultCostCents) : '',
     note: '',
-    registerExpense: canFinance && equipment.defaultCostCents != null,
+    registerExpense: !existing && canFinance && equipment.defaultCostCents != null,
     method: 'pix',
     exclusive: false,
   })
+  const [specificDay, setSpecificDay] = useState('')
+  const firstDay = form.startsOn < today ? today : form.startsOn
+  const day = specificDay >= firstDay && specificDay <= form.endsOn ? specificDay : firstDay
+  const startMinute = form.start
+    ? Number(form.start.slice(0, 2)) * 60 + Number(form.start.slice(3))
+    : NaN
+  const duration = form.duration === 'full' ? null : Number(form.duration)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
-  const { guard, dialog } = useCancellationGuard(
-    'Estes horários são de outros tratamentos marcados nos dias da locação. Se continuar, o dia fica exclusivo: cancelamos e avisamos cada cliente por e-mail e na área da cliente.',
-  )
+  const { guard, dialog } = useCancellationGuard()
 
   async function save() {
-    if (form.startsOn < today || !form.endsOn || form.endsOn < form.startsOn)
+    if ((!existing && form.startsOn < today) || !form.endsOn || form.endsOn < form.startsOn)
       return setError('Confira as datas.')
+    if (duration && (!Number.isInteger(startMinute) || startMinute + duration * 60 > 1440))
+      return setError('Escolha um início que permita concluir a locação até meia-noite.')
+    const availability = {
+      available: form.available,
+      ...(duration ? { startMinute, durationHours: duration } : {}),
+    }
     const cents = form.cost ? parseMoney(form.cost) : null
     if (form.cost && !cents) return setError('Confira o valor.')
     if (form.registerExpense && !cents) return setError('Informe o valor para lançar a despesa.')
@@ -766,20 +922,31 @@ function RentalEditor({
     setError('')
     try {
       const saved = await guard((confirm) =>
-        api.post<{ canceledAppointments?: number }>(`catalog/equipment/${equipment.id}/rentals`, {
-          startsOn: form.startsOn,
-          endsOn: form.endsOn,
-          costCents: cents,
-          note: form.note.trim() || undefined,
-          ...(form.registerExpense ? { registerExpense: true, method: form.method } : {}),
-          ...(form.exclusive ? { exclusive: true } : {}),
-          ...confirmFlag(confirm),
-        }),
+        existing
+          ? api.post<{ canceledAppointments?: number }>(
+              `catalog/rentals/${existing.id}/availability`,
+              { ...availability, ...confirmFlag(confirm) },
+            )
+          : api.post<{ canceledAppointments?: number }>(
+              `catalog/equipment/${equipment.id}/rentals`,
+              {
+                ...availability,
+                startsOn: form.startsOn,
+                endsOn: form.endsOn,
+                costCents: cents,
+                note: form.note.trim() || undefined,
+                ...(form.registerExpense ? { registerExpense: true, method: form.method } : {}),
+                ...(form.available && form.exclusive ? { exclusive: true } : {}),
+                ...confirmFlag(confirm),
+              },
+            ),
       )
       // Went back from the list of clients the exclusive day would cancel.
       if (saved === null) return
       onClose(
-        `${equipment.name} marcado para ${dateBr(form.startsOn)}${form.endsOn !== form.startsOn ? ` a ${dateBr(form.endsOn)}` : ''}${form.exclusive ? ', dia exclusivo' : ''}${form.registerExpense ? ', despesa lançada no Financeiro' : ''}.${canceledNote(saved)}`,
+        existing
+          ? `Disponibilidade de ${equipment.name} atualizada.${canceledNote(saved)}`
+          : `${equipment.name} marcado para ${dateBr(form.startsOn)}${form.endsOn !== form.startsOn ? ` a ${dateBr(form.endsOn)}` : ''}${form.available && form.exclusive ? ', dia exclusivo' : ''}${form.registerExpense ? ', despesa lançada no Financeiro' : ''}.${canceledNote(saved)}`,
       )
     } catch {
       setError('Não foi possível marcar. Confira as datas (até 2 meses por vez).')
@@ -804,7 +971,7 @@ function RentalEditor({
       badge="Aluguel"
       onOpenChange={(open) => !open && onClose()}
       title={equipment.name}
-      subtitle="A locação libera estes dias na agenda da equipe e das clientes."
+      subtitle="Escolha quando a equipe e as clientes poderão agendar os tratamentos deste aparelho."
       hero={
         <>
           <div className="qm-hero-art">
@@ -841,7 +1008,7 @@ function RentalEditor({
             Cancelar
           </Button>
           <Button isDisabled={saving} onPress={() => void save()}>
-            {saving ? 'Salvando…' : 'Marcar aluguel'}
+            {saving ? 'Salvando…' : existing ? 'Salvar disponibilidade' : 'Marcar aluguel'}
           </Button>
         </>
       }
@@ -849,6 +1016,7 @@ function RentalEditor({
       <div className="settings-grid">
         <DateInputField
           label="Chega em"
+          isDisabled={Boolean(existing)}
           min={today}
           value={form.startsOn}
           onChange={(startsOn) =>
@@ -857,65 +1025,113 @@ function RentalEditor({
         />
         <DateInputField
           label="Fica até (inclusive)"
+          isDisabled={Boolean(existing)}
           value={form.endsOn}
           min={form.startsOn > today ? form.startsOn : today}
           onChange={(endsOn) => setForm({ ...form, endsOn })}
         />
       </div>
-      <MoneyField
-        className="qm-money"
-        label="Valor do aluguel"
-        value={form.cost}
-        onChange={(cost) => setForm({ ...form, cost })}
-      />
-      <TextInputField
-        label="Observação (opcional)"
-        maxLength={240}
-        placeholder="Ex.: chega às 8h, devolver até 19h"
-        value={form.note}
-        onChange={(note) => setForm({ ...form, note })}
-      />
-      <div className="eq-exclusive-field">
-        <CheckboxField
-          isSelected={form.exclusive}
-          onChange={(exclusive) => setForm({ ...form, exclusive })}
-          label="Dia exclusivo para esta locação"
-          description="Nesses dias as clientes só conseguem marcar os tratamentos deste aparelho."
+      <div className="settings-grid">
+        <SelectField
+          label="Período do aparelho"
+          value={form.duration}
+          onChange={(duration) => setForm({ ...form, duration })}
+          options={[
+            { id: 'full', label: 'Dia inteiro' },
+            ...[4, 6, 8, 10].map((hours) => ({
+              id: String(hours),
+              label: `${hours} horas por dia`,
+            })),
+          ]}
         />
-        <HelpTip title="Dia exclusivo">
-          <p>
-            Aparelho alugado custa por dia. Para aproveitar 100% do equipamento, você pode reservar
-            o dia inteiro só para os tratamentos dele.
-          </p>
-          <p>
-            Com a opção marcada, as clientes não veem horários de outros tratamentos nesses dias. A
-            equipe ainda consegue agendar outro serviço, mas a agenda avisa que o dia está reservado
-            à locação.
-          </p>
-          <p>
-            Se já houver outros tratamentos marcados, mostramos as clientes afetadas antes de
-            salvar. Confirmando, os horários são cancelados e cada uma recebe o aviso.
-          </p>
-        </HelpTip>
-      </div>
-      {canFinance ? (
-        <>
-          <CheckboxField
-            isSelected={form.registerExpense}
-            onChange={(registerExpense) => setForm({ ...form, registerExpense })}
-            label="Lançar como despesa no Financeiro"
-            description="Categoria “Aluguel de aparelhos”, na data de chegada."
+        {duration && (
+          <TimeInputField
+            label="Início da locação"
+            value={form.start}
+            onChange={(start) => setForm({ ...form, start })}
+            description={
+              Number.isInteger(startMinute) && startMinute + duration * 60 <= 1440
+                ? `Até ${minuteClock(startMinute + duration * 60)}`
+                : undefined
+            }
           />
-          {form.registerExpense ? (
-            <SelectField
-              label="Forma de pagamento"
-              value={form.method}
-              onChange={(method) => setForm({ ...form, method })}
-              options={methods}
+        )}
+      </div>
+      {form.endsOn > firstDay && (
+        <DateInputField
+          label="Consultar expediente do dia"
+          value={day}
+          min={firstDay}
+          max={form.endsOn}
+          onChange={setSpecificDay}
+        />
+      )}
+      <RentalDayHours api={api} date={day} />
+      <CheckboxField
+        label="Liberar agendamento nesta locação"
+        isSelected={form.available}
+        onChange={(available) => setForm({ ...form, available })}
+        description="Libera os tratamentos nos horários da locação que cabem no expediente, respeitando os intervalos."
+      />
+      {!existing && (
+        <>
+          <MoneyField
+            className="qm-money"
+            label="Valor do aluguel"
+            value={form.cost}
+            onChange={(cost) => setForm({ ...form, cost })}
+          />
+          <TextInputField
+            label="Observação (opcional)"
+            maxLength={240}
+            placeholder="Ex.: chega às 8h, devolver até 19h"
+            value={form.note}
+            onChange={(note) => setForm({ ...form, note })}
+          />
+          <div className="eq-exclusive-field">
+            <CheckboxField
+              isDisabled={!form.available}
+              isSelected={form.exclusive}
+              onChange={(exclusive) => setForm({ ...form, exclusive })}
+              label="Dia exclusivo para esta locação"
+              description="Nesses dias as clientes só conseguem marcar os tratamentos deste aparelho."
             />
+            <HelpTip title="Dia exclusivo">
+              <p>
+                Aparelho alugado custa por dia. Para aproveitar 100% do equipamento, você pode
+                reservar o dia inteiro só para os tratamentos dele.
+              </p>
+              <p>
+                Com a opção marcada, as clientes não veem horários de outros tratamentos nesses
+                dias. A equipe ainda consegue agendar outro serviço, mas a agenda avisa que o dia
+                está reservado à locação.
+              </p>
+              <p>
+                Se já houver outros tratamentos marcados, mostramos as clientes afetadas antes de
+                salvar. Confirmando, os horários são cancelados e cada uma recebe o aviso.
+              </p>
+            </HelpTip>
+          </div>
+          {canFinance ? (
+            <>
+              <CheckboxField
+                isSelected={form.registerExpense}
+                onChange={(registerExpense) => setForm({ ...form, registerExpense })}
+                label="Lançar como despesa no Financeiro"
+                description="Categoria “Aluguel de aparelhos”, na data de chegada."
+              />
+              {form.registerExpense ? (
+                <SelectField
+                  label="Forma de pagamento"
+                  value={form.method}
+                  onChange={(method) => setForm({ ...form, method })}
+                  options={methods}
+                />
+              ) : null}
+            </>
           ) : null}
         </>
-      ) : null}
+      )}
       {equipment.serviceIds.length ? null : (
         <p className="settings-footnote">Nenhum serviço ligado a este aparelho ainda.</p>
       )}

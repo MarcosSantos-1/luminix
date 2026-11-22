@@ -805,8 +805,8 @@ function qaAgenda() {
         photo_url: index === 0 ? qaPhoto : null,
       })),
     ],
-    services: services.map(([id, name, , price_cents, mode], index) => ({
-      rental_dates:
+    services: services.map(([id, name, , price_cents, mode], index) => {
+      const dates =
         mode === 'manual_release'
           ? qaExtras.equipment.flatMap((device) =>
               device.serviceIds.includes(id)
@@ -824,13 +824,27 @@ function qaAgenda() {
                   )
                 : [],
             )
-          : null,
-      id,
-      name,
-      duration_minutes: index === 1 ? 240 : 60,
-      price_cents,
-      price_type: 'fixed',
-    })),
+          : null
+      return {
+        rental_dates: dates,
+        rental_hours:
+          dates &&
+          Object.fromEntries(
+            dates.map((day) => [
+              day,
+              [
+                [480, 720],
+                [780, 1080],
+              ],
+            ]),
+          ),
+        id,
+        name,
+        duration_minutes: index === 1 ? 240 : 60,
+        price_cents,
+        price_type: 'fixed',
+      }
+    }),
     professionals: qaPeople.map(({ id, name }, index) => ({
       id,
       display_name: name,
@@ -894,6 +908,19 @@ const qaActivity = [
   createdAt: minutesAgo(minutes as number),
 }))
 const qaNotices = [
+  {
+    id: 'rental-qa',
+    tone: 'info',
+    title: 'Quando o Ultraformer estará disponível este mês?',
+    text: 'Escolha a data e o horário da locação para liberar os tratamentos na agenda.',
+    action: {
+      label: 'Ir',
+      target: 'servicos',
+      tab: 'equipment',
+      equipmentId: 'a1b2c3d4-0000-4000-8000-000000000802',
+    },
+  },
+
   {
     id: 'open-appointments-qa',
     tone: 'warning',
@@ -1029,6 +1056,16 @@ const qaExtras = {
     },
   ],
   equipment: [
+    {
+      id: 'a1b2c3d4-0000-4000-8000-000000000802',
+      name: 'Ultraformer',
+      supplier: '',
+      defaultCostCents: null,
+      status: 'active',
+      serviceIds: [] as string[],
+      rentals: [],
+    },
+
     {
       id: 'a1b2c3d4-0000-4000-8000-000000000801',
       name: 'Laser CO2 fracionado',

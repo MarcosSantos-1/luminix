@@ -76,7 +76,11 @@ import { downloadPriceSheet, openPricePdf } from './price-table'
 import { PromotionEditor, PromotionsStrip, blankPromotion, promotionExample } from './promotions'
 import { serviceIcon } from './service-icons'
 import './business.css'
-import { useSearchFocus, type SearchFocus } from '../workspace/workspace-signals'
+import {
+  useWorkspaceSignals,
+  useSearchFocus,
+  type SearchFocus,
+} from '../workspace/workspace-signals'
 
 export type { Service } from './catalog-model'
 export { promotionState } from './catalog-model'
@@ -156,9 +160,13 @@ export function ServicesPanel({
   const [editing, setEditing] = useState<Service | null>(null)
   const [promo, setPromo] = useState<ReturnType<typeof blankPromotion> | null>(null)
   const [query, setQuery] = useState('')
+  const signals = useWorkspaceSignals()
+  const [requestedEquipment, setRequestedEquipment] = useState<string>()
   useSearchFocus(focus, (value) => {
-    if (focus?.tab === 'equipment') setTab('equipment')
-    else setQuery(value)
+    if (focus?.tab === 'equipment') {
+      setTab('equipment')
+      setRequestedEquipment(focus.equipmentId)
+    } else setQuery(value)
   })
   const [category, setCategory] = useState('')
   const [filters, setFilters] = useState<FilterValue>(defaultFilters)
@@ -205,6 +213,7 @@ export function ServicesPanel({
 
   const changed = (message: string) => {
     setNotice(message)
+    signals?.refresh()
     catalog.reload()
     extras.reload()
   }
@@ -433,6 +442,8 @@ export function ServicesPanel({
       {tab === 'equipment' ? (
         extras.data ? (
           <EquipmentTab
+            requestedEquipment={requestedEquipment}
+            onRequestClosed={() => setRequestedEquipment(undefined)}
             api={api}
             services={data.services}
             equipment={equipment}

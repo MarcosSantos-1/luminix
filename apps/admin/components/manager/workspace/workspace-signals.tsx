@@ -37,10 +37,11 @@ export type Notice = {
   tone: 'info' | 'warning' | 'success'
   title: string
   text: string
-  action?: { label: string; target: string; tab?: string }
+  action?: { label: string; target: string; tab?: string; equipmentId?: string }
 }
 export type GoTarget = {
   section: string
+  equipmentId?: string
   tab?: string
   /** Prefills the search box of the destination page. */
   query?: string
@@ -245,7 +246,11 @@ export function NotificationBell({
                           type="button"
                           onClick={() => {
                             if (notice.action)
-                              go({ section: notice.action.target, tab: notice.action.tab })
+                              go({
+                                section: notice.action.target,
+                                tab: notice.action.tab,
+                                equipmentId: notice.action.equipmentId,
+                              })
                             setOpen(false)
                           }}
                         >
@@ -349,7 +354,13 @@ export function NoticeCarousel({ go }: { go: (target: GoTarget) => void }) {
         <Button
           size="sm"
           className="ws-carousel-action"
-          onPress={() => go({ section: notice.action!.target, tab: notice.action!.tab })}
+          onPress={() =>
+            go({
+              section: notice.action!.target,
+              tab: notice.action!.tab,
+              equipmentId: notice.action!.equipmentId,
+            })
+          }
         >
           {notice.action.label}
         </Button>
@@ -402,7 +413,13 @@ export function NoticeCarousel({ go }: { go: (target: GoTarget) => void }) {
 }
 
 /** A search result that opens a page with its own search box already filled in. */
-export type SearchFocus = { section: string; query: string; tab?: string; nonce: number }
+export type SearchFocus = {
+  section: string
+  query: string
+  tab?: string
+  equipmentId?: string
+  nonce: number
+}
 const consumedFocus = new Set<number>()
 
 /** Applies a search focus once (coming back to the page later does not refill it). */

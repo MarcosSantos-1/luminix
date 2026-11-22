@@ -70,7 +70,7 @@ export function DayConfigModal({
   closures: string[]
   canManage: boolean
   onSaved: (message: string) => void
-  onOpenClosures: () => void
+  onOpenClosures?: () => void
 }) {
   const value = date ? new Date(`${date}T12:00:00`) : null
   const base = value ? weekly.find((row) => Number(row.weekday) === value.getDay()) : undefined
@@ -233,7 +233,13 @@ export function DayConfigModal({
               </span>
             ) : null}
             {closures.map((text) => (
-              <button key={text} type="button" className="dc-fact is-away" onClick={onOpenClosures}>
+              <button
+                key={text}
+                type="button"
+                className="dc-fact is-away"
+                disabled={!onOpenClosures}
+                onClick={onOpenClosures}
+              >
                 <Palmtree size={15} aria-hidden /> {text}
               </button>
             ))}

@@ -28,6 +28,27 @@ type ClinicContext = {
   permissions: string[]
 }
 const Context = createContext<ClinicContext | null>(null)
+
+/** Synthetic context for the development-only visual fixture; never authorizes API access. */
+export function ClinicVisualFixture({ children }: { children: ReactNode }) {
+  if (process.env.NODE_ENV !== 'development') return null
+  return (
+    <Context.Provider
+      value={{
+        clinic: {
+          id: '00000000-0000-4000-8000-000000000000',
+          name: 'Espaço de teste',
+          slug: 'visual-fixture',
+          status: 'onboarding',
+          share_code: null,
+        },
+        permissions: [],
+      }}
+    >
+      {children}
+    </Context.Provider>
+  )
+}
 const clinicViews = new Map<string, ClinicContext>()
 const clinicListeners = new Set<() => void>()
 

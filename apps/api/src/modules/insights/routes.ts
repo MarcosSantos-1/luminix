@@ -119,18 +119,25 @@ export async function insightsRoutes(
           checkedInAt: row.checked_in_at ? new Date(String(row.checked_in_at)).toISOString() : null,
           promotion: Boolean(row.promotion_id),
         })
+        const missingRentals = can.has('service:manage')
+          ? (
+              await connection.query(
+                `SELECT s.name, EXISTS (SELECT FROM luminix.service_resources sr JOIN luminix.resources r
+             ON r.clinic_id=sr.clinic_id AND r.id=sr.resource_id WHERE sr.clinic_id=s.clinic_id
+             AND sr.service_id=s.id AND r.type='equipment' AND r.availability_mode='manual_release'
+             AND r.status='active') AS linked FROM luminix.services s
+            WHERE s.clinic_id=$1 AND s.status='active'
+            AND cardinality(luminix.service_rental_days(s.clinic_id,s.id,$2::date,'infinity'))=0 ORDER BY s.name`,
+                [tenant.clinicId, today],
+              )
+            ).rows
+          : []
         const result: Record<string, unknown> = {
           today,
-          missingRentals: can.has('service:manage')
-            ? (
-                await connection.query(
-                  `SELECT name FROM luminix.services WHERE clinic_id = $1 AND status = 'active'
-              AND cardinality(luminix.service_rental_days(clinic_id,id,$2::date,'infinity')) = 0
-              ORDER BY name`,
-                  [tenant.clinicId, today],
-                )
-              ).rows.map((row) => row.name)
-            : [],
+          missingRentals: missingRentals.map((row) => row.name),
+          unlinkedRentalServices: missingRentals
+            .filter((row) => !row.linked)
+            .map((row) => row.name),
           appointments: await Promise.all(appointments.rows.map(view)),
           upcoming: await Promise.all(upcoming.rows.map(view)),
           upcomingWeek: toNumber(week.rows[0]?.upcoming),
