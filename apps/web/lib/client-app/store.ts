@@ -63,6 +63,8 @@ type ApiAppointment = {
   paymentMethod: Payment['method'] | null
   paid: boolean
   rentalDates?: string[] | null
+  canceledBySpace?: boolean
+  cancelReason?: string | null
   service: { id: string; name: string; category: string | null }
   professional: { id: string; name: string } | null
 }
@@ -234,6 +236,8 @@ function toAppointment(row: ApiAppointment): Appointment {
   return {
     id: row.id,
     rentalDates: row.rentalDates,
+    canceledBySpace: row.canceledBySpace === true,
+    cancelReason: row.cancelReason ?? null,
     serviceId: row.service.id,
     serviceName: row.service.name,
     category: row.service.category ?? '',
@@ -301,8 +305,10 @@ function noticesOf(link: { summary: SpaceSummary; linkedAt: string }, appointmen
         list.push({
           id: `cancel-${item.id}`,
           kind: 'booking',
-          title: 'Horário cancelado',
-          body: `${item.serviceName} de ${short(item.start)} foi cancelado.`,
+          title: item.canceledBySpace ? 'O espaço cancelou seu horário' : 'Horário cancelado',
+          body: item.canceledBySpace
+            ? `${item.serviceName} de ${short(item.start)} foi cancelado pelo espaço.${item.cancelReason ? ` ${item.cancelReason}` : ''} Escolha um novo horário quando puder.`
+            : `${item.serviceName} de ${short(item.start)} foi cancelado.`,
           at: item.updatedAt,
           href: '/cliente/agenda',
         })

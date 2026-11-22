@@ -395,7 +395,15 @@ describe('aparelhos alugados', () => {
       (
         await call('pack-a', 'POST', clinicA, `catalog/rentals/${laser.rentals[0].id}/remove`)
       ).json(),
-    ).toMatchObject({ removed: true, financeEntryVoided: true })
+    ).toMatchObject({ error: 'Schedule impact', total: 1 })
+    // Removing the days cancels the laser appointments only after confirmation (ADR-035).
+    expect(
+      (
+        await call('pack-a', 'POST', clinicA, `catalog/rentals/${laser.rentals[0].id}/remove`, {
+          confirmCancellations: true,
+        })
+      ).json(),
+    ).toMatchObject({ removed: true, financeEntryVoided: true, canceledAppointments: 1 })
   })
 
   it('deletes the equipment with its rentals, only inside its own clinic', async () => {

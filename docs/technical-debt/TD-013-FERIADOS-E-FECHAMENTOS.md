@@ -12,8 +12,8 @@ Problema:
 3. O aviso de feriados aparece só na Agenda (não no sino/Atividades nem no Início).
 4. Férias de uma profissional não reduzem a agenda "Sem preferência" do gestor: os blocos
    consideram todas as profissionais; a API avisa ao confirmar.
-5. Não há aviso proativo listando os atendimentos já marcados dentro de um fechamento novo além
-   da contagem devolvida ao salvar.
+5. ~~Não há aviso proativo listando os atendimentos já marcados dentro de um fechamento novo.~~
+   Resolvido pela ADR-035.
 
 Impacto atual: baixo (sem clientes reais).
 Risco futuro: feriado municipal não perguntado (1); pergunta repetida (2).

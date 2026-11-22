@@ -557,7 +557,8 @@ describe('closures (férias, fechamento por período)', () => {
     })
     expect(edited.statusCode).toBe(200)
     expect(edited.json().closure.ends_on).toBe('2030-01-25')
-    expect(edited.json().affectedAppointments).toBe(1)
+    // Booked inside the closure on purpose (confirmed warning): never canceled by it (ADR-035).
+    expect(edited.json().canceledAppointments).toBe(0)
     expect(
       (await call('agenda-a', 'POST', clinicA, `closures/${closure.id}/remove`)).statusCode,
     ).toBe(200)

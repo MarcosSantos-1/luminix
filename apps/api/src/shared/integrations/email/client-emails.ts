@@ -315,3 +315,60 @@ export function clientVoucherEmail(
     ...fromClinic(input),
   }
 }
+
+/**
+ * The space changed its agenda (hours, closed day, exclusive rental day) and the client's
+ * time no longer exists. Sent after the manager confirms the list of affected clients.
+ */
+export function appointmentCanceledBySpaceEmail(input: Appointment & { reason: string | null }) {
+  const first = firstName(input.clientName)
+  const clinic = escapeHtml(input.clinicName)
+  const rows = [
+    ...appointmentRows(input).filter((row) => row.label !== 'Valor'),
+    ...(input.reason ? [{ label: 'Motivo', value: input.reason }] : []),
+  ]
+  return {
+    to: input.to,
+    tag: 'appointment_canceled_by_space',
+    subject: `Horário cancelado: ${input.serviceName}, ${input.dateLabel} às ${input.timeLabel}`,
+    ...fromClinic(input),
+    ...renderEmail({
+      preheader: `O ${input.clinicName} precisou cancelar seu horário de ${input.dateLabel}.`,
+      eyebrow: 'Horário cancelado',
+      title: `${escapeHtml(first)}, precisamos remarcar`,
+      blocks: [
+        {
+          kind: 'paragraphs',
+          html: [
+            `O <strong>${clinic}</strong> mudou a agenda e precisou cancelar o seu horário. Pedimos desculpas pelo transtorno.`,
+            'Escolha um novo horário quando ficar bom para você.',
+          ],
+        },
+        { kind: 'details', rows },
+        ...(input.whatsapp
+          ? [
+              {
+                kind: 'whatsapp' as const,
+                label: 'Remarcar pelo WhatsApp',
+                href: whatsappLink(
+                  input.whatsapp,
+                  `Olá! Meu horário de ${input.dateLabel} às ${input.timeLabel} foi cancelado. Quero remarcar.`,
+                ),
+              },
+            ]
+          : []),
+      ],
+      ...(input.siteUrl ? { button: { label: 'Escolher novo horário', href: input.siteUrl } } : {}),
+      footnote: `Você recebeu este e-mail porque tinha um horário marcado no ${clinic}.`,
+      signature: footer,
+    }),
+    text: [
+      `${first}, precisamos remarcar.`,
+      '',
+      `O ${input.clinicName} mudou a agenda e precisou cancelar o seu horário.`,
+      ...rows.map((row) => `${row.label}: ${row.value}`),
+      '',
+      ...contactText(input),
+    ].join('\n'),
+  } satisfies OutgoingEmail
+}

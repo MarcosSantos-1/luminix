@@ -23,6 +23,7 @@ import { TimePicker } from '@/components/onboarding/time-picker'
 import { CheckboxField, ComboField, SelectField } from '@/components/ui/fields'
 import '@/app/c/[clinicId]/onboarding/onboarding.css'
 import { roleLabel } from '@/lib/access'
+import { canceledNote, confirmFlag, useCancellationGuard } from '../appointments/cancellation-guard'
 import { ClosuresEditor } from '../appointments/closures-editor'
 import '../appointments/appointments.css'
 import { ClinicApiError, useClinicApi, useClinicResource, type ClinicApi } from './clinic-api'
@@ -265,6 +266,7 @@ function ProfessionalEditor({
 }) {
   const [person, setPerson] = useState(initial)
   const [state, setState] = useState<SaveState>({ status: 'idle' })
+  const { guard, dialog } = useCancellationGuard()
   const [uploading, setUploading] = useState(false)
   const [confirmArchive, setConfirmArchive] = useState(false)
   const [showErrors, setShowErrors] = useState(false)
@@ -314,23 +316,33 @@ function ProfessionalEditor({
     }
     setState({ status: 'saving' })
     try {
-      await api.put(`team/${person.id}`, {
-        name: person.name.trim(),
-        role: person.role.trim(),
-        gender: person.gender,
-        audience: person.audience,
-        photoAssetId: person.photoAssetId,
-        membershipId: person.membershipId,
-        serviceIds: person.serviceIds,
-        serviceAudiences: Object.fromEntries(
-          Object.entries(person.serviceAudiences).filter(([id]) => person.serviceIds.includes(id)),
-        ),
-        days: person.days.map((day) => ({
-          ...day,
-          breaks: day.enabled ? day.breaks : [],
-        })),
-      })
-      onClose(isNew ? `${person.name.trim()} entrou na equipe!` : 'Alterações salvas!')
+      const saved = await guard((confirm) =>
+        api.put(`team/${person.id}`, {
+          ...confirmFlag(confirm),
+          name: person.name.trim(),
+          role: person.role.trim(),
+          gender: person.gender,
+          audience: person.audience,
+          photoAssetId: person.photoAssetId,
+          membershipId: person.membershipId,
+          serviceIds: person.serviceIds,
+          serviceAudiences: Object.fromEntries(
+            Object.entries(person.serviceAudiences).filter(([id]) =>
+              person.serviceIds.includes(id),
+            ),
+          ),
+          days: person.days.map((day) => ({
+            ...day,
+            breaks: day.enabled ? day.breaks : [],
+          })),
+        }),
+      )
+      // Went back from the list of clients her new hours would cancel.
+      if (saved === null) return setState({ status: 'idle' })
+      onClose(
+        (isNew ? `${person.name.trim()} entrou na equipe!` : 'Alterações salvas!') +
+          canceledNote(saved),
+      )
     } catch (error) {
       setState({
         status: 'error',
@@ -360,6 +372,7 @@ function ProfessionalEditor({
 
   return (
     <div className="settings-stack">
+      {dialog}
       <div className="team-editor-head">
         <Button variant="secondary" onPress={() => onClose()}>
           <ArrowLeft size={16} aria-hidden /> Voltar para a equipe

@@ -29,8 +29,9 @@ atendimento (férias da equipe, recesso, luto, manutenção): só datas avulsas 
   exige `professional:manage`. RLS + FORCE, auditoria e trava de tenant como as demais tabelas.
 - Cliente (autoagendamento) **não vê horários** em dias fechados do espaço nem com a profissional
   ausente. O gestor recebe o aviso `closure` (novo código em `override_reasons`) e pode confirmar.
-- Fechar um período **não cancela** atendimentos já marcados; a API devolve quantos ficaram dentro
-  do período para a gestora remarcar.
+- ~~Fechar um período **não cancela** atendimentos já marcados.~~ Substituído pela
+  [ADR-035](ADR-035-CANCELAMENTOS-POR-MUDANCA-DE-AGENDA.md): a gestora vê os afetados e confirma o
+  cancelamento com aviso às clientes.
 - **Feriados** calculados no admin (`lib/holidays.ts`): nacionais, Páscoa e móveis, pontos
   facultativos comuns (Carnaval, Corpus Christi, 24/12, 31/12), estaduais das 27 UFs e municipais
   das capitais, pela cidade/UF de `locations` (principal). Feriado nunca fecha sozinho: vira o

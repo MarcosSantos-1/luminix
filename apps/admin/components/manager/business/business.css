@@ -3780,3 +3780,28 @@
   color: var(--manager-muted);
   font-size: 13px;
 }
+
+/* Dia exclusivo de locação (ADR-035). */
+.eq-exclusive {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  color: #fde68a;
+  background: #78350f66;
+  font-size: 11.5px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.eq-exclusive-field {
+  display: flex;
+  align-items: flex-start;
+  gap: 4px;
+}
+.eq-exclusive-field > :first-child {
+  flex: 1 1 auto;
+}
+.settings-help-body p + p {
+  margin-top: 8px;
+}

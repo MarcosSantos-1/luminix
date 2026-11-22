@@ -3521,3 +3521,120 @@ button.ag-empty:hover {
   border-color: color-mix(in srgb, #d9a751 75%, transparent);
   color: var(--manager-text);
 }
+
+/* ---------- Atendimentos afetados por mudança de agenda (ADR-035) ---------- */
+.cxl-list {
+  display: grid;
+  gap: 10px;
+  max-height: min(52vh, 460px);
+  margin: 0;
+  padding: 0;
+  overflow-y: auto;
+  list-style: none;
+}
+.cxl-client {
+  display: grid;
+  grid-template-columns: 48px minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: start;
+  padding: 12px;
+  border: 1px solid #ffffff24;
+  border-radius: 16px;
+  background: #ffffff0f;
+}
+.cxl-face {
+  display: grid;
+  place-items: center;
+  width: 48px;
+  height: 48px;
+  overflow: hidden;
+  border-radius: 50%;
+  color: #5b2f3a;
+  background: #f4c4ae;
+  font-size: 15px;
+  font-weight: 700;
+}
+.cxl-face img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.cxl-who {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+.cxl-who strong {
+  overflow: hidden;
+  font-size: 15px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.cxl-phone {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  width: fit-content;
+  color: inherit;
+  font-size: 13px;
+  opacity: 0.85;
+  text-decoration: none;
+}
+.cxl-phone.is-missing {
+  opacity: 0.6;
+}
+.cxl-times {
+  display: grid;
+  gap: 4px;
+  margin: 6px 0 0;
+  padding: 0;
+  list-style: none;
+  font-size: 13px;
+}
+.cxl-times li {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px 8px;
+}
+.cxl-when {
+  font-weight: 700;
+  text-transform: capitalize;
+}
+.cxl-count {
+  display: grid;
+  place-items: center;
+  min-width: 28px;
+  height: 28px;
+  padding: 0 8px;
+  border-radius: 999px;
+  color: #fecaca;
+  background: #7f1d1d80;
+  font-size: 13px;
+  font-weight: 700;
+}
+.cxl-note {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  margin: 12px 0 0;
+  font-size: 13px;
+  line-height: 1.45;
+  opacity: 0.8;
+}
+.cxl-note svg {
+  flex: none;
+  margin-top: 2px;
+}
+
+/* Dia reservado à locação (ADR-035): week tag and month dot. */
+.ag-day-tags em.ag-day-reserved {
+  max-width: min(160px, 100%);
+  overflow: hidden;
+  color: #fde68a;
+  background: #78350f80;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ag .manager-month-day.ag-heat[data-special='reserved']::after {
+  background: #fbbf24;
+}

@@ -12,9 +12,16 @@ import type { TenantContext } from '../../shared/tenant/tenant-context.js'
 import { clientPhotoUrl, publicMediaUrl } from '../clinics/media-storage.js'
 import { isValidBrazilianTaxId } from '../clinics/tax-id.js'
 import { missingKeys } from '../client/routes.js'
+import {
+  confirmCancellationsSchema,
+  fittingAppointments,
+  settleScheduleImpact,
+  withCancellationMail,
+} from './schedule-impact.js'
 
 type Period = { start: string; end: string }
-type WarningCode = 'past' | 'outside_availability' | 'overlap' | 'closure' | 'equipment'
+type WarningCode =
+  'past' | 'outside_availability' | 'overlap' | 'closure' | 'equipment' | 'exclusive'
 // Biological sex (waxing, intimate treatments), not gender identity.
 type ClientSex = 'female' | 'male'
 type ClientBody = {
@@ -205,7 +212,23 @@ async function bookingWarnings(
       ORDER BY c.professional_id NULLS FIRST LIMIT 1`,
     [clinicId, local.date, slot.professionalId],
   )
+  // Dia exclusivo de locação (ADR-035): clients cannot book other treatments; the manager can.
+  const exclusive = await connection.query(
+    `SELECT r.name FROM luminix.resource_rentals rr
+       JOIN luminix.resources r ON r.clinic_id = rr.clinic_id AND r.id = rr.resource_id
+      WHERE rr.clinic_id = $1 AND rr.exclusive AND r.status = 'active'
+        AND $2::date BETWEEN rr.starts_on AND rr.ends_on
+        AND luminix.exclusive_rental_blocks($1, $3, $2::date)
+      ORDER BY r.name LIMIT 3`,
+    [clinicId, local.date, slot.serviceId],
+  )
   const warnings: BookingWarning[] = []
+  if (exclusive.rows.length)
+    warnings.push({
+      code: 'exclusive',
+      title: 'Dia reservado à locação',
+      detail: `Este dia está reservado aos tratamentos com ${exclusive.rows.map((row) => String(row.name)).join(', ')}. Clientes não conseguem marcar outros tratamentos.`,
+    })
   const closure = closures.rows[0]
   if (closure)
     warnings.push({
@@ -246,7 +269,7 @@ const confirmedWarningsSchema = {
   uniqueItems: true,
   items: {
     type: 'string',
-    enum: ['past', 'outside_availability', 'overlap', 'closure', 'equipment'],
+    enum: ['past', 'outside_availability', 'overlap', 'closure', 'equipment', 'exclusive'],
   },
 } as const
 
@@ -357,6 +380,9 @@ export async function operationRoutes(
       )
     } catch (error) {
       const code = (error as { code?: string }).code
+      const responseBody = (error as { responseBody?: unknown }).responseBody
+      if ((error as { statusCode?: number }).statusCode === 409 && responseBody)
+        return reply.code(409).send(responseBody)
       if ((error as { statusCode?: number }).statusCode === 403)
         return reply.code(403).send({ error: 'Clinic access denied' })
       if (code === '23503') return reply.code(400).send({ error: 'Invalid clinic resource' })
@@ -924,6 +950,7 @@ export async function operationRoutes(
           closures,
           location,
           professionalOverrides,
+          exclusiveRentals,
         ] = await Promise.all([
           connection.query(
             `SELECT a.id, a.starts_at, a.ends_at, a.status, a.booking_source, a.checked_in_at,
@@ -1021,6 +1048,16 @@ export async function operationRoutes(
                 ORDER BY o.local_date, o.professional_id`,
             [tenant.clinicId, request.query.from.slice(0, 10), request.query.to.slice(0, 10)],
           ),
+          // Dias reservados à locação (ADR-035): shown on the calendar.
+          connection.query(
+            `SELECT rr.starts_on::text AS starts_on, rr.ends_on::text AS ends_on, r.name
+                 FROM luminix.resource_rentals rr
+                 JOIN luminix.resources r ON r.clinic_id = rr.clinic_id AND r.id = rr.resource_id
+                WHERE rr.clinic_id = $1 AND rr.exclusive AND r.status = 'active'
+                  AND rr.ends_on >= $2::date AND rr.starts_on <= $3::date
+                ORDER BY rr.starts_on LIMIT 100`,
+            [tenant.clinicId, request.query.from.slice(0, 10), request.query.to.slice(0, 10)],
+          ),
         ])
         // Reception sees the day; money and client details follow the person's level.
         const seesMoney = can.has('finance:manage')
@@ -1070,6 +1107,11 @@ export async function operationRoutes(
           weeklyAvailability: weekly.rows,
           overrides: overrides.rows,
           closures: closures.rows,
+          exclusiveRentals: exclusiveRentals.rows.map((row) => ({
+            startsOn: String(row.starts_on),
+            endsOn: String(row.ends_on),
+            equipment: String(row.name),
+          })),
           location: {
             city: location.rows[0]?.city ?? null,
             state: location.rows[0]?.state ?? null,
@@ -1537,6 +1579,7 @@ export async function operationRoutes(
       | {
           mode: 'weekly'
           days: Array<{ weekday: number; isAvailable: boolean; periods: Period[] }>
+          confirmCancellations?: boolean
         }
       | {
           mode: 'override'
@@ -1545,6 +1588,7 @@ export async function operationRoutes(
           isAvailable?: boolean
           periods?: Period[]
           reason?: string
+          confirmCancellations?: boolean
         }
   }>(
     '/clinics/:clinicId/availability',
@@ -1560,6 +1604,7 @@ export async function operationRoutes(
               required: ['mode', 'days'],
               properties: {
                 mode: { const: 'weekly' },
+                confirmCancellations: confirmCancellationsSchema,
                 days: {
                   type: 'array',
                   minItems: 7,
@@ -1583,6 +1628,7 @@ export async function operationRoutes(
               required: ['mode', 'date'],
               properties: {
                 mode: { const: 'override' },
+                confirmCancellations: confirmCancellationsSchema,
                 date: { type: 'string', pattern: ymd },
                 useDefault: { type: 'boolean' },
                 isAvailable: { type: 'boolean' },
@@ -1595,54 +1641,75 @@ export async function operationRoutes(
       },
     },
     async (request, reply) =>
-      authorized(request, reply, 'schedule:manage', async (connection, tenant) => {
-        if (request.body.mode === 'weekly') {
-          const weekdays = new Set(request.body.days.map((day) => day.weekday))
-          if (
-            weekdays.size !== 7 ||
-            request.body.days.some(
-              (day) => !validPeriods(day.periods) || (!day.isAvailable && day.periods.length),
-            )
-          )
-            return reply.code(400).send({ error: 'Invalid availability' })
-          for (const day of request.body.days) {
-            await connection.query(
-              'SELECT luminix.save_weekly_availability($1, $2::smallint, $3, $4::jsonb)',
-              [tenant.clinicId, day.weekday, day.isAvailable, JSON.stringify(day.periods)],
-            )
+      withCancellationMail(mail, reply, (outbox) =>
+        authorized(request, reply, 'schedule:manage', async (connection, tenant) => {
+          // Who loses their time with the new hours (ADR-035): confirmed in a dialog first.
+          const before = await fittingAppointments(connection, tenant.clinicId)
+          const settle = async (reason: string) => {
+            const result = await settleScheduleImpact(connection, tenant.clinicId, before, {
+              confirm: request.body.confirmCancellations === true,
+              reason,
+              permission: 'schedule:manage',
+            })
+            outbox.push(...result.emails)
+            return result.canceled
           }
-          return { availability: request.body.days }
-        }
-        if (request.body.useDefault) {
+          if (request.body.mode === 'weekly') {
+            const weekdays = new Set(request.body.days.map((day) => day.weekday))
+            if (
+              weekdays.size !== 7 ||
+              request.body.days.some(
+                (day) => !validPeriods(day.periods) || (!day.isAvailable && day.periods.length),
+              )
+            )
+              return reply.code(400).send({ error: 'Invalid availability' })
+            for (const day of request.body.days) {
+              await connection.query(
+                'SELECT luminix.save_weekly_availability($1, $2::smallint, $3, $4::jsonb)',
+                [tenant.clinicId, day.weekday, day.isAvailable, JSON.stringify(day.periods)],
+              )
+            }
+            const canceledAppointments = await settle('O espaço mudou o horário de atendimento.')
+            return { availability: request.body.days, canceledAppointments }
+          }
+          if (request.body.useDefault) {
+            await connection.query(
+              'SELECT luminix.save_schedule_override($1, $2::date, true, false, $3::jsonb, null)',
+              [tenant.clinicId, request.body.date, JSON.stringify([])],
+            )
+            const canceledAppointments = await settle('O espaço mudou o horário deste dia.')
+            return { override: null, canceledAppointments }
+          }
+          const periods = request.body.periods ?? []
+          const isAvailable = request.body.isAvailable ?? false
+          if (!validPeriods(periods) || (!isAvailable && periods.length))
+            return reply.code(400).send({ error: 'Invalid availability' })
           await connection.query(
-            'SELECT luminix.save_schedule_override($1, $2::date, true, false, $3::jsonb, null)',
-            [tenant.clinicId, request.body.date, JSON.stringify([])],
+            'SELECT luminix.save_schedule_override($1, $2::date, false, $3, $4::jsonb, $5)',
+            [
+              tenant.clinicId,
+              request.body.date,
+              isAvailable,
+              JSON.stringify(periods),
+              request.body.reason?.trim() || null,
+            ],
           )
-          return { override: null }
-        }
-        const periods = request.body.periods ?? []
-        const isAvailable = request.body.isAvailable ?? false
-        if (!validPeriods(periods) || (!isAvailable && periods.length))
-          return reply.code(400).send({ error: 'Invalid availability' })
-        await connection.query(
-          'SELECT luminix.save_schedule_override($1, $2::date, false, $3, $4::jsonb, $5)',
-          [
-            tenant.clinicId,
-            request.body.date,
-            isAvailable,
-            JSON.stringify(periods),
-            request.body.reason?.trim() || null,
-          ],
-        )
-        return {
-          override: {
-            local_date: request.body.date,
-            is_available: isAvailable,
-            periods,
-            reason: request.body.reason?.trim() || null,
-          },
-        }
-      }),
+          const canceledAppointments = await settle(
+            isAvailable
+              ? 'O espaço mudou o horário deste dia.'
+              : `O espaço não vai abrir neste dia${request.body.reason?.trim() ? ` (${request.body.reason.trim()})` : ''}.`,
+          )
+          return {
+            override: {
+              local_date: request.body.date,
+              is_available: isAvailable,
+              periods,
+              reason: request.body.reason?.trim() || null,
+            },
+            canceledAppointments,
+          }
+        }),
+      ),
   )
 
   // "Planejar semanas": several days at once (the space and/or professionals), in one
@@ -1658,6 +1725,7 @@ export async function operationRoutes(
         periods?: Period[]
         reason?: string
       }[]
+      confirmCancellations?: boolean
     }
   }>(
     '/clinics/:clinicId/schedule-plan',
@@ -1670,6 +1738,7 @@ export async function operationRoutes(
           additionalProperties: false,
           required: ['days'],
           properties: {
+            confirmCancellations: confirmCancellationsSchema,
             days: {
               type: 'array',
               minItems: 1,
@@ -1707,38 +1776,47 @@ export async function operationRoutes(
       )
         return reply.code(400).send({ error: 'Invalid availability' })
       // One-off days (space or professional) need schedule:manage; the SQL functions re-check.
-      return authorized(request, reply, 'schedule:manage', async (connection, tenant) => {
-        for (const day of days) {
-          const periods = JSON.stringify(day.useDefault ? [] : (day.periods ?? []))
-          const reason = day.useDefault ? null : day.reason?.trim() || null
-          if (day.professionalId)
-            await connection.query(
-              'SELECT luminix.save_professional_override($1, $2, $3::date, $4, $5, $6::jsonb, $7)',
-              [
-                tenant.clinicId,
-                day.professionalId,
-                day.date,
-                day.useDefault === true,
-                day.isAvailable === true,
-                periods,
-                reason,
-              ],
-            )
-          else
-            await connection.query(
-              'SELECT luminix.save_schedule_override($1, $2::date, $3, $4, $5::jsonb, $6)',
-              [
-                tenant.clinicId,
-                day.date,
-                day.useDefault === true,
-                day.isAvailable === true,
-                periods,
-                reason,
-              ],
-            )
-        }
-        return { saved: days.length }
-      })
+      return withCancellationMail(mail, reply, (outbox) =>
+        authorized(request, reply, 'schedule:manage', async (connection, tenant) => {
+          const before = await fittingAppointments(connection, tenant.clinicId)
+          for (const day of days) {
+            const periods = JSON.stringify(day.useDefault ? [] : (day.periods ?? []))
+            const reason = day.useDefault ? null : day.reason?.trim() || null
+            if (day.professionalId)
+              await connection.query(
+                'SELECT luminix.save_professional_override($1, $2, $3::date, $4, $5, $6::jsonb, $7)',
+                [
+                  tenant.clinicId,
+                  day.professionalId,
+                  day.date,
+                  day.useDefault === true,
+                  day.isAvailable === true,
+                  periods,
+                  reason,
+                ],
+              )
+            else
+              await connection.query(
+                'SELECT luminix.save_schedule_override($1, $2::date, $3, $4, $5::jsonb, $6)',
+                [
+                  tenant.clinicId,
+                  day.date,
+                  day.useDefault === true,
+                  day.isAvailable === true,
+                  periods,
+                  reason,
+                ],
+              )
+          }
+          const result = await settleScheduleImpact(connection, tenant.clinicId, before, {
+            confirm: request.body.confirmCancellations === true,
+            reason: 'O espaço mudou os horários desta semana.',
+            permission: 'schedule:manage',
+          })
+          outbox.push(...result.emails)
+          return { saved: days.length, canceledAppointments: result.canceled }
+        }),
+      )
     },
   )
 
@@ -1752,6 +1830,7 @@ export async function operationRoutes(
       endsOn: { type: 'string', pattern: ymd },
       kind: { type: 'string', enum: Object.keys(closureLabel) },
       note: { type: 'string', maxLength: 240 },
+      confirmCancellations: confirmCancellationsSchema,
     },
   } as const
   type ClosureBody = {
@@ -1760,6 +1839,7 @@ export async function operationRoutes(
     endsOn: string
     kind: ClosureKind
     note?: string
+    confirmCancellations?: boolean
   }
   const closureColumns = `id, professional_id, starts_on::text AS starts_on,
     ends_on::text AS ends_on, kind, note`
@@ -1776,40 +1856,46 @@ export async function operationRoutes(
     if (!(days >= 0 && days <= 366)) return reply.code(400).send({ error: 'Invalid period' })
     // Vacations and leaves need vacation:manage; other closures schedule:manage. The function
     // re-checks, including the previous kind on an edit.
-    return authorized(request, reply, closurePermission(body.kind), async (connection, tenant) => {
-      const saved = await connection.query(
-        `SELECT ${closureColumns}
+    return withCancellationMail(mail, reply, (outbox) =>
+      authorized(request, reply, closurePermission(body.kind), async (connection, tenant) => {
+        const before = await fittingAppointments(connection, tenant.clinicId)
+        const saved = await connection.query(
+          `SELECT ${closureColumns}
              FROM luminix.save_schedule_closure($1, $2, $3, $4::date, $5::date, $6, $7)`,
-        [
-          tenant.clinicId,
-          request.params.closureId ?? null,
-          body.professionalId || null,
-          body.startsOn,
-          body.endsOn,
-          body.kind,
-          body.note?.trim() || null,
-        ],
-      )
-      // Appointments already inside the period stay; the manager decides what to do with them.
-      const affected = await connection.query(
-        `SELECT count(*)::int AS total FROM luminix.appointments a
-             JOIN luminix.clinic_settings s ON s.clinic_id = a.clinic_id
-            WHERE a.clinic_id = $1 AND a.status = ANY($2::text[])
-              AND (a.starts_at AT TIME ZONE s.timezone)::date BETWEEN $3::date AND $4::date
-              AND ($5::uuid IS NULL OR a.professional_id = $5::uuid)`,
-        [
-          tenant.clinicId,
-          activeAppointmentStatuses,
-          body.startsOn,
-          body.endsOn,
-          body.professionalId || null,
-        ],
-      )
-      return reply.code(request.params.closureId ? 200 : 201).send({
-        closure: saved.rows[0],
-        affectedAppointments: Number(affected.rows[0]?.total ?? 0),
-      })
-    })
+          [
+            tenant.clinicId,
+            request.params.closureId ?? null,
+            body.professionalId || null,
+            body.startsOn,
+            body.endsOn,
+            body.kind,
+            body.note?.trim() || null,
+          ],
+        )
+        // Appointments inside the period are listed for the manager, then canceled (ADR-035).
+        const who = body.professionalId
+          ? (
+              await connection.query(
+                'SELECT display_name FROM luminix.professionals WHERE clinic_id = $1 AND id = $2',
+                [tenant.clinicId, body.professionalId],
+              )
+            ).rows[0]?.display_name
+          : null
+        const label = closureLabel[body.kind] ?? 'Período sem atendimento'
+        const result = await settleScheduleImpact(connection, tenant.clinicId, before, {
+          confirm: body.confirmCancellations === true,
+          reason: who
+            ? `${String(who)} não vai atender neste período (${label.toLowerCase()}).`
+            : `O espaço estará fechado neste período (${label.toLowerCase()}).`,
+          permission: closurePermission(body.kind),
+        })
+        outbox.push(...result.emails)
+        return reply.code(request.params.closureId ? 200 : 201).send({
+          closure: saved.rows[0],
+          canceledAppointments: result.canceled,
+        })
+      }),
+    )
   }
 
   app.get<{

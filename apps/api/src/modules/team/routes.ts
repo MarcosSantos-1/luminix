@@ -8,6 +8,12 @@ import {
 import { withClinicTransaction } from '../../shared/tenant/clinic-transaction.js'
 import { publicMediaUrl } from '../clinics/media-storage.js'
 import { accessMail, accessMailFailure } from './access-mail.js'
+import {
+  confirmCancellationsSchema,
+  fittingAppointments,
+  settleScheduleImpact,
+  withCancellationMail,
+} from '../operations/schedule-impact.js'
 
 const uuidPattern = '^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$'
 const clock = { type: 'string', pattern: '^(?:[01][0-9]|2[0-3]):[0-5][0-9]$' }
@@ -49,6 +55,7 @@ export async function teamRoutes(
   dependencies: AuthDependencies,
 ) {
   const authorized = createAuthorizedRoute(authenticate, dependencies.tenantPool)
+  const mail = { mailer: dependencies.mailer, adminOrigin: dependencies.adminOrigin }
 
   app.get<{ Params: { clinicId: string } }>(
     '/clinics/:clinicId/team',
@@ -163,6 +170,7 @@ export async function teamRoutes(
             role: { type: 'string', maxLength: 120 },
             gender: { type: 'string', enum: ['female', 'male'] },
             audience: { type: 'string', enum: ['all', 'women', 'men'] },
+            confirmCancellations: confirmCancellationsSchema,
             photoAssetId: { type: 'string', pattern: `^$|${uuidPattern}` },
             membershipId: { anyOf: [{ type: 'string', pattern: uuidPattern }, { type: 'null' }] },
             serviceIds: {
@@ -207,15 +215,26 @@ export async function teamRoutes(
       },
     },
     async (request, reply) =>
-      authorized(request, reply, 'professional:manage', async (connection, tenant) => {
-        const id = (
-          await connection.query('SELECT luminix.save_professional($1::uuid, $2::jsonb) AS id', [
-            tenant.clinicId,
-            JSON.stringify({ ...request.body, id: request.params.professionalId }),
-          ])
-        ).rows[0]?.id
-        return { id: String(id) }
-      }),
+      withCancellationMail(mail, reply, (outbox) =>
+        authorized(request, reply, 'professional:manage', async (connection, tenant) => {
+          const { confirmCancellations, ...professional } = request.body
+          const before = await fittingAppointments(connection, tenant.clinicId)
+          const id = (
+            await connection.query('SELECT luminix.save_professional($1::uuid, $2::jsonb) AS id', [
+              tenant.clinicId,
+              JSON.stringify({ ...professional, id: request.params.professionalId }),
+            ])
+          ).rows[0]?.id
+          // Her new week can leave clients out (ADR-035): listed first, canceled on confirm.
+          const result = await settleScheduleImpact(connection, tenant.clinicId, before, {
+            confirm: confirmCancellations === true,
+            reason: `${String(professional.name)} mudou o horário de atendimento.`,
+            permission: 'professional:manage',
+          })
+          outbox.push(...result.emails)
+          return { id: String(id), canceledAppointments: result.canceled }
+        }),
+      ),
   )
 
   app.post<{ Params: { clinicId: string; professionalId: string }; Body: Record<string, never> }>(

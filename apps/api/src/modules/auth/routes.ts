@@ -34,7 +34,7 @@ export async function authRoutes(app: FastifyInstance, dependencies: AuthDepende
   await teamRoutes(app, authenticate, dependencies)
   await mediaRoutes(app, authenticate, dependencies.tenantPool)
   await catalogRoutes(app, authenticate, dependencies.tenantPool)
-  await packageRoutes(app, authenticate, dependencies.tenantPool)
+  await packageRoutes(app, authenticate, dependencies.tenantPool, mail)
   await financeRoutes(app, authenticate, dependencies.tenantPool)
   await inventoryRoutes(app, authenticate, dependencies.tenantPool)
   await insightsRoutes(app, authenticate, dependencies.tenantPool)

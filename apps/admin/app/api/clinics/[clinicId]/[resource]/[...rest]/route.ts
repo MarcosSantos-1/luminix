@@ -42,7 +42,7 @@ const writes: Record<'PUT' | 'POST', RegExp[]> = {
     new RegExp(`^client-packages/${id}/cancel$`, 'i'),
     /^catalog\/equipment$/,
     new RegExp(`^catalog/equipment/${id}/(archive|rentals|remove)$`, 'i'),
-    new RegExp(`^catalog/rentals/${id}/remove$`, 'i'),
+    new RegExp(`^catalog/rentals/${id}/(remove|exclusive)$`, 'i'),
     new RegExp(`^marketing/posts/${id}/remove$`, 'i'),
   ],
 }

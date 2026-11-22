@@ -29,6 +29,7 @@ import {
   type ProfessionalOverrideRow,
   type WeeklyRow,
 } from './schedule-modal'
+import { canceledNote, confirmFlag, useCancellationGuard } from './cancellation-guard'
 
 type Week = {
   overrides: OverrideRow[]
@@ -95,6 +96,7 @@ export function WeekPlanner({
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const [done, setDone] = useState('')
+  const { guard, dialog } = useCancellationGuard()
 
   const dates = useMemo(() => Array.from({ length: 7 }, (_, index) => shift(start, index)), [start])
   const holidays = useMemo(
@@ -212,8 +214,12 @@ export function WeekPlanner({
     if (!days.length) return
     setSaving(true)
     try {
-      await api.put('schedule-plan', { days })
-      const message = `${days.length} ${days.length === 1 ? 'dia ajustado' : 'dias ajustados'} ${isClinic ? 'no espaço' : `para ${person?.display_name.split(' ')[0] ?? 'a profissional'}`}.`
+      const saved = await guard((confirm) =>
+        api.put('schedule-plan', { days, ...confirmFlag(confirm) }),
+      )
+      // Went back from the list of affected clients: nothing was saved.
+      if (saved === null) return
+      const message = `${days.length} ${days.length === 1 ? 'dia ajustado' : 'dias ajustados'} ${isClinic ? 'no espaço' : `para ${person?.display_name.split(' ')[0] ?? 'a profissional'}`}.${canceledNote(saved)}`
       setDone(message)
       onSaved(message)
       setDrafts((all) =>
@@ -236,6 +242,7 @@ export function WeekPlanner({
 
   return (
     <div className="wp">
+      {dialog}
       <div className="wp-week" role="group" aria-label="Semana">
         <Button
           isIconOnly

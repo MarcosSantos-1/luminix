@@ -6,6 +6,8 @@ import {
   CalendarPlus,
   Check,
   Cpu,
+  Lock,
+  LockOpen,
   Pencil,
   Plus,
   Receipt,
@@ -29,8 +31,10 @@ import {
   SelectField,
   TextInputField,
 } from '@/components/ui/fields'
+import { canceledNote, confirmFlag, useCancellationGuard } from '../appointments/cancellation-guard'
 import { QuickModal } from '../quick-modal'
 import { type ClinicApi } from '../settings/clinic-api'
+import { HelpTip } from '../settings/settings-kit'
 import type { Service } from './catalog-model'
 import { dateBr, money, moneyInput, parseMoney } from './format'
 
@@ -41,6 +45,8 @@ export type Rental = {
   costCents: number | null
   note: string
   inFinance: boolean
+  /** Dia exclusivo: only this device's treatments can be booked on these days. */
+  exclusive?: boolean
 }
 export type Equipment = {
   id: string
@@ -94,16 +100,21 @@ export function EquipmentTab({
   const name = (id: string) => services.find((service) => service.id === id)?.name ?? 'Serviço'
   const shown = equipment.filter((item) => item.status === 'active')
   const archived = equipment.filter((item) => item.status === 'archived')
+  const { guard, dialog } = useCancellationGuard()
 
   async function removeRental(rental: Rental) {
     setBusy(rental.id)
     try {
-      const result = await api.post<{ financeEntryVoided: boolean }>(
-        `catalog/rentals/${rental.id}/remove`,
-        {},
+      // Treatments that need the device on those days are listed and canceled on confirm.
+      const result = await guard((confirm) =>
+        api.post<{ financeEntryVoided: boolean; canceledAppointments?: number }>(
+          `catalog/rentals/${rental.id}/remove`,
+          confirmFlag(confirm),
+        ),
       )
+      if (result === null) return
       onChanged(
-        `Aluguel de ${shortDay(rental.startsOn)} removido${result.financeEntryVoided ? ' e a despesa anulada no Financeiro' : ''}.`,
+        `Aluguel de ${shortDay(rental.startsOn)} removido${result.financeEntryVoided ? ' e a despesa anulada no Financeiro' : ''}.${canceledNote(result)}`,
       )
     } catch {
       onChanged('Não foi possível remover o aluguel.')
@@ -112,8 +123,32 @@ export function EquipmentTab({
     }
   }
 
+  async function toggleExclusive(rental: Rental) {
+    setBusy(rental.id)
+    const exclusive = !rental.exclusive
+    try {
+      const result = await guard((confirm) =>
+        api.post<{ canceledAppointments: number }>(`catalog/rentals/${rental.id}/exclusive`, {
+          exclusive,
+          ...confirmFlag(confirm),
+        }),
+      )
+      if (result === null) return
+      onChanged(
+        exclusive
+          ? `${shortDay(rental.startsOn)} reservado só para a locação.${canceledNote(result)}`
+          : `${shortDay(rental.startsOn)} voltou a aceitar todos os tratamentos.`,
+      )
+    } catch {
+      onChanged('Não foi possível mudar a exclusividade.')
+    } finally {
+      setBusy('')
+    }
+  }
+
   return (
     <div className="biz-tab-body">
+      {dialog}
       <div className="biz-tab-intro">
         <span className="biz-tab-intro-icon" aria-hidden>
           <Cpu size={22} />
@@ -216,6 +251,28 @@ export function EquipmentTab({
                               ) : null}
                               {rental.note ? ` · ${rental.note}` : ''}
                             </span>
+                            {rental.exclusive ? (
+                              <span className="eq-exclusive">
+                                <Lock size={12} aria-hidden /> Exclusivo
+                              </span>
+                            ) : null}
+                            {canManage ? (
+                              <Button
+                                isIconOnly
+                                size="sm"
+                                variant="ghost"
+                                aria-pressed={rental.exclusive === true}
+                                aria-label={
+                                  rental.exclusive
+                                    ? `Liberar outros tratamentos em ${dateBr(rental.startsOn)}`
+                                    : `Reservar ${dateBr(rental.startsOn)} só para a locação`
+                                }
+                                isDisabled={busy === rental.id}
+                                onPress={() => void toggleExclusive(rental)}
+                              >
+                                {rental.exclusive ? <LockOpen size={14} /> : <Lock size={14} />}
+                              </Button>
+                            ) : null}
                             {canManage ? (
                               <Button
                                 isIconOnly
@@ -691,9 +748,13 @@ function RentalEditor({
     note: '',
     registerExpense: canFinance && equipment.defaultCostCents != null,
     method: 'pix',
+    exclusive: false,
   })
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
+  const { guard, dialog } = useCancellationGuard(
+    'Estes horários são de outros tratamentos marcados nos dias da locação. Se continuar, o dia fica exclusivo: cancelamos e avisamos cada cliente por e-mail e na área da cliente.',
+  )
 
   async function save() {
     if (form.startsOn < today || !form.endsOn || form.endsOn < form.startsOn)
@@ -704,15 +765,21 @@ function RentalEditor({
     setSaving(true)
     setError('')
     try {
-      await api.post(`catalog/equipment/${equipment.id}/rentals`, {
-        startsOn: form.startsOn,
-        endsOn: form.endsOn,
-        costCents: cents,
-        note: form.note.trim() || undefined,
-        ...(form.registerExpense ? { registerExpense: true, method: form.method } : {}),
-      })
+      const saved = await guard((confirm) =>
+        api.post<{ canceledAppointments?: number }>(`catalog/equipment/${equipment.id}/rentals`, {
+          startsOn: form.startsOn,
+          endsOn: form.endsOn,
+          costCents: cents,
+          note: form.note.trim() || undefined,
+          ...(form.registerExpense ? { registerExpense: true, method: form.method } : {}),
+          ...(form.exclusive ? { exclusive: true } : {}),
+          ...confirmFlag(confirm),
+        }),
+      )
+      // Went back from the list of clients the exclusive day would cancel.
+      if (saved === null) return
       onClose(
-        `${equipment.name} marcado para ${dateBr(form.startsOn)}${form.endsOn !== form.startsOn ? ` a ${dateBr(form.endsOn)}` : ''}${form.registerExpense ? ', despesa lançada no Financeiro' : ''}.`,
+        `${equipment.name} marcado para ${dateBr(form.startsOn)}${form.endsOn !== form.startsOn ? ` a ${dateBr(form.endsOn)}` : ''}${form.exclusive ? ', dia exclusivo' : ''}${form.registerExpense ? ', despesa lançada no Financeiro' : ''}.${canceledNote(saved)}`,
       )
     } catch {
       setError('Não foi possível marcar. Confira as datas (até 2 meses por vez).')
@@ -808,6 +875,29 @@ function RentalEditor({
         value={form.note}
         onChange={(note) => setForm({ ...form, note })}
       />
+      <div className="eq-exclusive-field">
+        <CheckboxField
+          isSelected={form.exclusive}
+          onChange={(exclusive) => setForm({ ...form, exclusive })}
+          label="Dia exclusivo para esta locação"
+          description="Nesses dias as clientes só conseguem marcar os tratamentos deste aparelho."
+        />
+        <HelpTip title="Dia exclusivo">
+          <p>
+            Aparelho alugado custa por dia. Para aproveitar 100% do equipamento, você pode reservar
+            o dia inteiro só para os tratamentos dele.
+          </p>
+          <p>
+            Com a opção marcada, as clientes não veem horários de outros tratamentos nesses dias. A
+            equipe ainda consegue agendar outro serviço, mas a agenda avisa que o dia está reservado
+            à locação.
+          </p>
+          <p>
+            Se já houver outros tratamentos marcados, mostramos as clientes afetadas antes de
+            salvar. Confirmando, os horários são cancelados e cada uma recebe o aviso.
+          </p>
+        </HelpTip>
+      </div>
       {canFinance ? (
         <>
           <CheckboxField
@@ -829,6 +919,7 @@ function RentalEditor({
       {equipment.serviceIds.length ? null : (
         <p className="settings-footnote">Nenhum serviço ligado a este aparelho ainda.</p>
       )}
+      {dialog}
     </QuickModal>
   )
 }

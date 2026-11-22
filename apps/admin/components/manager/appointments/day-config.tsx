@@ -7,6 +7,7 @@ import { TextInputField, TimeInputField } from '@/components/ui/fields'
 import { holidayScopeLabel, type Holiday } from '@/lib/holidays'
 import type { ClinicApi } from '../settings/clinic-api'
 import { QuickModal } from '../quick-modal'
+import { canceledNote, confirmFlag, useCancellationGuard } from './cancellation-guard'
 import type { OverrideRow, WeeklyRow } from './schedule-modal'
 
 type Period = { start: string; end: string }
@@ -81,6 +82,7 @@ export function DayConfigModal({
   const [reason, setReason] = useState('')
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
+  const { guard, dialog } = useCancellationGuard()
 
   useEffect(() => {
     if (!date) return
@@ -138,23 +140,28 @@ export function DayConfigModal({
     setSaving(true)
     setError('')
     try {
-      await api.put('availability', {
-        mode: 'override',
-        date,
-        ...(kind === 'default'
-          ? { useDefault: true }
-          : {
-              isAvailable: kind !== 'closed',
-              periods,
-              reason: reason.trim() || undefined,
-            }),
-      })
+      const saved = await guard((confirm) =>
+        api.put('availability', {
+          mode: 'override',
+          date,
+          ...(kind === 'default'
+            ? { useDefault: true }
+            : {
+                isAvailable: kind !== 'closed',
+                periods,
+                reason: reason.trim() || undefined,
+              }),
+          ...confirmFlag(confirm),
+        }),
+      )
+      // Went back from the list of affected clients: nothing was saved.
+      if (saved === null) return
       onSaved(
-        kind === 'default'
+        (kind === 'default'
           ? `${title}: voltou ao horário padrão.`
           : kind === 'closed'
             ? `${title}: fechado, ninguém consegue agendar.`
-            : `${title}: aberto ${range(periods)}.`,
+            : `${title}: aberto ${range(periods)}.`) + canceledNote(saved),
       )
       onClose()
     } catch {
@@ -165,169 +172,172 @@ export function DayConfigModal({
   }
 
   return (
-    <QuickModal
-      isOpen
-      onOpenChange={(open) => !open && onClose()}
-      size="lg"
-      className="dc"
-      title={title.charAt(0).toUpperCase() + title.slice(1)}
-      subtitle={
-        normallyOpen
-          ? `Padrão deste dia da semana: ${range(basePeriods)}.`
-          : 'Normalmente o espaço não abre neste dia da semana.'
-      }
-      footer={
-        canManage && !past ? (
-          <>
-            {override ? (
+    <>
+      {dialog}
+      <QuickModal
+        isOpen
+        onOpenChange={(open) => !open && onClose()}
+        size="lg"
+        className="dc"
+        title={title.charAt(0).toUpperCase() + title.slice(1)}
+        subtitle={
+          normallyOpen
+            ? `Padrão deste dia da semana: ${range(basePeriods)}.`
+            : 'Normalmente o espaço não abre neste dia da semana.'
+        }
+        footer={
+          canManage && !past ? (
+            <>
+              {override ? (
+                <Button
+                  variant="ghost"
+                  className="qm-foot-start"
+                  isDisabled={saving}
+                  onPress={() => void save('default')}
+                >
+                  <Undo2 size={15} aria-hidden /> Voltar ao padrão
+                </Button>
+              ) : null}
+              <Button variant="secondary" onPress={onClose}>
+                Cancelar
+              </Button>
               <Button
-                variant="ghost"
-                className="qm-foot-start"
-                isDisabled={saving}
-                onPress={() => void save('default')}
+                isDisabled={saving || (choice === 'normal' && !normallyOpen)}
+                onPress={() => void save(choice)}
               >
-                <Undo2 size={15} aria-hidden /> Voltar ao padrão
+                {saving ? 'Salvando…' : 'Salvar este dia'}
               </Button>
-            ) : null}
-            <Button variant="secondary" onPress={onClose}>
-              Cancelar
-            </Button>
-            <Button
-              isDisabled={saving || (choice === 'normal' && !normallyOpen)}
-              onPress={() => void save(choice)}
-            >
-              {saving ? 'Salvando…' : 'Salvar este dia'}
-            </Button>
-          </>
-        ) : (
-          <Button variant="secondary" onPress={onClose}>
-            Fechar
-          </Button>
-        )
-      }
-    >
-      {holiday || closures.length || override ? (
-        <div className="dc-facts">
-          {holiday ? (
-            <span className="dc-fact is-holiday">
-              <CalendarHeart size={15} aria-hidden /> {holiday.name} ·{' '}
-              {holidayScopeLabel[holiday.scope]}
-              {override ? '' : ' · ainda sem resposta'}
-            </span>
-          ) : null}
-          {override ? (
-            <span className="dc-fact is-special">
-              <Clock3 size={15} aria-hidden />{' '}
-              {override.is_available
-                ? `Configurado: ${range(override.periods)}`
-                : 'Configurado: fechado'}
-            </span>
-          ) : null}
-          {closures.map((text) => (
-            <button key={text} type="button" className="dc-fact is-away" onClick={onOpenClosures}>
-              <Palmtree size={15} aria-hidden /> {text}
-            </button>
-          ))}
-        </div>
-      ) : null}
-
-      <div className="dc-choice" role="radiogroup" aria-label="Neste dia o espaço">
-        <button
-          type="button"
-          role="radio"
-          aria-checked={choice === 'closed'}
-          disabled={!canManage}
-          onClick={() => setChoice('closed')}
-        >
-          <DoorClosed size={22} strokeWidth={1.75} aria-hidden />
-          <strong>Não vamos atender</strong>
-          <small>Fechado · ninguém agenda</small>
-        </button>
-        <button
-          type="button"
-          role="radio"
-          aria-checked={choice === 'normal'}
-          disabled={!canManage || !normallyOpen}
-          onClick={() => setChoice('normal')}
-        >
-          <DoorOpen size={22} strokeWidth={1.75} aria-hidden />
-          <strong>Horário de sempre</strong>
-          <small>{normallyOpen ? range(basePeriods) : 'Dia normalmente fechado'}</small>
-        </button>
-        <button
-          type="button"
-          role="radio"
-          aria-checked={choice === 'special'}
-          disabled={!canManage}
-          onClick={() => setChoice('special')}
-        >
-          <Clock3 size={22} strokeWidth={1.75} aria-hidden />
-          <strong>Horário personalizado</strong>
-          <small>Só neste dia</small>
-        </button>
-      </div>
-
-      {choice === 'special' ? (
-        <div className="dc-hours">
-          <div className="sch-range">
-            <TimeInputField ariaLabel="Abre às" value={start} onChange={setStart} />
-            <span>até</span>
-            <TimeInputField ariaLabel="Fecha às" value={end} onChange={setEnd} />
-          </div>
-          {pause ? (
-            <div className="sch-range is-break">
-              <Coffee size={16} aria-hidden />
-              <TimeInputField
-                ariaLabel="Intervalo começa às"
-                value={pause.start}
-                onChange={(value) => setPause({ ...pause, start: value })}
-              />
-              <span>até</span>
-              <TimeInputField
-                ariaLabel="Intervalo termina às"
-                value={pause.end}
-                onChange={(value) => setPause({ ...pause, end: value })}
-              />
-              <Button size="sm" variant="ghost" onPress={() => setPause(null)}>
-                Sem intervalo
-              </Button>
-            </div>
+            </>
           ) : (
-            <Button
-              size="sm"
-              variant="ghost"
-              className="dc-add-break"
-              onPress={() => setPause({ start: '12:00', end: '13:00' })}
-            >
-              <Coffee size={14} aria-hidden /> Adicionar intervalo
+            <Button variant="secondary" onPress={onClose}>
+              Fechar
             </Button>
-          )}
+          )
+        }
+      >
+        {holiday || closures.length || override ? (
+          <div className="dc-facts">
+            {holiday ? (
+              <span className="dc-fact is-holiday">
+                <CalendarHeart size={15} aria-hidden /> {holiday.name} ·{' '}
+                {holidayScopeLabel[holiday.scope]}
+                {override ? '' : ' · ainda sem resposta'}
+              </span>
+            ) : null}
+            {override ? (
+              <span className="dc-fact is-special">
+                <Clock3 size={15} aria-hidden />{' '}
+                {override.is_available
+                  ? `Configurado: ${range(override.periods)}`
+                  : 'Configurado: fechado'}
+              </span>
+            ) : null}
+            {closures.map((text) => (
+              <button key={text} type="button" className="dc-fact is-away" onClick={onOpenClosures}>
+                <Palmtree size={15} aria-hidden /> {text}
+              </button>
+            ))}
+          </div>
+        ) : null}
+
+        <div className="dc-choice" role="radiogroup" aria-label="Neste dia o espaço">
+          <button
+            type="button"
+            role="radio"
+            aria-checked={choice === 'closed'}
+            disabled={!canManage}
+            onClick={() => setChoice('closed')}
+          >
+            <DoorClosed size={22} strokeWidth={1.75} aria-hidden />
+            <strong>Não vamos atender</strong>
+            <small>Fechado · ninguém agenda</small>
+          </button>
+          <button
+            type="button"
+            role="radio"
+            aria-checked={choice === 'normal'}
+            disabled={!canManage || !normallyOpen}
+            onClick={() => setChoice('normal')}
+          >
+            <DoorOpen size={22} strokeWidth={1.75} aria-hidden />
+            <strong>Horário de sempre</strong>
+            <small>{normallyOpen ? range(basePeriods) : 'Dia normalmente fechado'}</small>
+          </button>
+          <button
+            type="button"
+            role="radio"
+            aria-checked={choice === 'special'}
+            disabled={!canManage}
+            onClick={() => setChoice('special')}
+          >
+            <Clock3 size={22} strokeWidth={1.75} aria-hidden />
+            <strong>Horário personalizado</strong>
+            <small>Só neste dia</small>
+          </button>
         </div>
-      ) : null}
 
-      {opensExtra ? (
-        <p className="dc-note">
-          Este dia vai aparecer para as clientes no site e no app, dentro do horário escolhido.
-        </p>
-      ) : null}
+        {choice === 'special' ? (
+          <div className="dc-hours">
+            <div className="sch-range">
+              <TimeInputField ariaLabel="Abre às" value={start} onChange={setStart} />
+              <span>até</span>
+              <TimeInputField ariaLabel="Fecha às" value={end} onChange={setEnd} />
+            </div>
+            {pause ? (
+              <div className="sch-range is-break">
+                <Coffee size={16} aria-hidden />
+                <TimeInputField
+                  ariaLabel="Intervalo começa às"
+                  value={pause.start}
+                  onChange={(value) => setPause({ ...pause, start: value })}
+                />
+                <span>até</span>
+                <TimeInputField
+                  ariaLabel="Intervalo termina às"
+                  value={pause.end}
+                  onChange={(value) => setPause({ ...pause, end: value })}
+                />
+                <Button size="sm" variant="ghost" onPress={() => setPause(null)}>
+                  Sem intervalo
+                </Button>
+              </div>
+            ) : (
+              <Button
+                size="sm"
+                variant="ghost"
+                className="dc-add-break"
+                onPress={() => setPause({ start: '12:00', end: '13:00' })}
+              >
+                <Coffee size={14} aria-hidden /> Adicionar intervalo
+              </Button>
+            )}
+          </div>
+        ) : null}
 
-      <TextInputField
-        label="Motivo (só a equipe vê)"
-        maxLength={240}
-        placeholder="Ex.: feriado, inventário, plantão de sábado"
-        value={reason}
-        isDisabled={!canManage}
-        onChange={setReason}
-      />
-      {canManage ? null : (
-        <p className="sch-note">Só quem gerencia o espaço pode configurar os dias.</p>
-      )}
-      {error ? (
-        <p className="apt-error" role="alert">
-          {error}
-        </p>
-      ) : null}
-    </QuickModal>
+        {opensExtra ? (
+          <p className="dc-note">
+            Este dia vai aparecer para as clientes no site e no app, dentro do horário escolhido.
+          </p>
+        ) : null}
+
+        <TextInputField
+          label="Motivo (só a equipe vê)"
+          maxLength={240}
+          placeholder="Ex.: feriado, inventário, plantão de sábado"
+          value={reason}
+          isDisabled={!canManage}
+          onChange={setReason}
+        />
+        {canManage ? null : (
+          <p className="sch-note">Só quem gerencia o espaço pode configurar os dias.</p>
+        )}
+        {error ? (
+          <p className="apt-error" role="alert">
+            {error}
+          </p>
+        ) : null}
+      </QuickModal>
+    </>
   )
 }
 

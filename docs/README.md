@@ -48,6 +48,7 @@ Ficha de anamnese por níveis I–III, reaproveitamento e validade anual: [ADR-0
 Diretório público de espaços por nome para a área do cliente: [ADR-028](decisions/ADR-028-DIRETORIO-PUBLICO-POR-NOME.md).
 Agendamento em etapas, feriados (alerta "vai abrir?") e férias/fechamentos por período: [ADR-031](decisions/ADR-031-AGENDA-FERIADOS-E-FECHAMENTOS.md).
 Anamnese pela equipe, pacotes de sessões e aparelhos alugados: [ADR-032](decisions/ADR-032-ANAMNESE-PELA-EQUIPE-PACOTES-E-APARELHOS.md).
+Cancelamentos por mudança de agenda (prévia dos afetados, aviso à cliente) e dia exclusivo de locação: [ADR-035](decisions/ADR-035-CANCELAMENTOS-POR-MUDANCA-DE-AGENDA.md).
 
 ## Diretórios
 

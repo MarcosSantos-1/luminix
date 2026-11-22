@@ -84,6 +84,8 @@ type AgendaData = {
   weeklyAvailability: WeeklyRow[]
   overrides: OverrideRow[]
   closures?: ClosureRow[]
+  /** Dias reservados à locação: other treatments only by the team, after a warning. */
+  exclusiveRentals?: { startsOn: string; endsOn: string; equipment: string }[]
   location?: { city: string | null; state: string | null }
   professionalAvailability?: ProfessionalDayRow[]
   professionalOverrides?: ProfessionalOverrideRow[]
@@ -338,7 +340,10 @@ export function AgendaPanel({
     const team = (data?.professionalOverrides ?? []).filter(
       (item) => item.local_date.slice(0, 10) === date,
     )
-    return { exception, open, closure, away, holiday, team }
+    const reserved = (data?.exclusiveRentals ?? [])
+      .filter((item) => item.startsOn <= date && item.endsOn >= date)
+      .map((item) => item.equipment)
+    return { exception, open, closure, away, holiday, team, reserved }
   }
   /** "Ana 13:00–18:00, Bia folga" for the professionals with hours of their own that day. */
   function teamLabel(rows: ProfessionalOverrideRow[]) {
@@ -457,6 +462,13 @@ export function AgendaPanel({
             detail: rule.exception.is_available
               ? `${weeklyRow?.is_available ? '' : 'Abertura extra · '}${told.label.replace('Personalizado ', '')}`
               : 'Ninguém consegue agendar',
+          })
+        if (rule.reserved.length)
+          list.push({
+            date,
+            kind: 'special',
+            title: 'Reservado à locação',
+            detail: `Só ${rule.reserved.join(', ')} para as clientes; a equipe ainda pode marcar outros tratamentos.`,
           })
         if (rule.away.length)
           list.push({ date, kind: 'away', title: 'Equipe ausente', detail: awayLabel(rule.away) })
@@ -603,9 +615,11 @@ export function AgendaPanel({
                       ? rule.holiday.name
                       : rule.exception
                         ? rule.exception.reason || (rule.open ? 'Horário personalizado' : 'Fechado')
-                        : rule.away.length
-                          ? awayLabel(rule.away)
-                          : ''
+                        : rule.reserved.length
+                          ? `Reservado: ${rule.reserved.join(', ')}`
+                          : rule.away.length
+                            ? awayLabel(rule.away)
+                            : ''
                   return (
                     <button
                       type="button"
@@ -624,7 +638,9 @@ export function AgendaPanel({
                             : 'closed'
                           : rule.team.length
                             ? 'team'
-                            : undefined
+                            : rule.reserved.length
+                              ? 'reserved'
+                              : undefined
                       }
                       aria-selected={isSelected}
                       aria-label={`${new Intl.DateTimeFormat('pt-BR', { dateStyle: 'full' }).format(day)}, ${count} ${count === 1 ? 'agendamento' : 'agendamentos'}${rule.open ? '' : ', fechado'}${tag ? `, ${tag}` : ''}`}
@@ -766,6 +782,14 @@ export function AgendaPanel({
                     {item.holiday && !item.exception ? (
                       <em className="ag-day-holiday" title={item.holiday.name}>
                         {item.holiday.name}
+                      </em>
+                    ) : null}
+                    {item.reserved.length ? (
+                      <em
+                        className="ag-day-reserved"
+                        title={`Reservado à locação: ${item.reserved.join(', ')}`}
+                      >
+                        Reservado · {item.reserved.join(', ')}
                       </em>
                     ) : null}
                     {item.away.length ? (

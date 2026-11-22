@@ -43,6 +43,9 @@ export type Appointment = {
   id: string
   serviceId: string
   rentalDates?: string[] | null
+  /** The space canceled it because its agenda changed. */
+  canceledBySpace?: boolean
+  cancelReason?: string | null
   serviceName: string
   category: string
   /** Clinic local time: 2026-11-20T14:30 */

@@ -166,6 +166,7 @@ describe('versioned core migration', () => {
       { name: '0054_delete_rented_equipment.sql' },
       { name: '0055_client_vouchers.sql' },
       { name: '0056_rental_calendar_and_staff_records.sql' },
+      { name: '0057_schedule_change_cancellations.sql' },
     ])
   })
 

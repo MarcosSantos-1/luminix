@@ -78,6 +78,9 @@ export function createAuthorizedRoute(
       return result
     } catch (error) {
       const statusCode = (error as { statusCode?: number })?.statusCode
+      // A structured answer (e.g. the clients a schedule change would cancel).
+      const responseBody = (error as { responseBody?: unknown })?.responseBody
+      if (statusCode === 409 && responseBody) return reply.code(409).send(responseBody)
       if (statusCode && [400, 409, 413].includes(statusCode))
         return reply.code(statusCode).send({ error: (error as Error).message })
       if (statusCode === 503 && (error as Error).message === 'Stripe verification unavailable')

@@ -7,6 +7,7 @@ import { DateInputField, TextInputField } from '@/components/ui/fields'
 import { dateBr, initials } from '../business/format'
 import { ClinicApiError, type ClinicApi } from '../settings/clinic-api'
 import { closureKinds, type BookingProfessional, type ClosureRow } from './booking-modal'
+import { canceledNote, confirmFlag, useCancellationGuard } from './cancellation-guard'
 import { localDate } from './model'
 
 export const closureEmoji: Record<string, string> = {
@@ -99,6 +100,7 @@ export function ClosuresEditor({
   const [undo, setUndo] = useState<ClosureRow | null>(null)
   const [reload, setReload] = useState(0)
   const [showPast, setShowPast] = useState(false)
+  const { guard, dialog } = useCancellationGuard()
 
   useEffect(() => {
     let active = true
@@ -165,19 +167,24 @@ export function ClosuresEditor({
         kind: form.kind,
         note: form.note.trim() || undefined,
       }
-      const result = await (form.id
-        ? api.put<{ affectedAppointments: number }>(`closures/${form.id}`, body)
-        : api.post<{ affectedAppointments: number }>('closures', body))
+      // Clients with a time inside the period are listed first and canceled on confirm.
+      const result = await guard((confirm) =>
+        form.id
+          ? api.put<{ canceledAppointments: number }>(`closures/${form.id}`, {
+              ...body,
+              ...confirmFlag(confirm),
+            })
+          : api.post<{ canceledAppointments: number }>('closures', {
+              ...body,
+              ...confirmFlag(confirm),
+            }),
+      )
+      if (result === null) return
       const who =
         form.who === 'clinic'
           ? 'Espaço fechado'
           : `${person?.display_name ?? 'Profissional'} ausente`
-      const affected = result.affectedAppointments
-      const message = `${who} de ${period(form.startsOn, form.endsOn)}.${
-        affected
-          ? ` ${affected} ${affected === 1 ? 'atendimento já marcado continua' : 'atendimentos já marcados continuam'} na agenda — remarque se precisar.`
-          : ''
-      }`
+      const message = `${who} de ${period(form.startsOn, form.endsOn)}.${canceledNote(result)}`
       setDone(message)
       onSaved(message)
       setStep(null)
@@ -216,14 +223,18 @@ export function ClosuresEditor({
     setSaving(true)
     setError('')
     try {
-      await api.post('closures', {
-        professionalId: row.professional_id,
-        startsOn: row.starts_on,
-        endsOn: row.ends_on,
-        kind: row.kind,
-        note: row.note ?? undefined,
-      })
-      const message = `${closureKinds[row.kind] ?? 'Período'} de ${name(row.professional_id)} voltou.`
+      const result = await guard((confirm) =>
+        api.post('closures', {
+          professionalId: row.professional_id,
+          startsOn: row.starts_on,
+          endsOn: row.ends_on,
+          kind: row.kind,
+          note: row.note ?? undefined,
+          ...confirmFlag(confirm),
+        }),
+      )
+      if (result === null) return
+      const message = `${closureKinds[row.kind] ?? 'Período'} de ${name(row.professional_id)} voltou.${canceledNote(result)}`
       setDone(message)
       setUndo(null)
       onSaved(message)
@@ -317,6 +328,7 @@ export function ClosuresEditor({
 
   return (
     <div className="cw">
+      {dialog}
       {step ? (
         <section className="cw-wizard" aria-label="Registrar período sem atendimento">
           <header className="cw-wizard-head">

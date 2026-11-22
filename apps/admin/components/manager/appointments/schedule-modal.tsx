@@ -17,6 +17,7 @@ import { initials } from '../business/format'
 import type { ClinicApi } from '../settings/clinic-api'
 import { QuickModal } from '../quick-modal'
 import type { BookingProfessional } from './booking-modal'
+import { canceledNote, confirmFlag, useCancellationGuard } from './cancellation-guard'
 import { ClosuresEditor } from './closures-editor'
 import { WeekPlanner } from './week-planner'
 
@@ -280,6 +281,7 @@ export function StandardWeek({
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const [done, setDone] = useState('')
+  const { guard, dialog } = useCancellationGuard()
 
   useEffect(() => {
     if (!canManageTeam || !professionals.length) return
@@ -307,14 +309,16 @@ export function StandardWeek({
   const days = who === 'clinic' ? clinicDays : (personDays[who] ?? savedPersonDays(who))
   const readOnly = who === 'clinic' ? !canManageHours : !canManageTeam || !member
 
-  async function run(work: () => Promise<unknown>, message: string) {
+  async function run(work: (confirm: boolean) => Promise<unknown>, message: string) {
     setSaving(true)
     setError('')
     setDone('')
     try {
-      await work()
-      onSaved(message)
-      setDone(message)
+      const saved = await guard(work)
+      // Went back from the list of affected clients: nothing was saved.
+      if (saved === null) return
+      onSaved(message + canceledNote(saved))
+      setDone(message + canceledNote(saved))
     } catch {
       setError('Não foi possível salvar os horários. Tente de novo.')
     } finally {
@@ -327,7 +331,7 @@ export function StandardWeek({
     if (issue) return setError(issue)
     if (who === 'clinic')
       return void run(
-        () =>
+        (confirm) =>
           api.put('availability', {
             mode: 'weekly',
             days: clinicDays.map((day) => ({
@@ -335,13 +339,15 @@ export function StandardWeek({
               isAvailable: day.enabled,
               periods: toPeriods(day),
             })),
+            ...confirmFlag(confirm),
           }),
         'Rotina do espaço atualizada.',
       )
     if (!member) return
     void run(
-      () =>
+      (confirm) =>
         api.put(`team/${member.id}`, {
+          ...confirmFlag(confirm),
           name: member.name,
           role: member.role,
           gender: member.gender,
@@ -358,6 +364,7 @@ export function StandardWeek({
 
   return (
     <div className="sch-standard">
+      {dialog}
       {professionals.length ? (
         <div className="sch-people" role="group" aria-label="De quem é a rotina">
           <button type="button" aria-pressed={who === 'clinic'} onClick={() => setWho('clinic')}>

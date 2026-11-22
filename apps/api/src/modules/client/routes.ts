@@ -398,6 +398,8 @@ export async function clientRoutes(app: FastifyInstance, dependencies: AuthDepen
           `SELECT a.id, a.starts_at, a.ends_at, a.status, a.booking_source, a.price_cents,
                   a.list_price_cents, a.previous_starts_at, a.rescheduled_at, a.updated_at,
                   a.created_at, a.client_payment_method, ${appointmentRentalDates} AS rental_dates,
+                  a.cancellation_origin, a.canceled_at,
+                  CASE WHEN a.cancellation_origin IS NOT NULL THEN a.status_note END AS cancel_reason,
                   s.id AS service_id, s.name AS service_name, s.category AS service_category,
                   p.id AS professional_id, p.display_name AS professional_name,
                   luminix.appointment_paid_cents(a.clinic_id, a.id) AS paid_cents
@@ -459,6 +461,10 @@ export async function clientRoutes(app: FastifyInstance, dependencies: AuthDepen
             paymentMethod: row.client_payment_method,
             paid: isPaid(row),
             rentalDates: row.rental_dates,
+            // The space canceled it because its agenda changed (ADR-035).
+            canceledBySpace: row.cancellation_origin === 'schedule_change',
+            cancelReason: row.cancel_reason ?? null,
+            canceledAt: row.canceled_at ?? null,
             service: { id: row.service_id, name: row.service_name, category: row.service_category },
             professional: row.professional_id
               ? { id: row.professional_id, name: row.professional_name }
@@ -525,10 +531,13 @@ export async function clientRoutes(app: FastifyInstance, dependencies: AuthDepen
   ) {
     const weekday = new Date(`${date}T12:00:00Z`).getUTCDay()
     const calendar = await connection.query(
-      'SELECT luminix.service_rental_days($1, $2, $3::date, $3::date) AS days',
+      `SELECT luminix.service_rental_days($1, $2, $3::date, $3::date) AS days,
+              luminix.exclusive_rental_blocks($1, $2, $3::date) AS reserved`,
       [scope.clinicId, serviceId, date],
     )
     const deviceMissing = Array.isArray(calendar.rows[0]?.days) && !calendar.rows[0].days.length
+    // Dia exclusivo de locação (ADR-035): only the rented device's treatments are offered.
+    const reservedForRental = calendar.rows[0]?.reserved === true
     const [override, weekly, professionalDays, policy, busy, closures, ownDates] =
       await Promise.all([
         connection.query(
@@ -586,7 +595,14 @@ export async function clientRoutes(app: FastifyInstance, dependencies: AuthDepen
     const result: Record<string, string[]> = {}
     for (const professionalId of professionalIds) {
       result[professionalId] = []
-      if (date < today || date > last || spaceClosed || deviceMissing || away.has(professionalId))
+      if (
+        date < today ||
+        date > last ||
+        spaceClosed ||
+        deviceMissing ||
+        reservedForRental ||
+        away.has(professionalId)
+      )
         continue
       const ownDate = ownDates.rows.find((row) => String(row.professional_id) === professionalId)
       const own = professionalDays.rows.find(

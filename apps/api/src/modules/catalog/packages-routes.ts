@@ -13,6 +13,13 @@ import {
   uuidSchema,
 } from '../../shared/tenant/route-helpers.js'
 import type { TenantContext } from '../../shared/tenant/tenant-context.js'
+import type { ClinicMail } from '../notifications/clinic-mail.js'
+import {
+  confirmCancellationsSchema,
+  fittingAppointments,
+  settleScheduleImpact,
+  withCancellationMail,
+} from '../operations/schedule-impact.js'
 
 const methodSchema = {
   type: 'string',
@@ -51,6 +58,7 @@ export async function packageRoutes(
   app: FastifyInstance,
   authenticate: Authenticate,
   pool: TenantPool | undefined,
+  mail?: ClinicMail,
 ) {
   const authorized = createAuthorizedRoute(authenticate, pool)
 
@@ -87,7 +95,7 @@ export async function packageRoutes(
           ),
           connection.query(
             `SELECT id, resource_id, starts_on::text AS starts_on, ends_on::text AS ends_on,
-                    cost_cents, note, finance_entry_id IS NOT NULL AS in_finance
+                    cost_cents, note, finance_entry_id IS NOT NULL AS in_finance, exclusive
                FROM luminix.resource_rentals
               WHERE clinic_id = $1 AND ends_on >= luminix.clinic_today() - 60
               ORDER BY starts_on, id LIMIT 300`,
@@ -146,6 +154,7 @@ export async function packageRoutes(
                   seesMoney && rental.cost_cents != null ? Number(rental.cost_cents) : null,
                 note: rental.note ? String(rental.note) : '',
                 inFinance: rental.in_finance === true,
+                exclusive: rental.exclusive === true,
               })),
           })),
         }
@@ -491,6 +500,8 @@ export async function packageRoutes(
       note?: string
       registerExpense?: boolean
       method?: string
+      exclusive?: boolean
+      confirmCancellations?: boolean
     }
   }>(
     '/clinics/:clinicId/catalog/equipment/:equipmentId/rentals',
@@ -511,69 +522,178 @@ export async function packageRoutes(
             note: { type: 'string', maxLength: 240 },
             registerExpense: { type: 'boolean' },
             method: methodSchema,
+            // Dia exclusivo: other treatments leave the client agenda on these days (ADR-035).
+            exclusive: { type: 'boolean' },
+            confirmCancellations: confirmCancellationsSchema,
           },
         },
       },
     },
     async (request, reply) =>
-      authorized(request, reply, 'service:manage', async (connection, tenant) => {
-        const body = request.body
-        const span = days(body.startsOn, body.endsOn)
-        if (!(span >= 0 && span <= 62)) return reply.code(400).send({ error: 'Invalid period' })
-        if (body.registerExpense && !body.costCents)
-          return reply.code(400).send({ error: 'Cost required' })
-        const name = (
-          await connection.query(
-            `SELECT name FROM luminix.resources
+      withCancellationMail(mail, reply, (outbox) =>
+        authorized(request, reply, 'service:manage', async (connection, tenant) => {
+          const body = request.body
+          const before = body.exclusive
+            ? await fittingAppointments(connection, tenant.clinicId)
+            : new Set<string>()
+          const span = days(body.startsOn, body.endsOn)
+          if (!(span >= 0 && span <= 62)) return reply.code(400).send({ error: 'Invalid period' })
+          if (body.registerExpense && !body.costCents)
+            return reply.code(400).send({ error: 'Cost required' })
+          const name = (
+            await connection.query(
+              `SELECT name FROM luminix.resources
               WHERE clinic_id = $1 AND id = $2 AND type = 'equipment'`,
-            [tenant.clinicId, request.params.equipmentId],
+              [tenant.clinicId, request.params.equipmentId],
+            )
+          ).rows[0]?.name
+          if (!name) return reply.code(404).send({ error: 'Equipment not found' })
+          const entry =
+            body.registerExpense && body.costCents
+              ? await financeEntry(connection, tenant, {
+                  kind: 'expense',
+                  amountCents: body.costCents,
+                  occurredOn: body.startsOn,
+                  description: `Aluguel ${String(name)}`.slice(0, 160),
+                  category: 'Aluguel de aparelhos',
+                  method: body.method,
+                })
+              : null
+          const saved = await connection.query(
+            'SELECT luminix.save_resource_rental($1, $2, $3::date, $4::date, $5, $6, $7) AS id',
+            [
+              tenant.clinicId,
+              request.params.equipmentId,
+              body.startsOn,
+              body.endsOn,
+              body.costCents ?? null,
+              body.note?.trim() || null,
+              entry,
+            ],
           )
-        ).rows[0]?.name
-        if (!name) return reply.code(404).send({ error: 'Equipment not found' })
-        const entry =
-          body.registerExpense && body.costCents
-            ? await financeEntry(connection, tenant, {
-                kind: 'expense',
-                amountCents: body.costCents,
-                occurredOn: body.startsOn,
-                description: `Aluguel ${String(name)}`.slice(0, 160),
-                category: 'Aluguel de aparelhos',
-                method: body.method,
-              })
-            : null
-        const saved = await connection.query(
-          'SELECT luminix.save_resource_rental($1, $2, $3::date, $4::date, $5, $6, $7) AS id',
-          [
-            tenant.clinicId,
-            request.params.equipmentId,
-            body.startsOn,
-            body.endsOn,
-            body.costCents ?? null,
-            body.note?.trim() || null,
-            entry,
-          ],
-        )
-        return reply.code(201).send({ id: String(saved.rows[0].id), financeEntry: entry })
-      }),
+          const id = String(saved.rows[0].id)
+          let canceledAppointments = 0
+          if (body.exclusive) {
+            await connection.query('SELECT luminix.set_rental_exclusive($1, $2, true)', [
+              tenant.clinicId,
+              id,
+            ])
+            const result = await settleScheduleImpact(connection, tenant.clinicId, before, {
+              confirm: body.confirmCancellations === true,
+              reason: `O dia ficou reservado para os tratamentos com ${String(name)}.`,
+              permission: 'service:manage',
+            })
+            outbox.push(...result.emails)
+            canceledAppointments = result.canceled
+          }
+          return reply.code(201).send({ id, financeEntry: entry, canceledAppointments })
+        }),
+      ),
   )
 
-  app.post<{ Params: { clinicId: string; rentalId: string } }>(
-    '/clinics/:clinicId/catalog/rentals/:rentalId/remove',
-    { schema: { params: clinicItemParams('rentalId') } },
+  // Liga/desliga o dia exclusivo de um aluguel já salvo. Ligar pode cancelar outros tratamentos.
+  app.post<{
+    Params: { clinicId: string; rentalId: string }
+    Body: { exclusive: boolean; confirmCancellations?: boolean }
+  }>(
+    '/clinics/:clinicId/catalog/rentals/:rentalId/exclusive',
+    {
+      bodyLimit: 1024,
+      schema: {
+        params: clinicItemParams('rentalId'),
+        body: {
+          type: 'object',
+          additionalProperties: false,
+          required: ['exclusive'],
+          properties: {
+            exclusive: { type: 'boolean' },
+            confirmCancellations: confirmCancellationsSchema,
+          },
+        },
+      },
+    },
     async (request, reply) =>
-      authorized(request, reply, 'service:manage', async (connection, tenant) => {
-        const removed = await connection.query(
-          'SELECT luminix.remove_resource_rental($1, $2) AS entry',
-          [tenant.clinicId, request.params.rentalId],
-        )
-        const entry = removed.rows[0]?.entry
-        // The expense goes with the rental when the person may change the Financeiro.
-        if (entry && (await rolePermissions(connection, tenant)).has('finance:manage'))
-          await connection.query('SELECT luminix.void_finance_entry($1, $2)', [
+      withCancellationMail(mail, reply, (outbox) =>
+        authorized(request, reply, 'service:manage', async (connection, tenant) => {
+          const before = await fittingAppointments(connection, tenant.clinicId)
+          await connection.query('SELECT luminix.set_rental_exclusive($1, $2, $3)', [
             tenant.clinicId,
-            entry,
+            request.params.rentalId,
+            request.body.exclusive,
           ])
-        return { removed: true, financeEntryVoided: Boolean(entry) }
-      }),
+          const name = (
+            await connection.query(
+              `SELECT r.name FROM luminix.resource_rentals rr
+                 JOIN luminix.resources r ON r.clinic_id = rr.clinic_id AND r.id = rr.resource_id
+                WHERE rr.clinic_id = $1 AND rr.id = $2`,
+              [tenant.clinicId, request.params.rentalId],
+            )
+          ).rows[0]?.name
+          const result = await settleScheduleImpact(connection, tenant.clinicId, before, {
+            confirm: request.body.confirmCancellations === true,
+            reason: `O dia ficou reservado para os tratamentos com ${String(name ?? 'o aparelho')}.`,
+            permission: 'service:manage',
+          })
+          outbox.push(...result.emails)
+          return { exclusive: request.body.exclusive, canceledAppointments: result.canceled }
+        }),
+      ),
+  )
+
+  app.post<{
+    Params: { clinicId: string; rentalId: string }
+    Body: { confirmCancellations?: boolean } | undefined
+  }>(
+    '/clinics/:clinicId/catalog/rentals/:rentalId/remove',
+    {
+      schema: {
+        params: clinicItemParams('rentalId'),
+        body: {
+          type: ['object', 'null'],
+          additionalProperties: false,
+          properties: { confirmCancellations: confirmCancellationsSchema },
+        },
+      },
+    },
+    async (request, reply) =>
+      withCancellationMail(mail, reply, (outbox) =>
+        authorized(request, reply, 'service:manage', async (connection, tenant) => {
+          // Treatments that need the device on those days lose it (ADR-035).
+          const before = await fittingAppointments(connection, tenant.clinicId)
+          const name = (
+            await connection.query(
+              `SELECT r.name FROM luminix.resource_rentals rr
+               JOIN luminix.resources r ON r.clinic_id = rr.clinic_id AND r.id = rr.resource_id
+              WHERE rr.clinic_id = $1 AND rr.id = $2`,
+              [tenant.clinicId, request.params.rentalId],
+            )
+          ).rows[0]?.name
+          const removed = await connection.query(
+            'SELECT luminix.remove_resource_rental($1, $2) AS entry',
+            [tenant.clinicId, request.params.rentalId],
+          )
+          const entry = removed.rows[0]?.entry
+          // The expense goes with the rental when the person may change the Financeiro.
+          if (entry && (await rolePermissions(connection, tenant)).has('finance:manage'))
+            await connection.query('SELECT luminix.void_finance_entry($1, $2)', [
+              tenant.clinicId,
+              entry,
+            ])
+          const result = await settleScheduleImpact(connection, tenant.clinicId, before, {
+            confirm: request.body?.confirmCancellations === true,
+            reason: `O aparelho ${String(name ?? '')} não estará disponível nesta data.`.replace(
+              '  ',
+              ' ',
+            ),
+            permission: 'service:manage',
+          })
+          outbox.push(...result.emails)
+          return {
+            removed: true,
+            financeEntryVoided: Boolean(entry),
+            canceledAppointments: result.canceled,
+          }
+        }),
+      ),
   )
 }
