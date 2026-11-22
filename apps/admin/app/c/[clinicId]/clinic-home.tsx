@@ -9,7 +9,6 @@ import { useCallback, useState } from 'react'
 import { useClinic } from '@/components/clinic-workspace'
 import { useStaff } from '@/components/staff-provider'
 import { ManagerHome } from '@/components/manager/manager-home'
-import { ConnectPanel } from '@/components/payments/connect-panel'
 import { MediaLibrary } from '@/components/manager/media/media-library'
 import { HomeDashboard } from '@/components/manager/business/home-dashboard'
 import { ServicesPanel } from '@/components/manager/business/services-panel'
@@ -108,7 +107,9 @@ export function ClinicHome({
       shareCode={clinic.share_code ?? null}
       initialSection={initialSection}
       initialSettingsTab={initialSettingsTab}
-      payments={<ConnectPanel dashboard />}
+      paymentsHref={
+        canManageSettings ? `/c/${clinic.share_code || clinic.id}/recebimentos` : undefined
+      }
       media={
         permissions.includes('media:read')
           ? (incoming) => <MediaLibrary clinicId={clinic.id} incoming={incoming} />

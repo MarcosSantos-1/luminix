@@ -1,6 +1,6 @@
 'use client'
 
-import { Button } from '@heroui/react'
+import Link from 'next/link'
 import { CircleAlert, MessageSquareText, Wallet } from 'lucide-react'
 import { useState } from 'react'
 import { DepositSettings } from '@/components/onboarding/deposit-settings'
@@ -95,11 +95,11 @@ function toBody(payload: Payload) {
 export function RulesSettings({
   clinicId,
   clinicName,
-  onOpenFinance,
+  paymentsHref,
 }: {
   clinicId: string
   clinicName: string
-  onOpenFinance: () => void
+  paymentsHref?: string
 }) {
   const api = useClinicApi(clinicId)
   const resource = useClinicResource<RulesResponse>(api, 'booking-rules')
@@ -122,7 +122,7 @@ export function RulesSettings({
       api={api}
       data={data}
       initial={toPayload(clinicName, data, data.rules)}
-      onOpenFinance={onOpenFinance}
+      paymentsHref={paymentsHref}
     />
   )
 }
@@ -131,12 +131,12 @@ function RulesEditor({
   api,
   data,
   initial,
-  onOpenFinance,
+  paymentsHref,
 }: {
   api: ClinicApi
   data: RulesResponse
   initial: Payload
-  onOpenFinance: () => void
+  paymentsHref?: string
 }) {
   const [payload, setPayload] = useState<Payload>(initial)
   const [saved, setSaved] = useState<Payload>(initial)
@@ -187,9 +187,11 @@ function RulesEditor({
           title="Para cobrar o sinal, ative os pagamentos pelo app"
           description="Suas escolhas ficam salvas. A cobrança só acontece quando os pagamentos pelo app estiverem ativos."
         >
-          <Button variant="secondary" onPress={onOpenFinance}>
-            <Wallet size={16} aria-hidden /> Abrir Financeiro
-          </Button>
+          {paymentsHref && (
+            <Link className="settings-link-button" href={paymentsHref}>
+              <Wallet size={16} aria-hidden /> Receber pelo app (Stripe)
+            </Link>
+          )}
         </SettingsCard>
       ) : null}
       <SettingsCard

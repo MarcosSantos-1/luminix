@@ -1,29 +1,41 @@
+/* Pink uses the default values provided by each component. */
+body[data-manager-palette='rosa'] {
+  --space-accent: initial;
+  --space-highlight: initial;
+  --space-deep: initial;
+  --space-background: initial;
+}
 /* Space palettes are independent of the Glass/Light surface mode. */
-html[data-space-theme='grafite'] {
+html[data-space-theme='grafite'],
+body[data-manager-palette='grafite'] {
   --space-accent: #596474;
   --space-highlight: #d2dae5;
   --space-deep: #161b22;
   --space-background: url('/brand/background-grafite.webp');
 }
-html[data-space-theme='violeta'] {
+html[data-space-theme='violeta'],
+body[data-manager-palette='violeta'] {
   --space-accent: #7748c1;
   --space-highlight: #d5bcff;
   --space-deep: #291645;
   --space-background: url('/brand/background-violeta.webp');
 }
-html[data-space-theme='dourado'] {
+html[data-space-theme='dourado'],
+body[data-manager-palette='dourado'] {
   --space-accent: #88651f;
   --space-highlight: #f0d48d;
   --space-deep: #30230e;
   --space-background: url('/brand/background-dourado.webp');
 }
-html[data-space-theme='esmeralda'] {
+html[data-space-theme='esmeralda'],
+body[data-manager-palette='esmeralda'] {
   --space-accent: #18745e;
   --space-highlight: #9ee2ce;
   --space-deep: #0b3028;
   --space-background: url('/brand/background-esmeralda.webp');
 }
-html[data-space-theme='azul'] {
+html[data-space-theme='azul'],
+body[data-manager-palette='azul'] {
   --space-accent: #2967aa;
   --space-highlight: #afd5ff;
   --space-deep: #102a46;

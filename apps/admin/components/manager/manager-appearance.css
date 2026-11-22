@@ -1,0 +1,393 @@
+.manager-create-trigger,
+.manager-design-trigger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 0 13px;
+  border: 1px solid #ffffff34;
+  border-radius: 13px;
+  background: #ffffff12;
+  color: inherit;
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+.manager-create-trigger {
+  width: 44px;
+  padding: 0;
+  background: linear-gradient(
+    140deg,
+    var(--space-accent, #cc2468),
+    color-mix(in srgb, var(--space-accent, #cc2468) 65%, var(--space-highlight, #ffa9cd))
+  );
+  box-shadow:
+    inset 0 1px #ffffff40,
+    0 4px 15px #0002;
+}
+.manager-create-trigger svg {
+  transition: transform 0.32s cubic-bezier(0.2, 0.95, 0.45, 1.25);
+}
+.manager-create-trigger[aria-expanded='true'] svg {
+  transform: rotate(135deg);
+}
+.manager-create-trigger:active svg {
+  scale: 0.9;
+}
+.manager-create-menu .menu-item svg {
+  color: var(--space-highlight, #ffb4d1);
+}
+.manager-create-menu .menu-item span {
+  display: grid;
+}
+.manager-create-menu .menu-item small {
+  color: var(--manager-muted, #ded3db);
+  font-size: 11px;
+}
+.manager-create-menu .menu-item {
+  animation: home-quick-in 0.22s ease-out both;
+}
+.manager-create-menu .menu-item:nth-child(2) {
+  animation-delay: 25ms;
+}
+.manager-create-menu .menu-item:nth-child(3) {
+  animation-delay: 50ms;
+}
+.manager-create-menu .menu-item:nth-child(n + 4) {
+  animation-delay: 75ms;
+}
+@keyframes home-quick-in {
+  from {
+    opacity: 0;
+    transform: translateY(-5px);
+  }
+}
+@media (max-width: 900px) {
+  .manager-header-actions .manager-design-trigger,
+  .manager-header-actions .manager-create-trigger {
+    display: none;
+  }
+}
+@media (min-width: 901px) and (max-width: 1120px) {
+  .manager-header .manager-greeting {
+    min-width: 0;
+  }
+  .manager-header .manager-search-trigger {
+    min-width: 0;
+    flex-shrink: 1;
+  }
+  .manager-header .manager-search-trigger span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .manager-design-trigger span {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+  }
+}
+
+.manager-glass-editor {
+  position: fixed;
+  inset: 78px clamp(16px, 4vw, 80px) auto auto;
+  width: min(330px, calc(100vw - 24px));
+  max-height: calc(100dvh - 96px);
+  overflow: auto;
+  margin: 0;
+  padding: 18px;
+  color-scheme: dark;
+  color: #fff;
+  background:
+    linear-gradient(
+      145deg,
+      color-mix(in srgb, var(--space-accent, #b82667) 16%, transparent),
+      transparent 70%
+    ),
+    var(--space-deep, #301426);
+  border: 1px solid #ffffff42;
+  border-radius: 20px;
+  box-shadow: 0 16px 52px #0006;
+}
+.manager-glass-editor:popover-open {
+  display: grid;
+  gap: 14px;
+}
+.manager-glass-editor header,
+.manager-glass-scale,
+.manager-glass-color {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+.manager-glass-editor header h2 {
+  flex: 1;
+  font-size: 17px;
+  font-weight: 650;
+}
+.manager-glass-editor button {
+  cursor: pointer;
+}
+.manager-glass-editor button:focus-visible,
+.manager-shell .manager-design-trigger:focus-visible,
+.manager-shell .manager-create-trigger:focus-visible {
+  outline: 2px solid white;
+  outline-offset: 2px;
+}
+.manager-glass-editor header button {
+  width: 36px;
+  height: 36px;
+  display: grid;
+  place-items: center;
+  background: #fff1;
+  border-radius: 50%;
+}
+.manager-glass-presets {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+}
+.manager-glass-presets button,
+.manager-glass-reset {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 44px;
+  border: 1px solid #ffffff30;
+  border-radius: 12px;
+  color: inherit;
+  background: #ffffff0f;
+  font-size: 12px;
+}
+.manager-glass-presets button[aria-pressed='true'] {
+  background: color-mix(in srgb, var(--space-accent, #b82667) 52%, transparent);
+  border-color: var(--space-highlight, #ffc9df);
+}
+.manager-glass-sliders {
+  display: grid;
+  gap: 12px;
+}
+.manager-glass-sliders .slider {
+  width: 100%;
+  gap: 5px;
+  --accent: var(--space-highlight, #ffb3d3);
+  --field-background: #ffffff33;
+}
+.manager-glass-scale,
+.manager-glass-color {
+  font-size: 13px;
+  font-weight: 550;
+}
+.manager-glass-scale label,
+.manager-glass-scale output {
+  color: inherit;
+}
+.manager-glass-scale output {
+  color: var(--space-highlight, #ffc9df);
+  font-variant-numeric: tabular-nums;
+}
+.manager-glass-color input {
+  width: 46px;
+  height: 32px;
+  padding: 2px;
+  cursor: pointer;
+  border: 1px solid #fff4;
+  border-radius: 8px;
+}
+.manager-glass-reset {
+  justify-self: start;
+  padding: 0 10px;
+}
+.manager-glass-reset:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.manager-shell[data-manager-glass='custom'] {
+  --manager-glass-backdrop: var(--space-background, url('/brand/background-desktop.png'));
+  --manager-glass-material: color-mix(in srgb, var(--manager-glass-tint) 33%, #150d1b);
+  --manager-glass-fill: color-mix(
+    in srgb,
+    var(--manager-glass-material) var(--manager-glass-opacity),
+    transparent
+  );
+  --manager-glass-rim: color-mix(in srgb, #fff var(--manager-glass-edge), transparent);
+}
+.manager-shell[data-manager-glass='custom']::before {
+  background-image:
+    linear-gradient(
+      color-mix(
+        in srgb,
+        var(--manager-glass-material) calc(24% + var(--manager-glass-opacity) * 0.4),
+        transparent
+      ),
+      color-mix(
+        in srgb,
+        var(--manager-glass-material) calc(38% + var(--manager-glass-opacity) * 0.5),
+        transparent
+      )
+    ),
+    var(--manager-glass-backdrop);
+}
+.manager-shell[data-manager-glass='custom']
+  :is(
+    .manager-main .manager-panel,
+    .manager-sidebar,
+    .manager-bottom-nav,
+    .manager-plan.card,
+    .manager-main .kpi,
+    .manager-main .fold,
+    .manager-main .ag-day,
+    .manager-main .cli-card,
+    .manager-main .connect-panel,
+    .manager-main .eq-card,
+    .manager-main .biz-stats > div,
+    .manager-main .button--secondary,
+    .manager-action.button,
+    .manager-shortcuts .button,
+    .manager-search-trigger,
+    .manager-design-trigger,
+    .manager-icon-button.button
+  ) {
+  background: var(--manager-glass-fill);
+  border-color: var(--manager-glass-rim);
+  box-shadow:
+    inset 0 1px var(--manager-glass-rim),
+    0 6px 24px #0002;
+  backdrop-filter: blur(var(--manager-glass-blur)) saturate(var(--manager-glass-saturation));
+}
+.manager-shell[data-manager-glass='custom']
+  .manager-main
+  :is(
+    .manager-action,
+    .manager-shortcuts .button,
+    .manager-design-trigger,
+    .manager-icon-button
+  ):hover {
+  background: color-mix(in srgb, var(--manager-glass-fill) 88%, white);
+}
+@media (max-width: 650px) {
+  .manager-glass-editor {
+    inset: auto 10px max(8px, env(safe-area-inset-bottom)) auto;
+    width: calc(100vw - 20px);
+    max-height: 61dvh;
+  }
+  .manager-shell[data-manager-glass='custom'] {
+    --manager-glass-backdrop: var(--space-background, url('/brand/background-portrait.png'));
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .manager-create-menu .menu-item {
+    animation: none;
+  }
+}
+@supports not (backdrop-filter: blur(1px)) {
+  .manager-shell[data-manager-glass='custom'] {
+    --manager-glass-fill: var(--manager-glass-material);
+  }
+}
+
+.manager-palette-picker summary,
+.manager-debug-button,
+.manager-receipts-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  cursor: pointer;
+}
+.manager-palette-picker summary {
+  display: flex;
+  list-style: none;
+  font-weight: 600;
+}
+.manager-palette-picker summary::-webkit-details-marker {
+  display: none;
+}
+.manager-palette-picker summary svg:last-child {
+  margin-left: auto;
+}
+.manager-palette-picker[open] summary svg:last-child {
+  transform: rotate(180deg);
+}
+.manager-palette-picker .space-theme-picker {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 4px;
+  padding: 4px 0;
+}
+.manager-palette-picker .space-theme-option {
+  min-width: 0;
+  font-size: 12px;
+  gap: 3px;
+}
+.manager-palette-picker .space-theme-swatch {
+  width: 100%;
+  height: 22px;
+  border-radius: 6px;
+}
+.manager-palette-picker .space-theme-swatch svg {
+  height: 18px;
+  width: 18px;
+}
+.manager-debug-button,
+.manager-receipts-link {
+  color: inherit;
+  border: 1px solid var(--manager-border);
+  background: #ffffff0d;
+  border-radius: 12px;
+  padding: 0 14px;
+  font-size: 13px;
+  text-decoration: none;
+}
+.manager-receipts-link {
+  margin-bottom: 14px;
+}
+.manager-shell.manager-receipts-page {
+  padding: clamp(16px, 4vw, 48px);
+}
+.manager-receipts-page .manager-main {
+  max-width: 960px;
+}
+.manager-receipts-page .manager-header {
+  gap: 8px;
+  padding-inline: 0;
+  justify-content: space-between;
+  flex-wrap: wrap;
+}
+.manager-receipts-page .manager-design-trigger {
+  display: inline-flex;
+}
+.manager-receipts-page .manager-receipts-link {
+  margin-bottom: 0;
+}
+.manager-receipts-page .manager-main > h1 {
+  font-size: clamp(22px, 4vw, 30px);
+  font-weight: 650;
+  margin-bottom: 6px;
+}
+
+.manager-receipts-page .connect-panel {
+  color: inherit;
+  background: color-mix(in srgb, var(--space-deep, #350c20) 58%, transparent);
+  border: 1px solid var(--manager-border);
+  backdrop-filter: blur(20px);
+}
+@media (max-width: 400px) {
+  .manager-receipts-page :is(.manager-receipts-link, .manager-design-trigger) {
+    padding-inline: 9px;
+    font-size: 12px;
+  }
+}
+
+.manager-receipts-page .manager-receipts-intro {
+  margin-bottom: 18px;
+  max-width: 65ch;
+  color: var(--manager-muted);
+  line-height: 1.5;
+}

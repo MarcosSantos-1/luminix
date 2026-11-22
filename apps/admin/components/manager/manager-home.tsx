@@ -1,11 +1,13 @@
 'use client'
 
+import Link from 'next/link'
 import { Avatar, Button, Card, Dropdown, Modal, SearchField } from '@heroui/react'
 import {
   ArrowRight,
   Bell,
   Bug,
   ChevronDown,
+  ChevronUp,
   CreditCard,
   Crown,
   SlidersHorizontal,
@@ -30,7 +32,7 @@ import {
 } from './demo-data'
 import { ManagerMessageModal } from './manager-message-modal'
 import { createActions } from './create-actions'
-import { HomeGlassShell } from './home-glass'
+import { ManagerAppearanceShell, ManagerDesignButton } from './manager-appearance'
 import { ManagerMobileNav } from './manager-mobile-nav'
 import { PlanModal, planStatus } from './manager-plan'
 import { ManagerSidebar } from './manager-sidebar'
@@ -74,7 +76,7 @@ export function ManagerHome({
   settingsTabs,
   profile,
   settings,
-  payments,
+  paymentsHref,
   media,
   panels,
   shareCode,
@@ -98,7 +100,7 @@ export function ManagerHome({
   sections?: ManagerSectionId[]
   settingsTabs?: ManagerSettingsSection[]
   profile?: ReactNode
-  payments?: ReactNode
+  paymentsHref?: string
   /**
    * Media library (Mídia); a placeholder explains it in the demo. The function form receives
    * photos picked from the mobile "+" menu, to be sent as soon as the library opens.
@@ -216,7 +218,6 @@ export function ManagerHome({
   }
   const [notice, setNotice] = useState<string | null>(null)
   const [announcement, setAnnouncement] = useState(true)
-  const [forceGlass, setForceGlass] = useState(false)
   const [focus, setFocus] = useState<SearchFocus | null>(null)
   const [incomingMedia, setIncomingMedia] = useState<MediaIncoming | null>(null)
   const realClinic = shareCode !== undefined
@@ -323,7 +324,7 @@ export function ManagerHome({
   const panelFocus = focus?.section === section.id ? focus : null
   const sketch =
     realPanel ||
-    (payments && section.id === 'financeiro') ||
+    (realClinic && section.id === 'financeiro') ||
     section.id === 'inicio' ||
     section.id === 'configuracoes' ||
     section.id === 'midia' ||
@@ -341,15 +342,12 @@ export function ManagerHome({
   const hasContextAction = !['inicio', 'agenda', 'clientes', 'midia'].includes(section.id)
 
   const shellContent = (
-    <HomeGlassShell
-      key={messages?.scope ?? 'preview'}
-      scope={messages?.scope ?? (realClinic ? undefined : 'preview')}
-      enabled={isHome}
+    <ManagerAppearanceShell
+      legacyScope={messages?.scope ?? (realClinic ? undefined : 'preview')}
       panelRef={glassPanel}
       className={`manager-shell ${collapsed ? 'is-collapsed' : ''}`}
       ref={shell}
       data-theme="manager-glass"
-      data-transparency={forceGlass ? 'glass' : 'system'}
     >
       <a href="#manager-content" className="manager-skip">
         Pular para o conteúdo
@@ -434,17 +432,7 @@ export function ManagerHome({
                 </Dropdown.Popover>
               </Dropdown>
             )}
-            {isHome && (
-              <button
-                type="button"
-                className="manager-design-trigger"
-                popoverTarget="home-glass-panel"
-                title="Ajustar design"
-              >
-                <SlidersHorizontal size={18} aria-hidden />
-                <span>Ajustar design</span>
-              </button>
-            )}
+            <ManagerDesignButton />
             {workspace ? (
               <NotificationBell api={workspace.api} go={go} onOpenUpdates={message.openUpdates} />
             ) : (
@@ -494,12 +482,10 @@ export function ManagerHome({
                     <Crown size={18} />
                     <span>Meu plano</span>
                   </Dropdown.Item>
-                  {isHome && (
-                    <Dropdown.Item id="design" textValue="Ajustar design">
-                      <SlidersHorizontal size={18} />
-                      <span>Ajustar design</span>
-                    </Dropdown.Item>
-                  )}
+                  <Dropdown.Item id="design" textValue="Ajustar design">
+                    <SlidersHorizontal size={18} />
+                    <span>Ajustar design</span>
+                  </Dropdown.Item>
                   {canManageSettings ? (
                     <Dropdown.Item id="settings" textValue="Configurações">
                       <Settings2 size={18} />
@@ -549,6 +535,12 @@ export function ManagerHome({
         ) : null}
         {workspace && isHome ? <NoticeCarousel go={go} /> : null}
         {section.id !== 'configuracoes' && banner}
+        {section.id === 'financeiro' && paymentsHref && (
+          <Link href={paymentsHref} className="manager-receipts-link">
+            <CreditCard size={17} aria-hidden /> Receber pelo app (Stripe){' '}
+            <ArrowRight size={15} aria-hidden />
+          </Link>
+        )}
         {realPanel ? realPanel({ createSignal, navigate, focus: panelFocus, go }) : null}
         {section.id === 'inicio' && !realPanel && (
           <HomePanels
@@ -557,25 +549,6 @@ export function ManagerHome({
             onNavigate={navigate}
           />
         )}
-        {section.id === 'financeiro' && payments ? (
-          // Optional feature: kept out of the way for spaces that only register payments by hand.
-          <details className="fold" open={!realPanel}>
-            <summary>
-              <span className="kpi-icon" aria-hidden>
-                <CreditCard size={22} />
-              </span>
-              <span className="fold-copy">
-                <strong>Receber pelo app (Stripe)</strong>
-                <small>
-                  Opcional: cartão, Pix e boleto pagos pela cliente ao agendar. Abra para configurar
-                  ou acompanhar.
-                </small>
-              </span>
-              <ChevronDown className="fold-chevron" size={20} aria-hidden />
-            </summary>
-            <div className="fold-body">{payments}</div>
-          </details>
-        ) : null}
         {section.id === 'midia' && (typeof media === 'function' ? media(incomingMedia) : media)}
         {sketch && (
           <SectionSketchView
@@ -609,21 +582,20 @@ export function ManagerHome({
         )}
         <footer className="manager-footer">
           <span>Luminix · tempo para o que importa.</span>
-          <div className="manager-tour-footer-actions">
-            {messages && (
-              <Button variant="ghost" size="sm" isDisabled={tourOpen} onPress={startTour}>
-                <Bug size={15} aria-hidden="true" /> Debug · Abrir tour
-              </Button>
-            )}
-            <Button
-              variant="ghost"
-              size="sm"
-              aria-pressed={forceGlass}
-              onPress={() => setForceGlass((value) => !value)}
-            >
-              {forceGlass ? 'Respeitar transparência do sistema' : 'Testar transparência Glass'}
-            </Button>
-          </div>
+          {isHome && (
+            <Dropdown>
+              <Dropdown.Trigger className="manager-debug-button" isDisabled={tourOpen}>
+                <Bug size={15} aria-hidden /> Debug <ChevronUp size={14} aria-hidden />
+              </Dropdown.Trigger>
+              <Dropdown.Popover placement="top end" className="manager-account-menu">
+                <Dropdown.Menu aria-label="Debug" onAction={startTour}>
+                  <Dropdown.Item id="tour" textValue="Abrir tour">
+                    <Bug size={16} aria-hidden /> Abrir tour
+                  </Dropdown.Item>
+                </Dropdown.Menu>
+              </Dropdown.Popover>
+            </Dropdown>
+          )}
         </footer>
       </main>
       <ManagerMobileNav
@@ -786,7 +758,7 @@ export function ManagerHome({
           </Modal.Dialog>
         </Modal.Container>
       </Modal.Backdrop>
-    </HomeGlassShell>
+    </ManagerAppearanceShell>
   )
   return workspace ? (
     <WorkspaceSignals

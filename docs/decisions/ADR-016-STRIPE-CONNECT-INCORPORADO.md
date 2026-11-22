@@ -7,8 +7,7 @@ Data: 2026-10-22
 ## Decisão e escopo
 
 O step Pagamentos permite receber fora do app ou configurar uma conta Stripe dentro do admin.
-A mesma integração está disponível no Financeiro para retomar o cadastro, atualizar dados bancários
-e acessar componentes de pagamentos/reembolsos/disputas e repasses. A clínica pode ser criada sem
+Na gestão, a página **Receber pelo app (Stripe)** em `/c/[clinicId]/recebimentos` reúne cadastro, dados bancários, pagamentos, reembolsos, disputas e repasses. O Financeiro e as configurações de rotina e regras levam à mesma página para quem possui `settings:manage`. A clínica pode ser criada sem
 Stripe ao escolher recebimento externo. Com “Pagamentos no app”, o avanço exige conta habilitada,
 conforme a evolução de 2026-10-23 abaixo. Escolher recebimento externo não cria nem exclui uma conta;
 continua normalizando pacotes para `clinic_only` no rascunho.

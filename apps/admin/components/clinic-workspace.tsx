@@ -143,6 +143,7 @@ export function ClinicWorkspace({ children }: { children: ReactNode }) {
   if (
     onboarding ||
     pathname === `/c/${clinicId}` ||
+    pathname.endsWith('/recebimentos') ||
     pathname.endsWith('/settings') ||
     pathname.endsWith('/vitrine')
   )

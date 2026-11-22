@@ -148,14 +148,15 @@ Os screenshots definem linguagem visual e composição. Eles não definem fonte,
 
 A Home demonstrativa em `/dashboard` usa HeroUI e os backgrounds oficiais desktop/portrait.
 Sidebar, cabeçalho, busca Ctrl/⌘ K, painéis e navegação móvel estão implementados como rascunho.
-A redução de transparência do sistema aplica superfícies opacas; a bancada oferece opt-in explícito
-para testar o vidro. Alternância completa Light/Glass e validações formais da lista de aceite acima
+O painel usa transparência por padrão e mantém superfícies legíveis em navegadores sem suporte ao desfoque. Alternância completa Light/Glass e validações formais da lista de aceite acima
 continuam planejadas. Contratos, localização do código e política HeroUI estão no Design System.
 
 A composição também é a Home oficial autenticada em `/clinics/:clinicId`, com nome real da clínica
 e fixtures operacionais temporárias explicitamente identificadas. O contexto e as permissões vêm
 do backend; Configurações mostra os dados reais da clínica e o código de acesso fica na Home.
 
-## Ajuste pessoal na Home do gestor
+## Aparência do painel por dispositivo
 
-Na Home, **Ajustar design** abre a prévia de opacidade, desfoque, saturação, brilho da borda e cor. O atalho fica no cabeçalho do desktop e no menu de perfil do celular. A preferência fica no navegador por pessoa e espaço. **Restaurar padrão** remove o ajuste e volta a usar as superfícies originais do tema da clínica. As outras seções mantêm os próprios estilos.
+**Ajustar design** fica no cabeçalho do desktop e no menu de perfil do celular em todas as seções. A página de recebimentos também oferece o atalho no cabeçalho. O editor ajusta o material dos cards, controles e navegação e permite escolher a paleta do painel. A preferência fica no navegador, vale para todas as seções e abas abertas e não exige gravação na API da clínica. Ao abrir o painel pela primeira vez após a atualização, um ajuste anterior da Home é reaproveitado se existir para o espaço e a pessoa atuais.
+
+**Restaurar padrão** recupera as superfícies translúcidas originais e a paleta do espaço. O tema da vitrine, o site publicado e os aplicativos continuam sob os controles de personalização da clínica. O rodapé do Início oferece o tour no menu **Debug**.

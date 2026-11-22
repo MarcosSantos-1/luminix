@@ -1751,14 +1751,6 @@
     background: var(--space-deep, #662640);
   }
 }
-@media (prefers-reduced-transparency: reduce) {
-  .manager-panel.card,
-  .manager-sidebar,
-  .manager-bottom-nav {
-    background: var(--space-deep, #662640);
-    backdrop-filter: none;
-  }
-}
 @media (prefers-reduced-motion: reduce) {
   .manager-shell *,
   .manager-dialog * {
@@ -1811,14 +1803,6 @@
   }
 }
 
-/* Opt-in somente nesta bancada pública, para comparar com o fallback do SO. */
-@supports (backdrop-filter: blur(1px)) {
-  .manager-shell[data-transparency='glass'] .manager-panel.card,
-  .manager-shell[data-transparency='glass'] .manager-sidebar {
-    background: var(--manager-surface);
-    backdrop-filter: blur(20px);
-  }
-}
 .manager-footer .button {
   min-height: 44px;
   font-size: 10px;

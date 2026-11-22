@@ -148,8 +148,8 @@ entrada após o login e o retorno quando o acesso é negado. Clínicas em rascun
 onboarding conforme `onboarding:manage`. Nenhuma migration ou mudança no fluxo de login foi necessária. O cache visual
 distingue UID, clínica e revisão de autorização; respostas de acesso negado invalidam a entrada e a
 interface não reutiliza contexto de outra sessão.
-Glass é o experimento atual, não uma decisão definitiva de tema. O sistema respeita redução de
-transparência/movimento; o botão de teste na prévia permite optar por transparência nesta sessão.
+O painel de gestão abre em modo translúcido. **Ajustar design** permite personalizar a aparência
+nesse navegador. O material e a paleta acompanham a navegação do painel conforme o guia de Glass Mode.
 
 Validação inicial: conferir desktop/mobile, sidebar, busca por teclado, foco/Escape, modal e ausência
 de overflow. Contraste formal, fadiga visual e performance em dispositivos modestos continuam

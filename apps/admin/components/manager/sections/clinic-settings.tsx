@@ -1,7 +1,6 @@
 'use client'
 
 import Link from 'next/link'
-import { Button } from '@heroui/react'
 import { ArrowRight, Rocket, Wallet } from 'lucide-react'
 import { AccessSettings } from '../settings/access-settings'
 import { PersonalizationSettings } from '../settings/personalization-settings'
@@ -34,6 +33,9 @@ export function ClinicSettings({
   ownName?: string
 }) {
   const ref = shareCode || clinic.id
+  const paymentsHref = permissions.includes('settings:manage')
+    ? `/c/${ref}/recebimentos`
+    : undefined
   return (
     <div className="manager-section">
       {clinic.status === 'draft' && (
@@ -60,11 +62,7 @@ export function ClinicSettings({
         />
       )}
       {tab === 'regras' && (
-        <RulesSettings
-          clinicId={clinic.id}
-          clinicName={clinic.name}
-          onOpenFinance={() => onOpen('financeiro')}
-        />
+        <RulesSettings clinicId={clinic.id} clinicName={clinic.name} paymentsHref={paymentsHref} />
       )}
       {tab === 'personalizacao' && <PersonalizationSettings clinicId={clinic.id} />}
       {tab === 'equipe' && (
@@ -78,15 +76,17 @@ export function ClinicSettings({
       {tab === 'rotina' && (
         <div className="settings-stack">
           <RoutineSettings clinicId={clinic.id} onOpenAgenda={() => onOpen('agenda')} />
-          <SettingsCard
-            icon={<Wallet size={20} />}
-            title="Pagamentos"
-            description="Receber pelo app e dados bancários ficam na área Financeiro."
-          >
-            <Button variant="secondary" onPress={() => onOpen('financeiro')}>
-              <Wallet size={16} aria-hidden /> Abrir Financeiro
-            </Button>
-          </SettingsCard>
+          {paymentsHref && (
+            <SettingsCard
+              icon={<Wallet size={20} />}
+              title="Pagamentos"
+              description="Configure os recebimentos online e os dados bancários do seu espaço."
+            >
+              <Link className="settings-link-button" href={paymentsHref}>
+                <Wallet size={16} aria-hidden /> Receber pelo app (Stripe)
+              </Link>
+            </SettingsCard>
+          )}
         </div>
       )}
     </div>

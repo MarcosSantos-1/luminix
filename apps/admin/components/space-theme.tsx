@@ -40,13 +40,15 @@ export function ThemePicker({
   value,
   onChange,
   disabled = false,
+  label = 'Tema do espaço',
 }: {
-  value: SpaceTheme
+  value: SpaceTheme | null
+  label?: string
   onChange: (theme: SpaceTheme) => void
   disabled?: boolean
 }) {
   return (
-    <div className="space-theme-picker" role="group" aria-label="Tema do espaço">
+    <div className="space-theme-picker" role="group" aria-label={label}>
       {spaceThemes.map((theme) => (
         <Button
           key={theme.id}

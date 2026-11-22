@@ -67,13 +67,6 @@
   background: var(--manager-surface);
 }
 
-.manager-tour-footer-actions {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: flex-end;
-  gap: 4px;
-}
-
 @media (max-width: 900px) {
   .manager-shell .manager-tour {
     bottom: calc(96px + env(safe-area-inset-bottom));
