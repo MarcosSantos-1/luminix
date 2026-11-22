@@ -5,6 +5,7 @@ import {
   CalendarCheck,
   CalendarPlus,
   Check,
+  Clock3,
   Cpu,
   Lock,
   LockOpen,
@@ -115,6 +116,7 @@ export function EquipmentTab({
       ? equipment.find((e) => e.id === requestedEquipment && e.status === 'active')
       : null)
   const [busy, setBusy] = useState('')
+  const [confirmRemove, setConfirmRemove] = useState('')
   const name = (id: string) => services.find((service) => service.id === id)?.name ?? 'Serviço'
   const shown = equipment.filter((item) => item.status === 'active')
   const archived = equipment.filter((item) => item.status === 'archived')
@@ -130,6 +132,7 @@ export function EquipmentTab({
           confirmFlag(confirm),
         ),
       )
+      setConfirmRemove('')
       if (result === null) return
       onChanged(
         `Aluguel de ${shortDay(rental.startsOn)} removido${result.financeEntryVoided ? ' e a despesa anulada no Financeiro' : ''}.${canceledNote(result)}`,
@@ -167,19 +170,11 @@ export function EquipmentTab({
   return (
     <div className="biz-tab-body">
       {dialog}
-      <div className="biz-tab-intro">
-        <span className="biz-tab-intro-icon" aria-hidden>
-          <Cpu size={22} />
-        </span>
-        <div>
-          <strong>Aparelhos alugados</strong>
-          <p>
-            Laser, ultrassom microfocado, criolipólise… Marque os dias em que o aparelho estará no
-            espaço: só nesses dias a equipe e as clientes podem agendar seus serviços.
-          </p>
-        </div>
-        {canManage ? (
+      {canManage ? (
+        <div className="eq-intro">
           <Button
+            size="lg"
+            className="eq-new"
             onPress={() =>
               setEditing({
                 id: '',
@@ -192,10 +187,21 @@ export function EquipmentTab({
               })
             }
           >
-            <Plus size={16} aria-hidden /> Novo aparelho
+            <Plus size={18} aria-hidden /> Novo aparelho
           </Button>
-        ) : null}
-      </div>
+          <HelpTip title="Aparelhos alugados">
+            <p>
+              Laser, ultrassom microfocado, criolipólise… Cadastre o aparelho e ligue aos serviços
+              que ele executa.
+            </p>
+            <p>
+              Depois marque os dias do aluguel: só nesses dias (e nos horários escolhidos) a equipe
+              e as clientes conseguem agendar esses serviços. O custo pode ir direto para o
+              Financeiro.
+            </p>
+          </HelpTip>
+        </div>
+      ) : null}
 
       {shown.length ? (
         <ul className="eq-grid">
@@ -211,11 +217,18 @@ export function EquipmentTab({
                   <span
                     className={`eq-badge${now ? ' is-here' : upcoming.length ? ' is-soon' : ''}`}
                   >
-                    {now
-                      ? '🟢 No espaço agora'
-                      : upcoming.length
-                        ? `📅 Chega ${shortDay(upcoming[0].startsOn)}`
-                        : '⚪ Sem aluguel marcado'}
+                    {now ? (
+                      <>
+                        <CalendarCheck size={13} aria-hidden /> No espaço agora
+                      </>
+                    ) : upcoming.length ? (
+                      <>
+                        <CalendarPlus size={13} aria-hidden /> Chega{' '}
+                        {shortDay(upcoming[0].startsOn)}
+                      </>
+                    ) : (
+                      'Sem aluguel marcado'
+                    )}
                   </span>
                   {canManage ? (
                     <Button
@@ -252,81 +265,115 @@ export function EquipmentTab({
                   <div className="eq-days">
                     {upcoming.length ? (
                       <ul>
-                        {upcoming.map((rental) => (
-                          <li key={rental.id}>
-                            <span className="biz-day-chip">
-                              {rental.startsOn === rental.endsOn
-                                ? shortDay(rental.startsOn)
-                                : `${shortDay(rental.startsOn)} – ${shortDay(rental.endsOn)}`}
-                            </span>
-                            <span className="biz-row-meta">
-                              {rental.costCents != null ? money(rental.costCents) : ''}
-                              {rental.inFinance ? (
-                                <>
-                                  {' '}
-                                  <Receipt size={12} aria-label="No Financeiro" />
-                                </>
+                        {upcoming.map((rental) => {
+                          const paused = rental.available === false
+                          const period =
+                            rental.durationHours && rental.startMinute != null
+                              ? rentalRange(rental.startMinute, rental.durationHours)
+                              : 'Dia inteiro'
+                          return (
+                            <li
+                              key={rental.id}
+                              className={`eq-rental${paused ? ' is-paused' : ''}`}
+                            >
+                              <div className="eq-rental-top">
+                                <span className="biz-day-chip">
+                                  {rental.startsOn === rental.endsOn
+                                    ? shortDay(rental.startsOn)
+                                    : `${shortDay(rental.startsOn)} – ${shortDay(rental.endsOn)}`}
+                                </span>
+                                {rental.costCents != null ? (
+                                  <span className="eq-rental-price">
+                                    {money(rental.costCents)}
+                                    {rental.inFinance ? (
+                                      <Receipt size={12} aria-label="No Financeiro" />
+                                    ) : null}
+                                  </span>
+                                ) : null}
+                              </div>
+                              <div className="eq-rental-info">
+                                <span>
+                                  <Clock3 size={13} aria-hidden /> {period}
+                                </span>
+                                <span className={paused ? 'is-paused' : 'is-on'}>
+                                  {paused ? 'Agendamento pausado' : 'Agenda liberada'}
+                                </span>
+                                {rental.exclusive && !paused ? (
+                                  <span className="eq-exclusive">
+                                    <Lock size={12} aria-hidden /> Exclusivo
+                                  </span>
+                                ) : null}
+                              </div>
+                              {rental.note ? <p className="eq-rental-note">{rental.note}</p> : null}
+                              {canManage ? (
+                                confirmRemove === rental.id ? (
+                                  <div className="eq-rental-confirm" role="group">
+                                    <span>Excluir este aluguel?</span>
+                                    <Button
+                                      size="sm"
+                                      variant="secondary"
+                                      isDisabled={busy === rental.id}
+                                      onPress={() => setConfirmRemove('')}
+                                    >
+                                      Não
+                                    </Button>
+                                    <Button
+                                      size="sm"
+                                      variant="danger"
+                                      isDisabled={busy === rental.id}
+                                      onPress={() => void removeRental(rental)}
+                                    >
+                                      <Trash2 size={14} aria-hidden /> Excluir
+                                    </Button>
+                                  </div>
+                                ) : (
+                                  <div className="eq-rental-actions">
+                                    <Button
+                                      size="sm"
+                                      variant="ghost"
+                                      aria-label={`Editar horários de ${dateBr(rental.startsOn)}`}
+                                      onPress={() => {
+                                        setExistingRental(rental)
+                                        setRenting(item)
+                                      }}
+                                    >
+                                      <Pencil size={14} aria-hidden /> Editar
+                                    </Button>
+                                    <Button
+                                      size="sm"
+                                      variant="ghost"
+                                      aria-pressed={!paused && rental.exclusive === true}
+                                      aria-label={
+                                        rental.exclusive
+                                          ? `Liberar outros tratamentos em ${dateBr(rental.startsOn)}`
+                                          : `Reservar ${dateBr(rental.startsOn)} só para a locação`
+                                      }
+                                      isDisabled={busy === rental.id || paused}
+                                      onPress={() => void toggleExclusive(rental)}
+                                    >
+                                      {rental.exclusive ? (
+                                        <LockOpen size={14} aria-hidden />
+                                      ) : (
+                                        <Lock size={14} aria-hidden />
+                                      )}{' '}
+                                      {rental.exclusive ? 'Liberar dia' : 'Exclusivo'}
+                                    </Button>
+                                    <Button
+                                      size="sm"
+                                      variant="ghost"
+                                      className="eq-rental-remove"
+                                      aria-label={`Excluir aluguel de ${dateBr(rental.startsOn)}`}
+                                      isDisabled={busy === rental.id}
+                                      onPress={() => setConfirmRemove(rental.id)}
+                                    >
+                                      <Trash2 size={14} aria-hidden /> Excluir
+                                    </Button>
+                                  </div>
+                                )
                               ) : null}
-                              {rental.note ? ` · ${rental.note}` : ''}
-                            </span>
-                            <span className="biz-row-meta">
-                              {rental.available === false ? 'Agendamento pausado' : 'Disponível'} ·{' '}
-                              {rental.durationHours && rental.startMinute != null
-                                ? rentalRange(rental.startMinute, rental.durationHours)
-                                : 'Dia inteiro'}
-                            </span>
-                            {canManage && (
-                              <Button
-                                isIconOnly
-                                size="sm"
-                                variant="ghost"
-                                aria-label={`Editar disponibilidade de ${dateBr(rental.startsOn)}`}
-                                onPress={() => {
-                                  setExistingRental(rental)
-                                  setRenting(item)
-                                }}
-                              >
-                                <Pencil size={14} />
-                              </Button>
-                            )}
-                            {rental.exclusive && rental.available !== false ? (
-                              <span className="eq-exclusive">
-                                <Lock size={12} aria-hidden /> Exclusivo
-                              </span>
-                            ) : null}
-                            {canManage ? (
-                              <Button
-                                isIconOnly
-                                size="sm"
-                                variant="ghost"
-                                aria-pressed={
-                                  rental.available !== false && rental.exclusive === true
-                                }
-                                aria-label={
-                                  rental.exclusive
-                                    ? `Liberar outros tratamentos em ${dateBr(rental.startsOn)}`
-                                    : `Reservar ${dateBr(rental.startsOn)} só para a locação`
-                                }
-                                isDisabled={busy === rental.id || rental.available === false}
-                                onPress={() => void toggleExclusive(rental)}
-                              >
-                                {rental.exclusive ? <LockOpen size={14} /> : <Lock size={14} />}
-                              </Button>
-                            ) : null}
-                            {canManage ? (
-                              <Button
-                                isIconOnly
-                                size="sm"
-                                variant="ghost"
-                                aria-label={`Remover aluguel de ${dateBr(rental.startsOn)}`}
-                                isDisabled={busy === rental.id}
-                                onPress={() => void removeRental(rental)}
-                              >
-                                <Trash2 size={14} />
-                              </Button>
-                            ) : null}
-                          </li>
-                        ))}
+                            </li>
+                          )
+                        })}
                       </ul>
                     ) : (
                       <p className="biz-row-meta">
@@ -341,8 +388,8 @@ export function EquipmentTab({
                   </div>
                   {canManage ? (
                     <div className="eq-card-actions">
-                      <Button size="sm" onPress={() => setRenting(item)}>
-                        <CalendarPlus size={14} aria-hidden /> Marcar aluguel
+                      <Button className="eq-rent" onPress={() => setRenting(item)}>
+                        <CalendarPlus size={16} aria-hidden /> Marcar aluguel
                       </Button>
                     </div>
                   ) : null}

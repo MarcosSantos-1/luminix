@@ -9,7 +9,6 @@ import {
   ChevronLeft,
   ChevronRight,
   Clock3,
-  Cpu,
   FileSpreadsheet,
   FileText,
   Layers,
@@ -19,7 +18,8 @@ import {
   Pencil,
   Play,
   Plus,
-  Scissors,
+  SlidersHorizontal,
+  Sparkles,
   ShieldAlert,
   Trash2,
   TrendingUp,
@@ -27,6 +27,7 @@ import {
   UserRound,
   UsersRound,
   Wand2,
+  Zap,
 } from 'lucide-react'
 import { createElement, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { catalogRecipe, fold, unitShort } from '@/lib/stock'
@@ -324,12 +325,12 @@ export function ServicesPanel({
   }
 
   const tabs: { id: Tab; label: string; icon: ReactNode; count: number }[] = [
-    { id: 'services', label: 'Serviços', icon: <Scissors size={17} />, count: active.length },
-    { id: 'packages', label: 'Pacotes', icon: <Layers size={17} />, count: sellingPackages.length },
+    { id: 'services', label: 'Serviços', icon: <Sparkles size={18} />, count: active.length },
+    { id: 'packages', label: 'Pacotes', icon: <Layers size={18} />, count: sellingPackages.length },
     {
       id: 'equipment',
       label: 'Aparelhos alugados',
-      icon: <Cpu size={17} />,
+      icon: <Zap size={18} />,
       count: activeEquipment.length,
     },
   ]
@@ -337,85 +338,133 @@ export function ServicesPanel({
   return (
     <div className="biz-stack svc">
       <header className="svc-hero">
-        <div className="svc-hero-copy">
-          <h2>Seu catálogo</h2>
-          <p>
-            {active.length} {active.length === 1 ? 'serviço' : 'serviços'} em {categories.length}{' '}
-            {categories.length === 1 ? 'categoria' : 'categorias'}. Mudou aqui, mudou no site na
-            hora.
-          </p>
-          <div className="svc-hero-stats" role="group" aria-label="Atalhos de filtro">
-            <button
-              type="button"
-              aria-pressed={picked('other').includes('promo')}
-              onClick={() => quick({ ...defaultFilters, other: ['promo'] })}
-            >
-              <BadgePercent size={15} aria-hidden /> {onPromo} em promoção
-            </button>
-            <button
-              type="button"
-              data-warn={withoutTeam > 0 || undefined}
-              aria-pressed={picked('other').includes('noteam')}
-              onClick={() => quick({ ...defaultFilters, other: ['noteam'] })}
-            >
-              <UsersRound size={15} aria-hidden /> {withoutTeam} sem profissional
-            </button>
-            <button
-              type="button"
-              aria-pressed={picked('status').includes('archived')}
-              onClick={() => quick({ ...defaultFilters, status: ['archived'] })}
-            >
-              <Pause size={15} aria-hidden /> {paused} {paused === 1 ? 'pausado' : 'pausados'}
-            </button>
+        <div className="svc-hero-top">
+          <div className="svc-hero-copy">
+            <h2>Seu catálogo</h2>
+            <p>
+              {active.length} {active.length === 1 ? 'serviço' : 'serviços'} em {categories.length}{' '}
+              {categories.length === 1 ? 'categoria' : 'categorias'}
+              <span className="svc-hero-hint">. Mudou aqui, mudou no site na hora.</span>
+            </p>
+            <div className="svc-hero-stats" role="group" aria-label="Atalhos de filtro">
+              <button
+                type="button"
+                aria-pressed={picked('other').includes('promo')}
+                onClick={() => quick({ ...defaultFilters, other: ['promo'] })}
+              >
+                <BadgePercent size={15} aria-hidden /> {onPromo} em promoção
+              </button>
+              <button
+                type="button"
+                data-warn={withoutTeam > 0 || undefined}
+                aria-pressed={picked('other').includes('noteam')}
+                onClick={() => quick({ ...defaultFilters, other: ['noteam'] })}
+              >
+                <UsersRound size={15} aria-hidden /> {withoutTeam} sem profissional
+              </button>
+              <button
+                type="button"
+                aria-pressed={picked('status').includes('archived')}
+                onClick={() => quick({ ...defaultFilters, status: ['archived'] })}
+              >
+                <Pause size={15} aria-hidden /> {paused} {paused === 1 ? 'pausado' : 'pausados'}
+              </button>
+            </div>
+          </div>
+          <div className="svc-hero-actions">
+            {tab === 'services' ? (
+              <Dropdown>
+                <Dropdown.Trigger
+                  className="button button--secondary button--icon-only svc-quick"
+                  aria-label="Atalhos de filtro"
+                >
+                  <SlidersHorizontal size={17} aria-hidden />
+                  {withoutTeam > 0 ? <i className="svc-quick-dot" aria-hidden /> : null}
+                </Dropdown.Trigger>
+                <Dropdown.Popover placement="bottom end">
+                  <Dropdown.Menu
+                    aria-label="Atalhos de filtro"
+                    onAction={(key) =>
+                      quick(
+                        key === 'archived'
+                          ? { ...defaultFilters, status: ['archived'] }
+                          : { ...defaultFilters, other: [String(key)] },
+                      )
+                    }
+                  >
+                    <Dropdown.Item id="promo" textValue="Em promoção">
+                      <BadgePercent size={17} />
+                      <span>{onPromo} em promoção</span>
+                    </Dropdown.Item>
+                    <Dropdown.Item id="noteam" textValue="Sem profissional">
+                      <UsersRound size={17} />
+                      <span>{withoutTeam} sem profissional</span>
+                    </Dropdown.Item>
+                    <Dropdown.Item id="archived" textValue="Pausados">
+                      <Pause size={17} />
+                      <span>
+                        {paused} {paused === 1 ? 'pausado' : 'pausados'}
+                      </span>
+                    </Dropdown.Item>
+                  </Dropdown.Menu>
+                </Dropdown.Popover>
+              </Dropdown>
+            ) : null}
+            <Dropdown>
+              <Dropdown.Trigger
+                className="button button--secondary svc-export"
+                aria-label="Tabela de preços"
+              >
+                <FileText size={16} aria-hidden />
+                <span className="svc-export-label">Tabela de preços</span>
+                <ChevronDown size={15} aria-hidden className="svc-export-chevron" />
+              </Dropdown.Trigger>
+              <Dropdown.Popover placement="bottom end">
+                <Dropdown.Menu
+                  aria-label="Gerar tabela de preços"
+                  onAction={(key) => exportTable(key as 'pdf' | 'xlsx' | 'whatsapp')}
+                >
+                  <Dropdown.Item id="pdf" textValue="PDF estilizado">
+                    <FileText size={17} />
+                    <span>PDF estilizado</span>
+                  </Dropdown.Item>
+                  <Dropdown.Item id="xlsx" textValue="Planilha Excel">
+                    <FileSpreadsheet size={17} />
+                    <span>Planilha (Excel)</span>
+                  </Dropdown.Item>
+                  <Dropdown.Item id="whatsapp" textValue="Copiar para WhatsApp">
+                    <MessageCircle size={17} />
+                    <span>Copiar para WhatsApp</span>
+                  </Dropdown.Item>
+                </Dropdown.Menu>
+              </Dropdown.Popover>
+            </Dropdown>
+            {data.canManage && tab === 'services' ? (
+              <Button className="svc-new" onPress={() => setEditing(blank())}>
+                <Plus size={16} aria-hidden /> Novo serviço
+              </Button>
+            ) : null}
           </div>
         </div>
-        <div className="svc-hero-actions">
-          <Dropdown>
-            <Dropdown.Trigger className="button button--secondary svc-export">
-              <FileText size={16} aria-hidden /> Tabela de preços <ChevronDown size={15} />
-            </Dropdown.Trigger>
-            <Dropdown.Popover placement="bottom end">
-              <Dropdown.Menu
-                aria-label="Gerar tabela de preços"
-                onAction={(key) => exportTable(key as 'pdf' | 'xlsx' | 'whatsapp')}
-              >
-                <Dropdown.Item id="pdf" textValue="PDF estilizado">
-                  <FileText size={17} />
-                  <span>PDF estilizado</span>
-                </Dropdown.Item>
-                <Dropdown.Item id="xlsx" textValue="Planilha Excel">
-                  <FileSpreadsheet size={17} />
-                  <span>Planilha (Excel)</span>
-                </Dropdown.Item>
-                <Dropdown.Item id="whatsapp" textValue="Copiar para WhatsApp">
-                  <MessageCircle size={17} />
-                  <span>Copiar para WhatsApp</span>
-                </Dropdown.Item>
-              </Dropdown.Menu>
-            </Dropdown.Popover>
-          </Dropdown>
-          {data.canManage && tab === 'services' ? (
-            <Button onPress={() => setEditing(blank())}>
-              <Plus size={16} aria-hidden /> Novo serviço
-            </Button>
-          ) : null}
+
+        <div className="svc-tabs" role="tablist" aria-label="Catálogo">
+          {tabs.map((item) => (
+            <button
+              key={item.id}
+              type="button"
+              role="tab"
+              aria-selected={tab === item.id}
+              onClick={() => setTab(item.id)}
+            >
+              <span className="svc-tab-icon" aria-hidden>
+                {item.icon}
+              </span>
+              <span className="svc-tab-label">{item.label}</span>
+              <em>{item.count}</em>
+            </button>
+          ))}
         </div>
       </header>
-
-      <div className="svc-tabs" role="tablist" aria-label="Catálogo">
-        {tabs.map((item) => (
-          <button
-            key={item.id}
-            type="button"
-            role="tab"
-            aria-selected={tab === item.id}
-            onClick={() => setTab(item.id)}
-          >
-            {item.icon} {item.label}
-            <em>{item.count}</em>
-          </button>
-        ))}
-      </div>
 
       {notice ? (
         <p className="team-notice" role="status">
