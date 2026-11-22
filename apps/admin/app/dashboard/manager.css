@@ -2384,3 +2384,133 @@
     line-height: 1.2;
   }
 }
+
+/* ---------- Botões com mais presença (todo o painel, inclusive pop-ups) ---------- */
+.button--primary,
+.manager-shell .button--primary {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, #fff 28%, transparent);
+  color: #fff;
+  background: linear-gradient(
+    120deg,
+    var(--space-accent, #ec287a),
+    color-mix(in srgb, var(--space-accent, #ec287a) 55%, #ff7ab6) 55%,
+    color-mix(in srgb, var(--space-accent, #ec287a) 80%, #7c4dff)
+  );
+  box-shadow:
+    0 8px 22px color-mix(in srgb, var(--space-accent, #ec287a) 42%, transparent),
+    inset 0 1px 0 #ffffff40;
+  font-weight: 650;
+}
+.button--primary:hover,
+.manager-shell .button--primary:hover {
+  background-color: transparent;
+  filter: brightness(1.08);
+}
+/* The "laser": a light band crossing the button. On hover for every main button; on its own,
+   every few seconds, for the main action of a screen (.lx-laser). */
+.button--primary::after {
+  content: '';
+  position: absolute;
+  inset: -2px auto -2px -60%;
+  width: 45%;
+  background: linear-gradient(
+    100deg,
+    transparent,
+    #ffffff66 45%,
+    #ffffffb0 50%,
+    #ffffff66 55%,
+    transparent
+  );
+  transform: skewX(-20deg);
+  pointer-events: none;
+  opacity: 0;
+}
+.button--primary:hover::after {
+  animation: lx-laser 0.9s ease-out;
+}
+.button--primary.lx-laser::after {
+  animation: lx-laser 3.6s ease-in-out infinite;
+}
+@keyframes lx-laser {
+  0% {
+    left: -60%;
+    opacity: 0;
+  }
+  10% {
+    opacity: 1;
+  }
+  35%,
+  100% {
+    left: 130%;
+    opacity: 0;
+  }
+}
+.button--danger,
+.manager-shell .button--danger {
+  border: 1px solid #fca5a580;
+  color: #fff;
+  background: linear-gradient(120deg, #dc2626, #ef4444);
+  box-shadow: 0 8px 20px #dc262659;
+  font-weight: 650;
+}
+.button--secondary,
+.manager-shell .button--secondary {
+  border: 1px solid var(--manager-border, #ffffff40);
+  background: #ffffff17;
+  font-weight: 600;
+}
+.manager-shell .button.lx-btn-edit,
+.button.lx-btn-edit {
+  border: 1px solid #93c5fdb3;
+  color: #dbeafe;
+  background: #2563eb73;
+  font-weight: 600;
+}
+.manager-shell .button.lx-btn-edit:hover,
+.button.lx-btn-edit:hover {
+  background: #2563eba6;
+}
+.manager-shell .button.lx-btn-delete,
+.button.lx-btn-delete {
+  border: 1px solid #f8717180;
+  color: #fecaca;
+  background: #b91c1c40;
+  font-weight: 600;
+}
+.manager-shell .button.lx-btn-delete:hover,
+.button.lx-btn-delete:hover {
+  background: #b91c1c70;
+}
+/* Selection cards (tabs, people, options): the chosen one glows. */
+.svc-tabs button[aria-selected='true'],
+.sch-tabs button[aria-selected='true'],
+.sch-people button[aria-pressed='true'],
+[role='checkbox'][aria-checked='true'] {
+  box-shadow:
+    0 0 0 1px var(--space-highlight, #ffb5d3),
+    0 10px 26px color-mix(in srgb, var(--space-accent, #ec287a) 40%, transparent);
+}
+.svc-tabs button,
+.sch-tabs button,
+.sch-people button {
+  transition:
+    transform 0.15s ease,
+    box-shadow 0.2s ease;
+}
+.svc-tabs button:hover,
+.sch-tabs button:hover,
+.sch-people button:hover {
+  transform: translateY(-1px);
+}
+@media (prefers-reduced-motion: reduce) {
+  .button--primary::after {
+    animation: none !important;
+  }
+  .svc-tabs button,
+  .sch-tabs button,
+  .sch-people button {
+    transition: none;
+  }
+}

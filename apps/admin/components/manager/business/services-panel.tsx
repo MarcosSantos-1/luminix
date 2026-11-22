@@ -440,7 +440,7 @@ export function ServicesPanel({
               </Dropdown.Popover>
             </Dropdown>
             {data.canManage && tab === 'services' ? (
-              <Button className="svc-new" onPress={() => setEditing(blank())}>
+              <Button className="svc-new lx-laser" onPress={() => setEditing(blank())}>
                 <Plus size={16} aria-hidden /> Novo serviço
               </Button>
             ) : null}

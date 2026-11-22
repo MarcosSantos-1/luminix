@@ -4057,3 +4057,12 @@
 .eq-rental-confirm .button {
   flex: 1 1 0;
 }
+@media (max-width: 650px) {
+  .settings-grid.eq-dates {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+  }
+}
+.eq-rental-actions .button {
+  margin: 0 2px;
+}

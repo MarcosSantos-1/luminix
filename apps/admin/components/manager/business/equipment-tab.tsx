@@ -8,7 +8,6 @@ import {
   Clock3,
   Cpu,
   Lock,
-  LockOpen,
   Pencil,
   Plus,
   Receipt,
@@ -144,29 +143,6 @@ export function EquipmentTab({
     }
   }
 
-  async function toggleExclusive(rental: Rental) {
-    setBusy(rental.id)
-    const exclusive = !rental.exclusive
-    try {
-      const result = await guard((confirm) =>
-        api.post<{ canceledAppointments: number }>(`catalog/rentals/${rental.id}/exclusive`, {
-          exclusive,
-          ...confirmFlag(confirm),
-        }),
-      )
-      if (result === null) return
-      onChanged(
-        exclusive
-          ? `${shortDay(rental.startsOn)} reservado só para a locação.${canceledNote(result)}`
-          : `${shortDay(rental.startsOn)} voltou a aceitar todos os tratamentos.`,
-      )
-    } catch {
-      onChanged('Não foi possível mudar a exclusividade.')
-    } finally {
-      setBusy('')
-    }
-  }
-
   return (
     <div className="biz-tab-body">
       {dialog}
@@ -174,7 +150,7 @@ export function EquipmentTab({
         <div className="eq-intro">
           <Button
             size="lg"
-            className="eq-new"
+            className="eq-new lx-laser"
             onPress={() =>
               setEditing({
                 id: '',
@@ -331,6 +307,7 @@ export function EquipmentTab({
                                     <Button
                                       size="sm"
                                       variant="ghost"
+                                      className="lx-btn-edit"
                                       aria-label={`Editar horários de ${dateBr(rental.startsOn)}`}
                                       onPress={() => {
                                         setExistingRental(rental)
@@ -342,26 +319,7 @@ export function EquipmentTab({
                                     <Button
                                       size="sm"
                                       variant="ghost"
-                                      aria-pressed={!paused && rental.exclusive === true}
-                                      aria-label={
-                                        rental.exclusive
-                                          ? `Liberar outros tratamentos em ${dateBr(rental.startsOn)}`
-                                          : `Reservar ${dateBr(rental.startsOn)} só para a locação`
-                                      }
-                                      isDisabled={busy === rental.id || paused}
-                                      onPress={() => void toggleExclusive(rental)}
-                                    >
-                                      {rental.exclusive ? (
-                                        <LockOpen size={14} aria-hidden />
-                                      ) : (
-                                        <Lock size={14} aria-hidden />
-                                      )}{' '}
-                                      {rental.exclusive ? 'Liberar dia' : 'Exclusivo'}
-                                    </Button>
-                                    <Button
-                                      size="sm"
-                                      variant="ghost"
-                                      className="eq-rental-remove"
+                                      className="eq-rental-remove lx-btn-delete"
                                       aria-label={`Excluir aluguel de ${dateBr(rental.startsOn)}`}
                                       isDisabled={busy === rental.id}
                                       onPress={() => setConfirmRemove(rental.id)}
@@ -388,7 +346,7 @@ export function EquipmentTab({
                   </div>
                   {canManage ? (
                     <div className="eq-card-actions">
-                      <Button className="eq-rent" onPress={() => setRenting(item)}>
+                      <Button className="eq-rent lx-laser" onPress={() => setRenting(item)}>
                         <CalendarPlus size={16} aria-hidden /> Marcar aluguel
                       </Button>
                     </div>
@@ -940,7 +898,7 @@ function RentalEditor({
     note: '',
     registerExpense: !existing && canFinance && equipment.defaultCostCents != null,
     method: 'pix',
-    exclusive: false,
+    exclusive: existing?.exclusive === true,
   })
   const [specificDay, setSpecificDay] = useState('')
   const firstDay = form.startsOn < today ? today : form.startsOn
@@ -968,7 +926,7 @@ function RentalEditor({
     setSaving(true)
     setError('')
     try {
-      const saved = await guard((confirm) =>
+      let saved = await guard((confirm) =>
         existing
           ? api.post<{ canceledAppointments?: number }>(
               `catalog/rentals/${existing.id}/availability`,
@@ -990,6 +948,21 @@ function RentalEditor({
       )
       // Went back from the list of clients the exclusive day would cancel.
       if (saved === null) return
+      // Dia exclusivo is switched here (not on the card) when editing a saved rental.
+      const exclusive = form.available && form.exclusive
+      if (existing && exclusive !== (existing.exclusive === true)) {
+        const switched = await guard((confirm) =>
+          api.post<{ canceledAppointments?: number }>(`catalog/rentals/${existing.id}/exclusive`, {
+            exclusive,
+            ...confirmFlag(confirm),
+          }),
+        )
+        if (switched === null) return
+        saved = {
+          canceledAppointments:
+            (saved.canceledAppointments ?? 0) + (switched.canceledAppointments ?? 0),
+        }
+      }
       onClose(
         existing
           ? `Disponibilidade de ${equipment.name} atualizada.${canceledNote(saved)}`
@@ -1060,7 +1033,7 @@ function RentalEditor({
         </>
       }
     >
-      <div className="settings-grid">
+      <div className="settings-grid eq-dates">
         <DateInputField
           label="Chega em"
           isDisabled={Boolean(existing)}
@@ -1120,6 +1093,30 @@ function RentalEditor({
         onChange={(available) => setForm({ ...form, available })}
         description="Libera os tratamentos nos horários da locação que cabem no expediente, respeitando os intervalos."
       />
+      <div className="eq-exclusive-field">
+        <CheckboxField
+          isDisabled={!form.available}
+          isSelected={form.exclusive}
+          onChange={(exclusive) => setForm({ ...form, exclusive })}
+          label="Dia exclusivo para esta locação"
+          description="Nesses dias as clientes só conseguem marcar os tratamentos deste aparelho."
+        />
+        <HelpTip title="Dia exclusivo">
+          <p>
+            Aparelho alugado custa por dia. Para aproveitar 100% do equipamento, você pode reservar
+            o dia inteiro só para os tratamentos dele.
+          </p>
+          <p>
+            Com a opção marcada, as clientes não veem horários de outros tratamentos nesses dias. A
+            equipe ainda consegue agendar outro serviço, mas a agenda avisa que o dia está reservado
+            à locação.
+          </p>
+          <p>
+            Se já houver outros tratamentos marcados, mostramos as clientes afetadas antes de
+            salvar. Confirmando, os horários são cancelados e cada uma recebe o aviso.
+          </p>
+        </HelpTip>
+      </div>
       {!existing && (
         <>
           <MoneyField
@@ -1135,30 +1132,6 @@ function RentalEditor({
             value={form.note}
             onChange={(note) => setForm({ ...form, note })}
           />
-          <div className="eq-exclusive-field">
-            <CheckboxField
-              isDisabled={!form.available}
-              isSelected={form.exclusive}
-              onChange={(exclusive) => setForm({ ...form, exclusive })}
-              label="Dia exclusivo para esta locação"
-              description="Nesses dias as clientes só conseguem marcar os tratamentos deste aparelho."
-            />
-            <HelpTip title="Dia exclusivo">
-              <p>
-                Aparelho alugado custa por dia. Para aproveitar 100% do equipamento, você pode
-                reservar o dia inteiro só para os tratamentos dele.
-              </p>
-              <p>
-                Com a opção marcada, as clientes não veem horários de outros tratamentos nesses
-                dias. A equipe ainda consegue agendar outro serviço, mas a agenda avisa que o dia
-                está reservado à locação.
-              </p>
-              <p>
-                Se já houver outros tratamentos marcados, mostramos as clientes afetadas antes de
-                salvar. Confirmando, os horários são cancelados e cada uma recebe o aviso.
-              </p>
-            </HelpTip>
-          </div>
           {canFinance ? (
             <>
               <CheckboxField
