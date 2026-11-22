@@ -744,21 +744,112 @@
 .mnav-sheet .manager-plan {
   margin: 12px 0;
 }
-.manager-plan-details,
-.manager-plan-details section {
-  display: grid;
+.plan-dialog .qm-badge,
+.plan-period > span,
+.plan-period p,
+.plan-facts dt,
+.plan-support {
+  display: inline-flex;
+  align-items: center;
   gap: 8px;
-  justify-items: start;
 }
-.manager-plan-details {
-  gap: 18px;
+.plan-dialog .qm-badge {
+  align-self: start;
 }
-.manager-plan-details h3,
-.manager-plan-details p {
+.plan-dialog .qm-hero-art img {
+  object-fit: contain;
+}
+.plan-period {
+  padding: 18px;
+  border-radius: 17px;
+  border: 1px solid #ffffff30;
+  background: linear-gradient(
+    115deg,
+    color-mix(in srgb, var(--space-accent, #db3279) 21%, transparent),
+    #ffffff08
+  );
+}
+.plan-period > span,
+.plan-period p {
+  font-size: 12px;
+  color: #f1e1eb;
+}
+.plan-period h3 {
+  margin: 6px 0 14px;
+  font-size: clamp(20px, 3vw, 28px);
+  line-height: 1.15;
+  letter-spacing: -0.03em;
+}
+.plan-days {
+  display: grid;
+  grid-template-columns: repeat(12, 1fr);
+  gap: 4px;
+  margin-bottom: 11px;
+}
+.plan-days i {
+  height: 5px;
+  border-radius: 3px;
+  background: var(--space-highlight, #ffaccf);
+}
+.plan-days i[data-elapsed='true'] {
+  background: #ffffff26;
+}
+.plan-period p {
   margin: 0;
 }
-.manager-plan-details p {
-  color: var(--manager-muted);
+.plan-facts {
+  margin: 8px 0 0;
+}
+.plan-facts > div {
+  padding: 14px 2px;
+}
+.plan-facts > div + div {
+  border-top: 1px solid #ffffff20;
+}
+.plan-facts dt {
+  color: #e9dde5;
+  font-size: 13px;
+}
+.plan-facts dt svg {
+  color: var(--space-highlight, #ffaccf);
+}
+.plan-facts dd {
+  display: grid;
+  gap: 4px;
+  margin: 4px 0 0 27px;
+  font-size: 15px;
+}
+.plan-facts small {
+  color: #ddcfd8;
+  font-size: 13px;
+  line-height: 1.45;
+}
+@media (max-width: 650px) {
+  .qm.plan-dialog.has-hero .qm-hero {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    padding-bottom: 8px;
+    background: linear-gradient(
+      115deg,
+      color-mix(in srgb, var(--space-accent, #cc2468) 24%, transparent),
+      transparent
+    );
+  }
+  .qm.plan-dialog.has-hero .qm-hero-head {
+    display: grid;
+    gap: 4px;
+  }
+  .qm.plan-dialog.has-hero .qm-hero-art {
+    display: block;
+    flex: 0 0 60px;
+    min-height: 0;
+    margin-left: auto;
+  }
+  .qm.plan-dialog.has-hero .qm-hero-art img {
+    width: 60px;
+    animation: none;
+  }
 }
 .manager-support {
   flex-shrink: 0;
@@ -1542,9 +1633,6 @@
   }
   .manager-header-actions {
     gap: 6px;
-  }
-  .manager-header-actions > .button:first-child {
-    display: none;
   }
   .manager-profile.button,
   .manager-profile.dropdown__trigger {

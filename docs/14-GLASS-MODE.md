@@ -155,3 +155,7 @@ continuam planejadas. Contratos, localização do código e política HeroUI est
 A composição também é a Home oficial autenticada em `/clinics/:clinicId`, com nome real da clínica
 e fixtures operacionais temporárias explicitamente identificadas. O contexto e as permissões vêm
 do backend; Configurações mostra os dados reais da clínica e o código de acesso fica na Home.
+
+## Ajuste pessoal na Home do gestor
+
+Na Home, **Ajustar design** abre a prévia de opacidade, desfoque, saturação, brilho da borda e cor. O atalho fica no cabeçalho do desktop e no menu de perfil do celular. A preferência fica no navegador por pessoa e espaço. **Restaurar padrão** remove o ajuste e volta a usar as superfícies originais do tema da clínica. As outras seções mantêm os próprios estilos.

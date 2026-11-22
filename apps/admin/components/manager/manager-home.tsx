@@ -7,6 +7,8 @@ import {
   Bug,
   ChevronDown,
   CreditCard,
+  Crown,
+  SlidersHorizontal,
   LogOut,
   Plus,
   Search,
@@ -27,6 +29,8 @@ import {
   type ManagerSectionId,
 } from './demo-data'
 import { ManagerMessageModal } from './manager-message-modal'
+import { createActions } from './create-actions'
+import { HomeGlassShell } from './home-glass'
 import { ManagerMobileNav } from './manager-mobile-nav'
 import { PlanModal, planStatus } from './manager-plan'
 import { ManagerSidebar } from './manager-sidebar'
@@ -200,6 +204,8 @@ export function ManagerHome({
   useManagerSpotlight(shell, spotlight)
   const { collapsed, setCollapsed, searchOpen, changeSearch, query, setQuery, searchTrigger } =
     useManagerLayout(!message.view && !spotlight)
+  const fileInput = useRef<HTMLInputElement>(null)
+  const glassPanel = useRef<HTMLDivElement>(null)
   const sectionHeading = useRef<HTMLHeadingElement>(null)
   const [planOpen, setPlanOpen] = useState(false)
   const [planNow, setPlanNow] = useState(() => Date.now())
@@ -331,8 +337,15 @@ export function ManagerHome({
     ? 'Agenda e indicadores demonstrativos'
     : 'Exemplos ilustrativos desta seção'
 
+  const quickActions = createActions.filter((action) => allowedIds.includes(action.section))
+  const hasContextAction = !['inicio', 'agenda', 'clientes', 'midia'].includes(section.id)
+
   const shellContent = (
-    <div
+    <HomeGlassShell
+      key={messages?.scope ?? 'preview'}
+      scope={messages?.scope ?? (realClinic ? undefined : 'preview')}
+      enabled={isHome}
+      panelRef={glassPanel}
       className={`manager-shell ${collapsed ? 'is-collapsed' : ''}`}
       ref={shell}
       data-theme="manager-glass"
@@ -384,14 +397,54 @@ export function ManagerHome({
             </Button>
           ) : null}
           <div className="manager-header-actions">
-            <Button
-              isIconOnly
-              aria-label={section.createLabel}
-              className="manager-icon-button"
-              onPress={() => navigate(section.createLabel)}
-            >
-              <Plus size={21} />
-            </Button>
+            {(quickActions.length > 0 || hasContextAction) && (
+              <Dropdown>
+                <Dropdown.Trigger className="manager-create-trigger" aria-label="Criação rápida">
+                  <Plus size={21} aria-hidden />
+                </Dropdown.Trigger>
+                <Dropdown.Popover
+                  className="manager-account-menu manager-create-menu"
+                  placement="bottom end"
+                >
+                  <Dropdown.Menu
+                    aria-label="Criação rápida"
+                    onAction={(key) => {
+                      if (key === 'current') return navigate(section.createLabel)
+                      const action = quickActions.find(({ id }) => id === key)
+                      if (action?.upload) fileInput.current?.click()
+                      else if (action) go({ section: action.section, create: action.create })
+                    }}
+                  >
+                    {hasContextAction && (
+                      <Dropdown.Item id="current" textValue={section.createLabel}>
+                        <section.icon size={18} aria-hidden />
+                        <span>{section.createLabel}</span>
+                      </Dropdown.Item>
+                    )}
+                    {quickActions.map(({ id, label, detail, icon: Icon }) => (
+                      <Dropdown.Item key={id} id={id} textValue={label}>
+                        <Icon size={18} aria-hidden />
+                        <span>
+                          <strong>{label}</strong>
+                          <small>{detail}</small>
+                        </span>
+                      </Dropdown.Item>
+                    ))}
+                  </Dropdown.Menu>
+                </Dropdown.Popover>
+              </Dropdown>
+            )}
+            {isHome && (
+              <button
+                type="button"
+                className="manager-design-trigger"
+                popoverTarget="home-glass-panel"
+                title="Ajustar design"
+              >
+                <SlidersHorizontal size={18} aria-hidden />
+                <span>Ajustar design</span>
+              </button>
+            )}
             {workspace ? (
               <NotificationBell api={workspace.api} go={go} onOpenUpdates={message.openUpdates} />
             ) : (
@@ -422,6 +475,9 @@ export function ManagerHome({
                 <Dropdown.Menu
                   aria-label="Conta"
                   onAction={(key) => {
+                    if (key === 'plan') openPlan()
+                    if (key === 'design')
+                      requestAnimationFrame(() => glassPanel.current?.showPopover())
                     if (key === 'account') openAccount()
                     if (key === 'settings') select('configuracoes')
                     if (key === 'logout') {
@@ -434,6 +490,16 @@ export function ManagerHome({
                     <UserRound size={18} />
                     <span>Minha conta</span>
                   </Dropdown.Item>
+                  <Dropdown.Item id="plan" textValue="Meu plano">
+                    <Crown size={18} />
+                    <span>Meu plano</span>
+                  </Dropdown.Item>
+                  {isHome && (
+                    <Dropdown.Item id="design" textValue="Ajustar design">
+                      <SlidersHorizontal size={18} />
+                      <span>Ajustar design</span>
+                    </Dropdown.Item>
+                  )}
                   {canManageSettings ? (
                     <Dropdown.Item id="settings" textValue="Configurações">
                       <Settings2 size={18} />
@@ -568,7 +634,18 @@ export function ManagerHome({
         onAccount={openAccount}
         planStatus={currentPlanStatus}
         onPlan={openPlan}
-        onMediaFiles={(files) => {
+        pickMedia={() => fileInput.current?.click()}
+      />
+      <input
+        ref={fileInput}
+        hidden
+        multiple
+        type="file"
+        accept="image/png,image/jpeg,image/webp"
+        onChange={(event) => {
+          const files = Array.from(event.target.files ?? [])
+          event.target.value = ''
+          if (!files.length) return
           setIncomingMedia({ files, nonce: Date.now() })
           select('midia')
         }}
@@ -578,6 +655,8 @@ export function ManagerHome({
         onOpenChange={setPlanOpen}
         status={currentPlanStatus}
         endsAt={trialEndsAt}
+        now={planNow}
+        clinicName={clinicName}
       />
       {tourOpen && (
         <ManagerTour
@@ -707,7 +786,7 @@ export function ManagerHome({
           </Modal.Dialog>
         </Modal.Container>
       </Modal.Backdrop>
-    </div>
+    </HomeGlassShell>
   )
   return workspace ? (
     <WorkspaceSignals

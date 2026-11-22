@@ -3,81 +3,24 @@
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
 import {
   CalendarDays,
-  CalendarPlus,
   House,
-  ImagePlus,
   Menu,
   MessageCircle,
-  PackagePlus,
   Plus,
-  Sparkles,
-  UserPlus,
   UserRound,
   Users,
   X,
   type LucideIcon,
 } from 'lucide-react'
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
 import type { ManagerNavItem, ManagerSectionId } from './demo-data'
+import { createActions } from './create-actions'
 import { PlanCard } from './manager-plan'
 import { supportWhatsAppUrl } from './support'
 import type { GoTarget } from './workspace/workspace-signals'
 import './manager-mobile-nav.css'
 
 type Sheet = 'create' | 'menu' | null
-
-type CreateAction = {
-  id: string
-  label: string
-  detail: string
-  icon: LucideIcon
-  section: ManagerSectionId
-  /** Opens the page's own creation form. */
-  create?: boolean
-  /** Picks photos right here and hands them to Mídia. */
-  upload?: boolean
-}
-
-const createActions: CreateAction[] = [
-  {
-    id: 'agendamento',
-    label: 'Agendamento',
-    detail: 'Marcar horário',
-    icon: CalendarPlus,
-    section: 'agenda',
-    create: true,
-  },
-  {
-    id: 'cliente',
-    label: 'Cliente',
-    detail: 'Novo cadastro',
-    icon: UserPlus,
-    section: 'clientes',
-    create: true,
-  },
-  {
-    id: 'midia',
-    label: 'Fotos',
-    detail: 'Enviar à Mídia',
-    icon: ImagePlus,
-    section: 'midia',
-    upload: true,
-  },
-  {
-    id: 'estoque',
-    label: 'Estoque',
-    detail: 'Repor ou conferir',
-    icon: PackagePlus,
-    section: 'estoque',
-  },
-  {
-    id: 'promocao',
-    label: 'Promoção',
-    detail: 'Campanha ou arte',
-    icon: Sparkles,
-    section: 'marketing',
-  },
-]
 
 const menuGroups: { label: string; ids: ManagerSectionId[] }[] = [
   {
@@ -95,7 +38,7 @@ export function ManagerMobileNav({
   current,
   onSelect,
   go,
-  onMediaFiles,
+  pickMedia,
   onAccount,
   planStatus,
   onPlan,
@@ -104,14 +47,13 @@ export function ManagerMobileNav({
   current: ManagerSectionId
   onSelect: (section: ManagerSectionId) => void
   go: (target: GoTarget) => void
-  onMediaFiles: (files: File[]) => void
+  pickMedia: () => void
   onAccount: () => void
   planStatus: string
   onPlan: () => void
 }) {
   const [sheet, setSheet] = useState<Sheet>(null)
   const reduceMotion = useReducedMotion()
-  const fileInput = useRef<HTMLInputElement>(null)
   const allowed = new Set(navigation.map((item) => item.id))
   const actions = createActions.filter((action) => allowed.has(action.section))
   const menuItems = navigation.filter((item) => !fixedTabs.has(item.id))
@@ -207,7 +149,8 @@ export function ManagerMobileNav({
                   transition={spring}
                   onClick={() => {
                     if (action.upload) {
-                      fileInput.current?.click()
+                      setSheet(null)
+                      pickMedia()
                       return
                     }
                     setSheet(null)
@@ -300,20 +243,6 @@ export function ManagerMobileNav({
           </motion.div>
         ) : null}
       </AnimatePresence>
-      <input
-        ref={fileInput}
-        hidden
-        multiple
-        type="file"
-        accept="image/png,image/jpeg,image/webp"
-        onChange={(event) => {
-          const files = Array.from(event.target.files ?? [])
-          event.target.value = ''
-          if (!files.length) return
-          setSheet(null)
-          onMediaFiles(files)
-        }}
-      />
       <nav className="manager-bottom-nav mnav" aria-label="Navegação móvel">
         {tab('inicio', 'Início', House)}
         {tab('agenda', 'Agenda', CalendarDays)}
@@ -322,6 +251,7 @@ export function ManagerMobileNav({
             <motion.button
               type="button"
               className="mnav-fab"
+              tabIndex={0}
               aria-label={sheet === 'create' ? 'Fechar criação rápida' : 'Criar'}
               aria-expanded={sheet === 'create'}
               aria-controls="mnav-create"
