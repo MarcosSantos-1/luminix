@@ -34,7 +34,8 @@ import { ManagerMessageModal } from './manager-message-modal'
 import { createActions } from './create-actions'
 import { ManagerAppearanceShell, ManagerDesignButton } from './manager-appearance'
 import { ManagerMobileNav } from './manager-mobile-nav'
-import { PlanModal, planStatus } from './manager-plan'
+import { QuickModal } from './quick-modal'
+import { PlanModal, planStatus, previewPlans, type PlanPreview } from './manager-plan'
 import { ManagerSidebar } from './manager-sidebar'
 import { firstManagerTourStep, ManagerTour, type ManagerTourStep } from './manager-tour'
 import {
@@ -211,7 +212,11 @@ export function ManagerHome({
   const sectionHeading = useRef<HTMLHeadingElement>(null)
   const [planOpen, setPlanOpen] = useState(false)
   const [planNow, setPlanNow] = useState(() => Date.now())
-  const currentPlanStatus = planStatus(trialEndsAt, planNow)
+  const [debugPlanOpen, setDebugPlanOpen] = useState(false)
+  const [simulation, setSimulation] = useState<{ scope: string; plan: PlanPreview } | null>(null)
+  const planScope = workspace?.clinicId ?? messages?.scope ?? clinicName
+  const preview = simulation?.scope === planScope ? simulation.plan : undefined
+  const currentPlanStatus = preview ? previewPlans[preview].title : planStatus(trialEndsAt, planNow)
   const openPlan = () => {
     setPlanNow(Date.now())
     setPlanOpen(true)
@@ -269,6 +274,10 @@ export function ManagerHome({
       select('agenda')
       return
     }
+    if (label === 'Programar locação') {
+      go({ section: 'servicos', tab: 'equipment' })
+      return
+    }
     const match = navigation.find((item) => item.label === label)
     if (match) {
       select(match.id)
@@ -299,7 +308,9 @@ export function ManagerHome({
     }
     if (target.create) requestCreate(target.section)
     setFocus(
-      target.query ? { section: target.section, query: target.query, nonce: Date.now() } : null,
+      target.query || (target.section === 'servicos' && target.tab)
+        ? { section: target.section, query: target.query ?? '', tab: target.tab, nonce: Date.now() }
+        : null,
     )
     if (target.anchor) highlightAnchor(target.anchor)
   }
@@ -588,9 +599,15 @@ export function ManagerHome({
                 <Bug size={15} aria-hidden /> Debug <ChevronUp size={14} aria-hidden />
               </Dropdown.Trigger>
               <Dropdown.Popover placement="top end" className="manager-account-menu">
-                <Dropdown.Menu aria-label="Debug" onAction={startTour}>
+                <Dropdown.Menu
+                  aria-label="Debug"
+                  onAction={(key) => (key === 'tour' ? startTour() : setDebugPlanOpen(true))}
+                >
                   <Dropdown.Item id="tour" textValue="Abrir tour">
                     <Bug size={16} aria-hidden /> Abrir tour
+                  </Dropdown.Item>
+                  <Dropdown.Item id="plan" textValue="Simular assinatura">
+                    <CreditCard size={16} /> Simular assinatura
                   </Dropdown.Item>
                 </Dropdown.Menu>
               </Dropdown.Popover>
@@ -622,7 +639,42 @@ export function ManagerHome({
           select('midia')
         }}
       />
+      {isHome && debugPlanOpen && (
+        <QuickModal
+          isOpen
+          onOpenChange={setDebugPlanOpen}
+          title="Simular assinatura"
+          subtitle="Veja como cada situação aparece em Meu plano. A simulação dura enquanto o painel estiver aberto."
+        >
+          <div className="plan-debug-options">
+            {(Object.keys(previewPlans) as PlanPreview[]).map((id) => (
+              <Button
+                key={id}
+                variant={preview === id ? 'primary' : 'secondary'}
+                onPress={() => {
+                  setSimulation({ scope: planScope, plan: id })
+                  setDebugPlanOpen(false)
+                  openPlan()
+                }}
+              >
+                {previewPlans[id].title}
+              </Button>
+            ))}
+          </div>
+          <Button
+            variant="ghost"
+            onPress={() => {
+              setSimulation(null)
+              setDebugPlanOpen(false)
+              openPlan()
+            }}
+          >
+            Voltar ao status real
+          </Button>
+        </QuickModal>
+      )}
       <PlanModal
+        preview={preview}
         isOpen={planOpen}
         onOpenChange={setPlanOpen}
         status={currentPlanStatus}

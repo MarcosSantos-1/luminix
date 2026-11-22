@@ -402,7 +402,7 @@ export function NoticeCarousel({ go }: { go: (target: GoTarget) => void }) {
 }
 
 /** A search result that opens a page with its own search box already filled in. */
-export type SearchFocus = { section: string; query: string; nonce: number }
+export type SearchFocus = { section: string; query: string; tab?: string; nonce: number }
 const consumedFocus = new Set<number>()
 
 /** Applies a search focus once (coming back to the page later does not refill it). */

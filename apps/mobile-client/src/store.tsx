@@ -36,6 +36,7 @@ export type PaymentMethod = 'local' | 'pix' | 'card'
 export type Appointment = {
   id: string
   serviceId: string
+  rentalDates?: string[] | null
   serviceName: string
   category: string
   /** Clinic local time, 2026-11-20T14:30 */
@@ -87,7 +88,7 @@ export type Availability = {
   date: string
   lastDate: string
   durationMinutes: number
-  bookingMode: 'instant' | 'request'
+  bookingMode: 'instant' | 'request' | 'manual_release'
   choose: boolean
   /** Pix/card are offered only when the space accepts payments in the app. */
   inAppPayments: boolean
@@ -145,6 +146,7 @@ type ApiAppointment = {
   createdAt: string
   paymentMethod: PaymentMethod | null
   paid: boolean
+  rentalDates?: string[] | null
   service: { id: string; name: string; category: string | null }
   professional: { id: string; name: string } | null
 }
@@ -181,6 +183,8 @@ async function api<T>(path: string, init?: { method?: string; body?: unknown }):
 }
 
 const messages: Record<string, string> = {
+  'Service unavailable':
+    'Este serviço está sem disponibilidade nessa data. Consulte os dias de locação.',
   'Slot taken': 'Esse horário acabou de ser ocupado. Escolha outro.',
   'Cancellation closed': 'O prazo para cancelar pelo app já passou. Fale com o espaço.',
   'Rescheduling closed': 'O prazo para remarcar pelo app já passou. Fale com o espaço.',
@@ -224,6 +228,7 @@ function toLocal(iso: string) {
 function toAppointment(row: ApiAppointment): Appointment {
   return {
     id: row.id,
+    rentalDates: row.rentalDates,
     serviceId: row.service.id,
     serviceName: row.service.name,
     category: row.service.category ?? '',

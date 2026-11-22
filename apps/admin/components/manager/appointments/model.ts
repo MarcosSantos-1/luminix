@@ -1,5 +1,6 @@
 /** One appointment as Início, Agenda and the appointment sheet show it. */
 export type AppointmentView = {
+  rentalDates?: string[] | null
   id: string
   startsAt: string
   endsAt?: string | null

@@ -329,7 +329,10 @@ export function DateInputField({
           aria-label={
             common.ariaLabel ?? (typeof common.label === 'string' ? common.label : undefined)
           }
-          onChange={(next) => onChange(next ? next.toString() : '')}
+          onChange={(next) => {
+            const day = next?.toString() ?? ''
+            if (!day || ((!min || day >= min) && (!max || day <= max))) onChange(day)
+          }}
         >
           <FieldLabel label={common.label} help={common.help} isRequired={common.isRequired} />
           <DateField.Group fullWidth>

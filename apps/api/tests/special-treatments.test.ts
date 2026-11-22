@@ -131,6 +131,27 @@ it('persists dismissal, resumes equipment selections and materializes one shared
       )
     ).rows.every((row) => row.booking_mode === 'manual_release'),
   ).toBe(true)
+  const equipment = (await call('GET', 'catalog/extras')).json().equipment[0]
+  expect((await call('GET', 'dashboard')).json().missingRentals).toEqual([
+    'Laser Axilas',
+    'Laser Pernas',
+  ])
+  expect(
+    (
+      await call('POST', `catalog/equipment/${equipment.id}/rentals`, {
+        startsOn: '2030-02-04',
+        endsOn: '2030-02-05',
+      })
+    ).statusCode,
+  ).toBe(201)
+  expect((await call('GET', 'dashboard')).json().missingRentals).toEqual([])
+  const agenda = (
+    await call('GET', 'agenda?from=2030-02-04T00:00:00Z&to=2030-02-06T00:00:00Z')
+  ).json()
+  expect(agenda.services.map((item: { rental_dates: string[] }) => item.rental_dates)).toEqual([
+    ['2030-02-04', '2030-02-05'],
+    ['2030-02-04', '2030-02-05'],
+  ])
   await db.query("SELECT set_config('luminix.clinic_id', $1, false)", [otherClinic])
   expect(
     (await db.query('SELECT name FROM luminix.resources WHERE clinic_id = $1', [clinic])).rows,

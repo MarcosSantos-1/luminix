@@ -229,13 +229,7 @@ export function AppointmentSheet({
               size="lg"
               viewable
             />
-            <span className="sh-who">
-              {shown.client}
-              <small>
-                {shown.service}
-                {shown.professional ? ` · ${shown.professional}` : ''}
-              </small>
-            </span>
+            <span className="sh-who">{shown.client}</span>
             <span
               className={`sh-status is-${shown.checkedInAt && isOpen(shown.status) ? 'here' : shown.status}`}
             >
@@ -363,7 +357,13 @@ function SheetBody({
   const [error, setError] = useState('')
   const [detail, setDetail] = useState<ClientDetail | null>(null)
   const [move, setMove] = useState({
-    date: localDate(item.startsAt),
+    date: item.rentalDates
+      ? (item.rentalDates.find((day) => day === localDate(item.startsAt) && day >= today) ??
+        item.rentalDates.find((day) => day >= today) ??
+        '')
+      : localDate(item.startsAt) < today
+        ? today
+        : localDate(item.startsAt),
     time: clock(item.startsAt),
   })
   const [warnings, setWarnings] = useState<BookingWarning[]>([])
@@ -418,9 +418,11 @@ function SheetBody({
         return
       }
       setError(
-        body?.error === 'Outside manager booking window'
-          ? 'O atendimento precisa caber entre 2 horas antes da abertura e 4 horas depois do fechamento.'
-          : 'Não foi possível salvar. Tente de novo.',
+        body?.error === 'Equipment unavailable'
+          ? 'O aparelho não está disponível neste dia. Escolha outra data de locação.'
+          : body?.error === 'Outside manager booking window'
+            ? 'O atendimento precisa caber entre 2 horas antes da abertura e 4 horas depois do fechamento.'
+            : 'Não foi possível salvar. Tente de novo.',
       )
     } finally {
       setBusy(false)
@@ -438,7 +440,12 @@ function SheetBody({
     )
 
   function submitMove(confirmed: boolean) {
-    if (!move.date || !move.time) {
+    if (
+      !move.date ||
+      move.date < today ||
+      !move.time ||
+      (item.rentalDates && !item.rentalDates.includes(move.date))
+    ) {
       setError('Escolha a nova data e o horário.')
       return
     }
@@ -508,11 +515,23 @@ function SheetBody({
         <span className="sh-summary-icon" aria-hidden>
           <CalendarDays size={22} />
         </span>
-        <strong className="sh-when">
-          {localDate(item.startsAt) === today ? 'Hoje' : dayLabel(item.startsAt)},{' '}
-          {clock(item.startsAt)}
-          {item.endsAt ? `–${clock(item.endsAt)}` : ''}
-        </strong>
+        <div className="sh-visit">
+          <strong className="sh-when">
+            {localDate(item.startsAt) === today ? 'Hoje' : dayLabel(item.startsAt)},{' '}
+            {clock(item.startsAt)}
+            {item.endsAt ? `–${clock(item.endsAt)}` : ''}
+          </strong>
+          <span>
+            <Layers size={15} aria-hidden />
+            {item.service}
+          </span>
+          {item.professional && (
+            <span>
+              <UserRound size={15} aria-hidden />
+              {item.professional}
+            </span>
+          )}
+        </div>
         {item.priceCents != null ? (
           <span className="sh-money">
             <strong>
@@ -629,8 +648,7 @@ function SheetBody({
       ) : null}
 
       {view === 'main' && access.manage ? (
-        <section className="sh-actions" aria-labelledby="sh-actions-title">
-          <h3 id="sh-actions-title">Ações</h3>
+        <section className="sh-actions" aria-label="Ações do atendimento">
           {open ? (
             <>
               {needsCheckIn ? (
@@ -702,14 +720,29 @@ function SheetBody({
           {back}
           <h3>Para quando?</h3>
           <div className="apt-step-fields">
-            <DateInputField
-              label="Novo dia"
-              value={move.date}
-              onChange={(date) => {
-                setMove({ ...move, date })
-                setWarnings([])
-              }}
-            />
+            {item.rentalDates ? (
+              <SelectField
+                label="Dia com aparelho disponível"
+                value={move.date}
+                options={item.rentalDates
+                  .filter((day) => day >= today)
+                  .map((day) => ({ id: day, label: dateBr(day) }))}
+                onChange={(date) => {
+                  setMove({ ...move, date })
+                  setWarnings([])
+                }}
+              />
+            ) : (
+              <DateInputField
+                min={today}
+                label="Novo dia"
+                value={move.date}
+                onChange={(date) => {
+                  setMove({ ...move, date })
+                  setWarnings([])
+                }}
+              />
+            )}
             <TimeInputField
               label="Novo horário"
               value={move.time}

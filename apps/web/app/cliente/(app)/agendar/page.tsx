@@ -41,7 +41,7 @@ export default function BookingPage() {
   const [params, setParams] = useState<{ service: string | null; move: string | null } | null>(null)
   const [serviceId, setServiceId] = useState<string | null>(null)
   const [professional, setProfessional] = useState<string | null>(null)
-  const [day, setDay] = useState(() => dayKey(new Date()))
+  const [chosenDay, setDay] = useState(() => dayKey(new Date()))
   const [time, setTime] = useState<string | null>(null)
   const [method, setMethod] = useState<Payment['method']>('local')
   const [availability, setAvailability] = useState<{
@@ -67,7 +67,16 @@ export default function BookingPage() {
   const slug = space?.summary.slug ?? null
   const moving = space?.appointments.find((item) => item.id === params?.move) ?? null
   const chosenId = serviceId ?? moving?.serviceId ?? params?.service ?? null
-  const service = clinic?.services.find((item) => item.id === chosenId) ?? null
+  const allServices = clinic?.services ?? []
+  const bookableServices = allServices.filter(
+    (item) => !item.rentalDates || item.rentalDates.some((date) => date >= dayKey(new Date())),
+  )
+  const service =
+    (moving ? allServices : bookableServices).find((item) => item.id === chosenId) ?? null
+  const dates = (moving?.rentalDates ?? service?.rentalDates)?.filter(
+    (value) => value >= dayKey(new Date()),
+  )
+  const day = dates?.length && !dates.includes(chosenDay) ? dates[0] : chosenDay
   const key = slug && chosenId ? `${slug}|${chosenId}|${day}|${moving?.id ?? ''}` : null
 
   useEffect(() => {
@@ -245,9 +254,11 @@ export default function BookingPage() {
           </div>
         ) : status === 'error' ? (
           <Empty title="Não foi possível carregar os serviços" />
+        ) : clinic && !bookableServices.length ? (
+          <Empty title="Nenhum serviço com datas disponíveis para agendar" />
         ) : (
           <ul className="ca-pick-list">
-            {(clinic?.services ?? []).map((item) => (
+            {bookableServices.map((item) => (
               <li key={item.id}>
                 <button
                   type="button"
@@ -327,7 +338,7 @@ export default function BookingPage() {
             </p>
           )}
           <div className="ca-days" role="group" aria-label="Dia">
-            {days
+            {(dates ? dates.map((value) => new Date(value + 'T12:00:00')) : days)
               .filter((date) => !freeDays || dayKey(date) <= freeDays)
               .map((date) => {
                 const value = dayKey(date)
@@ -344,7 +355,11 @@ export default function BookingPage() {
                     <small>
                       {date.toLocaleDateString('pt-BR', { weekday: 'short' }).replace('.', '')}
                     </small>
-                    <b>{date.getDate()}</b>
+                    <b>
+                      {dates
+                        ? date.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })
+                        : date.getDate()}
+                    </b>
                   </button>
                 )
               })}

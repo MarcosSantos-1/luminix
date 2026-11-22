@@ -596,6 +596,7 @@ function PostEditor({
         <div className="mk-when">
           <DateInputField
             label="Data"
+            min={iso(new Date())}
             value={post.scheduledOn ?? ''}
             onChange={(scheduledOn) =>
               set({

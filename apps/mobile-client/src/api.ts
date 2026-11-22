@@ -24,6 +24,7 @@ export type Service = {
   description: string | null
   priceCents: number
   priceType: 'fixed' | 'from' | 'quote'
+  rentalDates?: string[] | null
   durationMinutes: number
   promoPercent?: number | null
   promoPriceCents?: number | null

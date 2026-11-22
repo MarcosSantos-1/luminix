@@ -111,7 +111,7 @@ export default function Book() {
   const moving = appointments?.find((item) => item.id === params.remarcar) ?? null
   const [serviceId, setServiceId] = useState<string | null>(params.servico ?? null)
   const [professional, setProfessional] = useState<string | null>(null)
-  const [day, setDay] = useState(() => dayKey(new Date()))
+  const [chosenDay, setDay] = useState(() => dayKey(new Date()))
   const [time, setTime] = useState<string | null>(null)
   const [method, setMethod] = useState<PaymentMethod>('local')
   const [result, setResult] = useState<{ key: string; data: Availability | null } | null>(null)
@@ -122,7 +122,16 @@ export default function Book() {
   const [done, setDone] = useState<{ title: string; body: string } | null>(null)
 
   const chosen = moving?.serviceId ?? serviceId
-  const service = services?.find((item) => item.id === chosen) ?? null
+  const allServices = services ?? []
+  const bookableServices = allServices.filter(
+    (item) => !item.rentalDates || item.rentalDates.some((date) => date >= dayKey(new Date())),
+  )
+  const service =
+    (moving ? allServices : bookableServices).find((item) => item.id === chosen) ?? null
+  const dates = (moving?.rentalDates ?? service?.rentalDates)?.filter(
+    (value) => value >= dayKey(new Date()),
+  )
+  const day = dates?.length && !dates.includes(chosenDay) ? dates[0] : chosenDay
   const key = chosen ? `${chosen}|${day}|${moving?.id ?? ''}` : null
 
   useEffect(() => {
@@ -343,8 +352,10 @@ export default function Book() {
                   opacity: 0.6,
                 }}
               />
+            ) : !bookableServices.length ? (
+              <Text style={type.body}>Nenhum serviço com datas disponíveis para agendar.</Text>
             ) : (
-              services.map((item) => (
+              bookableServices.map((item) => (
                 <Press
                   key={item.id}
                   onPress={() => {
@@ -478,7 +489,7 @@ export default function Book() {
               style={{ marginHorizontal: -20 }}
               contentContainerStyle={{ paddingHorizontal: 20, gap: 8, paddingVertical: 4 }}
             >
-              {days
+              {(dates ? dates.map((value) => new Date(value + 'T12:00:00')) : days)
                 .filter((date) => !current?.lastDate || dayKey(date) <= current.lastDate)
                 .map((date) => {
                   const value = dayKey(date)
@@ -518,7 +529,9 @@ export default function Book() {
                           color: active ? '#fff' : colors.ink,
                         }}
                       >
-                        {date.getDate()}
+                        {dates
+                          ? date.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })
+                          : date.getDate()}
                       </Text>
                     </Press>
                   )

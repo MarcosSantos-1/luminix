@@ -5,6 +5,7 @@ export type PublicService = {
   description: string | null
   priceCents: number
   priceType: 'fixed' | 'from' | 'quote'
+  rentalDates?: string[] | null
   durationMinutes: number
   bookingMode: string
   /** Active promotion shown on the site (percent off), when any. */

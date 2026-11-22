@@ -805,7 +805,26 @@ function qaAgenda() {
         photo_url: index === 0 ? qaPhoto : null,
       })),
     ],
-    services: services.map(([id, name, , price_cents], index) => ({
+    services: services.map(([id, name, , price_cents, mode], index) => ({
+      rental_dates:
+        mode === 'manual_release'
+          ? qaExtras.equipment.flatMap((device) =>
+              device.serviceIds.includes(id)
+                ? device.rentals.flatMap((rental) =>
+                    Array.from(
+                      {
+                        length:
+                          1 + (Date.parse(rental.endsOn) - Date.parse(rental.startsOn)) / 86400000,
+                      },
+                      (_, offset) =>
+                        new Date(Date.parse(rental.startsOn) + offset * 86400000)
+                          .toISOString()
+                          .slice(0, 10),
+                    ),
+                  )
+                : [],
+            )
+          : null,
       id,
       name,
       duration_minutes: index === 1 ? 240 : 60,

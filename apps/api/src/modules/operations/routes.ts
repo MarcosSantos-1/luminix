@@ -1,3 +1,4 @@
+import { appointmentRentalDates } from './rental-calendar.js'
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify'
 import {
   clientVoucherEmail,
@@ -97,7 +98,7 @@ function fitsPeriod(start: Date, end: Date, timezone: string, periods: Period[])
   return periods.some((period) => period.start <= localStart.clock && period.end >= localEnd.clock)
 }
 
-type BookingWarning = { code: WarningCode; title: string; detail: string }
+type BookingWarning = { conflictIds?: string[]; code: WarningCode; title: string; detail: string }
 
 type ClosureKind =
   | 'vacation'
@@ -135,7 +136,7 @@ async function bookingWarnings(
     endsAt: Date
     timezone: string
     professionalId: string | null
-    serviceId?: string
+    serviceId: string
   },
   ignoreAppointmentId: string | null,
 ): Promise<BookingWarning[]> {
@@ -145,12 +146,21 @@ async function bookingWarnings(
     .slice(0, 10)
   const hours = await connection.query(
     `SELECT dates.day::text, coalesce(o.is_available, w.is_available, false) AS is_available,
-            coalesce(o.periods, w.periods, '[]'::jsonb) AS periods
+            coalesce(o.periods, w.periods, '[]'::jsonb) AS periods,
+            cardinality(luminix.service_rental_days($1,$4,$2::date,$5::date)) < ($5::date - $2::date + 1) AS missing_equipment
        FROM (VALUES ($2::date), ($3::date)) AS dates(day)
        LEFT JOIN luminix.schedule_overrides o ON o.clinic_id = $1 AND o.local_date = dates.day
        LEFT JOIN luminix.weekly_availability w ON w.clinic_id = $1 AND w.weekday = extract(dow FROM dates.day)`,
-    [clinicId, local.date, previousDate],
+    [
+      clinicId,
+      local.date,
+      previousDate,
+      slot.serviceId,
+      localDateTime(new Date(slot.endsAt.getTime() - 1), slot.timezone).date,
+    ],
   )
+  if (hours.rows[0]?.missing_equipment)
+    throw Object.assign(new Error('Equipment unavailable'), { code: '55000' })
   const availability = hours.rows.find((row) => row.day === local.date)
   const previous = hours.rows.find((row) => row.day === previousDate)
   const periods = (availability?.periods ?? []) as Period[]
@@ -169,12 +179,14 @@ async function bookingWarnings(
       throw Object.assign(new Error('Outside manager booking window'), { code: '55000' })
   }
   const overlap = await connection.query(
-    `SELECT id FROM luminix.appointments
-      WHERE clinic_id = $1 AND status = ANY($2::text[])
+    `SELECT a.id, c.display_name, s.name, a.starts_at, a.ends_at FROM luminix.appointments a
+       JOIN luminix.clinic_clients c ON c.clinic_id = a.clinic_id AND c.id = a.clinic_client_id
+       JOIN luminix.services s ON s.clinic_id = a.clinic_id AND s.id = a.service_id
+      WHERE a.clinic_id = $1 AND a.status = ANY($2::text[])
         AND starts_at < $4 AND ends_at > $3
-        AND ($5::uuid IS NULL OR professional_id = $5::uuid)
-        AND ($6::uuid IS NULL OR id <> $6::uuid)
-      LIMIT 5`,
+        AND ($5::uuid IS NULL OR a.professional_id IS NULL OR a.professional_id = $5::uuid)
+        AND ($6::uuid IS NULL OR a.id <> $6::uuid)
+      ORDER BY a.starts_at, a.id`,
     [
       clinicId,
       activeAppointmentStatuses,
@@ -193,30 +205,7 @@ async function bookingWarnings(
       ORDER BY c.professional_id NULLS FIRST LIMIT 1`,
     [clinicId, local.date, slot.professionalId],
   )
-  // Services that need a rented device: only on the days it is rented.
-  const equipment = slot.serviceId
-    ? (
-        await connection.query(
-          `SELECT r.name,
-                  EXISTS (SELECT 1 FROM luminix.resource_rentals rr
-                           WHERE rr.clinic_id = r.clinic_id AND rr.resource_id = r.id
-                             AND $3::date BETWEEN rr.starts_on AND rr.ends_on) AS rented
-             FROM luminix.services s
-             JOIN luminix.service_resources sr ON sr.clinic_id = s.clinic_id AND sr.service_id = s.id
-             JOIN luminix.resources r ON r.clinic_id = sr.clinic_id AND r.id = sr.resource_id
-            WHERE s.clinic_id = $1 AND s.id = $2 AND s.booking_mode = 'manual_release'
-              AND r.type = 'equipment' AND r.status = 'active'`,
-          [clinicId, slot.serviceId, local.date],
-        )
-      ).rows
-    : []
   const warnings: BookingWarning[] = []
-  if (equipment.length && !equipment.some((row) => row.rented))
-    warnings.push({
-      code: 'equipment',
-      title: 'Aparelho não alugado neste dia',
-      detail: `${equipment.map((row) => String(row.name)).join(' ou ')} não tem aluguel marcado nesta data.`,
-    })
   const closure = closures.rows[0]
   if (closure)
     warnings.push({
@@ -243,9 +232,10 @@ async function bookingWarnings(
     })
   if (overlap.rows.length)
     warnings.push({
+      conflictIds: overlap.rows.map((row) => String(row.id)),
       code: 'overlap',
       title: 'Conflito de agenda',
-      detail: `Há ${overlap.rows.length} atendimento(s) ocupando parte deste horário.`,
+      detail: `${overlap.rows.map((row) => `${row.name} · ${row.display_name} (${localDateTime(new Date(String(row.starts_at)), slot.timezone).clock}–${localDateTime(new Date(String(row.ends_at)), slot.timezone).clock})`).join(' / ')}`,
     })
   return warnings
 }
@@ -946,6 +936,7 @@ export async function operationRoutes(
                          AND m.status = 'ready') AS photo_key,
                       luminix.clinic_client_has_account_photo(c.clinic_id, c.id) AS account_photo,
                       s.id AS service_id, s.name AS service_name, s.price_type,
+                      ${appointmentRentalDates} AS rental_dates,
                       s.duration_minutes, p.id AS professional_id, p.display_name AS professional_name,
                       luminix.appointment_paid_cents(a.clinic_id, a.id) AS paid_cents,
                       (SELECT cp.name FROM luminix.client_packages cp
@@ -974,7 +965,7 @@ export async function operationRoutes(
             [tenant.clinicId, can.has('client:read')],
           ),
           connection.query(
-            `SELECT id, name, duration_minutes, price_cents, price_type FROM luminix.services
+            `SELECT id, name, duration_minutes, price_cents, price_type, luminix.service_rental_days(clinic_id, id, luminix.clinic_today(), 'infinity') AS rental_dates FROM luminix.services
                 WHERE clinic_id = $1 AND status = 'active' ORDER BY lower(name) LIMIT 200`,
             [tenant.clinicId],
           ),
@@ -1097,6 +1088,7 @@ export async function operationRoutes(
       localStartsAt: string
       notes?: string
       confirmedWarnings?: WarningCode[]
+      confirmedOverlapIds?: string[]
       clientPackageId?: string
       voucherId?: string
     }
@@ -1117,6 +1109,11 @@ export async function operationRoutes(
             localStartsAt: { type: 'string', pattern: localStartPattern },
             notes: { type: 'string', maxLength: 4000 },
             confirmedWarnings: confirmedWarningsSchema,
+            confirmedOverlapIds: {
+              type: 'array',
+              maxItems: 100,
+              items: { type: 'string', pattern: uuid },
+            },
             clientPackageId: { type: 'string', pattern: uuid },
             voucherId: { type: 'string', pattern: uuid },
           },
@@ -1188,6 +1185,9 @@ export async function operationRoutes(
           null,
         )
         const confirmed = new Set(request.body.confirmedWarnings ?? [])
+        const overlap = warnings.find((warning) => warning.code === 'overlap')
+        if (overlap?.conflictIds?.every((id) => request.body.confirmedOverlapIds?.includes(id)))
+          confirmed.add('overlap')
         if (warnings.some((warning) => !confirmed.has(warning.code)))
           return reply.code(409).send({ error: 'Appointment requires confirmation', warnings })
         const result = await connection.query(

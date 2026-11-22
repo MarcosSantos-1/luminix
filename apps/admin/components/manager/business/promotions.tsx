@@ -481,13 +481,14 @@ export function PromotionEditor({
           )}
           <DateInputField
             label="Começa em"
+            min={today}
             value={promotion.startsOn}
             onChange={(startsOn) => set({ startsOn: startsOn || today })}
           />
           <DateInputField
             label="Termina em (opcional)"
             value={promotion.endsOn ?? ''}
-            min={promotion.startsOn}
+            min={promotion.startsOn > today ? promotion.startsOn : today}
             error={showErrors ? errors.dates || undefined : undefined}
             description="Deixe vazio para não ter data de fim."
             onChange={(endsOn) => set({ endsOn: endsOn || null })}

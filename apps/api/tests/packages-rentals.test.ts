@@ -261,6 +261,21 @@ describe('pacotes', () => {
         localStartsAt: `2030-04-${day}T10:00`,
         clientPackageId: clientCombo,
       })
+    expect((await book('04')).json().error).toBe('Equipment unavailable')
+    const device = (
+      await call('pack-a', 'POST', clinicA, 'catalog/equipment', {
+        name: 'Locação para o combo',
+        serviceIds: [deviceServiceA],
+      })
+    ).json().id
+    expect(
+      (
+        await call('pack-a', 'POST', clinicA, `catalog/equipment/${device}/rentals`, {
+          startsOn: '2030-04-04',
+          endsOn: '2030-04-06',
+        })
+      ).statusCode,
+    ).toBe(201)
     const first = await book('04')
     expect(first.statusCode).toBe(201)
     // 90 minutes: the combo's time, not Drenagem's 60.
@@ -288,6 +303,7 @@ describe('pacotes', () => {
       )
     ).json()
     expect(agenda.appointments[0].combo_name).toBe('Combo verão')
+    expect(agenda.appointments[0].rental_dates).toEqual(['2030-04-04', '2030-04-05', '2030-04-06'])
     // Stock: every treatment's recipe, summed; the per-visit disposables count once.
     const product = (name: string, category: string, both: boolean) =>
       call('pack-a', 'PUT', clinicA, `inventory/items/${randomUUID()}`, {
@@ -314,7 +330,7 @@ describe('pacotes', () => {
 })
 
 describe('aparelhos alugados', () => {
-  it('warns the manager outside the rental days and books freely inside them', async () => {
+  it('blocks manager overrides and rescheduling outside the rental days', async () => {
     const created = await call('pack-a', 'POST', clinicA, 'catalog/equipment', {
       name: 'Laser alugado',
       supplier: 'Loja X',
@@ -327,11 +343,10 @@ describe('aparelhos alugados', () => {
       clientId: clientA,
       serviceId: deviceServiceA,
       localStartsAt: '2030-03-04T10:00',
+      confirmedWarnings: ['equipment'],
     })
     expect(outside.statusCode).toBe(409)
-    expect(outside.json().warnings.map((item: { code: string }) => item.code)).toContain(
-      'equipment',
-    )
+    expect(outside.json()).toEqual({ error: 'Equipment unavailable' })
     const rental = await call('pack-a', 'POST', clinicA, `catalog/equipment/${equipment}/rentals`, {
       startsOn: '2030-03-04',
       endsOn: '2030-03-04',
@@ -348,6 +363,18 @@ describe('aparelhos alugados', () => {
     expect(inside.statusCode).toBe(201)
     expect(
       (
+        await call(
+          'pack-a',
+          'PUT',
+          clinicA,
+          `appointments/${inside.json().appointment.id}/reschedule`,
+          { localStartsAt: '2030-03-05T11:00', confirmedWarnings: ['equipment'] },
+        )
+      ).json(),
+    ).toEqual({ error: 'Equipment unavailable' })
+
+    expect(
+      (
         await call('pack-b', 'POST', clinicB, `catalog/equipment/${equipment}/rentals`, {
           startsOn: '2030-03-05',
           endsOn: '2030-03-05',
@@ -355,22 +382,18 @@ describe('aparelhos alugados', () => {
       ).statusCode,
     ).toBe(404)
     const extras = (await call('pack-a', 'GET', clinicA, 'catalog/extras')).json()
-    expect(extras.equipment[0]).toMatchObject({
+    const laser = extras.equipment.find((item: { id: string }) => item.id === equipment)
+    expect(laser).toMatchObject({
       name: 'Laser alugado',
       serviceIds: [deviceServiceA],
     })
-    expect(extras.equipment[0].rentals[0]).toMatchObject({
+    expect(laser.rentals[0]).toMatchObject({
       startsOn: '2030-03-04',
       inFinance: true,
     })
     expect(
       (
-        await call(
-          'pack-a',
-          'POST',
-          clinicA,
-          `catalog/rentals/${extras.equipment[0].rentals[0].id}/remove`,
-        )
+        await call('pack-a', 'POST', clinicA, `catalog/rentals/${laser.rentals[0].id}/remove`)
       ).json(),
     ).toMatchObject({ removed: true, financeEntryVoided: true })
   })

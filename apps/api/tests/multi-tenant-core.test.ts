@@ -165,6 +165,7 @@ describe('versioned core migration', () => {
       { name: '0053_team_access_level.sql' },
       { name: '0054_delete_rented_equipment.sql' },
       { name: '0055_client_vouchers.sql' },
+      { name: '0056_rental_calendar_and_staff_records.sql' },
     ])
   })
 
@@ -372,7 +373,7 @@ describe('authorized database scope', () => {
     }>(
       "SELECT relname, relrowsecurity, relforcerowsecurity FROM pg_class WHERE relnamespace = 'luminix'::regnamespace AND relkind = 'r' AND relname NOT IN ('identities', 'client_profiles', 'permissions')",
     )
-    expect(tables.rows).toHaveLength(49)
+    expect(tables.rows).toHaveLength(50)
     expect(tables.rows.every((row) => row.relrowsecurity && row.relforcerowsecurity)).toBe(true)
   })
 

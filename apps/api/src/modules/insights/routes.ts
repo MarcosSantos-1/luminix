@@ -1,3 +1,4 @@
+import { appointmentRentalDates } from '../operations/rental-calendar.js'
 import type { FastifyInstance } from 'fastify'
 import {
   clinicRefParams,
@@ -45,7 +46,7 @@ export async function insightsRoutes(
                      WHERE m.clinic_id = c.clinic_id AND m.id = c.photo_asset_id
                        AND m.status = 'ready') AS photo_key,
                     luminix.clinic_client_has_account_photo(c.clinic_id, c.id) AS account_photo,
-                    s.name AS service, s.price_type, p.display_name AS professional,
+                    s.name AS service, ${appointmentRentalDates} AS rental_dates, s.price_type, p.display_name AS professional,
                     luminix.appointment_paid_cents(a.clinic_id, a.id) AS paid_cents
                FROM luminix.appointments a
                JOIN luminix.clinic_clients c ON c.clinic_id = a.clinic_id AND c.id = a.clinic_client_id
@@ -70,7 +71,7 @@ export async function insightsRoutes(
                      WHERE m.clinic_id = c.clinic_id AND m.id = c.photo_asset_id
                        AND m.status = 'ready') AS photo_key,
                     luminix.clinic_client_has_account_photo(c.clinic_id, c.id) AS account_photo,
-                    s.name AS service, s.price_type, p.display_name AS professional,
+                    s.name AS service, ${appointmentRentalDates} AS rental_dates, s.price_type, p.display_name AS professional,
                     luminix.appointment_paid_cents(a.clinic_id, a.id) AS paid_cents
                FROM luminix.appointments a
                JOIN luminix.clinic_clients c ON c.clinic_id = a.clinic_id AND c.id = a.clinic_client_id
@@ -108,6 +109,7 @@ export async function insightsRoutes(
           notes: row.notes ? String(row.notes) : null,
           warnings: (row.override_reasons ?? []) as string[],
           service: String(row.service),
+          rentalDates: row.rental_dates,
           professional: row.professional ? String(row.professional) : null,
           priceCents: can.has('finance:manage') ? toNumber(row.price_cents) : null,
           paid: isPaid(row),
@@ -119,6 +121,16 @@ export async function insightsRoutes(
         })
         const result: Record<string, unknown> = {
           today,
+          missingRentals: can.has('service:manage')
+            ? (
+                await connection.query(
+                  `SELECT name FROM luminix.services WHERE clinic_id = $1 AND status = 'active'
+              AND cardinality(luminix.service_rental_days(clinic_id,id,$2::date,'infinity')) = 0
+              ORDER BY name`,
+                  [tenant.clinicId, today],
+                )
+              ).rows.map((row) => row.name)
+            : [],
           appointments: await Promise.all(appointments.rows.map(view)),
           upcoming: await Promise.all(upcoming.rows.map(view)),
           upcomingWeek: toNumber(week.rows[0]?.upcoming),

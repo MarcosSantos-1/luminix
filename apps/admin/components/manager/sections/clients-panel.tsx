@@ -19,7 +19,8 @@ import {
   Phone,
   Plus,
   ShieldCheck,
-  Sparkles,
+  FileText,
+  Mail,
   TicketPercent,
   UserRound,
   UserRoundPlus,
@@ -1253,7 +1254,7 @@ function ClientProfile({
   }, [api, client.id, reloadPackages])
 
   const tabs: { id: ProfileTab; label: string; icon: ReactNode; count?: number }[] = [
-    { id: 'cover', label: 'Resumo', icon: <Sparkles size={15} aria-hidden /> },
+    { id: 'cover', label: 'Resumo', icon: <FileText size={15} aria-hidden /> },
     { id: 'data', label: 'Dados', icon: <IdCard size={15} aria-hidden /> },
     {
       id: 'history',
@@ -1366,6 +1367,16 @@ function ClientProfile({
               <button type="button" onClick={onBook} disabled={client.status !== 'active'}>
                 <CalendarPlus size={20} aria-hidden /> Agendar
               </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setTab('data')
+                  setShowAnamnesis(true)
+                  requestAnimationFrame(() => document.getElementById('clinic-intake')?.focus())
+                }}
+              >
+                <ClipboardCheck size={20} aria-hidden /> Anamnese
+              </button>
               {onVoucher ? (
                 <button type="button" onClick={onVoucher}>
                   <Gift size={20} aria-hidden /> Voucher
@@ -1383,20 +1394,28 @@ function ClientProfile({
 
       {tab === 'data' ? (
         <section className="sh-actions cpf-data">
-          <h3>Dados pessoais</h3>
+          <h3>
+            <IdCard size={19} aria-hidden /> Dados pessoais
+          </h3>
           <dl className="apt-client">
             <div>
-              <dt>WhatsApp</dt>
+              <dt>
+                <Phone size={15} aria-hidden /> WhatsApp
+              </dt>
               <dd>
                 {client.contact_phone ? formatBrPhone(client.contact_phone) : 'Não informado'}
               </dd>
             </div>
             <div>
-              <dt>E-mail</dt>
+              <dt>
+                <Mail size={15} aria-hidden /> E-mail
+              </dt>
               <dd>{client.contact_email ?? 'Não informado'}</dd>
             </div>
             <div>
-              <dt>Nascimento</dt>
+              <dt>
+                <Cake size={15} aria-hidden /> Nascimento
+              </dt>
               <dd>
                 {birth
                   ? `${birth.split('-').reverse().join('/')} · ${ageOf(birth)} anos`
@@ -1404,7 +1423,9 @@ function ClientProfile({
               </dd>
             </div>
             <div>
-              <dt>Sexo biológico</dt>
+              <dt>
+                <UserRound size={15} aria-hidden /> Sexo biológico
+              </dt>
               <dd>
                 {client.sex === 'female'
                   ? 'Feminino'
@@ -1414,19 +1435,27 @@ function ClientProfile({
               </dd>
             </div>
             <div>
-              <dt>CPF</dt>
+              <dt>
+                <IdCard size={15} aria-hidden /> CPF
+              </dt>
               <dd>{client.tax_id_masked ?? 'Não informado'}</dd>
             </div>
             <div>
-              <dt>Mensagens</dt>
+              <dt>
+                <MessageCircle size={15} aria-hidden /> Mensagens
+              </dt>
               <dd>{client.marketing_opt_in ? 'Aceita receber' : 'Não autorizou'}</dd>
             </div>
             <div>
-              <dt>Conta Luminix</dt>
+              <dt>
+                <ShieldCheck size={15} aria-hidden /> Conta Luminix
+              </dt>
               <dd>{client.linked ? 'Conectada' : 'Não tem'}</dd>
             </div>
             <div>
-              <dt>Cuidados</dt>
+              <dt>
+                <NotebookPen size={15} aria-hidden /> Cuidados
+              </dt>
               <dd>{client.notes || 'Nada anotado'}</dd>
             </div>
           </dl>
@@ -1466,13 +1495,18 @@ function ClientProfile({
             </p>
           ) : null}
           {showAnamnesis ? (
-            <AnamnesisTab
-              api={api}
-              client={client}
-              detail={detail}
-              requiredLevel={requiredLevel}
-              onSaved={onChanged}
-            />
+            <div id="clinic-intake" tabIndex={-1}>
+              <h3>
+                <ClipboardCheck size={19} aria-hidden /> Anamnese da clínica
+              </h3>
+              <AnamnesisTab
+                api={api}
+                client={client}
+                detail={detail}
+                requiredLevel={requiredLevel}
+                onSaved={onChanged}
+              />
+            </div>
           ) : null}
         </section>
       ) : null}
@@ -1657,31 +1691,30 @@ function AnamnesisTab({
               : `Este espaço pede a ${levelNames[requiredLevel].toLowerCase()}.`}
           </small>
         </div>
-        {detail.shared ? null : (
-          <Button
-            size="sm"
-            variant={state === 'ok' ? 'secondary' : 'primary'}
-            onPress={() =>
-              setFilling({
-                index: 0,
-                consent: false,
-                answers: {
-                  ...(record?.answers ?? {}),
-                  ...(client.sex && !record ? { sex: client.sex } : {}),
-                  ...(client.birth_date && !record
-                    ? { birthDate: client.birth_date.slice(0, 10) }
-                    : {}),
-                },
-              })
-            }
-          >
-            {record ? 'Atualizar' : 'Preencher agora'}
-          </Button>
-        )}
+        <Button
+          size="sm"
+          variant={state === 'ok' ? 'secondary' : 'primary'}
+          onPress={() =>
+            setFilling({
+              index: 0,
+              consent: false,
+              answers: {
+                ...(record?.answers ?? {}),
+                ...(client.sex && !record ? { sex: client.sex } : {}),
+                ...(client.birth_date && !record
+                  ? { birthDate: client.birth_date.slice(0, 10) }
+                  : {}),
+              },
+            })
+          }
+        >
+          {record ? 'Editar ficha da clínica' : 'Preencher ficha'}
+        </Button>
       </div>
       {detail.shared ? (
         <p className="apt-hint">
-          A cliente usa a ficha da própria conta Luminix: ela atualiza pelo app.
+          A cliente compartilha a própria ficha. As alterações da equipe ficam salvas somente nesta
+          clínica.
         </p>
       ) : null}
       {record ? <AnamnesisView record={record} /> : null}

@@ -921,3 +921,31 @@
     justify-content: center;
   }
 }
+
+.cpf-data h3,
+.cpf-data dt {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+.cpf-data .apt-client dt svg,
+.cpf-data h3 svg {
+  color: var(--space-highlight);
+  flex-shrink: 0;
+}
+.cpf-data .apt-client > div {
+  padding: 12px;
+  background: color-mix(in srgb, var(--space-accent) 6%, transparent);
+}
+#clinic-intake {
+  padding: 16px;
+  border: 1px solid var(--manager-border);
+  border-radius: 16px;
+  background: color-mix(in srgb, var(--space-highlight) 5%, transparent);
+}
+#clinic-intake .anm {
+  border: 0;
+}
+#clinic-intake .anm-status {
+  flex-wrap: wrap;
+}

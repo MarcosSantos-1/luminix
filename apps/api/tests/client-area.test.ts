@@ -207,6 +207,26 @@ describe('área do cliente', () => {
     })
   })
 
+  it('mantém a ficha compartilhada quando a clínica salva a sua versão', async () => {
+    const client = (await call('owner-a', 'GET', `/clinics/${clinicA}/clients`)).json().clients[0]
+    const saved = await call(
+      'owner-a',
+      'PUT',
+      `/clinics/${clinicA}/clients/${client.id}/anamnesis`,
+      {
+        level: 1,
+        consent: true,
+        answers: { ...basic, birthDate: '1991-04-03' },
+      },
+    )
+    expect(saved.statusCode).toBe(200)
+    const detail = (await call('owner-a', 'GET', `/clinics/${clinicA}/clients/${client.id}`)).json()
+    expect(detail.anamnesis.record.answers.birthDate).toBe('1991-04-03')
+    const me = (await call('cliente-1', 'GET', '/client/me')).json()
+    expect(me.profile.anamnesis.answers).toEqual(basic)
+    expect(me.spaces[0].ownAnamnesis).toBeNull()
+  })
+
   it('recusa espaço não vinculado e espaço não publicado', async () => {
     const date = nextWeekday()
     const other = await call(
@@ -409,6 +429,70 @@ describe('área do cliente', () => {
     const list = (await call('cliente-1', 'GET', `/client/spaces/${slugA}/appointments`)).json()
     expect(list.appointments[0]).toMatchObject({ status: 'canceled' })
     expect(list.appointments[0].previousStartsAt).toBeTruthy()
+  })
+
+  it('só oferece, agenda e remarca o serviço especial em dias de locação', async () => {
+    const date = nextWeekday()
+    const availableDate = new Date(Date.parse(date + 'T12:00:00Z') + 14 * 86400000)
+      .toISOString()
+      .slice(0, 10)
+    await db.exec('RESET ROLE')
+    const service = (
+      await connection.query(
+        `INSERT INTO luminix.services
+      (clinic_id,name,price_cents,duration_minutes,booking_mode)
+      VALUES($1,'Escova com vaporizador',10000,30,'manual_release') RETURNING id`,
+        [clinicA],
+      )
+    ).rows[0].id
+    await db.exec('SET ROLE luminix_api')
+    const equipment = (
+      await call('owner-a', 'POST', `/clinics/${clinicA}/catalog/equipment`, {
+        name: 'Laser de locação',
+        serviceIds: [service],
+      })
+    ).json().id
+    expect(
+      (
+        await call(
+          'owner-a',
+          'POST',
+          `/clinics/${clinicA}/catalog/equipment/${equipment}/rentals`,
+          {
+            startsOn: availableDate,
+            endsOn: availableDate,
+          },
+        )
+      ).statusCode,
+    ).toBe(201)
+    const publication = await call('cliente-1', 'GET', `/public/clinics/${slugA}`)
+    expect(
+      publication.json().clinic.services.find((item: { id: string }) => item.id === service)
+        .rentalDates,
+    ).toEqual([availableDate])
+    const base = `/client/spaces/${slugA}`
+    const slots = async (day: string) =>
+      (
+        await call('cliente-1', 'GET', base + `/availability?serviceId=${service}&date=${day}`)
+      ).json().slots
+    expect(Object.values(await slots(date)).flat()).toHaveLength(0)
+    expect(Object.values(await slots(availableDate)).flat()).toContain('09:00')
+    const book = (day: string) =>
+      call('cliente-1', 'POST', base + '/appointments', {
+        serviceId: service,
+        localStartsAt: day + 'T09:00',
+        paymentMethod: 'local',
+      })
+    expect((await book(date)).statusCode).toBe(409)
+    const booked = await book(availableDate)
+    expect(booked.statusCode, booked.body).toBe(201)
+    expect(
+      (
+        await call('cliente-1', 'POST', base + `/appointments/${booked.json().id}/reschedule`, {
+          localStartsAt: date + 'T09:00',
+        })
+      ).statusCode,
+    ).toBe(409)
   })
 
   it('ficha própria do espaço deixa de usar a ficha da conta', async () => {

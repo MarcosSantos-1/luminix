@@ -13,12 +13,11 @@ nenhum dos dois: o cadastro inicial só guardava o nome do aparelho ligado aos s
 ## Decisão
 
 - **Anamnese pela equipe:** mesmo roteiro de `packages/contracts/src/anamnesis.ts`, sem a etapa de
-  foto (a foto da ficha já existe no admin). Gravada em `clinic_clients.client_anamnesis` com
-  `anamnesis_filled_by = 'staff'` por `staff_save_client_anamnesis` (`client:manage`). Nunca
-  sobrescreve a ficha de uma cliente que compartilha a da própria conta (`anamnesis_shared`): 409.
-  A lista recebe só o resumo (nível, data, quem preencheu) por `clinic_client_anamnesis_summary`;
-  as respostas só saem no detalhe, por `staff_client_anamnesis`, que reautoriza `client:manage`.
-  Opcional no "Adicionar cliente" e disponível em Dados → Ver anamnese na ficha.
+  foto (a foto da ficha já existe no admin). A migration 0056 guarda as respostas da equipe em
+  `staff_anamneses`, isoladas por clínica. A ficha da conta e as respostas enviadas pela cliente
+  ao espaço continuam independentes. A leitura da equipe prioriza a versão clínica e usa a
+  ficha autorizada anterior quando ela ainda não existe. A lista expõe nível, data e autoria.
+  Ler respostas e gravar a versão clínica exigem `client:manage`. O atalho fica no Resumo e em Dados.
 - **Pacotes:** catálogo `service_packages` (um serviço, 2–100 sessões, preço, validade opcional).
   A venda (`client_packages`) copia nome, sessões e preço, e pode lançar a receita no Financeiro
   na mesma transação (`finance:manage`). Cada agendamento ligado (`appointments.client_package_id`)
@@ -27,9 +26,10 @@ nenhum dos dois: o cadastro inicial só guardava o nome do aparelho ligado aos s
   serviço, validade e saldo.
 - **Aparelhos alugados:** `resources` (tipo `equipment`) ganha fornecedor, custo de costume e
   status; `resource_rentals` guarda períodos de até 62 dias com custo opcional e a despesa
-  lançada no Financeiro. Serviços `manual_release` ligados a um aparelho passam a aceitar
-  autoagendamento **só nos dias de aluguel**; sem aparelho ligado continuam fora da agenda da
-  cliente, como antes. A gestora recebe o aviso `equipment` (chave mestra) fora desses dias.
+  lançada no Financeiro. A agenda usa os períodos de aluguel dos aparelhos ativos ligados ao serviço.
+  Equipe e clientes só podem marcar ou remarcar quando as datas de toda a visita estão cobertas.
+  Serviços com liberação manual sem aparelho ou sem aluguel ficam indisponíveis.
+  A mesma verificação cobre todos os tratamentos de um combo e ocorre na gravação do agendamento.
   Remover um aluguel anula a despesa ligada quando a pessoa pode mexer no Financeiro.
 - **Admin:** Serviços em abas (Serviços, Pacotes, Aparelhos alugados), pausados visíveis e
   esmaecidos com "Despausar", "Novo serviço" em etapas e tabela de preços em PDF (página de

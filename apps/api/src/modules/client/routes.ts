@@ -1,3 +1,4 @@
+import { appointmentRentalDates } from '../operations/rental-calendar.js'
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify'
 import type { SqlConnection } from '../../shared/database/migrations.js'
 import { createStaffAuthenticator, type AuthDependencies } from '../../shared/auth/staff-session.js'
@@ -188,6 +189,8 @@ function sqlFailure(error: unknown) {
   const code = (error as { code?: string })?.code
   if (code === '23P01' || message.includes('Slot taken'))
     return { status: 409, error: 'Slot taken' }
+  if (message.includes('Equipment unavailable'))
+    return { status: 409, error: 'Service unavailable' }
   if (message.includes('Cancellation closed')) return { status: 409, error: 'Cancellation closed' }
   if (message.includes('Rescheduling closed')) return { status: 409, error: 'Rescheduling closed' }
   if (code === '42501') return { status: 403, error: 'Access denied' }
@@ -394,7 +397,7 @@ export async function clientRoutes(app: FastifyInstance, dependencies: AuthDepen
         const { rows } = await connection.query(
           `SELECT a.id, a.starts_at, a.ends_at, a.status, a.booking_source, a.price_cents,
                   a.list_price_cents, a.previous_starts_at, a.rescheduled_at, a.updated_at,
-                  a.created_at, a.client_payment_method,
+                  a.created_at, a.client_payment_method, ${appointmentRentalDates} AS rental_dates,
                   s.id AS service_id, s.name AS service_name, s.category AS service_category,
                   p.id AS professional_id, p.display_name AS professional_name,
                   luminix.appointment_paid_cents(a.clinic_id, a.id) AS paid_cents
@@ -455,6 +458,7 @@ export async function clientRoutes(app: FastifyInstance, dependencies: AuthDepen
             createdAt: row.created_at,
             paymentMethod: row.client_payment_method,
             paid: isPaid(row),
+            rentalDates: row.rental_dates,
             service: { id: row.service_id, name: row.service_name, category: row.service_category },
             professional: row.professional_id
               ? { id: row.professional_id, name: row.professional_name }
@@ -520,22 +524,11 @@ export async function clientRoutes(app: FastifyInstance, dependencies: AuthDepen
     serviceId: string,
   ) {
     const weekday = new Date(`${date}T12:00:00Z`).getUTCDay()
-    // A service that depends on a device (manual_release) is only bookable on its rental days;
-    // without a linked device it stays off the client agenda, as before.
-    const device = (
-      await connection.query(
-        `SELECT s.booking_mode = 'manual_release' AS needs,
-                EXISTS (SELECT 1 FROM luminix.service_resources sr
-                          JOIN luminix.resources r ON r.clinic_id = sr.clinic_id AND r.id = sr.resource_id
-                          JOIN luminix.resource_rentals rr ON rr.clinic_id = r.clinic_id AND rr.resource_id = r.id
-                         WHERE sr.clinic_id = s.clinic_id AND sr.service_id = s.id
-                           AND r.type = 'equipment' AND r.status = 'active'
-                           AND $3::date BETWEEN rr.starts_on AND rr.ends_on) AS rented
-           FROM luminix.services s WHERE s.clinic_id = $1 AND s.id = $2`,
-        [scope.clinicId, serviceId, date],
-      )
-    ).rows[0]
-    const deviceMissing = device?.needs === true && device.rented !== true
+    const calendar = await connection.query(
+      'SELECT luminix.service_rental_days($1, $2, $3::date, $3::date) AS days',
+      [scope.clinicId, serviceId, date],
+    )
+    const deviceMissing = Array.isArray(calendar.rows[0]?.days) && !calendar.rows[0].days.length
     const [override, weekly, professionalDays, policy, busy, closures, ownDates] =
       await Promise.all([
         connection.query(
@@ -634,7 +627,7 @@ export async function clientRoutes(app: FastifyInstance, dependencies: AuthDepen
           if (!clash) result[professionalId].push(clock(start))
         }
     }
-    return { slots: result, lastDate: last }
+    return { slots: result, lastDate: last, deviceMissing }
   }
 
   async function acceptsInApp(connection: SqlConnection, scope: Scope) {
@@ -698,12 +691,24 @@ export async function clientRoutes(app: FastifyInstance, dependencies: AuthDepen
             !(await hasDevice(connection, scope!, String(service.id))))
         )
           return reply.code(404).send({ error: 'Service unavailable' })
+        const moving = request.query.ignore
+          ? (
+              await connection.query(
+                `SELECT extract(epoch FROM (ends_at - starts_at))/60 AS duration FROM luminix.appointments
+            WHERE clinic_id=$1 AND clinic_client_id=$2 AND service_id=$3 AND id=$4`,
+                [scope!.clinicId, scope!.clientId, service.id, request.query.ignore],
+              )
+            ).rows[0]
+          : null
+        if (request.query.ignore && !moving)
+          return reply.code(404).send({ error: 'Appointment not found' })
+        const durationMinutes = Number(moving?.duration ?? service.duration_minutes)
         const professionals = await professionalsFor(connection, scope!, String(service.id))
         const { slots, lastDate } = await freeSlots(
           connection,
           scope!,
           request.query.date,
-          Number(service.duration_minutes),
+          durationMinutes,
           professionals.length ? professionals.map((item) => item.id) : [''],
           request.query.ignore ?? null,
           String(service.id),
@@ -711,7 +716,7 @@ export async function clientRoutes(app: FastifyInstance, dependencies: AuthDepen
         return {
           date: request.query.date,
           lastDate,
-          durationMinutes: Number(service.duration_minutes),
+          durationMinutes,
           bookingMode: service.booking_mode,
           // 0 or 1 professional: the agenda is chosen for the client, no picker.
           choose: professionals.length > 1,
@@ -769,7 +774,7 @@ export async function clientRoutes(app: FastifyInstance, dependencies: AuthDepen
               : []
             : professionals.map((item) => item.id)
         if (!candidates.length) return reply.code(400).send({ error: 'Professional unavailable' })
-        const { slots } = await freeSlots(
+        const { slots, deviceMissing } = await freeSlots(
           connection,
           scope!,
           date,
@@ -778,6 +783,7 @@ export async function clientRoutes(app: FastifyInstance, dependencies: AuthDepen
           null,
           String(service.id),
         )
+        if (deviceMissing) return reply.code(409).send({ error: 'Service unavailable' })
         const professionalId = candidates.find((id) => slots[id]?.includes(time))
         if (professionalId === undefined) return reply.code(409).send({ error: 'Slot taken' })
         const startsAt = zonedLocalToUtc(request.body.localStartsAt, timezone)
@@ -835,8 +841,7 @@ export async function clientRoutes(app: FastifyInstance, dependencies: AuthDepen
       asClient(request, reply, request.params.slug, async (connection, scope) => {
         const current = (
           await connection.query(
-            `SELECT a.professional_id, a.service_id, s.duration_minutes FROM luminix.appointments a
-               JOIN luminix.services s ON s.clinic_id = a.clinic_id AND s.id = a.service_id
+            `SELECT a.professional_id, a.service_id, extract(epoch FROM (a.ends_at - a.starts_at))/60 AS duration_minutes FROM luminix.appointments a
               WHERE a.clinic_id = $1 AND a.id = $2 AND a.clinic_client_id = $3`,
             [scope!.clinicId, request.params.appointmentId, scope!.clientId],
           )
@@ -844,7 +849,7 @@ export async function clientRoutes(app: FastifyInstance, dependencies: AuthDepen
         if (!current) return reply.code(404).send({ error: 'Appointment not found' })
         const date = request.body.localStartsAt.slice(0, 10)
         const agenda = current.professional_id ? String(current.professional_id) : ''
-        const { slots } = await freeSlots(
+        const { slots, deviceMissing } = await freeSlots(
           connection,
           scope!,
           date,
@@ -853,6 +858,7 @@ export async function clientRoutes(app: FastifyInstance, dependencies: AuthDepen
           request.params.appointmentId,
           String(current.service_id),
         )
+        if (deviceMissing) return reply.code(409).send({ error: 'Service unavailable' })
         if (!slots[agenda]?.includes(request.body.localStartsAt.slice(11)))
           return reply.code(409).send({ error: 'Slot taken' })
         const startsAt = zonedLocalToUtc(request.body.localStartsAt, timezone)

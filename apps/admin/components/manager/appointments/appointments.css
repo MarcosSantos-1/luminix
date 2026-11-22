@@ -3447,3 +3447,77 @@ button.ag-empty:hover {
   white-space: normal;
   text-align: right;
 }
+
+.rental-chip {
+  display: block;
+  width: fit-content;
+  max-width: 100%;
+  padding: 3px 8px;
+  margin: 4px 0;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--space-accent) 20%, transparent);
+  color: var(--manager-text);
+  font-size: 12px;
+  font-weight: 600;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+.bk-conflict {
+  display: flex;
+  gap: 14px;
+  align-items: center;
+  border: 1px solid var(--manager-border);
+  border-radius: 14px;
+  padding: 12px;
+}
+.bk-conflict > div,
+.sh-visit {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+.bk-conflict span,
+.bk-conflict small,
+.sh-visit span {
+  color: var(--manager-muted);
+}
+.sh-visit {
+  flex: 1 1 180px;
+}
+.sh-visit .sh-when {
+  border: 0;
+  padding: 0;
+}
+.sh-visit span {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 15px;
+  overflow-wrap: anywhere;
+}
+.sh-visit svg {
+  flex-shrink: 0;
+  color: var(--space-highlight);
+}
+.bk-slots button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+}
+.bk-legend span {
+  gap: 5px;
+  min-height: 32px;
+}
+.bk-slots [data-state='busy']:not([aria-pressed='true']),
+.bk-legend [data-state='busy'] {
+  border-color: color-mix(in srgb, #ef8d86 65%, transparent);
+  background: color-mix(in srgb, #ef8d86 16%, transparent);
+  color: var(--manager-text);
+  text-decoration: none;
+}
+.bk-slots [data-state='outside']:not([aria-pressed='true']),
+.bk-legend [data-state='outside'] {
+  border-color: color-mix(in srgb, #d9a751 75%, transparent);
+  color: var(--manager-text);
+}

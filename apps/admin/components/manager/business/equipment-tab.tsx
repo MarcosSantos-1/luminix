@@ -69,8 +69,7 @@ function shortDay(iso: string) {
 
 /**
  * Aparelhos alugados: cada aparelho, os serviços que dependem dele e os dias de aluguel. Nesses
- * dias os serviços ligados aparecem para as clientes agendarem; fora deles, só a equipe agenda
- * (com aviso). O custo do aluguel pode ir direto para o Financeiro.
+ * dias os serviços ligados ficam disponíveis para a equipe e para as clientes. O custo do aluguel pode ir direto para o Financeiro.
  */
 export function EquipmentTab({
   api,
@@ -123,7 +122,7 @@ export function EquipmentTab({
           <strong>Aparelhos alugados</strong>
           <p>
             Laser, ultrassom microfocado, criolipólise… Marque os dias em que o aparelho estará no
-            espaço: só nesses dias as clientes conseguem agendar os serviços dele.
+            espaço: só nesses dias a equipe e as clientes podem agendar seus serviços.
           </p>
         </div>
         {canManage ? (
@@ -234,7 +233,7 @@ export function EquipmentTab({
                       </ul>
                     ) : (
                       <p className="biz-row-meta">
-                        Sem dia marcado: as clientes não conseguem agendar esses serviços.
+                        Marque uma locação para liberar estes serviços na agenda.
                       </p>
                     )}
                     {past.length ? (
@@ -697,7 +696,7 @@ function RentalEditor({
   const [error, setError] = useState('')
 
   async function save() {
-    if (!form.startsOn || !form.endsOn || form.endsOn < form.startsOn)
+    if (form.startsOn < today || !form.endsOn || form.endsOn < form.startsOn)
       return setError('Confira as datas.')
     const cents = form.cost ? parseMoney(form.cost) : null
     if (form.cost && !cents) return setError('Confira o valor.')
@@ -738,7 +737,7 @@ function RentalEditor({
       badge="Aluguel"
       onOpenChange={(open) => !open && onClose()}
       title={equipment.name}
-      subtitle="Nesses dias as clientes conseguem agendar os serviços do aparelho."
+      subtitle="A locação libera estes dias na agenda da equipe e das clientes."
       hero={
         <>
           <div className="qm-hero-art">
@@ -783,6 +782,7 @@ function RentalEditor({
       <div className="settings-grid">
         <DateInputField
           label="Chega em"
+          min={today}
           value={form.startsOn}
           onChange={(startsOn) =>
             setForm({ ...form, startsOn, endsOn: form.endsOn < startsOn ? startsOn : form.endsOn })
@@ -791,7 +791,7 @@ function RentalEditor({
         <DateInputField
           label="Fica até (inclusive)"
           value={form.endsOn}
-          min={form.startsOn}
+          min={form.startsOn > today ? form.startsOn : today}
           onChange={(endsOn) => setForm({ ...form, endsOn })}
         />
       </div>

@@ -156,7 +156,10 @@ export function ServicesPanel({
   const [editing, setEditing] = useState<Service | null>(null)
   const [promo, setPromo] = useState<ReturnType<typeof blankPromotion> | null>(null)
   const [query, setQuery] = useState('')
-  useSearchFocus(focus, setQuery)
+  useSearchFocus(focus, (value) => {
+    if (focus?.tab === 'equipment') setTab('equipment')
+    else setQuery(value)
+  })
   const [category, setCategory] = useState('')
   const [filters, setFilters] = useState<FilterValue>(defaultFilters)
   const [sort, setSort] = useState('category')

@@ -14,6 +14,40 @@ import {
 import { QuickModal } from './quick-modal'
 import { supportWhatsAppUrl } from './support'
 
+export const previewPlans = {
+  trial: {
+    title: 'Período gratuito',
+    access: 'Gestão liberada',
+    detail: 'A clínica está experimentando os recursos do painel.',
+  },
+  expired: {
+    title: 'Período gratuito encerrado',
+    access: 'Teste encerrado',
+    detail: 'O período de 12 dias terminou.',
+  },
+  active: {
+    title: 'Assinatura ativa',
+    access: 'Gestão liberada',
+    detail: 'Os pagamentos da assinatura estão em dia.',
+  },
+  overdue: {
+    title: 'Pagamento pendente',
+    access: 'Aguardando regularização',
+    detail: 'Existe uma mensalidade em aberto.',
+  },
+  promise: {
+    title: 'Promessa de pagamento',
+    access: 'Prazo de pagamento concedido',
+    detail: 'A clínica pode trabalhar durante o prazo combinado.',
+  },
+  blocked: {
+    title: 'Assinatura bloqueada',
+    access: 'Bloqueio por falta de pagamento',
+    detail: 'É preciso regularizar a mensalidade para retomar o acesso.',
+  },
+} as const
+export type PlanPreview = keyof typeof previewPlans
+
 function remainingDays(end: number, now: number) {
   return Math.max(0, Math.min(12, Math.ceil((end - now) / 86_400_000)))
 }
@@ -43,6 +77,7 @@ export function PlanModal({
   onOpenChange,
   status,
   endsAt,
+  preview,
   now,
   clinicName,
 }: {
@@ -51,6 +86,7 @@ export function PlanModal({
   status: string
   now: number
   clinicName: string
+  preview?: PlanPreview
   endsAt?: string | null
 }) {
   const endTime = endsAt ? Date.parse(endsAt) : NaN
@@ -106,22 +142,32 @@ export function PlanModal({
         </a>
       }
     >
-      <section className="plan-period" aria-label="Período gratuito">
-        <span>
-          <Clock3 size={16} aria-hidden />
-          Período gratuito
-        </span>
-        <h3>{status}</h3>
-        <div className="plan-days" aria-hidden>
-          {Array.from({ length: 12 }, (_, index) => (
-            <i key={index} data-elapsed={index < 12 - remaining} />
-          ))}
-        </div>
-        <p>
-          <CalendarDays size={15} aria-hidden />
-          {endDate ? `Término em ${endDate}` : 'Começa ao concluir o cadastro do espaço'}
-        </p>
-      </section>
+      {preview ? (
+        <section className="plan-period">
+          <span>
+            <Crown size={16} /> Simulação local
+          </span>
+          <h3>{previewPlans[preview].title}</h3>
+          <p>{previewPlans[preview].detail}</p>
+        </section>
+      ) : (
+        <section className="plan-period" aria-label="Período gratuito">
+          <span>
+            <Clock3 size={16} aria-hidden />
+            Período gratuito
+          </span>
+          <h3>{status}</h3>
+          <div className="plan-days" aria-hidden>
+            {Array.from({ length: 12 }, (_, index) => (
+              <i key={index} data-elapsed={index < 12 - remaining} />
+            ))}
+          </div>
+          <p>
+            <CalendarDays size={15} aria-hidden />
+            {endDate ? `Término em ${endDate}` : 'Começa ao concluir o cadastro do espaço'}
+          </p>
+        </section>
+      )}
       <dl className="plan-facts">
         <div>
           <dt>
@@ -129,8 +175,12 @@ export function PlanModal({
             Acesso ao painel
           </dt>
           <dd>
-            <strong>Gestão liberada</strong>
-            <small>Seu espaço continua aberto após o teste enquanto preparamos a cobrança.</small>
+            <strong>{preview ? previewPlans[preview].access : 'Gestão liberada'}</strong>
+            <small>
+              {preview
+                ? 'Prévia do status selecionado no menu Debug.'
+                : 'Seu espaço continua aberto após o teste enquanto preparamos a cobrança.'}
+            </small>
           </dd>
         </div>
         <div>

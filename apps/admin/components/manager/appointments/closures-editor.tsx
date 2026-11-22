@@ -431,6 +431,7 @@ export function ClosuresEditor({
               <div className="cl-range">
                 <DateInputField
                   label="Começa em"
+                  min={today}
                   value={form.startsOn}
                   onChange={(startsOn) =>
                     setForm({
@@ -443,7 +444,7 @@ export function ClosuresEditor({
                 <DateInputField
                   label="Último dia sem atender"
                   value={form.endsOn}
-                  min={form.startsOn}
+                  min={form.startsOn > today ? form.startsOn : today}
                   onChange={(endsOn) => setForm({ ...form, endsOn })}
                 />
               </div>

@@ -13,4 +13,6 @@ Problema:
 4. O PDF da tabela de preços usa a impressão do navegador; não há arquivo gerado no servidor.
 5. Fotos por serviço ainda não existem; os cards usam ícone e cor por categoria.
 
+6. Geração de banners e campanhas a partir das locações, com aprovação da clínica antes de publicar no app ou nas redes sociais, está prevista para a etapa de Marketing.
+
 Impacto atual: baixo (sem clientes reais).

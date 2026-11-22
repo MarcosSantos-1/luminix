@@ -60,6 +60,7 @@ export type BookingOptions = {
   services: {
     id: string
     name: string
+    rental_dates?: string[] | null
     duration_minutes: number
     price_cents?: number | null
     price_type?: string
@@ -70,6 +71,10 @@ export type BookingOptions = {
 }
 type WindowData = BookingOptions & {
   appointments: {
+    id?: string
+    client_name?: string
+    service_name?: string
+    client_photo_url?: string | null
     client_id: string
     starts_at: string
     ends_at: string
@@ -110,7 +115,11 @@ type PackOption = {
   durationMinutes?: number | null
   items?: { serviceId: string; left: number }[]
 }
-type Slot = { time: string; state: 'free' | 'outside' | 'busy' | 'past' }
+type Slot = {
+  conflicts?: WindowData['appointments']
+  time: string
+  state: 'free' | 'outside' | 'busy' | 'past'
+}
 
 const stepTitle: Record<Step, string> = {
   client: 'Para quem?',
@@ -188,7 +197,11 @@ export function buildSlots(
         (item.status === 'scheduled' || item.status === 'confirmed') &&
         (!professionalId || !item.professional_id || item.professional_id === professionalId),
     )
-    .map((item) => ({ start: relativeMinutes(item.starts_at), end: relativeMinutes(item.ends_at) }))
+    .map((item) => ({
+      item,
+      start: relativeMinutes(item.starts_at),
+      end: relativeMinutes(item.ends_at),
+    }))
   const starts = new Set<number>()
   for (let start = 0; start + duration <= spillover; start += step) starts.add(start)
   for (let start = first; start < 1440 && start + duration <= last; start += step) starts.add(start)
@@ -197,13 +210,14 @@ export function buildSlots(
     const end = start + duration
     const time = hhmm(start)
     const inside = periods.some((item) => minutes(item.start) <= start && minutes(item.end) >= end)
-    const busy = taken.some((item) => item.start < end && item.end > start)
+    const conflicts = taken.filter((item) => item.start < end && item.end > start)
     slots.push({
       time,
+      ...(conflicts.length ? { conflicts: conflicts.map((row) => row.item) } : {}),
       state:
         date < today || (date === today && time < nowClock)
           ? 'past'
-          : busy
+          : conflicts.length
             ? 'busy'
             : inside
               ? 'free'
@@ -262,6 +276,8 @@ export function BookingModal({
   const [professionalId, setProfessionalId] = useState('')
   const [date, setDate] = useState('')
   const [time, setTime] = useState('')
+  const [conflict, setConflict] = useState<Slot | null>(null)
+  const [accepted, setAccepted] = useState<{ key: string; ids: string[] } | null>(null)
   const [stripStart, setStripStart] = useState('')
   const [query, setQuery] = useState('')
   const [clientForm, setClientForm] = useState(false)
@@ -302,6 +318,8 @@ export function BookingModal({
     // eslint-disable-next-line react-hooks/set-state-in-effect -- a fresh flow each time it opens
     setStep(initialClientId ? 'service' : 'client')
     setClientId(initialClientId ?? '')
+    setConflict(null)
+    setAccepted(null)
     setServiceId('')
     setProfessionalId('')
     setDate(start)
@@ -404,9 +422,45 @@ export function BookingModal({
     .find((item) => item.left > 0)
   const comboMinutes =
     usePack && pack?.kind === 'combo' && pack.durationMinutes ? pack.durationMinutes : null
+  const selectableServices =
+    lists?.services.filter(
+      (item) =>
+        !item.rental_dates ||
+        (initialDate
+          ? item.rental_dates.includes(initialDate < today ? today : initialDate)
+          : item.rental_dates.some((day) => day >= today)),
+    ) ?? []
+  const calendars = [
+    service?.rental_dates,
+    ...(usePack && pack?.kind === 'combo'
+      ? (pack.items ?? []).map(
+          (line) => lists?.services.find((s) => s.id === line.serviceId)?.rental_dates,
+        )
+      : []),
+  ].filter((days): days is string[] => Array.isArray(days))
+  const rentalDays = calendars.length
+    ? calendars[0].filter((day) => calendars.every((days) => days.includes(day)))
+    : null
   const slots =
-    data && service && date && step === 'when'
-      ? buildSlots(data, date, comboMinutes ?? Number(service.duration_minutes), professionalId)
+    data && service && date && (!rentalDays || rentalDays.includes(date)) && step === 'when'
+      ? buildSlots(
+          data,
+          date,
+          comboMinutes ?? Number(service.duration_minutes),
+          professionalId,
+        ).filter(
+          (slot) =>
+            !rentalDays ||
+            rentalDays.includes(
+              shiftDate(
+                date,
+                Math.floor(
+                  (minutes(slot.time) + (comboMinutes ?? Number(service.duration_minutes)) - 1) /
+                    1440,
+                ),
+              ),
+            ),
+        )
       : []
   const validVouchers =
     service?.price_type === 'fixed' &&
@@ -473,6 +527,9 @@ export function BookingModal({
         serviceId,
         professionalId: professionalId || undefined,
         localStartsAt: `${date}T${time}`,
+        ...(accepted?.key === [serviceId, professionalId, date, time].join('|')
+          ? { confirmedOverlapIds: accepted.ids }
+          : {}),
         confirmedWarnings: confirm ? warnings.map((warning) => warning.code) : [],
         ...(pack && usePack
           ? { clientPackageId: pack.id }
@@ -491,6 +548,10 @@ export function BookingModal({
           : null
       if (caught instanceof ClinicApiError && caught.status === 409 && body?.warnings)
         setWarnings(body.warnings)
+      else if (body?.error === 'Equipment unavailable')
+        setError(
+          'O aparelho não está disponível durante este atendimento. Escolha outro dia de locação.',
+        )
       else if (body?.error === 'Voucher unavailable')
         setError(
           'O voucher não está disponível para este horário. Escolha outro ou retire o desconto.',
@@ -669,13 +730,15 @@ export function BookingModal({
 
       {lists && step === 'service' ? (
         <ul className="bk-list bk-services" aria-label="Serviços">
-          {lists.services.map((item) => (
+          {selectableServices.map((item) => (
             <li key={item.id}>
               <button
                 type="button"
                 aria-pressed={item.id === serviceId}
                 onClick={() => {
                   setServiceId(item.id)
+                  if (item.rental_dates?.length && !item.rental_dates.includes(date))
+                    pickDate(item.rental_dates[0])
                   setTime('')
                   advance()
                 }}
@@ -683,7 +746,12 @@ export function BookingModal({
                 <span className="bk-icon">
                   <Sparkles size={18} aria-hidden />
                 </span>
-                <strong>{item.name}</strong>
+                <strong>
+                  {item.name}
+                  {item.rental_dates?.length ? (
+                    <small className="rental-chip">Locação · {dateBr(item.rental_dates[0])}</small>
+                  ) : null}
+                </strong>
                 <span className="bk-service-meta">
                   <small>
                     <Clock size={13} aria-hidden /> {durationLabel(item.duration_minutes)}
@@ -700,8 +768,8 @@ export function BookingModal({
               </button>
             </li>
           ))}
-          {!lists.services.length ? (
-            <li className="bk-empty">Cadastre um serviço para poder agendar.</li>
+          {!selectableServices.length ? (
+            <li className="bk-empty">Nenhum serviço disponível para agendar.</li>
           ) : null}
         </ul>
       ) : null}
@@ -749,36 +817,58 @@ export function BookingModal({
 
       {lists && step === 'when' ? (
         <div className="bk-step">
+          {pack?.kind === 'combo' && (
+            <Button
+              size="sm"
+              variant="secondary"
+              onPress={() => {
+                setUsePack(!usePack)
+                setTime('')
+              }}
+            >
+              <Layers size={15} />
+              {usePack ? 'Agendar somente este serviço' : 'Usar combo ' + pack.name}
+            </Button>
+          )}
           <div className="bk-strip-head">
             <strong>
               {new Intl.DateTimeFormat('pt-BR', { month: 'long', year: 'numeric' }).format(
                 new Date(`${date || stripStart}T12:00:00`),
               )}
             </strong>
-            <div>
-              <Button
-                isIconOnly
-                size="sm"
-                variant="ghost"
-                aria-label="Semana anterior"
-                isDisabled={stripStart <= mondayOf(today)}
-                onPress={() => setStripStart(shiftDate(stripStart, -7))}
-              >
-                <ChevronLeft size={17} />
-              </Button>
-              <Button
-                isIconOnly
-                size="sm"
-                variant="ghost"
-                aria-label="Próxima semana"
-                onPress={() => setStripStart(shiftDate(stripStart, 7))}
-              >
-                <ChevronRight size={17} />
-              </Button>
-            </div>
+            {!rentalDays && (
+              <div>
+                <Button
+                  isIconOnly
+                  size="sm"
+                  variant="ghost"
+                  aria-label="Semana anterior"
+                  isDisabled={stripStart <= mondayOf(today)}
+                  onPress={() => setStripStart(shiftDate(stripStart, -7))}
+                >
+                  <ChevronLeft size={17} />
+                </Button>
+                <Button
+                  isIconOnly
+                  size="sm"
+                  variant="ghost"
+                  aria-label="Próxima semana"
+                  onPress={() => setStripStart(shiftDate(stripStart, 7))}
+                >
+                  <ChevronRight size={17} />
+                </Button>
+              </div>
+            )}
           </div>
+          {rentalDays && (
+            <p className="bk-hint">
+              {rentalDays.length
+                ? 'Dias com aparelho disponível'
+                : 'Nenhuma locação programada para os serviços selecionados.'}
+            </p>
+          )}
           <div className="bk-strip lx-scroll" role="listbox" aria-label="Dia">
-            {strip
+            {(rentalDays ?? strip)
               .filter((day) => day >= today)
               .map((day) => {
                 const open = data ? dayPeriods(data, day).length > 0 : true
@@ -802,20 +892,26 @@ export function BookingModal({
                         .format(value)
                         .replace('.', '')}
                     </small>
-                    <strong>{value.getDate()}</strong>
+                    <strong>
+                      {rentalDays
+                        ? value.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })
+                        : value.getDate()}
+                    </strong>
                     {day === today ? <small>Hoje</small> : null}
                     {holiday || closure ? <i aria-hidden /> : null}
                   </button>
                 )
               })}
           </div>
-          <DateInputField
-            className="bk-date-more"
-            label="Outra data"
-            value={date}
-            min={today}
-            onChange={(next) => next && pickDate(next)}
-          />
+          {!rentalDays && (
+            <DateInputField
+              className="bk-date-more"
+              label="Outra data"
+              value={date}
+              min={today}
+              onChange={(next) => next && pickDate(next)}
+            />
+          )}
           {dayHoliday || dayClosure ? (
             <p className="bk-day-note">
               <CalendarDays size={16} aria-hidden />
@@ -840,6 +936,17 @@ export function BookingModal({
                   O espaço não abre neste dia. Os horários abaixo ficam fora do expediente.
                 </p>
               ) : null}
+              <p className="bk-legend" aria-label="Legenda dos horários">
+                <span data-state="free">
+                  <Check size={14} /> Disponível
+                </span>
+                <span data-state="outside">
+                  <Moon size={14} /> Fora do expediente
+                </span>
+                <span data-state="busy">
+                  <UsersRound size={14} /> Ocupado
+                </span>
+              </p>
               {groups.map((group) => (
                 <section key={group.label} className="bk-slots" aria-label={group.label}>
                   <h4>
@@ -854,19 +961,21 @@ export function BookingModal({
                         aria-pressed={slot.time === time}
                         disabled={slot.state === 'past'}
                         aria-label={`${slot.time}${slot.state === 'outside' ? ', fora do expediente' : slot.state === 'busy' ? ', já ocupado' : slot.state === 'past' ? ', já passou' : ''}`}
-                        onClick={() => setTime(slot.time)}
+                        onClick={() =>
+                          slot.conflicts?.length ? setConflict(slot) : setTime(slot.time)
+                        }
                       >
                         {slot.time}
+                        {slot.state === 'busy' ? (
+                          <UsersRound size={13} aria-hidden />
+                        ) : slot.state === 'outside' ? (
+                          <Moon size={13} aria-hidden />
+                        ) : null}
                       </button>
                     ))}
                   </div>
                 </section>
               ))}
-              <p className="bk-legend" aria-hidden>
-                <span data-state="free">Livre</span>
-                <span data-state="outside">Fora do expediente</span>
-                <span data-state="busy">Ocupado</span>
-              </p>
             </>
           )}
         </div>
@@ -953,6 +1062,10 @@ export function BookingModal({
               aria-pressed={usePack}
               onClick={() => {
                 setUsePack(!usePack)
+                if (pack.kind === 'combo') {
+                  setTime('')
+                  go('when')
+                }
                 setVoucherId('')
               }}
             >
@@ -1006,6 +1119,47 @@ export function BookingModal({
   return (
     <>
       {booking}
+      {isOpen && conflict && (
+        <QuickModal
+          isOpen
+          onOpenChange={(open) => !open && setConflict(null)}
+          title="Este horário já está ocupado"
+          subtitle={`${dateBr(date)} · ${person?.display_name ?? 'Agenda do espaço'}`}
+          footer={
+            <>
+              <Button variant="secondary" onPress={() => setConflict(null)}>
+                Escolher outro horário
+              </Button>
+              <Button
+                onPress={() => {
+                  setTime(conflict.time)
+                  setAccepted({
+                    key: [serviceId, professionalId, date, conflict.time].join('|'),
+                    ids: (conflict.conflicts ?? []).flatMap((row) => (row.id ? [row.id] : [])),
+                  })
+                  setConflict(null)
+                }}
+              >
+                Usar este horário
+              </Button>
+            </>
+          }
+        >
+          <p>Um novo atendimento às {conflict.time} coincide com a agenda abaixo.</p>
+          {conflict.conflicts?.map((row) => (
+            <div className="bk-conflict" key={row.id ?? row.starts_at}>
+              <Face name={row.client_name ?? 'Cliente'} photo={row.client_photo_url} />
+              <div>
+                <strong>{row.client_name ?? 'Cliente'}</strong>
+                <span>{row.service_name}</span>
+                <small>
+                  {clock(row.starts_at, lists?.timezone)} – {clock(row.ends_at, lists?.timezone)}
+                </small>
+              </div>
+            </div>
+          ))}
+        </QuickModal>
+      )}
       {isOpen && clientForm ? (
         <QuickClientModal
           api={api}

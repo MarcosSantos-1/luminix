@@ -4,6 +4,7 @@ import { Button } from '@heroui/react'
 import { MessageCircle, TicketPercent } from 'lucide-react'
 import { useEffect, useState, type FormEvent } from 'react'
 import { DateInputField, MoneyField, SelectField, TextInputField } from '@/components/ui/fields'
+import { localDate } from '../appointments/model'
 import { dateBr, money, parseMoney, whatsapp } from '../business/format'
 import { QuickModal } from '../quick-modal'
 import { ClientPicker, type ClientChoice } from './client-picker'
@@ -52,7 +53,7 @@ export function VoucherModal({
     Number.isInteger(value) &&
     value > 0 &&
     value <= (type === 'percent' ? 100 : 100000000) &&
-    Boolean(expiresOn)
+    expiresOn >= localDate(new Date())
 
   useEffect(() => {
     if (!path) return
@@ -177,6 +178,7 @@ export function VoucherModal({
             )}
             <DateInputField
               label="Válido até"
+              min={localDate(new Date())}
               value={expiresOn}
               isDisabled={busy}
               onChange={(next) => {

@@ -70,6 +70,7 @@ type Row = {
   client_photo_large_url?: string | null
   account_photo?: boolean
   price_type?: string
+  rental_dates?: string[] | null
   service_name: string
   /** Visit of a combo (every service of it on the same day). */
   combo_name?: string | null
@@ -78,7 +79,7 @@ type Row = {
 type AgendaData = {
   appointments: Row[]
   clients: { id: string; display_name: string }[]
-  services: { id: string; name: string; duration_minutes: number }[]
+  services: { id: string; name: string; duration_minutes: number; rental_dates?: string[] | null }[]
   professionals: BookingProfessional[]
   weeklyAvailability: WeeklyRow[]
   overrides: OverrideRow[]
@@ -130,6 +131,7 @@ function toView(row: Row): AppointmentView {
     clientNotes: row.client_notes,
     notes: row.notes,
     warnings: row.override_reasons ?? [],
+    rentalDates: row.rental_dates,
     service: row.combo_name ? `🎁 ${row.combo_name}` : row.service_name,
     professional: row.professional_name,
     priceCents: row.price_cents == null ? null : Number(row.price_cents),
@@ -299,6 +301,13 @@ export function AgendaPanel({
     count && busiest ? Math.max(1, Math.ceil((count / busiest) * 4)) : 0
 
   /** What happens on a day: who comes, and what left it (canceled or moved away). */
+  function rentalNames(date: string) {
+    return data?.services
+      .filter((service) => service.rental_dates?.includes(date))
+      .map((service) => service.name)
+      .join(' · ')
+  }
+
   function dayItems(date: string) {
     const here = views.filter((item) => localDate(item.startsAt, timezone) === date)
     return {
@@ -622,6 +631,11 @@ export function AgendaPanel({
                       key={date}
                       onClick={() => selectMonthDay(day)}
                     >
+                      {rentalNames(date) && (
+                        <small className="rental-chip" title={rentalNames(date)}>
+                          Locação
+                        </small>
+                      )}
                       <span className="ag-heat-top">
                         {tag ? (
                           <em className="ag-heat-tag" title={tag}>
@@ -695,6 +709,9 @@ export function AgendaPanel({
                 )}
               </Card.Header>
               <Card.Content>
+                {rentalNames(selectedDate) && (
+                  <p className="rental-chip">Aparelho disponível · {rentalNames(selectedDate)}</p>
+                )}
                 {selected.active.length ? (
                   <div className="ag-list is-wide">
                     {selected.active.map((item) => (
@@ -805,6 +822,9 @@ export function AgendaPanel({
                     )}
                   </div>
                 </header>
+                {rentalNames(item.date) && (
+                  <p className="rental-chip">Aparelho disponível · {rentalNames(item.date)}</p>
+                )}
                 {item.active.length ? (
                   <div className="ag-list">
                     {item.active.map((entry) => (

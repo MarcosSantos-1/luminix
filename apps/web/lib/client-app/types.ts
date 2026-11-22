@@ -42,6 +42,7 @@ export type AppointmentStatus = 'requested' | 'confirmed' | 'done' | 'cancelled'
 export type Appointment = {
   id: string
   serviceId: string
+  rentalDates?: string[] | null
   serviceName: string
   category: string
   /** Clinic local time: 2026-11-20T14:30 */
@@ -117,7 +118,7 @@ export type Availability = {
   date: string
   lastDate: string
   durationMinutes: number
-  bookingMode: 'instant' | 'request'
+  bookingMode: 'instant' | 'request' | 'manual_release'
   /** More than one professional can do it: the client picks (or leaves it to the space). */
   choose: boolean
   /** Pix/card are offered only when the space accepts payments in the app. */
