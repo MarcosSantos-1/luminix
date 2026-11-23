@@ -2559,7 +2559,11 @@
 }
 .manager-shell .hp,
 .manager-shell[data-manager-glass='custom'] .manager-main .hp {
-  background: color-mix(in srgb, var(--space-accent, #ec247b) 16%, var(--manager-surface, #ffffff14));
+  background: color-mix(
+    in srgb,
+    var(--space-accent, #ec247b) 16%,
+    var(--manager-surface, #ffffff14)
+  );
   backdrop-filter: none;
 }
 .manager-shell .hp .button.hp-close,
