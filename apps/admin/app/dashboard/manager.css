@@ -936,8 +936,13 @@
 .manager-search-trigger.button {
   justify-content: flex-start;
   gap: 12px;
+  /* Same liquid glass as the panels (e.g. "Atividades recentes"). */
   border: 1px solid var(--manager-border);
-  background: #ffffff14;
+  background: var(--manager-surface);
+  backdrop-filter: blur(20px);
+  box-shadow:
+    0 12px 35px color-mix(in srgb, var(--space-deep, #290417) 10.2%, transparent),
+    inset 0 1px #ffffff08;
   color: var(--manager-muted);
   padding: 0 15px;
   width: min(36%, 420px);
@@ -2722,5 +2727,35 @@
   .sch-tabs button,
   .sch-people button {
     transition: none;
+  }
+}
+
+/* 👋 next to "Olá, Fulano!": waves twice when the page opens. */
+.manager-wave {
+  display: inline-block;
+  transform-origin: 70% 75%;
+  animation: manager-wave 2.4s ease-in-out 0.6s 2;
+}
+@keyframes manager-wave {
+  0%,
+  60%,
+  100% {
+    transform: rotate(0deg);
+  }
+  10%,
+  30% {
+    transform: rotate(16deg);
+  }
+  20%,
+  40% {
+    transform: rotate(-8deg);
+  }
+  50% {
+    transform: rotate(10deg);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .manager-wave {
+    animation: none;
   }
 }

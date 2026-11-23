@@ -9,6 +9,7 @@ import {
   CalendarDays,
   CalendarX,
   Check,
+  EllipsisVertical,
   Package,
   Plus,
 } from 'lucide-react'
@@ -110,6 +111,11 @@ function AppointmentRow({
           </small>
         ) : null}
         {clock(item.startsAt)}
+        {item.status === 'completed' ? (
+          <span className="apt-time-done" aria-hidden>
+            <Check size={10} strokeWidth={3.5} />
+          </span>
+        ) : null}
       </time>
       <ClientAvatar
         name={item.client}
@@ -139,6 +145,9 @@ function AppointmentRow({
           {badge.label}
         </span>
         {pay ? <span className="apt-pay">{pay}</span> : null}
+      </span>
+      <span className="apt-row-more" aria-hidden>
+        <EllipsisVertical size={18} />
       </span>
     </button>
   )

@@ -374,6 +374,15 @@ function SheetBody({
   ]
   // Booked by the team: first the check-in, then completing. Booked by the client: complete.
   const needsCheckIn = open && item.bookingSource !== 'client' && !item.checkedInAt
+  // A visit of a later day: check-in or completing it now is probably a slip, so ask first.
+  const day = localDate(item.startsAt)
+  const later = day > today
+  const [early, setEarly] = useState<'checkin' | 'complete' | null>(null)
+  const checkIn = () =>
+    // "A combinar"/"a partir de": the amount is set (and may be paid) on arrival.
+    access.charge && needsAgreedPrice(item)
+      ? setView('checkin')
+      : void run(() => api.put(`appointments/${item.id}/check-in`, {}), `${item.client} chegou.`)
 
   async function run(work: () => Promise<unknown>, message: string) {
     setBusy(true)
@@ -627,20 +636,15 @@ function SheetBody({
                 <Button
                   className="sh-primary"
                   isDisabled={busy}
-                  onPress={() =>
-                    // "A combinar"/"a partir de": the amount is set (and may be paid) on arrival.
-                    access.charge && needsAgreedPrice(item)
-                      ? setView('checkin')
-                      : void run(
-                          () => api.put(`appointments/${item.id}/check-in`, {}),
-                          `${item.client} chegou.`,
-                        )
-                  }
+                  onPress={() => (later ? setEarly('checkin') : checkIn())}
                 >
                   <Check size={20} aria-hidden /> Confirmar check-in
                 </Button>
               ) : (
-                <Button className="sh-primary" onPress={() => setView('complete')}>
+                <Button
+                  className="sh-primary"
+                  onPress={() => (later ? setEarly('complete') : setView('complete'))}
+                >
                   <Check size={20} aria-hidden /> Concluir atendimento
                 </Button>
               )}
@@ -784,6 +788,47 @@ function SheetBody({
           </div>
         </section>
       ) : null}
+      <QuickModal
+        isOpen={early !== null}
+        onOpenChange={(open) => {
+          if (!open) setEarly(null)
+        }}
+        size="md"
+        badge={
+          <>
+            <CalendarClock size={14} aria-hidden /> Não é de hoje
+          </>
+        }
+        title={`Este atendimento é de ${dateBr(day)}`}
+        subtitle={
+          early === 'checkin'
+            ? `Confirmar o check-in agora registra que ${item.client} chegou hoje, antes do dia marcado. Deseja continuar?`
+            : `Concluir agora encerra o atendimento de ${item.client} antes do dia marcado. Deseja continuar?`
+        }
+        footer={
+          <>
+            <Button variant="secondary" onPress={() => setEarly(null)}>
+              Voltar
+            </Button>
+            <Button
+              isDisabled={busy}
+              onPress={() => {
+                const action = early
+                setEarly(null)
+                if (action === 'checkin') checkIn()
+                else setView('complete')
+              }}
+            >
+              {early === 'checkin' ? 'Confirmar check-in' : 'Continuar e concluir'}
+            </Button>
+          </>
+        }
+      >
+        <p className="apt-hint">
+          {clock(item.startsAt)} · {serviceTitle(item)}
+          {item.professional ? ` · ${item.professional}` : ''}
+        </p>
+      </QuickModal>
     </div>
   )
 }

@@ -385,7 +385,10 @@ export function ManagerHome({
             {isHome ? (
               <>
                 <h1 ref={sectionHeading} tabIndex={-1} data-manager-spotlight="section-heading">
-                  Olá, {firstName}!
+                  Olá, {firstName}!{' '}
+                  <span className="manager-wave" aria-hidden>
+                    👋
+                  </span>
                 </h1>
                 <span>{clinicName}</span>
               </>
