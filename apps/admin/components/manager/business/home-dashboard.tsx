@@ -85,72 +85,61 @@ function AppointmentRow({
   item,
   showDay,
   onOpen,
-  onPay,
   api,
 }: {
   item: AppointmentView
   api: ClinicApi
   showDay?: boolean
   onOpen: (item: AppointmentView) => void
-  /** "Registrar pagamento" before (or without) completing: opens the sheet on the payment. */
-  onPay?: (item: AppointmentView) => void
 }) {
   const badge = dayBadge(item)
   const pay = payLabel(item)
-  const payLink = onPay && pay === 'A receber'
   return (
-    <div className={`apt-row-wrap${payLink ? ' has-paylink' : ''}`}>
-      <button
-        type="button"
-        className={`apt-row is-${item.status}`}
-        onClick={() => onOpen(item)}
-        aria-label={`${item.client}, ${item.service}, ${clock(item.startsAt)}${needsAttention(item) ? ', tem observações' : ''}. Abrir opções`}
-      >
-        <time className="lx-neon">
-          {showDay ? (
-            <small>
-              {dayLabel(item.startsAt).split(',')[0]}{' '}
-              {dayLabel(item.startsAt).split(', ')[1]?.slice(0, 2)}
-            </small>
+    <button
+      type="button"
+      className={`apt-row is-${item.status}`}
+      onClick={() => onOpen(item)}
+      aria-label={`${item.client}, ${item.service}, ${clock(item.startsAt)}${needsAttention(item) ? ', tem observações' : ''}. Abrir opções`}
+    >
+      <time className="lx-neon">
+        {showDay ? (
+          <small>
+            {dayLabel(item.startsAt).split(',')[0]}{' '}
+            {dayLabel(item.startsAt).split(', ')[1]?.slice(0, 2)}
+          </small>
+        ) : null}
+        {clock(item.startsAt)}
+      </time>
+      <ClientAvatar
+        name={item.client}
+        photoUrl={item.photoUrl}
+        account={item.accountPhoto ? { api, clientId: item.clientId } : null}
+      />
+      <span className="apt-row-copy">
+        <span className="apt-name">
+          <strong title={item.client}>
+            <span className="apt-name-full">{item.client}</span>
+            <span className="apt-name-short">{shortName(item.client)}</span>
+          </strong>
+          {needsAttention(item) ? (
+            <span className="apt-flag" title="Tem observações importantes">
+              <AlertTriangle size={15} aria-hidden />
+            </span>
           ) : null}
-          {clock(item.startsAt)}
-        </time>
-        <ClientAvatar
-          name={item.client}
-          photoUrl={item.photoUrl}
-          account={item.accountPhoto ? { api, clientId: item.clientId } : null}
-        />
-        <span className="apt-row-copy">
-          <span className="apt-name">
-            <strong title={item.client}>
-              <span className="apt-name-full">{item.client}</span>
-              <span className="apt-name-short">{shortName(item.client)}</span>
-            </strong>
-            {needsAttention(item) ? (
-              <span className="apt-flag" title="Tem observações importantes">
-                <AlertTriangle size={15} aria-hidden />
-              </span>
-            ) : null}
-          </span>
-          <span>
-            {serviceTitle(item)}
-            {item.professional ? <em className="apt-pro"> · {item.professional}</em> : null}
-          </span>
         </span>
-        <span className={`apt-row-tags is-${badge.tone}`}>
-          <span className="apt-status">
-            {badge.verified ? <BadgeCheck size={13} aria-hidden /> : null}
-            {badge.label}
-          </span>
-          {pay ? <span className="apt-pay">{pay}</span> : null}
+        <span>
+          {serviceTitle(item)}
+          {item.professional ? <em className="apt-pro"> · {item.professional}</em> : null}
         </span>
-      </button>
-      {payLink ? (
-        <button type="button" className="apt-paylink" onClick={() => onPay(item)}>
-          Registrar pagamento
-        </button>
-      ) : null}
-    </div>
+      </span>
+      <span className={`apt-row-tags is-${badge.tone}`}>
+        <span className="apt-status">
+          {badge.verified ? <BadgeCheck size={13} aria-hidden /> : null}
+          {badge.label}
+        </span>
+        {pay ? <span className="apt-pay">{pay}</span> : null}
+      </span>
+    </button>
   )
 }
 
@@ -170,7 +159,6 @@ export function HomeDashboard({
   const dashboard = useClinicResource<Dashboard>(api, 'dashboard')
   const [notice, setNotice] = useState('')
   const [opened, setOpened] = useState<AppointmentView | null>(null)
-  const [openOnPay, setOpenOnPay] = useState(false)
   const [quick, setQuick] = useState<'booking' | 'agenda' | 'client' | null>(null)
   if (dashboard.error && !dashboard.data)
     return <LoadError message={dashboard.error} onRetry={dashboard.reload} />
@@ -179,14 +167,6 @@ export function HomeDashboard({
   const live = data.appointments.filter((item) => item.status !== 'canceled')
   const done = live.filter((item) => item.status === 'completed').length
   const upcoming = data.upcoming ?? []
-  // Paying ahead (or at any time) without waiting for the visit to be completed.
-  const payFrom =
-    data.canManageAgenda && (data.canCharge ?? Boolean(data.finance))
-      ? (entry: AppointmentView) => {
-          setOpenOnPay(true)
-          setOpened(entry)
-        }
-      : undefined
   const changed = (message: string) => {
     setNotice(message)
     dashboard.reload()
@@ -316,16 +296,7 @@ export function HomeDashboard({
               {data.appointments.length ? (
                 <div className="apt-rows">
                   {data.appointments.map((item) => (
-                    <AppointmentRow
-                      key={item.id}
-                      item={item}
-                      api={api}
-                      onOpen={(entry) => {
-                        setOpenOnPay(false)
-                        setOpened(entry)
-                      }}
-                      onPay={payFrom}
-                    />
+                    <AppointmentRow key={item.id} item={item} api={api} onOpen={setOpened} />
                   ))}
                 </div>
               ) : (
@@ -351,11 +322,7 @@ export function HomeDashboard({
                         item={item}
                         api={api}
                         showDay
-                        onOpen={(entry) => {
-                          setOpenOnPay(false)
-                          setOpened(entry)
-                        }}
-                        onPay={payFrom}
+                        onOpen={setOpened}
                       />
                     ))}
                   </div>
@@ -466,7 +433,6 @@ export function HomeDashboard({
       <AppointmentSheet
         api={api}
         item={opened}
-        initialView={openOnPay ? 'pay' : undefined}
         today={data.today}
         access={{
           manage: data.canManageAgenda,

@@ -223,7 +223,7 @@
   cursor: pointer;
 }
 .apt-row + .apt-row {
-  border-top: 1px solid #ffffff18;
+  border-top: 1px solid color-mix(in srgb, var(--manager-text, #fff) 16%, transparent);
 }
 .apt-row:hover,
 .apt-row:focus-visible {
@@ -3854,13 +3854,6 @@ button.sh-client-link:focus-visible {
 .ag-card small.ag-card-note.is-done {
   color: #a7f0c4;
 }
-.apt-row-wrap {
-  position: relative;
-}
-.apt-row-wrap.has-paylink .apt-row {
-  padding-bottom: 22px;
-}
-.apt-paylink,
 .sh-pay-link {
   border: 0;
   color: var(--manager-muted);
@@ -3873,19 +3866,10 @@ button.sh-client-link:focus-visible {
   cursor: pointer;
   transition: color 0.15s;
 }
-.apt-paylink:hover,
-.apt-paylink:focus-visible,
 .sh-pay-link:hover,
 .sh-pay-link:focus-visible {
   color: #ffe08a;
   text-decoration-color: currentColor;
-}
-.apt-paylink {
-  position: absolute;
-  right: 14px;
-  bottom: 6px;
-  padding: 2px 0;
-  opacity: 0.85;
 }
 .sh-money .sh-pay-link {
   align-self: center;
