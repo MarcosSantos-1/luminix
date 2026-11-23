@@ -2521,6 +2521,42 @@
     color-mix(in srgb, var(--space-accent, #ec247b) 28%, var(--space-highlight, #f982b3))
   );
 }
+.manager-shell .inv-actions .button.inv-out,
+.manager-shell[data-manager-glass='custom']
+  .manager-main
+  .inv-actions
+  .button.button--secondary.inv-out {
+  color: #fff;
+  border-color: #fecaca55;
+  background: linear-gradient(135deg, #dc2626, #ef4444);
+  box-shadow: 0 6px 14px #dc262659;
+}
+.manager-shell .inv-actions .button.inv-in,
+.manager-shell[data-manager-glass='custom']
+  .manager-main
+  .inv-actions
+  .button.button--secondary.inv-in {
+  color: #fff;
+  border-color: #bbf7d055;
+  background: linear-gradient(135deg, #059669, #22c55e);
+  box-shadow: 0 6px 14px #05966959;
+}
+.manager-shell .inv-actions .button.inv-out:is(:hover, [data-pressed='true']),
+.manager-shell[data-manager-glass='custom']
+  .manager-main
+  .inv-actions
+  .button.button--secondary.inv-out:is(:hover, [data-pressed='true']) {
+  color: #fff;
+  background: linear-gradient(135deg, #b91c1c, #f87171);
+}
+.manager-shell .inv-actions .button.inv-in:is(:hover, [data-pressed='true']),
+.manager-shell[data-manager-glass='custom']
+  .manager-main
+  .inv-actions
+  .button.button--secondary.inv-in:is(:hover, [data-pressed='true']) {
+  color: #fff;
+  background: linear-gradient(135deg, #047857, #4ade80);
+}
 @media (prefers-reduced-motion: reduce) {
   .button--primary::after {
     animation: none !important;

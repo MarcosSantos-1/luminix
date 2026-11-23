@@ -119,8 +119,8 @@ function AppointmentRow({
             <span className="apt-name-short">{shortName(item.client)}</span>
           </strong>
           {needsAttention(item) ? (
-            <span className="apt-attention" title="Tem observações importantes">
-              <AlertTriangle size={14} aria-hidden />
+            <span className="apt-flag" title="Tem observações importantes">
+              <AlertTriangle size={15} aria-hidden />
             </span>
           ) : null}
         </span>
@@ -281,52 +281,60 @@ export function HomeDashboard({
       </section>
       <ToastNotice message={notice} onShown={() => setNotice('')} />
       <div className="manager-grid">
-        <Card className="manager-panel manager-agenda">
-          <Card.Content className="apt-day">
-            {data.appointments.length ? (
-              <div className="apt-rows">
-                {data.appointments.map((item) => (
-                  <AppointmentRow key={item.id} item={item} api={api} onOpen={setOpened} />
-                ))}
-              </div>
-            ) : (
-              <div className="apt-quiet">
-                <CalendarDays size={22} aria-hidden />
-                <p>
-                  <strong>Nenhum atendimento hoje.</strong>
-                </p>
-                {data.canManageAgenda ? (
-                  <Button size="sm" variant="secondary" onPress={() => setQuick('booking')}>
-                    <Plus size={15} aria-hidden /> Agendar
-                  </Button>
-                ) : null}
-              </div>
-            )}
-            {upcoming.length ? (
-              <section className="apt-next" aria-label="Próximos dias">
-                <h3>Próximos dias</h3>
+        <div className="manager-agenda-block">
+          <div className="apt-day-head">
+            <h2>Clientes do dia</h2>
+            <button type="button" onClick={() => setQuick('agenda')}>
+              Ver agenda <ArrowRight size={16} aria-hidden />
+            </button>
+          </div>
+          <Card className="manager-panel manager-agenda">
+            <Card.Content className="apt-day">
+              {data.appointments.length ? (
                 <div className="apt-rows">
-                  {upcoming.slice(0, data.appointments.length > 3 ? 3 : 6).map((item) => (
-                    <AppointmentRow
-                      key={item.id}
-                      item={item}
-                      api={api}
-                      showDay
-                      onOpen={setOpened}
-                    />
+                  {data.appointments.map((item) => (
+                    <AppointmentRow key={item.id} item={item} api={api} onOpen={setOpened} />
                   ))}
                 </div>
-              </section>
-            ) : null}
-          </Card.Content>
-          <Card.Footer className="manager-agenda-footer">
-            <span>
-              <span className="manager-dot" />{' '}
-              {done ? `${done} de ${live.length} concluídos` : 'Um dia cheio de boas conexões'}
-            </span>
-            <span>{live.length} atendimentos</span>
-          </Card.Footer>
-        </Card>
+              ) : (
+                <div className="apt-quiet">
+                  <CalendarDays size={22} aria-hidden />
+                  <p>
+                    <strong>Nenhum atendimento hoje.</strong>
+                  </p>
+                  {data.canManageAgenda ? (
+                    <Button size="sm" variant="secondary" onPress={() => setQuick('booking')}>
+                      <Plus size={15} aria-hidden /> Agendar
+                    </Button>
+                  ) : null}
+                </div>
+              )}
+              {upcoming.length ? (
+                <section className="apt-next" aria-label="Próximos dias">
+                  <h3>Próximos dias</h3>
+                  <div className="apt-rows">
+                    {upcoming.slice(0, data.appointments.length > 3 ? 3 : 6).map((item) => (
+                      <AppointmentRow
+                        key={item.id}
+                        item={item}
+                        api={api}
+                        showDay
+                        onOpen={setOpened}
+                      />
+                    ))}
+                  </div>
+                </section>
+              ) : null}
+            </Card.Content>
+            <Card.Footer className="manager-agenda-footer">
+              <span>
+                <span className="manager-dot" />{' '}
+                {done ? `${done} de ${live.length} concluídos` : 'Um dia cheio de boas conexões'}
+              </span>
+              <span>{live.length} atendimentos</span>
+            </Card.Footer>
+          </Card>
+        </div>
         {data.activity ? (
           <Card className="manager-panel manager-activity">
             <Card.Header className="manager-panel-heading">

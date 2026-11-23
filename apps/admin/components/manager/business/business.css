@@ -2501,17 +2501,19 @@
 .inv-actions {
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 42px;
 }
-.manager-shell .inv-actions .button.inv-out {
+.manager-shell .inv-actions .button.inv-out,
+.manager-shell[data-manager-glass='custom'] .inv-actions .button.button--secondary.inv-out {
   color: #fff;
   border-color: transparent;
-  background: linear-gradient(135deg, #c2410c, #f97316);
-  box-shadow: 0 6px 14px #c2410c40;
+  background: linear-gradient(135deg, #dc2626, #ef4444);
+  box-shadow: 0 6px 14px #dc262659;
 }
-.manager-shell .inv-actions .button.inv-in {
+.manager-shell .inv-actions .button.inv-in,
+.manager-shell[data-manager-glass='custom'] .inv-actions .button.button--secondary.inv-in {
   color: #fff;
   border-color: transparent;
-  background: linear-gradient(135deg, #047857, #22c55e);
-  box-shadow: 0 6px 14px #04785740;
+  background: linear-gradient(135deg, #059669, #22c55e);
+  box-shadow: 0 6px 14px #05966959;
 }
 .manager-shell .inv-actions .button.inv-out:is(:hover, [data-pressed='true']),
 .manager-shell .inv-actions .button.inv-in:is(:hover, [data-pressed='true']) {
