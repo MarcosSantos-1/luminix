@@ -1568,8 +1568,20 @@
 .svc-grid {
   gap: 16px;
 }
+.svc-tile,
+.biz-pack,
+.biz-promo-card {
+  border-color: color-mix(in srgb, var(--space-highlight, #ffb5d3) 32%, var(--manager-border));
+  background:
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--space-accent, #ec247b) 14%, transparent),
+      transparent 46%
+    ),
+    #ffffff0d;
+  box-shadow: 0 10px 24px #00000022;
+}
 .svc-tile {
-  position: relative;
   gap: 12px;
   padding: 18px;
   overflow: hidden;
@@ -1678,6 +1690,21 @@
   box-shadow: 0 0 0 1px #39e58c80;
   background: color-mix(in srgb, #39e58c 30%, transparent) !important;
 }
+.biz-tile-actions .button.svc-edit,
+.biz-tile-actions .button.svc-pause {
+  color: #fff;
+  border-color: transparent;
+}
+.biz-tile-actions .button.svc-edit {
+  background: linear-gradient(
+    135deg,
+    var(--space-accent, #ec247b),
+    color-mix(in srgb, var(--space-accent, #ec247b) 62%, #000)
+  );
+}
+.biz-tile-actions .button.svc-pause {
+  background: linear-gradient(135deg, #b45309, #f59e0b);
+}
 .svc-preview {
   display: flex;
   flex-direction: column;
@@ -1698,21 +1725,26 @@
   flex-wrap: wrap;
   align-items: center;
   gap: 12px 14px;
-  padding: 14px 16px;
-  border: 1px solid color-mix(in srgb, #39e58c 35%, var(--manager-border));
-  border-radius: 20px;
+  padding: 16px;
+  border: 1px solid color-mix(in srgb, var(--space-highlight, #ffb5d3) 40%, var(--manager-border));
+  border-radius: 22px;
   background:
-    linear-gradient(100deg, color-mix(in srgb, #39e58c 12%, transparent), transparent 70%),
-    #ffffff08;
+    linear-gradient(
+      110deg,
+      color-mix(in srgb, var(--space-accent, #ec247b) 18%, transparent),
+      transparent 68%
+    ),
+    var(--manager-surface, #ffffff0d);
+  box-shadow: 0 10px 24px #00000022;
 }
 .biz-promo-strip-icon {
   display: grid;
   place-items: center;
-  width: 42px;
-  height: 42px;
-  border-radius: 14px;
-  color: #b7ffd6;
-  background: color-mix(in srgb, #39e58c 25%, transparent);
+  width: 46px;
+  height: 46px;
+  border-radius: 15px;
+  color: var(--space-deep, #3a0a22);
+  background: var(--space-highlight, #ffb5d3);
 }
 .biz-promo-strip-copy {
   display: grid;
@@ -1727,7 +1759,16 @@
 .biz-promo-strip-actions {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px;
+  gap: 8px;
+}
+.biz-promo-card .biz-tile-icon {
+  color: var(--space-deep, #3a0a22);
+  background: var(--space-highlight, #ffb5d3);
+}
+.biz-promo-card .biz-price strong {
+  color: var(--space-highlight, #ffb5d3);
+  font-size: 20px;
+  font-weight: 750;
 }
 
 /* Novo serviço em etapas */

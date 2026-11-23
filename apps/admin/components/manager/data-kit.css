@@ -107,11 +107,24 @@ button.kpi[aria-pressed='true'] {
 }
 .filter-trigger.is-icon {
   flex: none;
-  width: 46px;
-  min-width: 46px;
-  height: 46px;
+  width: 48px;
+  min-width: 48px;
+  height: 48px;
   padding: 0;
-  border-radius: 14px;
+  border-radius: 16px;
+}
+.data-searchbar .filter-trigger.is-icon {
+  border-color: color-mix(
+    in srgb,
+    var(--space-highlight, #ffb5d3) 46%,
+    var(--manager-border, #ffffff26)
+  );
+  background: color-mix(
+    in srgb,
+    var(--space-accent, #ec247b) 16%,
+    var(--manager-surface, #ffffff14)
+  );
+  color: var(--space-highlight, #ffb5d3);
 }
 .filter-trigger.is-icon .filter-count {
   position: absolute;
@@ -133,6 +146,15 @@ button.kpi[aria-pressed='true'] {
   align-items: center;
   gap: 8px;
   min-width: 0;
+}
+.svc-toolbar .data-searchbar {
+  flex: 1 1 100%;
+}
+@media (max-width: 700px) {
+  .svc-toolbar,
+  .svc-toolbar .data-searchbar {
+    flex-wrap: nowrap;
+  }
 }
 .data-toolbar .data-searchbar > .data-search {
   flex: 1 1 auto;

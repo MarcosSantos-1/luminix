@@ -2640,6 +2640,57 @@
   box-shadow: 0 8px 16px #1d4ed859;
   backdrop-filter: none;
 }
+.manager-shell .biz-tile-actions .button.svc-edit,
+.manager-shell[data-manager-glass='custom']
+  .manager-main
+  .biz-tile-actions
+  .button.button--secondary.svc-edit,
+.manager-shell .promo-create.button,
+.manager-shell[data-manager-glass='custom'] .manager-main .promo-create.button {
+  color: #fff;
+  border-color: transparent;
+  background: linear-gradient(
+    135deg,
+    var(--space-accent, #ec247b),
+    color-mix(in srgb, var(--space-accent, #ec247b) 62%, #000)
+  );
+  box-shadow: 0 6px 14px color-mix(in srgb, var(--space-accent, #ec247b) 40%, transparent);
+  backdrop-filter: none;
+}
+.manager-shell .biz-tile-actions .button.svc-pause,
+.manager-shell[data-manager-glass='custom']
+  .manager-main
+  .biz-tile-actions
+  .button.button--secondary.svc-pause {
+  color: #fff;
+  border-color: transparent;
+  background: linear-gradient(135deg, #b45309, #f59e0b);
+  box-shadow: 0 6px 14px #b4530944;
+  backdrop-filter: none;
+}
+.manager-shell .promo-copy.button,
+.manager-shell .promo-more.button,
+.manager-shell[data-manager-glass='custom'] .manager-main .button.button--secondary.promo-copy,
+.manager-shell[data-manager-glass='custom'] .manager-main .button.button--secondary.promo-more {
+  color: var(--manager-text, #fff);
+  border-color: color-mix(in srgb, var(--space-highlight, #ffb5d3) 55%, transparent);
+  background: color-mix(in srgb, var(--space-accent, #ec247b) 22%, transparent);
+  backdrop-filter: none;
+}
+.manager-shell .data-searchbar .filter-trigger.button,
+.manager-shell[data-manager-glass='custom']
+  .manager-main
+  .data-searchbar
+  .filter-trigger.button.button--secondary {
+  color: var(--space-highlight, #ffb5d3);
+  border-color: color-mix(in srgb, var(--space-highlight, #ffb5d3) 46%, var(--manager-border));
+  background: color-mix(
+    in srgb,
+    var(--space-accent, #ec247b) 16%,
+    var(--manager-surface, #ffffff14)
+  );
+  backdrop-filter: none;
+}
 .manager-shell .ag-hours.button:is(:hover, [data-pressed='true']),
 .manager-shell .cli-voucher.button:is(:hover, [data-pressed='true']),
 .manager-shell[data-manager-glass='custom']

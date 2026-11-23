@@ -132,7 +132,7 @@ export function PromotionsSection({
             {data.promotions.map((item) => {
               const state = promotionState(item, data.today)
               return (
-                <li key={item.id} className="biz-tile">
+                <li key={item.id} className="biz-tile biz-promo-card">
                   <div className="biz-tile-head">
                     <span className="biz-tile-icon" aria-hidden>
                       <BadgePercent size={20} />
@@ -172,12 +172,18 @@ export function PromotionsSection({
                   </div>
                   {data.canManage ? (
                     <div className="biz-tile-actions">
-                      <Button size="sm" variant="secondary" onPress={() => setPromoFromCard(item)}>
+                      <Button
+                        size="sm"
+                        className="svc-edit"
+                        variant="secondary"
+                        onPress={() => setPromoFromCard(item)}
+                      >
                         <Pencil size={14} aria-hidden /> Editar
                       </Button>
                       <Button
                         size="sm"
-                        variant="ghost"
+                        className="promo-copy"
+                        variant="secondary"
                         onPress={() =>
                           void copyText(promotionText(item, data.services)).then((ok) =>
                             setNotice(
@@ -261,12 +267,12 @@ export function PromotionsStrip({
       </div>
       <div className="biz-promo-strip-actions">
         {data.canManage ? (
-          <Button size="sm" variant="secondary" onPress={onCreate}>
+          <Button size="sm" className="promo-create" onPress={onCreate}>
             <Plus size={15} aria-hidden /> Nova promoção
           </Button>
         ) : null}
         {onOpenAll ? (
-          <Button size="sm" variant="ghost" onPress={onOpenAll}>
+          <Button size="sm" className="promo-more" variant="secondary" onPress={onOpenAll}>
             Ver em Marketing →
           </Button>
         ) : null}

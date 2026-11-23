@@ -246,12 +246,18 @@ export function PackagesTab({
                 ) : null}
                 {canManage ? (
                   <div className="biz-tile-actions">
-                    <Button size="sm" variant="secondary" onPress={() => setEditing(item)}>
+                    <Button
+                      size="sm"
+                      className="svc-edit"
+                      variant="secondary"
+                      onPress={() => setEditing(item)}
+                    >
                       <Pencil size={14} aria-hidden /> Editar
                     </Button>
                     <Button
                       size="sm"
-                      variant={item.status === 'archived' ? 'primary' : 'ghost'}
+                      className={item.status === 'archived' ? 'svc-resume' : 'svc-pause'}
+                      variant="secondary"
                       isDisabled={busy === item.id}
                       onPress={() =>
                         void setStatus(item, item.status === 'active' ? 'archived' : 'active')

@@ -18,8 +18,8 @@ import {
   Pencil,
   Play,
   Plus,
+  ShoppingBag,
   SlidersHorizontal,
-  Flower2,
   ShieldAlert,
   Trash2,
   TrendingUp,
@@ -105,7 +105,7 @@ type Tab = 'services' | 'packages' | 'equipment'
 
 const durations = [15, 20, 30, 40, 45, 50, 60, 75, 90, 120, 150, 180, 240]
 // Paused services stay in the list (dimmed), so they can be brought back with one tap.
-const defaultFilters: FilterValue = { status: [], mode: [], price: [], other: [] }
+const defaultFilters: FilterValue = { status: [], mode: [], price: [], other: [], category: [] }
 const sortOptions = [
   { id: 'category', label: 'Por categoria' },
   { id: 'name', label: 'Nome (A–Z)' },
@@ -170,7 +170,6 @@ export function ServicesPanel({
       setRequestedEquipment(focus.equipmentId)
     } else setQuery(value)
   })
-  const [category, setCategory] = useState('')
   const [filters, setFilters] = useState<FilterValue>(defaultFilters)
   const [sort, setSort] = useState('category')
   const [notice, setNotice] = useState('')
@@ -182,7 +181,7 @@ export function ServicesPanel({
   const blank = (): Service => ({
     id: crypto.randomUUID(),
     name: '',
-    category: category || data?.services[0]?.category || '',
+    category: filters.category?.[0] || data?.services[0]?.category || '',
     description: '',
     priceCents: 0,
     priceType: 'fixed',
@@ -250,7 +249,7 @@ export function ServicesPanel({
       (!picked('other').includes('promo') || Boolean(service.promotion)) &&
       (!picked('other').includes('noteam') || service.professionals === 0) &&
       (!picked('other').includes('sensitive') || service.sensitive) &&
-      (!category || service.category === category) &&
+      (!picked('category').length || picked('category').includes(service.category)) &&
       (!needle ||
         `${service.name} ${service.category}`.toLocaleLowerCase('pt-BR').includes(needle)),
   )
@@ -275,7 +274,8 @@ export function ServicesPanel({
     picked('status').length +
     picked('mode').length +
     picked('price').length +
-    picked('other').length
+    picked('other').length +
+    picked('category').length
   const packages = extras.data?.packages ?? []
   const equipment = extras.data?.equipment ?? []
   const sellingPackages = packages.filter((item) => item.status === 'active')
@@ -326,7 +326,7 @@ export function ServicesPanel({
   }
 
   const tabs: { id: Tab; label: string; icon: ReactNode; count: number }[] = [
-    { id: 'services', label: 'Serviços', icon: <Flower2 size={18} />, count: active.length },
+    { id: 'services', label: 'Serviços', icon: <ShoppingBag size={18} />, count: active.length },
     { id: 'packages', label: 'Pacotes', icon: <Layers size={18} />, count: sellingPackages.length },
     {
       id: 'equipment',
@@ -510,71 +510,64 @@ export function ServicesPanel({
             onCreate={() => setPromo(blankPromotion(data.today))}
             onOpenAll={onOpenMarketing}
           />
-          <div className="data-toolbar">
-            <SearchInput
-              className="data-search"
-              ariaLabel="Buscar serviço"
-              placeholder="Buscar serviço"
-              value={query}
-              onChange={setQuery}
-            />
-            <SelectField
-              className="data-sort"
-              ariaLabel="Ordenar serviços"
-              value={sort}
-              onChange={setSort}
-              options={sortOptions}
-            />
-            <FilterMenu
-              value={filters}
-              onChange={setFilters}
-              activeCount={activeFilters}
-              onClear={() => setFilters(defaultFilters)}
-              groups={[
-                {
-                  id: 'status',
-                  label: 'Situação',
-                  options: [
-                    { id: 'active', label: 'No site', count: active.length },
-                    { id: 'archived', label: 'Pausados', count: paused },
-                  ],
-                },
-                {
-                  id: 'other',
-                  label: 'Mostrar apenas',
-                  options: [
-                    { id: 'promo', label: 'Em promoção', count: onPromo },
-                    { id: 'noteam', label: 'Sem profissional', count: withoutTeam },
-                    { id: 'sensitive', label: 'Íntimos ou sensíveis' },
-                  ],
-                },
-                {
-                  id: 'mode',
-                  label: 'Como a cliente agenda',
-                  options: bookingModes.map(({ id, label }) => ({ id, label })),
-                },
-                { id: 'price', label: 'Tipo de preço', options: priceTypes },
-              ]}
-            />
-          </div>
-          {categories.length > 1 ? (
-            <div className="biz-chips svc-cats" role="group" aria-label="Filtrar por categoria">
-              <button type="button" aria-pressed={!category} onClick={() => setCategory('')}>
-                Todas
-              </button>
-              {categories.map((name) => (
-                <button
-                  key={name}
-                  type="button"
-                  aria-pressed={category === name}
-                  style={{ ['--hue' as string]: categoryHue(name) }}
-                  onClick={() => setCategory(category === name ? '' : name)}
-                >
-                  <i aria-hidden /> {name}
-                </button>
-              ))}
+          <div className="data-toolbar svc-toolbar">
+            <div className="data-searchbar">
+              <SearchInput
+                className="data-search lx-search-bar"
+                ariaLabel="Buscar serviço"
+                placeholder="Buscar serviço"
+                value={query}
+                onChange={setQuery}
+              />
+              <FilterMenu
+                iconOnly
+                sort={{ value: sort, onChange: setSort, options: sortOptions }}
+                value={filters}
+                onChange={setFilters}
+                activeCount={activeFilters}
+                onClear={() => setFilters(defaultFilters)}
+                groups={[
+                  ...(categories.length > 1
+                    ? [
+                        {
+                          id: 'category',
+                          label: 'Categoria',
+                          options: categories.map((name) => ({
+                            id: name,
+                            label: name,
+                            count: data.services.filter((service) => service.category === name)
+                              .length,
+                          })),
+                        },
+                      ]
+                    : []),
+                  {
+                    id: 'status',
+                    label: 'Situação',
+                    options: [
+                      { id: 'active', label: 'No site', count: active.length },
+                      { id: 'archived', label: 'Pausados', count: paused },
+                    ],
+                  },
+                  {
+                    id: 'other',
+                    label: 'Mostrar apenas',
+                    options: [
+                      { id: 'promo', label: 'Em promoção', count: onPromo },
+                      { id: 'noteam', label: 'Sem profissional', count: withoutTeam },
+                      { id: 'sensitive', label: 'Íntimos ou sensíveis' },
+                    ],
+                  },
+                  {
+                    id: 'mode',
+                    label: 'Como a cliente agenda',
+                    options: bookingModes.map(({ id, label }) => ({ id, label })),
+                  },
+                  { id: 'price', label: 'Tipo de preço', options: priceTypes },
+                ]}
+              />
             </div>
-          ) : null}
+          </div>
 
           {visible.length ? (
             groups.map((group) => (
@@ -721,11 +714,17 @@ function ServiceTile({
               <Play size={14} aria-hidden /> Despausar
             </Button>
           ) : null}
-          <Button size="sm" variant="secondary" onPress={onEdit}>
+          <Button size="sm" className="svc-edit" variant="secondary" onPress={onEdit}>
             <Pencil size={14} aria-hidden /> Editar
           </Button>
           {!paused ? (
-            <Button size="sm" variant="ghost" isDisabled={busy} onPress={onToggle}>
+            <Button
+              size="sm"
+              className="svc-pause"
+              variant="secondary"
+              isDisabled={busy}
+              onPress={onToggle}
+            >
               <Pause size={14} aria-hidden /> Pausar
             </Button>
           ) : null}
