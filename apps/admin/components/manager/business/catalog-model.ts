@@ -41,7 +41,13 @@ export type Promotion = {
   showOnSite: boolean
   serviceIds: string[]
 }
-export type TeamMember = { id: string; name: string; photoUrl: string | null }
+export type TeamMember = {
+  id: string
+  name: string
+  photoUrl: string | null
+  /** Picks the illustration shown without a photo. */
+  gender?: string
+}
 export type Catalog = {
   today: string
   canManage: boolean

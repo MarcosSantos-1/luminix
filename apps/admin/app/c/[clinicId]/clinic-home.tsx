@@ -145,6 +145,7 @@ export function ClinicHome({
                   clinicId={clinic.id}
                   sections={sections}
                   onNavigate={navigate}
+                  onGo={go}
                   onOpenClient={(client) => go({ section: 'clientes', query: client.name })}
                 />
               ),

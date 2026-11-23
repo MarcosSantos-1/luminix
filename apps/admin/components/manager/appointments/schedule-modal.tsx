@@ -14,7 +14,7 @@ import {
 import { useCallback, useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { TimeInputField } from '@/components/ui/fields'
-import { initials } from '../business/format'
+import { professionalAvatar } from '@/components/onboarding/model'
 import type { ClinicApi } from '../settings/clinic-api'
 import { QuickModal } from '../quick-modal'
 import type { BookingProfessional } from './booking-modal'
@@ -404,7 +404,11 @@ export function StandardWeek({
             Espaço
           </button>
           {professionals.map((item) => {
-            const photo = item.photo_url ?? team?.find((entry) => entry.id === item.id)?.photoUrl
+            const member = team?.find((entry) => entry.id === item.id)
+            const photo = professionalAvatar(
+              item.photo_url ?? member?.photoUrl,
+              item.gender ?? member?.gender,
+            )
             return (
               <button
                 key={item.id}
@@ -416,12 +420,8 @@ export function StandardWeek({
                 }}
               >
                 <span className="sch-face">
-                  {photo ? (
-                    // eslint-disable-next-line @next/next/no-img-element -- public team photo
-                    <img src={photo} alt="" />
-                  ) : (
-                    initials(item.display_name)
-                  )}
+                  {/* eslint-disable-next-line @next/next/no-img-element -- public team photo */}
+                  <img src={photo} alt="" />
                 </span>
                 {item.display_name}
               </button>

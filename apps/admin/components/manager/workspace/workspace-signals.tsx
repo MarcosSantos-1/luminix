@@ -8,7 +8,6 @@ import {
   ChevronRight,
   CircleAlert,
   Info,
-  Megaphone,
   PartyPopper,
   X,
 } from 'lucide-react'
@@ -58,6 +57,7 @@ type Signals = {
   recent: ActivityItem[]
   canAudit: boolean
   openCenter: () => void
+  openUpdates?: () => void
   refresh: () => void
 }
 const Context = createContext<Signals | null>(null)
@@ -90,12 +90,15 @@ export function WorkspaceSignals({
   clinicId,
   canAudit,
   go,
+  onOpenUpdates,
   children,
 }: {
   api: ClinicApi
   clinicId: string
   canAudit: boolean
   go: (target: GoTarget) => void
+  /** Opens "Novidades e avisos" (Luminix releases), used by the home banner. */
+  onOpenUpdates?: () => void
   children: ReactNode
 }) {
   const [notices, setNotices] = useState<Notice[]>([])
@@ -159,9 +162,10 @@ export function WorkspaceSignals({
       recent,
       canAudit,
       openCenter: () => setCenterOpen(true),
+      openUpdates: onOpenUpdates,
       refresh,
     }),
-    [visible, dismiss, unread, recent, canAudit, refresh],
+    [visible, dismiss, unread, recent, canAudit, refresh, onOpenUpdates],
   )
 
   return (
@@ -190,15 +194,7 @@ export function useWorkspaceSignals() {
 const toneIcon = { info: Info, warning: CircleAlert, success: PartyPopper }
 
 /** Header bell: notices + unread activity, with access to the activity center. */
-export function NotificationBell({
-  api,
-  go,
-  onOpenUpdates,
-}: {
-  api: ClinicApi
-  go: (target: GoTarget) => void
-  onOpenUpdates: () => void
-}) {
+export function NotificationBell({ api, go }: { api: ClinicApi; go: (target: GoTarget) => void }) {
   const signals = useWorkspaceSignals()
   const [open, setOpen] = useState(false)
   if (!signals) return null
@@ -299,8 +295,8 @@ export function NotificationBell({
               </section>
             ) : null}
           </div>
-          <div className="ws-pop-foot">
-            {signals.canAudit ? (
+          {signals.canAudit ? (
+            <div className="ws-pop-foot">
               <Button
                 size="sm"
                 onPress={() => {
@@ -310,18 +306,8 @@ export function NotificationBell({
               >
                 Ver todas as atividades
               </Button>
-            ) : null}
-            <Button
-              size="sm"
-              variant="ghost"
-              onPress={() => {
-                setOpen(false)
-                onOpenUpdates()
-              }}
-            >
-              <Megaphone size={14} aria-hidden /> Novidades da Luminix
-            </Button>
-          </div>
+            </div>
+          ) : null}
         </Popover.Dialog>
       </Popover.Content>
     </Popover>

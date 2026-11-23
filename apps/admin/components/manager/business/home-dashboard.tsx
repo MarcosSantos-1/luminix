@@ -9,7 +9,6 @@ import {
   CalendarDays,
   CalendarX,
   Check,
-  ChevronRight,
   Package,
   Plus,
 } from 'lucide-react'
@@ -19,7 +18,9 @@ import { LoadError, SettingsSkeleton } from '../settings/settings-kit'
 import { managerNavigation, type ManagerSectionId } from '../demo-data'
 import { money, shortName } from './format'
 import { activityDetail, activityKinds, activityTitle, timeAgo } from '../workspace/activity-copy'
-import { useWorkspaceSignals } from '../workspace/workspace-signals'
+import { useWorkspaceSignals, type GoTarget } from '../workspace/workspace-signals'
+import { managerUpdates } from '../manager-updates'
+import { HomeBanner } from './home-banner'
 import { AppointmentSheet, ClientAvatar } from '../appointments/appointment-sheet'
 import { BookingModal, QuickClientModal } from '../appointments/booking-modal'
 import {
@@ -143,19 +144,49 @@ function AppointmentRow({
   )
 }
 
+const latestUpdate = managerUpdates[0]
+const updateBannerKey = (clinicId: string) => `luminix:update-banner:${clinicId}`
+
+/** "A, B e C" — at most three names, then "e mais N". */
+function listNames(names: string[]) {
+  const shown = names.slice(0, 3)
+  const rest = names.length - shown.length
+  if (rest > 0) return `${shown.join(', ')} e mais ${rest}`
+  return shown.length > 1 ? `${shown.slice(0, -1).join(', ')} e ${shown.at(-1)}` : (shown[0] ?? '')
+}
+
 export function HomeDashboard({
   clinicId,
   sections,
   onNavigate,
+  onGo,
   onOpenClient,
 }: {
   clinicId: string
   sections: ManagerSectionId[]
   onNavigate: (label: string) => void
+  /** Opens a page on a given tab (e.g. Marketing → Promoções). */
+  onGo?: (target: GoTarget) => void
   onOpenClient?: (client: { id: string; name: string }) => void
 }) {
   const api = useClinicApi(clinicId)
   const signals = useWorkspaceSignals()
+  const [seenUpdate, setSeenUpdate] = useState<string | null>(() => {
+    if (typeof window === 'undefined') return null
+    try {
+      return window.localStorage.getItem(updateBannerKey(clinicId))
+    } catch {
+      return null
+    }
+  })
+  const dismissUpdate = (id: string) => {
+    setSeenUpdate(id)
+    try {
+      window.localStorage.setItem(updateBannerKey(clinicId), id)
+    } catch {
+      // Hidden for this visit only.
+    }
+  }
   const dashboard = useClinicResource<Dashboard>(api, 'dashboard')
   const [notice, setNotice] = useState('')
   const [opened, setOpened] = useState<AppointmentView | null>(null)
@@ -200,42 +231,74 @@ export function HomeDashboard({
       : []),
     { label: 'Próximos 7 dias', value: String(data.upcomingWeek), detail: 'atendimentos marcados' },
   ]
-  const alerts = [
-    ...(data.unlinkedRentalServices?.length
+  const lowStock = data.lowStock ?? []
+  const expiring = data.expiringStock ?? []
+  const expired = expiring.filter((item) => item.days < 0)
+  const openPromotions = () =>
+    onGo && sections.includes('marketing')
+      ? onGo({ section: 'marketing', tab: 'promotions' })
+      : onNavigate(sections.includes('marketing') ? 'Marketing' : 'Serviços')
+  const banners: (Parameters<typeof HomeBanner>[0] & { id: string })[] = [
+    ...(latestUpdate && signals?.openUpdates && seenUpdate !== latestUpdate.id
       ? [
           {
-            icon: CalendarDays,
-            title: 'Vincule um aparelho a estes serviços',
-            detail: data.unlinkedRentalServices.join(' · '),
-            target: 'Programar locação',
+            id: 'update',
+            title: 'Atualização Luminix',
+            text: latestUpdate.title,
+            art: '/brand/others/megaphone.webp',
+            action: { label: 'Ver novidades', onPress: signals.openUpdates },
+            onDismiss: () => dismissUpdate(latestUpdate.id),
           },
         ]
       : []),
-    ...(data.expiringStock ?? []).map((item) => ({
-      icon: CalendarX,
-      title:
-        item.days < 0
-          ? `${item.name} vencido`
-          : item.days === 0
-            ? `${item.name} vence hoje`
-            : `${item.name} vence em ${item.days} ${item.days === 1 ? 'dia' : 'dias'}`,
-      detail:
-        item.days < 0 ? 'Separe antes de usar em atendimento' : 'Use primeiro ou planeje a troca',
-      target: 'Estoque',
-    })),
-    ...(data.lowStock ?? []).map((item) => ({
-      icon: Package,
-      title: `${item.name} acabando`,
-      detail: `Restam ${item.quantity.toLocaleString('pt-BR')} ${item.unit}`,
-      target: 'Estoque',
-    })),
+    ...(lowStock.length
+      ? [
+          {
+            id: 'low-stock',
+            title: 'Estoque baixo',
+            text:
+              lowStock.length === 1
+                ? `${lowStock[0].name} está acabando: restam ${lowStock[0].quantity.toLocaleString('pt-BR')} ${lowStock[0].unit}.`
+                : `${lowStock.length} itens acabando: ${listNames(lowStock.map((item) => item.name))}.`,
+            icon: Package,
+            action: { label: 'Ver estoque', onPress: () => onNavigate('Estoque') },
+          },
+        ]
+      : []),
+    ...(expiring.length
+      ? [
+          {
+            id: 'expiring',
+            title: expired.length ? 'Produtos vencidos' : 'Validade próxima',
+            text: expired.length
+              ? `Separe antes de usar: ${listNames(expired.map((item) => item.name))}.`
+              : expiring.length === 1
+                ? `${expiring[0].name} ${expiring[0].days === 0 ? 'vence hoje' : `vence em ${expiring[0].days} ${expiring[0].days === 1 ? 'dia' : 'dias'}`}. Use primeiro.`
+                : `Use primeiro: ${listNames(expiring.map((item) => item.name))}.`,
+            icon: CalendarX,
+            action: { label: 'Ver estoque', onPress: () => onNavigate('Estoque') },
+          },
+        ]
+      : []),
     ...(data.activePromotions
       ? [
           {
+            id: 'promotions',
+            title: 'Promoções ativas',
+            text: `${data.activePromotions === 1 ? '1 promoção no ar' : `${data.activePromotions} promoções no ar`}: o site já mostra os preços com desconto.`,
             icon: BadgePercent,
-            title: `${data.activePromotions} ${data.activePromotions === 1 ? 'promoção ativa' : 'promoções ativas'}`,
-            detail: 'O site mostra os preços com desconto',
-            target: 'Serviços',
+            action: { label: 'Ver promoções', onPress: openPromotions },
+          },
+        ]
+      : []),
+    ...(data.unlinkedRentalServices?.length
+      ? [
+          {
+            id: 'rental',
+            title: 'Vincule um aparelho',
+            text: `Estes serviços precisam de um aparelho: ${listNames(data.unlinkedRentalServices)}.`,
+            icon: CalendarDays,
+            action: { label: 'Programar', onPress: () => onNavigate('Programar locação') },
           },
         ]
       : []),
@@ -401,24 +464,15 @@ export function HomeDashboard({
         </Card>
         <Card className="manager-panel">
           <Card.Header>
-            <Card.Title>Fique de olho</Card.Title>
+            <Card.Title>Informações importantes</Card.Title>
           </Card.Header>
           <Card.Content>
-            {alerts.length ? (
-              <ul className="home-alerts">
-                {alerts.map(({ icon: Icon, title, detail, target }) => (
-                  <li key={title}>
-                    <button type="button" onClick={() => onNavigate(target)}>
-                      <Icon size={18} aria-hidden />
-                      <span>
-                        <strong>{title}</strong>
-                        <small>{detail}</small>
-                      </span>
-                      <ChevronRight size={16} aria-hidden />
-                    </button>
-                  </li>
+            {banners.length ? (
+              <div className="home-banners">
+                {banners.map(({ id, ...banner }) => (
+                  <HomeBanner key={id} {...banner} />
                 ))}
-              </ul>
+              </div>
             ) : (
               <div className="biz-empty">
                 <Check size={24} aria-hidden />

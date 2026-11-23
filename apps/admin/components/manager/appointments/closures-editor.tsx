@@ -4,7 +4,8 @@ import { Button, Spinner } from '@heroui/react'
 import { ArrowLeft, Check, Pencil, Plus, Trash2, Undo2 } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { DateInputField, TextInputField } from '@/components/ui/fields'
-import { dateBr, initials } from '../business/format'
+import { professionalAvatar } from '@/components/onboarding/model'
+import { dateBr } from '../business/format'
 import { ClinicApiError, type ClinicApi } from '../settings/clinic-api'
 import { closureKinds, type BookingProfessional, type ClosureRow } from './booking-modal'
 import { canceledNote, confirmFlag, useCancellationGuard } from './cancellation-guard'
@@ -122,8 +123,10 @@ export function ClosuresEditor({
   const kinds = (form.who === 'clinic' ? spaceKinds : personKinds).filter(allowed)
   const name = (id: string | null) =>
     id ? (professionals.find((item) => item.id === id)?.display_name ?? 'Profissional') : 'Espaço'
-  const photo = (id: string) =>
-    professionals.find((item) => item.id === id)?.photo_url ?? photos[id] ?? null
+  const photo = (id: string) => {
+    const item = professionals.find((entry) => entry.id === id)
+    return professionalAvatar(item?.photo_url ?? photos[id], item?.gender)
+  }
   const steps: Step[] = solo ? ['kind', 'when', 'note'] : ['who', 'kind', 'when', 'note']
   const position = step ? steps.indexOf(step) : -1
   const list = (rows ?? []).filter(
@@ -399,12 +402,8 @@ export function ClosuresEditor({
                       }}
                     >
                       <span className="sch-face cw-face">
-                        {face ? (
-                          // eslint-disable-next-line @next/next/no-img-element -- public team photo
-                          <img src={face} alt="" />
-                        ) : (
-                          initials(item.display_name)
-                        )}
+                        {/* eslint-disable-next-line @next/next/no-img-element -- public team photo */}
+                        <img src={face} alt="" />
                       </span>
                       <strong>{item.display_name.split(' ')[0]}</strong>
                       <small>Só a própria agenda</small>

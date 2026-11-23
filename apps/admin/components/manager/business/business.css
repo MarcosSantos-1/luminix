@@ -361,32 +361,142 @@
 .manager-client.is-muted {
   opacity: 0.55;
 }
-.home-alerts {
+/* "Informações importantes": glossy banners tinted by the space theme. */
+.home-banners {
   display: grid;
-  gap: 8px;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-.home-alerts button {
-  display: flex;
-  align-items: center;
   gap: 12px;
-  width: 100%;
-  padding: 12px 14px;
-  border: 1px solid var(--manager-border, #ffffff26);
-  border-radius: 16px;
-  color: var(--manager-text);
-  background: #ffffff0c;
-  text-align: left;
+}
+.home-banner {
+  --banner-accent: var(--space-accent, #ec287a);
+  --banner-light: var(--space-highlight, #ffb5d3);
+  --banner-deep: var(--space-deep, #5c1238);
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  min-height: 148px;
+  padding: 20px 20px 20px 22px;
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--banner-light) 38%, transparent);
+  border-radius: 22px;
+  color: #fff;
+  background:
+    radial-gradient(
+      90% 120% at 88% 40%,
+      color-mix(in srgb, var(--banner-light) 42%, transparent),
+      transparent 62%
+    ),
+    linear-gradient(
+      135deg,
+      color-mix(in srgb, var(--banner-accent) 88%, #fff 12%) 0%,
+      color-mix(in srgb, var(--banner-accent) 72%, var(--banner-deep) 28%) 100%
+    );
+  box-shadow:
+    inset 0 1px 0 #ffffff40,
+    0 12px 28px color-mix(in srgb, var(--banner-deep) 35%, transparent);
+}
+.home-banner-copy {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  justify-items: start;
+  gap: 6px;
+  padding-right: 8px;
+}
+.home-banner-copy h3 {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 700;
+  line-height: 1.25;
+}
+.home-banner-copy p {
+  max-width: 34ch;
+  margin: 0;
+  color: #ffffffd9;
+  font-size: 14px;
+  line-height: 1.45;
+}
+.home-banner .button.home-banner-action,
+.home-banner-action {
+  margin-top: 10px;
+  padding-inline: 16px;
+  border-radius: 12px;
+  color: var(--banner-deep);
+  background: color-mix(in srgb, var(--banner-light) 30%, #fff 70%);
+  font-weight: 650;
+  box-shadow: 0 6px 14px color-mix(in srgb, var(--banner-deep) 25%, transparent);
+}
+.home-banner .button.home-banner-action:hover,
+.home-banner-action:hover {
+  background: #fff;
+}
+.home-banner-art {
+  width: 128px;
+  height: auto;
+  margin: -6px 6px -10px 0;
+  filter: var(--space-art-filter, brightness(1))
+    drop-shadow(0 10px 18px color-mix(in srgb, var(--banner-deep) 45%, transparent));
+  transform: rotate(-4deg);
+  pointer-events: none;
+}
+.home-banner-glyph {
+  display: grid;
+  place-items: center;
+  width: 82px;
+  height: 82px;
+  margin-right: 22px;
+  border-radius: 26px;
+  color: #fff;
+  background:
+    radial-gradient(70% 60% at 30% 22%, #ffffffb0, transparent 60%),
+    linear-gradient(
+      150deg,
+      color-mix(in srgb, var(--banner-light) 75%, #fff) 0%,
+      var(--banner-accent) 70%,
+      color-mix(in srgb, var(--banner-accent) 70%, var(--banner-deep)) 100%
+    );
+  box-shadow:
+    inset 0 -6px 12px color-mix(in srgb, var(--banner-deep) 35%, transparent),
+    inset 0 3px 6px #ffffff80,
+    0 14px 24px color-mix(in srgb, var(--banner-deep) 45%, transparent);
+  transform: rotate(-10deg);
+}
+.home-banner-glyph svg {
+  filter: drop-shadow(0 2px 3px color-mix(in srgb, var(--banner-deep) 55%, transparent));
+}
+.home-banner-close {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  z-index: 2;
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border: 0;
+  border-radius: 50%;
+  color: #fff;
+  background: transparent;
   cursor: pointer;
 }
-.home-alerts span {
-  display: grid;
-  flex: 1;
+.home-banner-close:hover {
+  background: #ffffff26;
 }
-.home-alerts small {
-  color: var(--manager-muted);
+@media (max-width: 560px) {
+  .home-banner {
+    min-height: 136px;
+    padding: 18px 14px 18px 18px;
+  }
+  .home-banner-art {
+    width: 96px;
+  }
+  .home-banner-glyph {
+    width: 64px;
+    height: 64px;
+    margin-right: 10px;
+    border-radius: 20px;
+  }
 }
 .report-chart {
   display: flex;

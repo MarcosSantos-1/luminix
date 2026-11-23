@@ -1108,7 +1108,7 @@ export async function operationRoutes(
             [tenant.clinicId, request.query.from.slice(0, 10), request.query.to.slice(0, 10)],
           ),
           connection.query(
-            `SELECT p.id, p.display_name, photo.small_object_key AS photo_key
+            `SELECT p.id, p.display_name, p.gender, photo.small_object_key AS photo_key
                  FROM luminix.professionals p
                  LEFT JOIN luminix.media_assets photo ON photo.clinic_id = p.clinic_id
                    AND photo.id = p.photo_asset_id AND photo.status = 'ready'

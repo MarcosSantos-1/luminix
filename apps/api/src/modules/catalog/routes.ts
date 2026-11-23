@@ -75,7 +75,7 @@ export async function catalogRoutes(
           rolePermissions(connection, tenant),
           // Who can be chosen in "Quem faz" (Novo serviço).
           connection.query(
-            `SELECT p.id, p.display_name, photo.small_object_key AS photo_key
+            `SELECT p.id, p.display_name, p.gender, photo.small_object_key AS photo_key
                FROM luminix.professionals p
                LEFT JOIN luminix.media_assets photo ON photo.clinic_id = p.clinic_id
                  AND photo.id = p.photo_asset_id AND photo.status = 'ready'
@@ -96,7 +96,12 @@ export async function catalogRoutes(
             } catch {
               photoUrl = null
             }
-            return { id: String(row.id), name: String(row.display_name), photoUrl }
+            return {
+              id: String(row.id),
+              name: String(row.display_name),
+              gender: row.gender === 'male' ? 'male' : 'female',
+              photoUrl,
+            }
           }),
           services: services.rows.map((row) => {
             const id = String(row.id)

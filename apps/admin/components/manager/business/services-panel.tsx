@@ -82,6 +82,7 @@ import {
   type SearchFocus,
 } from '../workspace/workspace-signals'
 import { ToastNotice } from '@/components/ui/toast-notice'
+import { professionalAvatar } from '@/components/onboarding/model'
 
 export type { Service } from './catalog-model'
 export { promotionState } from './catalog-model'
@@ -1207,17 +1208,8 @@ function ServiceEditor({
                   }
                 >
                   <span className="svc-team-face" aria-hidden>
-                    {person.photoUrl ? (
-                      // eslint-disable-next-line @next/next/no-img-element -- public team photo
-                      <img src={person.photoUrl} alt="" />
-                    ) : (
-                      person.name
-                        .split(' ')
-                        .slice(0, 2)
-                        .map((part) => part[0])
-                        .join('')
-                        .toUpperCase()
-                    )}
+                    {/* eslint-disable-next-line @next/next/no-img-element -- public team photo */}
+                    <img src={professionalAvatar(person.photoUrl, person.gender)} alt="" />
                   </span>
                   <strong>{person.name.split(' ')[0]}</strong>
                   <i aria-hidden>{on ? <Check size={14} strokeWidth={3} /> : null}</i>

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useSyncExternalStore } from 'react'
+import { useCallback, useState, useSyncExternalStore } from 'react'
 import { managerUpdates } from '@/components/manager/manager-updates'
 
 const announcement = managerUpdates.find((update) => update.autoOpen)
@@ -49,9 +49,7 @@ export function useManagerMessages(initialWelcome: boolean, scope?: string) {
     setManualView(null)
   }
 
-  return {
-    view,
-    close,
-    openUpdates: () => setManualView('updates'),
-  }
+  const openUpdates = useCallback(() => setManualView('updates'), [])
+
+  return { view, close, openUpdates }
 }

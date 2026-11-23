@@ -19,6 +19,7 @@ import {
 import Image from 'next/image'
 import { useMemo, useRef, useState } from 'react'
 import { TimePicker } from '@/components/onboarding/time-picker'
+import { professionalAvatarSrc } from '@/components/onboarding/model'
 import { CheckboxField, ComboField, SelectField } from '@/components/ui/fields'
 import '@/app/c/[clinicId]/onboarding/onboarding.css'
 import { roleLabel } from '@/lib/access'
@@ -84,7 +85,7 @@ const audienceOptions: { id: Audience; label: string }[] = [
 ]
 
 function avatar(person: Pick<Professional, 'photoUrl' | 'gender'>) {
-  return person.photoUrl ?? `/brand/onboarding/avatar${person.gender === 'male' ? 'M' : 'F'}.png`
+  return person.photoUrl ?? professionalAvatarSrc[person.gender]
 }
 
 /** "Seg a Sex · 09:00–18:00" style summary for the cards. */
@@ -454,12 +455,7 @@ function ProfessionalEditor({
                     aria-checked={person.gender === gender}
                     onClick={() => set({ gender })}
                   >
-                    <Image
-                      src={`/brand/onboarding/avatar${gender === 'male' ? 'M' : 'F'}.png`}
-                      alt=""
-                      width={28}
-                      height={28}
-                    />
+                    <Image src={professionalAvatarSrc[gender]} alt="" width={28} height={28} />
                     {gender === 'male' ? 'Masculina' : 'Feminina'}
                   </button>
                 ))}
@@ -681,7 +677,12 @@ function ProfessionalEditor({
           <ClosuresEditor
             api={api}
             professionals={[
-              { id: initial.id, display_name: initial.name, photo_url: initial.photoUrl },
+              {
+                id: initial.id,
+                display_name: initial.name,
+                photo_url: initial.photoUrl,
+                gender: initial.gender,
+              },
             ]}
             photos={{}}
             canManageSchedule

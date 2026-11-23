@@ -32,6 +32,7 @@ import {
 } from '@/components/ui/fields'
 import { formatBrPhone, toE164Phone } from '@/lib/phone'
 import { holidaysBetween, shiftDate } from '@/lib/holidays'
+import { professionalAvatar } from '@/components/onboarding/model'
 import { dateBr, initials, money, shortDateBr } from '../business/format'
 import { ClientAvatar } from '../client-photo'
 import { voucherDiscount, type ClientVoucher } from '../clients/voucher-modal'
@@ -52,7 +53,12 @@ export type ClosureRow = {
   kind: string
   note: string | null
 }
-export type BookingProfessional = { id: string; display_name: string; photo_url?: string | null }
+export type BookingProfessional = {
+  id: string
+  display_name: string
+  photo_url?: string | null
+  gender?: string | null
+}
 type BookingClient = {
   id: string
   display_name: string
@@ -893,7 +899,11 @@ export function BookingModal({
                   advance()
                 }}
               >
-                <Face name={item.display_name} photo={item.photo_url} size={64} />
+                <Face
+                  name={item.display_name}
+                  photo={professionalAvatar(item.photo_url, item.gender)}
+                  size={64}
+                />
                 <strong>{item.display_name}</strong>
                 {away?.professional_id ? (
                   <small className="is-away">{closureKinds[away.kind] ?? 'Ausente'}</small>
@@ -1095,7 +1105,11 @@ export function BookingModal({
           {asksProfessional ? (
             <button type="button" onClick={() => go('professional')}>
               {person ? (
-                <Face name={person.display_name} photo={person.photo_url} size={44} />
+                <Face
+                  name={person.display_name}
+                  photo={professionalAvatar(person.photo_url, person.gender)}
+                  size={44}
+                />
               ) : (
                 <span className="bk-face is-any" aria-hidden>
                   <UsersRound size={20} />

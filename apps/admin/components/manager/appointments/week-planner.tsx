@@ -16,7 +16,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { TimeInputField } from '@/components/ui/fields'
 import { holidaysBetween } from '@/lib/holidays'
-import { initials } from '../business/format'
+import { professionalAvatar } from '@/components/onboarding/model'
 import type { ClinicApi } from '../settings/clinic-api'
 import { closureKinds, type BookingProfessional, type ClosureRow } from './booking-modal'
 import { localDate } from './model'
@@ -339,12 +339,8 @@ export function WeekPlanner({
                   }}
                 >
                   <span className="sch-face">
-                    {item.photo_url ? (
-                      // eslint-disable-next-line @next/next/no-img-element -- public team photo
-                      <img src={item.photo_url} alt="" />
-                    ) : (
-                      initials(item.display_name)
-                    )}
+                    {/* eslint-disable-next-line @next/next/no-img-element -- public team photo */}
+                    <img src={professionalAvatar(item.photo_url, item.gender)} alt="" />
                   </span>
                   {item.display_name.split(' ')[0]}
                   {Object.keys(drafts).some((entry) => entry.startsWith(`${item.id}|`)) ? (

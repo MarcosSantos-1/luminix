@@ -61,8 +61,12 @@ export type Professional = {
 }
 
 export const professionalAvatarSrc: Record<ProfessionalGender, string> = {
-  female: '/brand/onboarding/avatarF.png',
-  male: '/brand/onboarding/avatarM.png',
+  female: '/brand/onboarding/avatarF.webp',
+  male: '/brand/onboarding/avatarM.webp',
+}
+/** The professional's photo, or the illustration for their gender (female when unknown). */
+export function professionalAvatar(photo?: string | null, gender?: string | null) {
+  return photo || professionalAvatarSrc[gender === 'male' ? 'male' : 'female']
 }
 export type DaySchedule = {
   weekday: number

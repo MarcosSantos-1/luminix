@@ -451,7 +451,7 @@ export function ManagerHome({
               </Dropdown>
             )}
             {workspace ? (
-              <NotificationBell api={workspace.api} go={go} onOpenUpdates={message.openUpdates} />
+              <NotificationBell api={workspace.api} go={go} />
             ) : (
               <Button
                 isIconOnly
@@ -826,6 +826,7 @@ export function ManagerHome({
       clinicId={workspace.clinicId}
       canAudit={workspace.canAudit}
       go={go}
+      onOpenUpdates={message.openUpdates}
     >
       {shellContent}
     </WorkspaceSignals>
