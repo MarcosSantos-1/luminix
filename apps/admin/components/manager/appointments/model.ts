@@ -41,6 +41,16 @@ export type AppointmentView = {
   priceAgreed?: boolean
   /** Session of a client package (price 0 on the visit; the money lives in the package). */
   package?: AppointmentPackage | null
+  /** Sinal por Pix do espaço (ADR-037), when the client booked a service with deposit. */
+  deposit?: AppointmentDeposit | null
+}
+
+export type AppointmentDeposit = {
+  cents: number
+  /** awaiting: slot held until dueAt · reported: the client says she paid · confirmed · expired */
+  status: 'awaiting' | 'reported' | 'confirmed' | 'expired'
+  dueAt: string
+  reportedAt: string | null
 }
 
 /** Package of a visit; money fields are null for who does not see money. */
@@ -123,9 +133,13 @@ export function isQuote(item: Pick<AppointmentView, 'priceCents' | 'priceType'>)
  * confirmation by WhatsApp shows as the green dot on the WhatsApp button, not here.
  */
 export function visitBadge(
-  item: Pick<AppointmentView, 'status' | 'checkedInAt' | 'bookingSource'>,
+  item: Pick<AppointmentView, 'status' | 'checkedInAt' | 'bookingSource' | 'deposit'>,
 ): { tone: 'pending' | 'ok' | 'done' | 'bad'; label: string; key: string } {
   if (item.status === 'canceled') return { tone: 'bad', label: 'Cancelado', key: 'canceled' }
+  if (item.deposit?.status === 'awaiting' && isOpen(item.status))
+    return { tone: 'pending', label: 'Aguardando sinal', key: 'deposit' }
+  if (item.deposit?.status === 'reported' && isOpen(item.status))
+    return { tone: 'pending', label: 'Sinal informado', key: 'deposit' }
   if (item.status === 'no_show') return { tone: 'bad', label: 'Faltou', key: 'no_show' }
   if (item.status === 'completed') return { tone: 'done', label: 'Concluído', key: 'completed' }
   if (item.checkedInAt) return { tone: 'ok', label: 'Chegou', key: 'here' }

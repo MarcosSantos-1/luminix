@@ -22,6 +22,7 @@ import type {
   Anamnesis,
   Appointment,
   Availability,
+  Deposit,
   BookingPolicy,
   Notice,
   Payment,
@@ -65,6 +66,7 @@ type ApiAppointment = {
   rentalDates?: string[] | null
   canceledBySpace?: boolean
   cancelReason?: string | null
+  deposit?: Deposit | null
   service: { id: string; name: string; category: string | null }
   professional: { id: string; name: string } | null
 }
@@ -175,6 +177,7 @@ const messages: Record<string, string> = {
   'Record required': 'Complete a ficha que este espaço pede antes de agendar.',
   'Record expired': 'Sua ficha venceu. Confirme seus dados para agendar de novo.',
   'Payment unavailable': 'Este espaço recebe o pagamento no dia do atendimento.',
+  'Deposit unavailable': 'O prazo do sinal acabou. Agende de novo ou fale com o espaço.',
 }
 
 function friendly(error: unknown) {
@@ -256,6 +259,7 @@ function toAppointment(row: ApiAppointment): Appointment {
     rescheduledAt: row.rescheduledAt,
     paymentMethod: row.paymentMethod,
     paid: row.paid,
+    deposit: row.deposit ?? null,
   }
 }
 
@@ -679,22 +683,30 @@ export async function book(
   slug: string,
   input: { serviceId: string; professionalId: string | null; start: string },
   method: Payment['method'],
-): Promise<{ error: string | null; status?: 'confirmed' | 'scheduled' }> {
+): Promise<{
+  error: string | null
+  status?: 'confirmed' | 'scheduled'
+  id?: string
+  deposit?: Deposit | null
+}> {
   try {
-    const result = await api<{ status: 'confirmed' | 'scheduled' }>(
-      `/client/spaces/${encodeURIComponent(slug)}/appointments`,
-      {
-        method: 'POST',
-        body: {
-          serviceId: input.serviceId,
-          ...(input.professionalId ? { professionalId: input.professionalId } : {}),
-          localStartsAt: input.start,
-          paymentMethod: method,
-        },
+    const result = await api<{
+      id: string
+      status: 'confirmed' | 'scheduled'
+      deposit?: Deposit | null
+    }>(`/client/spaces/${encodeURIComponent(slug)}/appointments`, {
+      method: 'POST',
+      body: {
+        serviceId: input.serviceId,
+        ...(input.professionalId ? { professionalId: input.professionalId } : {}),
+        localStartsAt: input.start,
+        paymentMethod: method,
+        // This app shows the space's Pix code when the service asks for a deposit.
+        deposit: 'pix',
       },
-    )
+    })
     await refreshSpace(slug)
-    return { error: null, status: result.status }
+    return { error: null, status: result.status, id: result.id, deposit: result.deposit ?? null }
   } catch (error) {
     return { error: friendly(error) }
   }
@@ -708,6 +720,20 @@ export async function reschedule(slug: string, appointmentId: string, start: str
         method: 'POST',
         body: { localStartsAt: start },
       },
+    )
+    await refreshSpace(slug)
+    return null
+  } catch (error) {
+    return friendly(error)
+  }
+}
+
+/** "Já paguei": the hold stops expiring; the space confirms after checking the bank. */
+export async function reportDeposit(slug: string, appointmentId: string) {
+  try {
+    await api(
+      `/client/spaces/${encodeURIComponent(slug)}/appointments/${appointmentId}/deposit-paid`,
+      { method: 'POST' },
     )
     await refreshSpace(slug)
     return null

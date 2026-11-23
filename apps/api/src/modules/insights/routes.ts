@@ -35,6 +35,7 @@ export async function insightsRoutes(
     async (request, reply) =>
       authorized(request, reply, 'agenda:read', async (connection, tenant) => {
         const can = await rolePermissions(connection, tenant)
+        await connection.query('SELECT luminix.expire_deposit_holds($1)', [tenant.clinicId])
         const today = isoDate(
           (await connection.query('SELECT luminix.clinic_today() AS d')).rows[0]?.d,
         )!
@@ -42,6 +43,7 @@ export async function insightsRoutes(
           connection.query(
             `SELECT a.id, a.starts_at, a.ends_at, a.status, a.price_cents, a.promotion_id, a.price_agreed_at,
                     a.booking_source, a.checked_in_at, a.status_note, a.notes, a.override_reasons, a.previous_starts_at, c.id AS client_id,
+                    a.deposit_cents, a.deposit_status, a.deposit_due_at, a.deposit_reported_at,
                     c.display_name AS client, c.contact_phone AS phone, c.notes AS client_notes,
                     (SELECT m.small_object_key FROM luminix.media_assets m
                      WHERE m.clinic_id = c.clinic_id AND m.id = c.photo_asset_id
@@ -68,6 +70,7 @@ export async function insightsRoutes(
           connection.query(
             `SELECT a.id, a.starts_at, a.ends_at, a.status, a.price_cents, a.promotion_id, a.price_agreed_at,
                     a.booking_source, a.checked_in_at, a.status_note, a.notes, a.override_reasons, a.previous_starts_at, c.id AS client_id,
+                    a.deposit_cents, a.deposit_status, a.deposit_due_at, a.deposit_reported_at,
                     c.display_name AS client, c.contact_phone AS phone, c.notes AS client_notes,
                     (SELECT m.small_object_key FROM luminix.media_assets m
                      WHERE m.clinic_id = c.clinic_id AND m.id = c.photo_asset_id
@@ -123,6 +126,16 @@ export async function insightsRoutes(
           promotion: Boolean(row.promotion_id),
           package: packageView(row.package, can.has('finance:manage')),
           priceAgreed: Boolean(row.price_agreed_at),
+          deposit: row.deposit_status
+            ? {
+                cents: toNumber(row.deposit_cents),
+                status: String(row.deposit_status),
+                dueAt: new Date(String(row.deposit_due_at)).toISOString(),
+                reportedAt: row.deposit_reported_at
+                  ? new Date(String(row.deposit_reported_at)).toISOString()
+                  : null,
+              }
+            : null,
         })
         const missingRentals = can.has('service:manage')
           ? (

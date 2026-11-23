@@ -6,6 +6,7 @@ import type { TenantPool } from '../../shared/tenant/clinic-transaction.js'
 import { publicMediaUrl } from '../clinics/media-storage.js'
 import { isPaid } from '../../shared/tenant/route-helpers.js'
 import { localDateTime, zonedLocalToUtc } from '../operations/routes.js'
+import { pixCopyPaste, type PixKeyType } from '../../shared/pix.js'
 
 // Client area API (ADR-029). The person comes only from the verified Firebase token; the clinic
 // comes from a slug the person is linked to, resolved by `client_clinic_scope`. Reads then run
@@ -193,6 +194,7 @@ function sqlFailure(error: unknown) {
     return { status: 409, error: 'Service unavailable' }
   if (message.includes('Cancellation closed')) return { status: 409, error: 'Cancellation closed' }
   if (message.includes('Rescheduling closed')) return { status: 409, error: 'Rescheduling closed' }
+  if (message.includes('Deposit unavailable')) return { status: 409, error: 'Deposit unavailable' }
   if (code === '42501') return { status: 403, error: 'Access denied' }
   if (code === '22023' || code === '23514' || code === '22P02')
     return { status: 400, error: 'Invalid request' }
@@ -394,8 +396,11 @@ export async function clientRoutes(app: FastifyInstance, dependencies: AuthDepen
     { schema: { params: slugParams } },
     async (request, reply) =>
       asClient(request, reply, request.params.slug, async (connection, scope) => {
+        await connection.query('SELECT luminix.expire_deposit_holds($1)', [scope!.clinicId])
+        const pix = await spacePix(connection, scope!.clinicId)
         const { rows } = await connection.query(
           `SELECT a.id, a.starts_at, a.ends_at, a.status, a.booking_source, a.price_cents,
+                  a.deposit_cents, a.deposit_status, a.deposit_due_at,
                   a.list_price_cents, a.previous_starts_at, a.rescheduled_at, a.updated_at,
                   a.created_at, a.client_payment_method, ${appointmentRentalDates} AS rental_dates,
                   a.cancellation_origin, a.canceled_at,
@@ -470,6 +475,7 @@ export async function clientRoutes(app: FastifyInstance, dependencies: AuthDepen
             rentalDates: row.rental_dates,
             // The space canceled it because its agenda changed (ADR-035).
             canceledBySpace: row.cancellation_origin === 'schedule_change',
+            deposit: depositView(row, pix),
             cancelReason: row.cancel_reason ?? null,
             canceledAt: row.canceled_at ?? null,
             service: { id: row.service_id, name: row.service_name, category: row.service_category },
@@ -480,6 +486,54 @@ export async function clientRoutes(app: FastifyInstance, dependencies: AuthDepen
         }
       }),
   )
+
+  /** The space's Pix for deposits: key, holder (or the space's name) and city of the address. */
+  async function spacePix(connection: SqlConnection, clinicId: string) {
+    const row = (
+      await connection.query(
+        `SELECT b.pix_key, b.pix_key_type, coalesce(b.pix_holder_name, c.name) AS holder,
+                coalesce(l.city, '') AS city
+           FROM luminix.booking_policies b
+           JOIN luminix.clinics c ON c.id = b.clinic_id
+           LEFT JOIN luminix.locations l ON l.clinic_id = b.clinic_id AND l.is_primary
+          WHERE b.clinic_id = $1`,
+        [clinicId],
+      )
+    ).rows[0]
+    if (!row?.pix_key) return null
+    return {
+      keyType: row.pix_key_type as PixKeyType,
+      key: String(row.pix_key),
+      holder: String(row.holder),
+      city: String(row.city),
+    }
+  }
+
+  /** Deposit of an appointment as the client sees it; the Pix code only while it is owed. */
+  function depositView(row: Record<string, unknown>, pix: Awaited<ReturnType<typeof spacePix>>) {
+    if (!row.deposit_status) return null
+    const status = String(row.deposit_status)
+    const cents = Number(row.deposit_cents)
+    const owed = status === 'awaiting' || status === 'reported'
+    return {
+      cents,
+      status,
+      dueAt: row.deposit_due_at,
+      pix:
+        owed && pix
+          ? {
+              code: pixCopyPaste({
+                ...pix,
+                amountCents: cents,
+                reference: `LX${String(row.id).replace(/-/g, '').slice(0, 10)}`,
+              }),
+              key: pix.key,
+              keyType: pix.keyType,
+              holder: pix.holder,
+            }
+          : null,
+    }
+  }
 
   /** Professionals who can do the service for this person, with their photos. */
   async function professionalsFor(connection: SqlConnection, scope: Scope, serviceId: string) {
@@ -537,6 +591,8 @@ export async function clientRoutes(app: FastifyInstance, dependencies: AuthDepen
     serviceId: string,
   ) {
     const weekday = new Date(`${date}T12:00:00Z`).getUTCDay()
+    // Unpaid deposit holds whose time ran out free their slot first (ADR-037).
+    await connection.query('SELECT luminix.expire_deposit_holds($1)', [scope.clinicId])
     const calendar = await connection.query(
       `SELECT luminix.minute_pairs(luminix.booking_rental_hours($1,$2,
           (SELECT client_package_id FROM luminix.appointments WHERE clinic_id=$1 AND id=$4 AND clinic_client_id=$5 AND service_id=$2),$3::date)) AS windows,
@@ -761,6 +817,8 @@ export async function clientRoutes(app: FastifyInstance, dependencies: AuthDepen
       professionalId?: string
       localStartsAt: string
       paymentMethod: 'local' | 'pix' | 'card'
+      /** The app shows the space's Pix code for the deposit (ADR-037). */
+      deposit?: 'pix'
     }
   }>(
     '/client/spaces/:slug/appointments',
@@ -777,6 +835,7 @@ export async function clientRoutes(app: FastifyInstance, dependencies: AuthDepen
             professionalId: { type: 'string', pattern: uuid },
             localStartsAt: { type: 'string', pattern: localStart },
             paymentMethod: { type: 'string', enum: ['local', 'pix', 'card'] },
+            deposit: { type: 'string', enum: ['pix'] },
           },
         },
       },
@@ -788,6 +847,16 @@ export async function clientRoutes(app: FastifyInstance, dependencies: AuthDepen
           return reply.code(400).send({ error: 'Payment unavailable' })
         const service = await serviceFor(connection, scope!, request.body.serviceId)
         if (!service) return reply.code(400).send({ error: 'Service unavailable' })
+        const needsDeposit =
+          (
+            await connection.query('SELECT luminix.service_requires_deposit($1, $2) AS needed', [
+              scope!.clinicId,
+              service.id,
+            ])
+          ).rows[0]?.needed === true
+        // An app that cannot show the Pix code must not hold a slot the client cannot pay.
+        if (needsDeposit && request.body.deposit !== 'pix')
+          return reply.code(409).send({ error: 'Deposit required' })
         // "A combinar" and "a partir de": the clinic sets the amount at the visit, so these are
         // paid only at the clinic (no in-app charge of an amount that is not known yet).
         if (request.body.paymentMethod !== 'local' && service.price_type !== 'fixed')
@@ -832,10 +901,51 @@ export async function clientRoutes(app: FastifyInstance, dependencies: AuthDepen
             ],
           )
         ).rows[0]?.id
+        if (needsDeposit) {
+          const hold = (
+            await connection.query('SELECT * FROM luminix.client_hold_for_deposit($1, $2, $3)', [
+              scope!.clinicId,
+              scope!.clientId,
+              id,
+            ])
+          ).rows[0]
+          if (hold) {
+            const pix = await spacePix(connection, scope!.clinicId)
+            return reply.code(201).send({
+              id,
+              status: 'scheduled',
+              deposit: depositView(
+                {
+                  id,
+                  deposit_cents: hold.deposit_cents,
+                  deposit_status: 'awaiting',
+                  deposit_due_at: hold.deposit_due_at,
+                },
+                pix,
+              ),
+            })
+          }
+        }
         return reply.code(201).send({
           id,
           status: service.booking_mode === 'instant' ? 'confirmed' : 'scheduled',
+          deposit: null,
         })
+      }),
+  )
+
+  // "Já paguei": the hold stops expiring and the space confirms after checking the bank.
+  app.post<{ Params: { slug: string; appointmentId: string } }>(
+    '/client/spaces/:slug/appointments/:appointmentId/deposit-paid',
+    { schema: { params: appointmentParams } },
+    async (request, reply) =>
+      asClient(request, reply, request.params.slug, async (connection, scope) => {
+        await connection.query('SELECT luminix.client_report_deposit($1, $2, $3)', [
+          scope!.clinicId,
+          scope!.clientId,
+          request.params.appointmentId,
+        ])
+        return { ok: true }
       }),
   )
 

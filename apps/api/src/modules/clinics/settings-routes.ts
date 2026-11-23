@@ -2,6 +2,7 @@ import type { FastifyInstance } from 'fastify'
 import type { AuthorizedRoute } from '../../shared/tenant/authorized-route.js'
 import { publicMediaUrl } from './media-storage.js'
 import { invalidatePublicClinic } from './public-cache.js'
+import { normalizePixKey, validPixKey, type PixKeyType } from '../../shared/pix.js'
 
 type Authorized = AuthorizedRoute
 
@@ -143,7 +144,8 @@ export function clinicSettingsRoutes(
             `SELECT booking_notice_minutes, booking_window_days, cancellation_notice_minutes,
                     special_cancellation_notice_minutes, rescheduling_notice_minutes,
                     client_instructions, late_change_retention_percent, no_show_retention_percent,
-                    deposit_scope, deposit_percent, deposit_threshold_cents
+                    deposit_scope, deposit_percent, deposit_threshold_cents,
+                    pix_key, pix_key_type, pix_holder_name, deposit_hold_minutes
                FROM luminix.booking_policies WHERE clinic_id = $1`,
             [tenant.clinicId],
           ),
@@ -179,6 +181,13 @@ export function clinicSettingsRoutes(
             depositScope: row.deposit_scope,
             depositPercent: Number(row.deposit_percent),
             depositThresholdCents: Number(row.deposit_threshold_cents),
+          },
+          // Sinal por Pix do espaço (ADR-037).
+          pix: {
+            keyType: row.pix_key_type ?? null,
+            key: row.pix_key ?? '',
+            holderName: row.pix_holder_name ?? '',
+            holdMinutes: Number(row.deposit_hold_minutes ?? 120),
           },
           services: services.rows.map((service) => ({
             id: String(service.id),
@@ -244,6 +253,22 @@ export function clinicSettingsRoutes(
             },
             depositPercent: { type: 'integer', minimum: 1, maximum: 100 },
             depositThresholdCents: { type: 'integer', minimum: 1, maximum: 100000000 },
+            pix: {
+              type: 'object',
+              additionalProperties: false,
+              required: ['keyType', 'key', 'holderName', 'holdMinutes'],
+              properties: {
+                keyType: {
+                  anyOf: [
+                    { type: 'string', enum: ['cpf', 'cnpj', 'email', 'phone', 'random'] },
+                    { type: 'null' },
+                  ],
+                },
+                key: { type: 'string', maxLength: 80 },
+                holderName: { type: 'string', maxLength: 60 },
+                holdMinutes: { type: 'integer', minimum: 15, maximum: 1440 },
+              },
+            },
             services: {
               type: 'array',
               maxItems: 80,
@@ -270,10 +295,27 @@ export function clinicSettingsRoutes(
     },
     async (request, reply) =>
       authorized(request, reply, 'settings:manage', async (connection, tenant) => {
+        const { pix, ...rules } = request.body as Record<string, unknown> & {
+          pix?: { keyType: PixKeyType | null; key: string; holderName: string; holdMinutes: number }
+        }
+        const key = pix?.key.trim() ?? ''
+        if (pix && key && (!pix.keyType || !validPixKey(pix.keyType, key)))
+          return reply.code(400).send({ error: 'Invalid Pix key' })
         await connection.query('SELECT luminix.update_booking_rules($1::uuid, $2::jsonb)', [
           tenant.clinicId,
-          JSON.stringify(request.body),
+          JSON.stringify(rules),
         ])
+        if (pix)
+          await connection.query(
+            'SELECT luminix.update_deposit_pix($1::uuid, $2, $3, $4, $5::integer)',
+            [
+              tenant.clinicId,
+              key ? pix.keyType : null,
+              key && pix.keyType ? normalizePixKey(pix.keyType, key) : '',
+              pix.holderName,
+              pix.holdMinutes,
+            ],
+          )
         return { saved: true }
       }),
   )

@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { useMemo, useState } from 'react'
 import { CalendarDays, ChevronLeft, ChevronRight, Plus, Rows3 } from 'lucide-react'
 import { cancelAppointment, useClient } from '../../../../lib/client-app/store'
+import { DepositPix } from '../../../../components/client-app/deposit-pix'
 import {
   addDays,
   dateLabel,
@@ -198,6 +199,8 @@ export default function AgendaPage() {
                     <strong>{item.serviceName}</strong>
                     <small>
                       {timeLabel(item.start)} · {durationLabel(item.durationMinutes)}
+                      {item.deposit?.status === 'awaiting' ? ' · falta o sinal' : ''}
+                      {item.deposit?.status === 'reported' ? ' · sinal em conferência' : ''}
                     </small>
                   </span>
                   <StatusBadge appointment={item} />
@@ -236,6 +239,15 @@ export default function AgendaPage() {
                 </div>
               )}
             </dl>
+            {open.deposit ? (
+              <DepositPix
+                slug={space.summary.slug}
+                appointmentId={open.id}
+                deposit={
+                  space.appointments.find((item) => item.id === open.id)?.deposit ?? open.deposit
+                }
+              />
+            ) : null}
             {space.policy?.instructions && <p>{space.policy.instructions}</p>}
             <p className="ca-error" role="alert">
               {problem}

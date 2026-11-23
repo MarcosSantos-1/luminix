@@ -61,7 +61,7 @@ P2
 - TD-005: acesso visual/persistência corrigidos; termos, consentimentos, conteúdo e ensaio hospedado pendentes.
 - TD-006: retenção/limpeza e domínio de mídia pendentes.
 - TD-008: cobrança, eventos, conciliação, pacotes e billing pendentes.
-- TD-009: aplicação operacional das regras de reserva pendente.
+- TD-009: regras e sinal por Pix aplicados (ADR-037); aceite por reserva, isenção e avisos pendentes.
 
 Consulte os arquivos por ID para critérios de fechamento. Onboarding concluído não encerra essas
 frentes. A sequência de implementação e os caminhos de código estão em `../00-ARQUITETURA.md`.

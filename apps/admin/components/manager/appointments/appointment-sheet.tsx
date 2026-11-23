@@ -15,6 +15,7 @@ import {
   Layers,
   LogIn,
   MessageCircle,
+  QrCode,
   RotateCcw,
   UserRound,
   UserX,
@@ -24,7 +25,7 @@ import { useEffect, useState, type ReactNode } from 'react'
 import { ClientAvatar } from '../client-photo'
 import { DateInputField, SelectField, TextAreaField, TimeInputField } from '@/components/ui/fields'
 import { formatBrPhone } from '@/lib/phone'
-import { appointmentStatus, dateBr } from '../business/format'
+import { appointmentStatus, dateBr, money } from '../business/format'
 import { whatsapp } from '../business/format'
 import { ClinicApiError, type ClinicApi } from '../settings/clinic-api'
 import { QuickModal } from '../quick-modal'
@@ -626,6 +627,44 @@ function SheetBody({
         <p className="apt-error" role="alert">
           {error}
         </p>
+      ) : null}
+
+      {view === 'main' && item.deposit && item.deposit.status !== 'confirmed' ? (
+        <section className={`sh-deposit is-${item.deposit.status}`} aria-label="Sinal por Pix">
+          <span className="sh-deposit-icon" aria-hidden>
+            <QrCode size={20} />
+          </span>
+          <div>
+            <strong>
+              {item.deposit.status === 'expired'
+                ? 'Sinal não pago no prazo: horário liberado'
+                : item.deposit.status === 'reported'
+                  ? `A cliente disse que pagou o sinal de ${money(item.deposit.cents)}`
+                  : `Aguardando sinal de ${money(item.deposit.cents)} por Pix`}
+            </strong>
+            <small>
+              {item.deposit.status === 'expired'
+                ? 'Se o Pix chegar depois, combine com a cliente e agende de novo.'
+                : item.deposit.status === 'reported'
+                  ? 'Confira no extrato do banco e confirme. O horário fica guardado até lá.'
+                  : `O horário fica guardado até ${clock(item.deposit.dueAt)} de ${dateBr(localDate(item.deposit.dueAt))}.`}
+            </small>
+          </div>
+          {item.deposit.status !== 'expired' && access.manage && open ? (
+            <Button
+              size="sm"
+              isDisabled={busy}
+              onPress={() =>
+                void run(
+                  () => api.post(`appointments/${item.id}/deposit/confirm`, {}),
+                  `Sinal de ${item.client} confirmado.`,
+                )
+              }
+            >
+              <Check size={16} aria-hidden /> Confirmar sinal recebido
+            </Button>
+          ) : null}
+        </section>
       ) : null}
 
       {view === 'main' && access.manage ? (

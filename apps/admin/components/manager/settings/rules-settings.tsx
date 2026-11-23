@@ -1,16 +1,31 @@
 'use client'
 
-import Link from 'next/link'
-import { CircleAlert, MessageSquareText, Wallet } from 'lucide-react'
-import { useState } from 'react'
-import { DepositSettings } from '@/components/onboarding/deposit-settings'
-import { TextAreaField } from '@/components/ui/fields'
-import { depositProblem } from '@/components/onboarding/deposit-policy'
+import {
+  CalendarClock,
+  CircleAlert,
+  Eye,
+  HandCoins,
+  MessageSquareText,
+  QrCode,
+  RotateCcw,
+} from 'lucide-react'
+import { useState, type ReactNode } from 'react'
+import { CheckboxField, SelectField, TextAreaField, TextInputField } from '@/components/ui/fields'
+import {
+  depositProblem,
+  isSpecialService,
+  normalizeLegacyDepositScope,
+  setServicesDeposit,
+  withDepositEnabled,
+} from '@/components/onboarding/deposit-policy'
+import {
+  sinalOutcome,
+  sinalOutcomeOptions,
+  withSinalOutcome,
+} from '@/components/onboarding/attendance-policy'
 import type { Payload, Service } from '@/components/onboarding/model'
-import { RulesStep } from '@/components/onboarding/rules-review'
-import type { FieldErrors } from '@/components/onboarding/ui'
-import '@/app/c/[clinicId]/onboarding/onboarding.css'
-import { useClinicApi, useClinicResource, type ClinicApi } from './clinic-api'
+import { money } from '../business/format'
+import { ClinicApiError, useClinicApi, useClinicResource, type ClinicApi } from './clinic-api'
 import { LoadError, SaveBar, SettingsCard, SettingsSkeleton, type SaveState } from './settings-kit'
 
 type Rules = Required<
@@ -30,11 +45,18 @@ type Rules = Required<
   specialCancellationHours: number
   reschedulingHours: number | null
 }
-type RulesResponse = { rules: Rules | null; services: Service[]; acceptInApp: boolean }
+type PixKeyType = 'cpf' | 'cnpj' | 'email' | 'phone' | 'random'
+type Pix = { keyType: PixKeyType | null; key: string; holderName: string; holdMinutes: number }
+type RulesResponse = {
+  rules: Rules | null
+  services: Service[]
+  acceptInApp: boolean
+  pix?: Pix
+}
 
-/** The onboarding components work on a Payload; only rules-related fields are filled in. */
+/** The deposit helpers of the onboarding work on a Payload; only the rules fields are filled. */
 function toPayload(name: string, data: RulesResponse, rules: Rules): Payload {
-  return {
+  return normalizeLegacyDepositScope({
     name,
     ownerName: '',
     email: '',
@@ -61,15 +83,11 @@ function toPayload(name: string, data: RulesResponse, rules: Rules): Payload {
     professionals: [],
     businessHours: [],
     professionalSchedules: [],
-    preferences: {
-      ...rules,
-      acceptInApp: data.acceptInApp,
-      packagePaymentMode: 'clinic_only',
-    },
-  } as Payload
+    preferences: { ...rules, acceptInApp: data.acceptInApp, packagePaymentMode: 'clinic_only' },
+  } as Payload)
 }
 
-function toBody(payload: Payload) {
+function toBody(payload: Payload, pix: Pix) {
   const p = payload.preferences
   return {
     bookingNoticeHours: p.bookingNoticeHours ?? 1,
@@ -89,13 +107,76 @@ function toBody(payload: Payload) {
       lateChangeRetentionPercent: service.lateChangeRetentionPercent ?? null,
       noShowRetentionPercent: service.noShowRetentionPercent ?? null,
     })),
+    pix: {
+      keyType: pix.key.trim() ? pix.keyType : null,
+      key: pix.key.trim(),
+      holderName: pix.holderName.trim(),
+      holdMinutes: pix.holdMinutes,
+    },
   }
+}
+
+const hoursLabel = (hours: number) =>
+  hours === 0 ? 'Na hora' : hours < 24 || hours % 24 ? `${hours} h` : `${hours / 24} d`
+const holdLabel = (minutes: number) =>
+  minutes < 60 ? `${minutes} min` : minutes % 60 ? `${minutes / 60} h` : `${minutes / 60} h`
+
+const pixTypes: { id: PixKeyType; label: string; placeholder: string }[] = [
+  { id: 'cpf', label: 'CPF', placeholder: '000.000.000-00' },
+  { id: 'cnpj', label: 'CNPJ', placeholder: '00.000.000/0000-00' },
+  { id: 'email', label: 'E-mail', placeholder: 'pix@seuespaco.com' },
+  { id: 'phone', label: 'Celular', placeholder: '(11) 99999-9999' },
+  { id: 'random', label: 'Chave aleatória', placeholder: '123e4567-e89b-…' },
+]
+
+/** One choice among a few values, as glass chips. The current value is kept even if unusual. */
+function Chips<T extends number | string | null>({
+  label,
+  value,
+  options,
+  onChange,
+}: {
+  label: string
+  value: T
+  options: { value: T; label: string }[]
+  onChange: (value: T) => void
+}) {
+  const list = options.some((option) => option.value === value)
+    ? options
+    : [...options, { value, label: typeof value === 'number' ? String(value) : 'Atual' }]
+  return (
+    <div className="team-choice rules-chips" role="radiogroup" aria-label={label}>
+      {list.map((option) => (
+        <button
+          key={String(option.value)}
+          type="button"
+          role="radio"
+          aria-checked={option.value === value}
+          onClick={() => onChange(option.value)}
+        >
+          {option.label}
+        </button>
+      ))}
+    </div>
+  )
+}
+
+/** A rule as a short sentence on the left and its value on the right. */
+function Line({ title, hint, children }: { title: string; hint?: string; children: ReactNode }) {
+  return (
+    <div className="rules-line">
+      <div className="rules-line-copy">
+        <strong>{title}</strong>
+        {hint ? <small>{hint}</small> : null}
+      </div>
+      {children}
+    </div>
+  )
 }
 
 export function RulesSettings({
   clinicId,
   clinicName,
-  paymentsHref,
 }: {
   clinicId: string
   clinicName: string
@@ -120,108 +201,349 @@ export function RulesSettings({
   return (
     <RulesEditor
       api={api}
-      data={data}
       initial={toPayload(clinicName, data, data.rules)}
-      paymentsHref={paymentsHref}
+      initialPix={data.pix ?? { keyType: null, key: '', holderName: '', holdMinutes: 120 }}
     />
   )
 }
 
 function RulesEditor({
   api,
-  data,
   initial,
-  paymentsHref,
+  initialPix,
 }: {
   api: ClinicApi
-  data: RulesResponse
   initial: Payload
-  paymentsHref?: string
+  initialPix: Pix
 }) {
   const [payload, setPayload] = useState<Payload>(initial)
-  const [saved, setSaved] = useState<Payload>(initial)
+  const [pix, setPix] = useState<Pix>(initialPix)
+  const [saved, setSaved] = useState({ payload: initial, pix: initialPix })
   const [state, setState] = useState<SaveState>({ status: 'idle' })
-  const [fieldErrors, setFieldErrors] = useState<FieldErrors>({})
+  const [problem, setProblem] = useState<{ field: string; message: string } | null>(null)
 
-  const dirty = JSON.stringify(toBody(payload)) !== JSON.stringify(toBody(saved))
-  const depositOn = (payload.preferences.depositScope ?? 'none') !== 'none'
+  const p = payload.preferences
+  const dirty =
+    JSON.stringify(toBody(payload, pix)) !== JSON.stringify(toBody(saved.payload, saved.pix))
+  const depositOn = (p.depositScope ?? 'none') !== 'none'
+  const percent = p.depositPercent ?? 30
+  const priced = payload.services.filter(
+    (service) => service.priceType === 'fixed' && service.priceCents > 0,
+  )
+  const withDeposit = priced.filter((service) => service.depositRequired)
+  const hasSpecial = payload.services.some(isSpecialService)
+  const example = withDeposit[0] ?? priced[0]
+  const outcome = sinalOutcome(payload)
+  const keyType = pixTypes.find((item) => item.id === pix.keyType)
+
   const change = (next: Payload) => {
     setPayload(next)
-    setFieldErrors({})
+    setProblem(null)
+    if (state.status !== 'saving') setState({ status: 'idle' })
+  }
+  const prefs = (patch: Partial<Payload['preferences']>) =>
+    change({ ...payload, preferences: { ...p, ...patch } })
+  const changePix = (patch: Partial<Pix>) => {
+    setPix({ ...pix, ...patch })
+    setProblem(null)
     if (state.status !== 'saving') setState({ status: 'idle' })
   }
 
   async function save() {
-    if (!payload) return
-    const problem = depositProblem(payload)
-    if (problem) {
-      setFieldErrors({ [problem.field]: problem.message })
-      setState({ status: 'error', message: problem.message })
+    const found =
+      depositProblem(payload) ??
+      (depositOn && (!pix.keyType || !pix.key.trim())
+        ? { field: 'pix', message: 'Informe a chave Pix que vai receber o sinal.' }
+        : null)
+    if (found) {
+      setProblem(found)
+      setState({ status: 'error', message: found.message })
       return
     }
     setState({ status: 'saving' })
     try {
-      await api.put('booking-rules', toBody(payload))
-      setSaved(payload)
+      await api.put('booking-rules', toBody(payload, pix))
+      setSaved({ payload, pix })
       setState({ status: 'saved', message: 'Pronto! Suas regras foram atualizadas.' })
-    } catch {
-      setState({ status: 'error', message: 'Não foi possível salvar. Tente de novo em instantes.' })
+    } catch (error) {
+      const invalidKey =
+        error instanceof ClinicApiError &&
+        (error.body as { error?: string } | null)?.error === 'Invalid Pix key'
+      setState({
+        status: 'error',
+        message: invalidKey
+          ? 'Essa chave Pix não parece válida. Confira o tipo e o número.'
+          : 'Não foi possível salvar. Tente de novo em instantes.',
+      })
     }
   }
 
+  const summary = [
+    p.bookingNoticeHours
+      ? `Agenda com pelo menos ${hoursLabel(p.bookingNoticeHours)} de antecedência, até ${p.bookingWindowDays ?? 30} dias à frente.`
+      : `Agenda até ${p.bookingWindowDays ?? 30} dias à frente.`,
+    `Cancela ou remarca pelo app até ${hoursLabel(p.cancellationHours)} antes${
+      p.reschedulingHours != null && p.reschedulingHours !== p.cancellationHours
+        ? ` (remarcar: até ${hoursLabel(p.reschedulingHours)} antes)`
+        : ''
+    }.`,
+    depositOn && example
+      ? `${example.name}: sinal de ${money(Math.round((example.priceCents * percent) / 100))} por Pix para garantir o horário, pago em até ${holdLabel(pix.holdMinutes)}.`
+      : 'Não paga nada antes: o pagamento é no dia.',
+    depositOn
+      ? (sinalOutcomeOptions.find((option) => option.id === outcome)?.title ??
+        'Regra de devolução personalizada.')
+      : null,
+  ].filter(Boolean) as string[]
+
   return (
-    <div className="settings-stack">
-      <div className="ob2 manager-ob2" data-onboarding-embed>
-        <RulesStep
-          payload={payload}
-          setPayload={change}
-          error=""
-          fieldErrors={fieldErrors}
-          footer={null}
-        />
-        <DepositSettings payload={payload} setPayload={change} fieldErrors={fieldErrors} />
+    <div className="settings-stack rules-page">
+      <div className="rules-layout">
+        <div className="settings-stack">
+          <SettingsCard
+            icon={<CalendarClock size={20} />}
+            title="Agendamento pelo site"
+            description="Quando a cliente pode marcar sozinha."
+          >
+            <Line title="Antecedência mínima" hint="Evita marcações em cima da hora.">
+              <Chips
+                label="Antecedência mínima"
+                value={p.bookingNoticeHours ?? 1}
+                options={[0, 1, 2, 4, 12, 24].map((value) => ({ value, label: hoursLabel(value) }))}
+                onChange={(bookingNoticeHours) => prefs({ bookingNoticeHours })}
+              />
+            </Line>
+            <Line title="Até quantos dias à frente" hint="A agenda abre só até essa data.">
+              <Chips
+                label="Até quantos dias à frente"
+                value={p.bookingWindowDays ?? 30}
+                options={[7, 15, 30, 60, 90].map((value) => ({ value, label: `${value} dias` }))}
+                onChange={(bookingWindowDays) => prefs({ bookingWindowDays })}
+              />
+            </Line>
+          </SettingsCard>
+
+          <SettingsCard
+            icon={<RotateCcw size={20} />}
+            title="Cancelar e remarcar"
+            description="Até quando a cliente muda o horário pelo app. Depois disso, fala com você."
+          >
+            <Line title="Cancelar até">
+              <Chips
+                label="Cancelar até"
+                value={p.cancellationHours}
+                options={[2, 4, 12, 24, 48].map((value) => ({
+                  value,
+                  label: `${hoursLabel(value)} antes`,
+                }))}
+                onChange={(cancellationHours) => prefs({ cancellationHours })}
+              />
+            </Line>
+            <Line title="Remarcar até" hint="Pode ser o mesmo prazo de cancelar.">
+              <Chips<number | null>
+                label="Remarcar até"
+                value={p.reschedulingHours ?? null}
+                options={[
+                  { value: null, label: 'Mesmo prazo' },
+                  ...[2, 4, 12, 24].map((value) => ({
+                    value,
+                    label: `${hoursLabel(value)} antes`,
+                  })),
+                ]}
+                onChange={(reschedulingHours) => prefs({ reschedulingHours })}
+              />
+            </Line>
+            {hasSpecial ? (
+              <Line
+                title="Serviços especiais"
+                hint="Com aparelho alugado ou material separado: prazo maior."
+              >
+                <Chips
+                  label="Prazo dos serviços especiais"
+                  value={p.specialCancellationHours}
+                  options={[24, 48, 72].map((value) => ({
+                    value,
+                    label: `${hoursLabel(value)} antes`,
+                  }))}
+                  onChange={(specialCancellationHours) => prefs({ specialCancellationHours })}
+                />
+              </Line>
+            ) : null}
+          </SettingsCard>
+
+          <SettingsCard
+            icon={<QrCode size={20} />}
+            title="Sinal por Pix"
+            description="Um valor pago antes para garantir o horário. A cliente paga no Pix do espaço e você confirma."
+          >
+            <Chips
+              label="Pedir sinal"
+              value={depositOn ? 'on' : 'off'}
+              options={[
+                { value: 'off', label: 'Sem sinal' },
+                { value: 'on', label: 'Pedir sinal por Pix' },
+              ]}
+              onChange={(next) => change(withDepositEnabled(payload, next === 'on'))}
+            />
+            {depositOn ? (
+              <div className="rules-deposit">
+                <Line title="Quanto do preço" hint="O restante é pago no dia.">
+                  <Chips
+                    label="Porcentagem do sinal"
+                    value={percent}
+                    options={[20, 30, 50, 100].map((value) => ({
+                      value,
+                      label: value === 100 ? 'Tudo' : `${value}%`,
+                    }))}
+                    onChange={(depositPercent) => prefs({ depositPercent })}
+                  />
+                </Line>
+                <Line title="Prazo para pagar" hint="Sem pagamento, o horário volta a ficar livre.">
+                  <Chips
+                    label="Prazo para pagar o sinal"
+                    value={pix.holdMinutes}
+                    options={[30, 60, 120, 360, 1440].map((value) => ({
+                      value,
+                      label: value === 1440 ? '24 h' : holdLabel(value),
+                    }))}
+                    onChange={(holdMinutes) => changePix({ holdMinutes })}
+                  />
+                </Line>
+
+                <div
+                  className={`rules-pix${problem?.field === 'pix' ? ' is-invalid' : ''}`}
+                  data-field="pix"
+                >
+                  <SelectField
+                    label="Tipo da chave"
+                    value={pix.keyType ?? ''}
+                    placeholder="Escolha"
+                    options={pixTypes.map(({ id, label }) => ({ id, label }))}
+                    onChange={(value) => changePix({ keyType: value as PixKeyType })}
+                  />
+                  <TextInputField
+                    label="Chave Pix"
+                    value={pix.key}
+                    maxLength={80}
+                    placeholder={keyType?.placeholder ?? 'Escolha o tipo primeiro'}
+                    onChange={(key) => changePix({ key })}
+                  />
+                  <TextInputField
+                    label="Nome que aparece no Pix"
+                    value={pix.holderName}
+                    maxLength={60}
+                    placeholder="Opcional: usa o nome do espaço"
+                    onChange={(holderName) => changePix({ holderName })}
+                  />
+                </div>
+
+                <div
+                  className={`rules-services${problem?.field === 'depositServices' ? ' is-invalid' : ''}`}
+                >
+                  <div className="rules-services-head">
+                    <strong>Serviços com sinal</strong>
+                    <small>
+                      {withDeposit.length} de {priced.length}. Serviços “a combinar” não pedem
+                      sinal.
+                    </small>
+                  </div>
+                  <ul>
+                    {priced.map((service) => (
+                      <li key={service.id}>
+                        <CheckboxField
+                          label={service.name}
+                          description={
+                            isSpecialService(service)
+                              ? `Especial · ${service.category}`
+                              : service.category
+                          }
+                          isSelected={service.depositRequired === true}
+                          onChange={(on) => change(setServicesDeposit(payload, [service.id], on))}
+                        />
+                        <span className="rules-price">
+                          {money(service.priceCents)}
+                          {service.depositRequired ? (
+                            <b>sinal {money(Math.round((service.priceCents * percent) / 100))}</b>
+                          ) : null}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              </div>
+            ) : (
+              <p className="settings-muted">
+                Ninguém paga antes. Ligue quando quiser reduzir faltas em serviços longos ou caros.
+              </p>
+            )}
+          </SettingsCard>
+
+          {depositOn ? (
+            <SettingsCard
+              icon={<HandCoins size={20} />}
+              title="Se a cliente desistir"
+              description="O que acontece com o sinal. Avise a cliente antes; nunca fica mais que o sinal."
+            >
+              <div className="rules-outcomes" role="radiogroup" aria-label="Se a cliente desistir">
+                {sinalOutcomeOptions.map((option) => (
+                  <button
+                    key={option.id}
+                    type="button"
+                    role="radio"
+                    aria-checked={outcome === option.id}
+                    onClick={() => change(withSinalOutcome(payload, option.id))}
+                  >
+                    <strong>{option.title}</strong>
+                    <small>{option.detail}</small>
+                  </button>
+                ))}
+              </div>
+              {outcome === 'custom' ? (
+                <p className="settings-muted">
+                  Você tem uma regra personalizada salva antes. Escolha uma opção para trocar.
+                </p>
+              ) : null}
+            </SettingsCard>
+          ) : null}
+
+          <SettingsCard
+            icon={<MessageSquareText size={20} />}
+            title="Recado para as clientes"
+            description="Aparece antes de confirmar o horário. Ex.: “Chegue 10 minutos antes.”"
+          >
+            <TextAreaField
+              ariaLabel="Recado para as clientes"
+              rows={3}
+              maxLength={500}
+              value={p.clientInstructions ?? ''}
+              placeholder="Escreva um recado (opcional)"
+              onChange={(clientInstructions) => prefs({ clientInstructions })}
+            />
+          </SettingsCard>
+        </div>
+
+        <aside className="manager-panel rules-preview" aria-label="Como a cliente vê">
+          <h3>
+            <Eye size={18} aria-hidden /> Como a cliente vê
+          </h3>
+          <ul>
+            {summary.map((line) => (
+              <li key={line}>{line}</li>
+            ))}
+            {p.clientInstructions?.trim() ? <li>“{p.clientInstructions.trim()}”</li> : null}
+          </ul>
+          <small>Resumo mostrado no site antes de a cliente confirmar o horário.</small>
+        </aside>
       </div>
-      {depositOn && !data.acceptInApp ? (
-        <SettingsCard
-          icon={<Wallet size={20} />}
-          title="Para cobrar o sinal, ative os pagamentos pelo app"
-          description="Suas escolhas ficam salvas. A cobrança só acontece quando os pagamentos pelo app estiverem ativos."
-        >
-          {paymentsHref && (
-            <Link className="settings-link-button" href={paymentsHref}>
-              <Wallet size={16} aria-hidden /> Receber pelo app (Stripe)
-            </Link>
-          )}
-        </SettingsCard>
-      ) : null}
-      <SettingsCard
-        icon={<MessageSquareText size={20} />}
-        title="Recado para as clientes"
-        description="Uma orientação curta mostrada na hora de agendar. Ex.: “Chegue 10 minutos antes.”"
-        help={{
-          title: 'Onde esse recado aparece?',
-          text: 'Quando o agendamento pelo app for liberado, a cliente verá este recado antes de confirmar o horário. Use para avisos simples, como pontualidade ou cuidados antes do atendimento.',
-        }}
-      >
-        <TextAreaField
-          ariaLabel="Recado para as clientes"
-          className="is-wide"
-          rows={3}
-          maxLength={500}
-          value={payload.preferences.clientInstructions ?? ''}
-          placeholder="Escreva aqui um recado (opcional)"
-          onChange={(clientInstructions) =>
-            change({ ...payload, preferences: { ...payload.preferences, clientInstructions } })
-          }
-        />
-      </SettingsCard>
+
       <SaveBar
         dirty={dirty}
         state={state}
         onSave={() => void save()}
         onDiscard={() => {
-          setPayload(saved)
-          setFieldErrors({})
+          setPayload(saved.payload)
+          setPix(saved.pix)
+          setProblem(null)
           setState({ status: 'idle' })
         }}
         label="Salvar regras"

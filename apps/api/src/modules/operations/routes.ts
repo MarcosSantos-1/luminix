@@ -1044,6 +1044,8 @@ export async function operationRoutes(
         if (!(to > from) || to.getTime() - from.getTime() > 63 * 86400000)
           return reply.code(400).send({ error: 'Invalid date range' })
         const can = await rolePermissions(connection, tenant)
+        // Unpaid deposit holds past their time free the slot before the agenda is read.
+        await connection.query('SELECT luminix.expire_deposit_holds($1)', [tenant.clinicId])
         const [
           appointments,
           clients,
@@ -1060,7 +1062,7 @@ export async function operationRoutes(
         ] = await Promise.all([
           connection.query(
             `SELECT a.id, a.starts_at, a.ends_at, a.status, a.booking_source, a.checked_in_at,
-                      a.status_note,
+                      a.status_note, a.deposit_cents, a.deposit_status, a.deposit_due_at, a.deposit_reported_at,
                       a.override_reasons, a.notes, a.previous_starts_at, a.price_cents,
                       a.price_agreed_at,
                       c.id AS client_id, c.display_name AS client_name,
@@ -1276,6 +1278,7 @@ export async function operationRoutes(
     },
     async (request, reply) =>
       authorized(request, reply, 'agenda:manage', async (connection, tenant) => {
+        await connection.query('SELECT luminix.expire_deposit_holds($1)', [tenant.clinicId])
         if (request.body.voucherId && request.body.clientPackageId)
           return reply.code(400).send({ error: 'Choose either a voucher or a package' })
         const service = (
@@ -1468,6 +1471,32 @@ export async function operationRoutes(
         await agreePrice(connection, tenant.clinicId, id, request.body?.agreedPriceCents)
         await recordVisitPayment(connection, tenant.clinicId, id, request.body?.payment)
         return { checkedIn: true }
+      }),
+  )
+
+  // Sinal por Pix (ADR-037): the team saw it in the bank. It becomes a Pix payment of the visit.
+  app.post<{ Params: { clinicId: string; appointmentId: string } }>(
+    '/clinics/:clinicId/appointments/:appointmentId/deposit/confirm',
+    {
+      schema: {
+        params: {
+          type: 'object',
+          additionalProperties: false,
+          required: ['clinicId', 'appointmentId'],
+          properties: {
+            ...clinicParams.properties,
+            appointmentId: { type: 'string', pattern: uuid },
+          },
+        },
+      },
+    },
+    async (request, reply) =>
+      authorized(request, reply, 'agenda:manage', async (connection, tenant) => {
+        await connection.query('SELECT luminix.staff_confirm_deposit($1::uuid, $2::uuid)', [
+          tenant.clinicId,
+          request.params.appointmentId,
+        ])
+        return { confirmed: true }
       }),
   )
 

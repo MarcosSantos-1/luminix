@@ -1,5 +1,7 @@
 'use client'
 
+import { DepositPix } from '../../../../components/client-app/deposit-pix'
+
 import Link from 'next/link'
 import { useEffect, useMemo, useState } from 'react'
 import { ArrowRight, Check, CreditCard, QrCode, Store, Users } from 'lucide-react'
@@ -13,7 +15,7 @@ import {
   formatMoney,
   priceLabel,
 } from '../../../../lib/client-app/format'
-import type { Availability, Payment } from '../../../../lib/client-app/types'
+import type { Availability, Payment, Deposit } from '../../../../lib/client-app/types'
 import { useClinic } from '../../../../components/client-app/use-clinic'
 import { Avatar, Empty, PageHeader } from '../../../../components/client-app/ui'
 
@@ -56,6 +58,8 @@ export default function BookingPage() {
     start: string
     confirmed: boolean
     who: string | null
+    id?: string
+    deposit?: Deposit | null
   } | null>(null)
 
   useEffect(() => {
@@ -121,14 +125,26 @@ export default function BookingPage() {
           <Check size={30} aria-hidden />
         </span>
         <h1>
-          {moving ? 'Horário remarcado' : done.confirmed ? 'Horário confirmado' : 'Pedido enviado'}
+          {moving
+            ? 'Horário remarcado'
+            : done.deposit
+              ? 'Falta o sinal'
+              : done.confirmed
+                ? 'Horário confirmado'
+                : 'Pedido enviado'}
         </h1>
         <p className="ca-lead">
           {service?.name ?? moving?.serviceName} · {dateLabel(done.start)} às{' '}
           {done.start.slice(11, 16)}
           {done.who ? ` com ${done.who}` : ''}.
-          {!done.confirmed && !moving && ' O espaço confirma em seguida e você recebe um aviso.'}
+          {!done.confirmed &&
+            !moving &&
+            !done.deposit &&
+            ' O espaço confirma em seguida e você recebe um aviso.'}
         </p>
+        {done.deposit && done.id ? (
+          <DepositPix slug={space.summary.slug} appointmentId={done.id} deposit={done.deposit} />
+        ) : null}
         <Link className="ca-button" href="/cliente/agenda">
           Ver na agenda
         </Link>
@@ -204,7 +220,13 @@ export default function BookingPage() {
       return
     }
     const who = team.find((item) => item.id === agenda)?.name ?? null
-    setDone({ start, confirmed: result.status === 'confirmed', who })
+    setDone({
+      start,
+      confirmed: result.status === 'confirmed',
+      who,
+      id: result.id,
+      deposit: result.deposit ?? null,
+    })
   }
 
   return (

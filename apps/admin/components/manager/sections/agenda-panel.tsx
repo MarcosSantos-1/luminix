@@ -38,6 +38,7 @@ import {
   needsAttention,
   serviceTitle,
   visitBadge,
+  type AppointmentDeposit,
   type AppointmentPackage,
   type AppointmentView,
 } from '../appointments/model'
@@ -75,6 +76,10 @@ type Row = {
   account_photo?: boolean
   package?: AppointmentPackage | null
   price_agreed_at?: string | null
+  deposit_cents?: number | null
+  deposit_status?: AppointmentDeposit['status'] | null
+  deposit_due_at?: string | null
+  deposit_reported_at?: string | null
   price_type?: string
   rental_dates?: string[] | null
   service_name: string
@@ -154,6 +159,15 @@ function toView(row: Row): AppointmentView {
     accountPhoto: row.account_photo === true,
     package: row.package ?? null,
     priceAgreed: Boolean(row.price_agreed_at),
+    deposit:
+      row.deposit_status && row.deposit_due_at
+        ? {
+            cents: Number(row.deposit_cents),
+            status: row.deposit_status,
+            dueAt: row.deposit_due_at,
+            reportedAt: row.deposit_reported_at ?? null,
+          }
+        : null,
   }
 }
 

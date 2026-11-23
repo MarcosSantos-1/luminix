@@ -1,6 +1,15 @@
 # TD-009 — Aplicação das regras no agendamento para clientes
 
-Status: Aberta. Prioridade: P1 antes da abertura do agendamento público.
+Status: Parcialmente resolvida em 2026-11-23 (ADR-037). Prioridade: P1 antes da abertura do agendamento público.
+
+## Situação em 2026-11-23
+
+Aplicado no servidor: antecedência e janela nos horários livres; prazo de cancelamento com
+precedência serviço → especial (`manual_release`) → espaço; remarcação sem prazo próprio seguindo o
+mesmo prazo; sinal por Pix do espaço com reserva, confirmação pela equipe e expiração (ADR-037).
+Ainda pendente: ciência/aceite das regras guardado por reserva (versão aceita), recado publicado no
+portal antes da confirmação, isenção administrativa auditada, devolução/retenção do sinal
+registradas no sistema (hoje manuais) e avisos automáticos.
 
 Data: 2026-10-25.
 

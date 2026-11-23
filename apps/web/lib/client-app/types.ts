@@ -63,6 +63,16 @@ export type Appointment = {
   rescheduledAt: string | null
   paymentMethod: Payment['method'] | null
   paid: boolean
+  /** Sinal por Pix do espaço (ADR-037). */
+  deposit?: Deposit | null
+}
+
+export type Deposit = {
+  cents: number
+  status: 'awaiting' | 'reported' | 'confirmed' | 'expired'
+  dueAt: string
+  /** Only while it is still owed. */
+  pix: { code: string; key: string; keyType: string; holder: string } | null
 }
 
 export type Payment = {

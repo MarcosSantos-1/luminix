@@ -50,6 +50,7 @@ Agendamento em etapas, feriados (alerta "vai abrir?") e férias/fechamentos por 
 Anamnese pela equipe, pacotes de sessões e aparelhos alugados: [ADR-032](decisions/ADR-032-ANAMNESE-PELA-EQUIPE-PACOTES-E-APARELHOS.md).
 Cancelamentos por mudança de agenda (prévia dos afetados, aviso à cliente) e dia exclusivo de locação: [ADR-035](decisions/ADR-035-CANCELAMENTOS-POR-MUDANCA-DE-AGENDA.md).
 Tipo do espaço (Studio, Clínica, Salão, SPA, Espaço), avaliação de primeira visita e proposta do fluxo pelo site: [ADR-036](decisions/ADR-036-TIPO-DO-ESPACO-E-PRIMEIRA-VISITA.md).
+Sinal por Pix do espaço (reserva, copia-e-cola, confirmação pela equipe, expiração) e regras de cancelar/remarcar aplicadas: [ADR-037](decisions/ADR-037-SINAL-POR-PIX-DO-ESPACO.md).
 
 ## Diretórios
 

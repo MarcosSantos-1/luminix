@@ -172,6 +172,7 @@ describe('versioned core migration', () => {
       { name: '0060_package_payments_and_service_vouchers.sql' },
       { name: '0061_agreed_appointment_price.sql' },
       { name: '0062_space_kind_and_evaluations.sql' },
+      { name: '0063_pix_deposit.sql' },
     ])
   })
 
