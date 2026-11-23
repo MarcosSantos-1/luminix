@@ -5,8 +5,13 @@ body[data-manager-palette='rosa'] {
   --space-deep: initial;
   --space-background: initial;
   --space-art-filter: initial;
+  --space-accent-soft: initial;
+  --space-accent-2: initial;
+  --space-neon-end: initial;
 }
-/* --space-art-filter recolours the pink 3D illustrations (e.g. the megaphone). */
+/* Button gradients: --space-accent-soft (light middle), --space-accent-2 (deep end) and
+   --space-neon-end (end of the neon action cards) keep each palette in its own family.
+   --space-art-filter recolours the pink 3D illustrations (e.g. the megaphone). */
 /* Space palettes are independent of the Glass/Light surface mode. */
 html[data-space-theme='grafite'],
 body[data-manager-palette='grafite'] {
@@ -14,6 +19,9 @@ body[data-manager-palette='grafite'] {
   --space-highlight: #d2dae5;
   --space-deep: #161b22;
   --space-background: url('/brand/background-grafite.webp');
+  --space-accent-soft: #8a94a3;
+  --space-accent-2: #1b1f25;
+  --space-neon-end: #1c2027;
   --space-art-filter: grayscale(1) brightness(1.05);
 }
 html[data-space-theme='violeta'],
@@ -22,6 +30,8 @@ body[data-manager-palette='violeta'] {
   --space-highlight: #d5bcff;
   --space-deep: #291645;
   --space-background: url('/brand/background-violeta.webp');
+  --space-accent-soft: #a888ec;
+  --space-accent-2: #3f2270;
   --space-art-filter: hue-rotate(-62deg);
 }
 html[data-space-theme='dourado'],
@@ -30,6 +40,8 @@ body[data-manager-palette='dourado'] {
   --space-highlight: #f0d48d;
   --space-deep: #30230e;
   --space-background: url('/brand/background-dourado.webp');
+  --space-accent-soft: #d6b25c;
+  --space-accent-2: #5e4311;
   --space-art-filter: hue-rotate(70deg) saturate(0.7);
 }
 html[data-space-theme='esmeralda'],
@@ -38,6 +50,8 @@ body[data-manager-palette='esmeralda'] {
   --space-highlight: #9ee2ce;
   --space-deep: #0b3028;
   --space-background: url('/brand/background-esmeralda.webp');
+  --space-accent-soft: #3aae8f;
+  --space-accent-2: #0b4537;
   --space-art-filter: hue-rotate(195deg) saturate(0.8);
 }
 html[data-space-theme='azul'],
@@ -46,6 +60,8 @@ body[data-manager-palette='azul'] {
   --space-highlight: #afd5ff;
   --space-deep: #102a46;
   --space-background: url('/brand/background-azul.webp');
+  --space-accent-soft: #64a2e6;
+  --space-accent-2: #163a64;
   --space-art-filter: hue-rotate(-120deg) saturate(0.9);
 }
 .space-theme-section {

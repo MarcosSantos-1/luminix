@@ -1543,7 +1543,7 @@
     ),
     radial-gradient(
       90% 140% at 0% 100%,
-      color-mix(in srgb, #7c4dff 18%, transparent),
+      color-mix(in srgb, var(--space-accent-2, #7c4dff) 18%, transparent),
       transparent 60%
     ),
     #ffffff0a;
@@ -2041,7 +2041,7 @@
   height: 46px;
   border-radius: 15px;
   color: #fff;
-  background: linear-gradient(140deg, var(--space-accent, #ec287a), #7c4dff);
+  background: linear-gradient(140deg, var(--space-accent, #ec287a), var(--space-accent-2, #7c4dff));
 }
 .biz-packs,
 .biz-devices {
@@ -2057,7 +2057,7 @@
   width: 16px;
   height: 16px;
   border-radius: 5px;
-  background: linear-gradient(140deg, var(--space-accent, #ec287a), #7c4dff);
+  background: linear-gradient(140deg, var(--space-accent, #ec287a), var(--space-accent-2, #7c4dff));
 }
 .biz-pack-sessions em {
   color: var(--manager-muted);

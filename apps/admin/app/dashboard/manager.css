@@ -2370,8 +2370,8 @@
   background: linear-gradient(
     120deg,
     var(--space-accent, #ec287a),
-    color-mix(in srgb, var(--space-accent, #ec287a) 55%, #ff7ab6) 55%,
-    color-mix(in srgb, var(--space-accent, #ec287a) 80%, #7c4dff)
+    color-mix(in srgb, var(--space-accent, #ec287a) 55%, var(--space-accent-soft, #ff7ab6)) 55%,
+    color-mix(in srgb, var(--space-accent, #ec287a) 80%, var(--space-accent-2, #7c4dff))
   );
   box-shadow:
     0 8px 22px color-mix(in srgb, var(--space-accent, #ec287a) 42%, transparent),
@@ -2489,7 +2489,11 @@
   background: linear-gradient(
     145deg,
     var(--space-accent, #ec247b),
-    color-mix(in srgb, var(--space-accent, #ec247b) 46%, var(--space-highlight, #f982b3))
+    color-mix(
+      in srgb,
+      var(--space-accent, #ec247b) 46%,
+      var(--space-neon-end, var(--space-highlight, #f982b3))
+    )
   );
   box-shadow:
     0 8px 18px color-mix(in srgb, var(--space-accent, #ec247b) 45%, transparent),
@@ -2503,7 +2507,11 @@
   background: linear-gradient(
     145deg,
     var(--space-accent, #ec247b),
-    color-mix(in srgb, var(--space-accent, #ec247b) 42%, var(--space-highlight, #f982b3))
+    color-mix(
+      in srgb,
+      var(--space-accent, #ec247b) 42%,
+      var(--space-neon-end, var(--space-highlight, #f982b3))
+    )
   );
   box-shadow:
     0 10px 22px color-mix(in srgb, var(--space-accent, #ec247b) 48%, transparent),
@@ -2518,7 +2526,11 @@
   background: linear-gradient(
     145deg,
     var(--space-accent, #ec247b),
-    color-mix(in srgb, var(--space-accent, #ec247b) 28%, var(--space-highlight, #f982b3))
+    color-mix(
+      in srgb,
+      var(--space-accent, #ec247b) 28%,
+      var(--space-neon-end, var(--space-highlight, #f982b3))
+    )
   );
 }
 .manager-shell .inv-actions .button.inv-out,

@@ -2325,7 +2325,7 @@ html[data-space-theme='azul'] .app-status.is-loading {
 
 /* Toasts: white, bold and impossible to miss; they drop from the top center. */
 .toast {
-  --lx-toast-accent: #ec287a;
+  --lx-toast-accent: var(--space-accent, #ec287a);
   border: 0;
   border-left: 6px solid var(--lx-toast-accent);
   border-radius: 18px;
