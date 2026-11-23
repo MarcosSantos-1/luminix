@@ -2759,3 +2759,20 @@
     animation: none;
   }
 }
+
+/* Search in the header: the same liquid glass as the panels ("Atividades recentes"). The shell's
+   secondary-button rule is more specific, so this one repeats the shell in the selector. */
+.manager-shell .manager-header .manager-search-trigger.button,
+.manager-shell .manager-header .manager-search-trigger.button:is(:hover, [data-pressed='true']) {
+  border: 1px solid var(--manager-border, #ffffff26);
+  color: var(--manager-muted);
+  background-color: var(--manager-surface, #ffffff14);
+  backdrop-filter: blur(20px);
+  box-shadow:
+    0 12px 35px color-mix(in srgb, var(--space-deep, #290417) 10.2%, transparent),
+    inset 0 1px #ffffff08;
+}
+.manager-shell .manager-header .manager-search-trigger.button:hover {
+  border-color: #ffffff40;
+  color: var(--manager-text);
+}

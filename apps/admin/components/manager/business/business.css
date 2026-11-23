@@ -4891,3 +4891,34 @@
   flex: none;
   margin-top: 2px;
 }
+
+/* Nova promoção: service rows read as a list, the chosen ones are tinted. */
+.biz-promo-services li {
+  border: 1px solid #ffffff14;
+  background: #ffffff08;
+  transition:
+    border-color 0.15s ease,
+    background 0.15s ease;
+}
+.biz-promo-services li:hover {
+  border-color: #ffffff2e;
+}
+.biz-promo-services li:has([data-selected='true'], input:checked) {
+  border-color: color-mix(in srgb, var(--space-highlight, #ffb5d3) 55%, transparent);
+  background: color-mix(in srgb, var(--space-accent, #ec287a) 16%, transparent);
+}
+.biz-promo-services .biz-price strong {
+  color: var(--space-highlight, #ffd4e7);
+}
+.biz-percent {
+  min-height: 44px;
+}
+.biz-promo-text {
+  padding: 14px 16px;
+  border: 1px solid #ffffff1f;
+  border-radius: 16px;
+  background: #00000024;
+  font-size: 13px;
+  line-height: 1.55;
+  white-space: pre-wrap;
+}

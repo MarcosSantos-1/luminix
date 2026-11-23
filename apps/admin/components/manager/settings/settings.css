@@ -1359,3 +1359,162 @@
   gap: 10px 14px;
   margin-top: 14px;
 }
+
+/* ---------- Refresh (2026-11): same glass language as the home page ---------- */
+
+/* Each card: title block separated from its content by a hairline. */
+.manager-panel.card.settings-card > .settings-card-head {
+  padding-bottom: 16px;
+  border-bottom: 1px solid #ffffff17;
+}
+.settings-card-icon {
+  border: 1px solid #ffffff40;
+  background: linear-gradient(
+    145deg,
+    var(--space-accent, #ec287a),
+    color-mix(
+      in srgb,
+      var(--space-accent, #ec287a) 55%,
+      var(--space-accent-soft, var(--space-highlight, #ffb5d3))
+    )
+  );
+}
+
+/* Secondary buttons: glass pills, not solid blocks. */
+.manager-shell :is(.settings-stack, .biz-stack) .button:is(.button--secondary, .button--outline),
+.manager-dialog .settings-stack .button:is(.button--secondary, .button--outline) {
+  border: 1px solid #ffffff38;
+  border-radius: 12px;
+  color: var(--manager-text, #fff);
+  background-color: #ffffff12;
+  backdrop-filter: blur(12px);
+  font-weight: 600;
+}
+.manager-shell
+  :is(.settings-stack, .biz-stack)
+  .button:is(.button--secondary, .button--outline):is(:hover, [data-pressed='true']) {
+  border-color: color-mix(in srgb, var(--space-highlight, #ffb5d3) 70%, transparent);
+  background-color: #ffffff22;
+}
+
+/* Identity: a real logo area next to two balanced columns of fields. */
+.settings-identity {
+  grid-template-columns: 196px minmax(0, 1fr);
+  gap: 28px;
+}
+.settings-logo {
+  padding: 14px 12px 12px;
+  border: 1px solid #ffffff17;
+  border-radius: 24px;
+  background: #ffffff08;
+}
+.settings-logo-frame {
+  width: 164px;
+  height: 164px;
+  border: 1.5px dashed #ffffff4d;
+  border-radius: 26px;
+  background:
+    radial-gradient(
+      90% 90% at 50% 0%,
+      color-mix(in srgb, var(--space-accent, #ec287a) 22%, transparent),
+      transparent 70%
+    ),
+    #ffffff0d;
+}
+.settings-logo-frame:has(img) {
+  border-style: solid;
+  border-color: #ffffff38;
+}
+.settings-logo-empty svg {
+  width: 32px;
+  height: 32px;
+  color: var(--space-highlight, #ffb5d3);
+}
+.settings-logo-actions {
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+}
+.settings-logo-actions .button {
+  min-height: 38px;
+}
+.button.settings-logo-remove {
+  width: 38px;
+  min-width: 38px;
+  height: 38px;
+  border: 1px solid #ff9a9a55;
+  border-radius: 12px;
+  color: #ffc2c2;
+  background: #ff5a5a1a;
+}
+.button.settings-logo-remove:hover {
+  color: #fff;
+  background: #ff5a5a40;
+}
+.settings-logo > .settings-field-hint,
+.settings-logo > small,
+.settings-logo > p {
+  justify-content: center;
+  font-size: 12px;
+}
+.settings-readonly {
+  border: 1px dashed #ffffff40;
+  background: #ffffff0a;
+  color: var(--manager-text);
+}
+@media (max-width: 700px) {
+  .settings-identity {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .settings-logo {
+    justify-self: center;
+    width: min(100%, 260px);
+  }
+}
+
+/* Choice chips (Tipo de desconto, Desconto, Imagem padrão...): glass, the chosen one glows. */
+.team-choice button {
+  border-color: #ffffff30;
+  background: #ffffff0f;
+  transition:
+    border-color 0.15s ease,
+    background 0.15s ease,
+    transform 0.15s ease;
+}
+.team-choice button:hover {
+  border-color: #ffffff60;
+  background: #ffffff1a;
+}
+.team-choice button[aria-checked='true'] {
+  border-color: #ffffff70;
+  color: #fff;
+  background: linear-gradient(
+    120deg,
+    var(--space-accent, #ec287a),
+    color-mix(in srgb, var(--space-accent, #ec287a) 55%, var(--space-accent-soft, #ff7ab6))
+  );
+  box-shadow: 0 6px 16px color-mix(in srgb, var(--space-accent, #ec287a) 35%, transparent);
+}
+
+/* Editor header ("← Voltar" + title): back as a glass pill, title with weight. */
+.team-editor-head {
+  gap: 12px 16px;
+  padding: 4px 0 6px;
+}
+.team-editor-head > .button:first-child {
+  min-height: 40px;
+  padding-inline: 12px 16px;
+  border-radius: 999px;
+}
+.team-editor-head h3 {
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: -0.3px;
+}
+
+/* Toggle rows: icon in the theme instead of a grey square. */
+.settings-toggle-icon {
+  border: 1px solid #ffffff26;
+  color: var(--space-highlight, #ffd4e7);
+  background: color-mix(in srgb, var(--space-accent, #ec287a) 22%, transparent);
+}

@@ -471,6 +471,7 @@ function ProfileEditor({
                     size="sm"
                     variant="ghost"
                     isIconOnly
+                    className="settings-logo-remove"
                     aria-label="Remover logo"
                     onPress={() => set({ logoAssetId: '', logoUrl: null })}
                   >
@@ -499,7 +500,6 @@ function ProfileEditor({
               required
               maxLength={160}
               error={errors.name}
-              wide
               help={{
                 title: 'Trocar o nome muda o endereço do site?',
                 text: 'Não. O endereço do site continua o mesmo, para que links já compartilhados não quebrem. Se quiser, você muda o endereço em Vitrine e site.',

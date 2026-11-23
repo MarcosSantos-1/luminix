@@ -222,3 +222,32 @@
     background: transparent;
   }
 }
+
+/* Visible rim and a themed focus ring: fields read as fields on the glass (inputs had no border). */
+.lx-field .input-group,
+.lx-field .date-input-group,
+.lx-field .select__trigger,
+.lx-field .textarea {
+  border: 1px solid #ffffff30;
+  background: #ffffff10;
+  box-shadow: inset 0 1px #ffffff0d;
+  transition:
+    border-color 0.15s ease,
+    background-color 0.15s ease,
+    box-shadow 0.15s ease;
+}
+.lx-field .input-group:hover,
+.lx-field .date-input-group:hover,
+.lx-field .select__trigger:hover,
+.lx-field .textarea:hover {
+  border-color: #ffffff55;
+  background: #ffffff16;
+}
+.lx-field .input-group:focus-within,
+.lx-field .date-input-group:focus-within,
+.lx-field .select__trigger:is(:focus-visible, [data-focus-visible='true'], [data-open='true']),
+.lx-field .textarea:focus {
+  border-color: var(--space-highlight, #ffb5d3);
+  background: #ffffff18;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--space-highlight, #ffb5d3) 24%, transparent);
+}
