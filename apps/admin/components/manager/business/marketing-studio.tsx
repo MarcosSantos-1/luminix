@@ -10,7 +10,7 @@ import {
   Lightbulb,
   Plus,
   Send,
-  Sparkles,
+  Flower2,
   Trash2,
 } from 'lucide-react'
 import { useMemo, useState } from 'react'
@@ -434,7 +434,7 @@ export function MarketingStudio({
               ))}
             </div>
             <div className="mk-ai">
-              <Sparkles size={18} aria-hidden />
+              <Flower2 size={18} aria-hidden />
               <span>
                 <strong>Em breve: artes e legendas com IA</strong>
                 <small>

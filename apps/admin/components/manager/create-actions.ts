@@ -2,7 +2,7 @@ import {
   CalendarPlus,
   ImagePlus,
   PackagePlus,
-  Sparkles,
+  Flower2,
   UserPlus,
   type LucideIcon,
 } from 'lucide-react'
@@ -56,7 +56,7 @@ export const createActions: CreateAction[] = [
     id: 'promocao',
     label: 'Promoção',
     detail: 'Campanha ou arte',
-    icon: Sparkles,
+    icon: Flower2,
     section: 'marketing',
   },
 ]

@@ -82,6 +82,23 @@
   min-height: 46px;
   border-radius: 14px;
 }
+.lx-search-bar .search-field__group {
+  min-height: 50px;
+  border: 1px solid #7dd3fc73;
+  border-radius: 18px;
+  background: linear-gradient(180deg, #16324a, #0c1c2e);
+  box-shadow:
+    inset 0 1px #ffffff24,
+    0 8px 18px #00000038;
+  backdrop-filter: none;
+}
+.lx-search-bar input {
+  color: #f8fafc;
+  font-size: 15px;
+}
+.lx-search-bar svg {
+  color: #7dd3fc;
+}
 .lx-checkbox .checkbox__content {
   align-items: flex-start;
   gap: 10px;

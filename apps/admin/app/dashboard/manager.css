@@ -2557,6 +2557,96 @@
   color: #fff;
   background: linear-gradient(135deg, #047857, #4ade80);
 }
+.manager-shell .hp,
+.manager-shell[data-manager-glass='custom'] .manager-main .hp {
+  background: linear-gradient(155deg, #4c1d6e 0%, #2a143c 48%, #1a1028 100%);
+  backdrop-filter: none;
+}
+.manager-shell .hp .button.hp-close,
+.manager-shell[data-manager-glass='custom'] .manager-main .hp .button.button--secondary.hp-close {
+  color: #fff;
+  border-color: #fecaca55;
+  background: linear-gradient(135deg, #b91c1c, #ef4444);
+  box-shadow: 0 6px 14px #dc262659;
+  backdrop-filter: none;
+}
+.manager-shell .hp .button.hp-open,
+.manager-shell[data-manager-glass='custom'] .manager-main .hp .button.button--secondary.hp-open {
+  color: #fff;
+  border-color: #bbf7d055;
+  background: linear-gradient(135deg, #047857, #22c55e);
+  box-shadow: 0 6px 14px #05966959;
+  backdrop-filter: none;
+}
+.manager-shell .hp .button.hp-custom,
+.manager-shell[data-manager-glass='custom'] .manager-main .hp .button.button--secondary.hp-custom {
+  color: #fff;
+  border-color: #bfdbfe66;
+  background: linear-gradient(135deg, #1d4ed8, #38bdf8);
+  box-shadow: 0 6px 14px #1d4ed859;
+  backdrop-filter: none;
+}
+.manager-shell .hp .button.hp-later,
+.manager-shell[data-manager-glass='custom'] .manager-main .hp .button.button--secondary.hp-later {
+  color: #431407;
+  border-color: #fde68a66;
+  background: linear-gradient(135deg, #fbbf24, #fde68a);
+  box-shadow: 0 6px 14px #f59e0b40;
+  backdrop-filter: none;
+}
+.manager-shell .hp .button.hp-close:is(:hover, [data-pressed='true']),
+.manager-shell[data-manager-glass='custom']
+  .manager-main
+  .hp
+  .button.button--secondary.hp-close:is(:hover, [data-pressed='true']) {
+  color: #fff;
+  background: linear-gradient(135deg, #991b1b, #f87171);
+}
+.manager-shell .hp .button.hp-open:is(:hover, [data-pressed='true']),
+.manager-shell[data-manager-glass='custom']
+  .manager-main
+  .hp
+  .button.button--secondary.hp-open:is(:hover, [data-pressed='true']) {
+  color: #fff;
+  background: linear-gradient(135deg, #065f46, #4ade80);
+}
+.manager-shell .hp .button.hp-custom:is(:hover, [data-pressed='true']),
+.manager-shell[data-manager-glass='custom']
+  .manager-main
+  .hp
+  .button.button--secondary.hp-custom:is(:hover, [data-pressed='true']) {
+  color: #fff;
+  background: linear-gradient(135deg, #1e3a8a, #7dd3fc);
+}
+.manager-shell .hp .button.hp-later:is(:hover, [data-pressed='true']),
+.manager-shell[data-manager-glass='custom']
+  .manager-main
+  .hp
+  .button.button--secondary.hp-later:is(:hover, [data-pressed='true']) {
+  color: #431407;
+  background: linear-gradient(135deg, #f59e0b, #fef3c7);
+}
+.manager-shell .ag-hours.button,
+.manager-shell .cli-voucher.button,
+.manager-shell[data-manager-glass='custom'] .manager-main .button.button--secondary.ag-hours,
+.manager-shell[data-manager-glass='custom'] .manager-main .button.button--secondary.cli-voucher {
+  color: #fff;
+  border-color: #bfdbfe66;
+  background: linear-gradient(135deg, #1d4ed8, #38bdf8);
+  box-shadow: 0 8px 16px #1d4ed859;
+  backdrop-filter: none;
+}
+.manager-shell .ag-hours.button:is(:hover, [data-pressed='true']),
+.manager-shell .cli-voucher.button:is(:hover, [data-pressed='true']),
+.manager-shell[data-manager-glass='custom']
+  .manager-main
+  .button.button--secondary.ag-hours:is(:hover, [data-pressed='true']),
+.manager-shell[data-manager-glass='custom']
+  .manager-main
+  .button.button--secondary.cli-voucher:is(:hover, [data-pressed='true']) {
+  color: #fff;
+  background: linear-gradient(135deg, #1e3a8a, #7dd3fc);
+}
 @media (prefers-reduced-motion: reduce) {
   .button--primary::after {
     animation: none !important;

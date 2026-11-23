@@ -182,6 +182,7 @@ export function HolidayPrompt({
                 </div>
                 <div className="hp-actions">
                   <Button
+                    className="hp-close"
                     size="sm"
                     variant="secondary"
                     isDisabled={busy === item.date}
@@ -190,6 +191,7 @@ export function HolidayPrompt({
                     <DoorClosed size={15} aria-hidden /> Fechar
                   </Button>
                   <Button
+                    className="hp-open"
                     size="sm"
                     variant="secondary"
                     isDisabled={busy === item.date}
@@ -197,10 +199,20 @@ export function HolidayPrompt({
                   >
                     <DoorOpen size={15} aria-hidden /> Abrir normal
                   </Button>
-                  <Button size="sm" variant="ghost" onPress={() => onCustom(item.date)}>
+                  <Button
+                    className="hp-custom"
+                    size="sm"
+                    variant="secondary"
+                    onPress={() => onCustom(item.date)}
+                  >
                     <Clock3 size={15} aria-hidden /> Outro horário
                   </Button>
-                  <Button size="sm" variant="ghost" onPress={() => later(item)}>
+                  <Button
+                    className="hp-later"
+                    size="sm"
+                    variant="secondary"
+                    onPress={() => later(item)}
+                  >
                     Perguntar depois
                   </Button>
                 </div>

@@ -9,7 +9,6 @@ import {
   PenTool,
   PersonStanding,
   Scissors,
-  Sparkles,
   Syringe,
   type LucideIcon,
 } from 'lucide-react'
@@ -26,7 +25,7 @@ const rules: [RegExp, LucideIcon][] = [
   [/quiropr|postur|coluna/, PersonStanding],
   [/biomed|botox|preench|injet|harmoniz/, Syringe],
   [/corporal|corpo|spa/, Flower2],
-  [/facial|pele|limpeza|estetic/, Sparkles],
+  [/facial|pele|limpeza|estetic/, Flower2],
 ]
 
 function fold(value: string) {

@@ -79,6 +79,18 @@
     background 0.15s ease,
     transform 0.1s ease;
 }
+.cpf-actions button.cli-voucher {
+  color: #fff;
+  border-color: #93c5fd66;
+  background: linear-gradient(160deg, #1d4ed8, #38bdf8);
+  box-shadow: 0 8px 16px #1d4ed844;
+}
+.cpf-actions button.cli-voucher svg {
+  color: #fff;
+}
+.cpf-actions button.cli-voucher:hover:not(:disabled) {
+  background: linear-gradient(160deg, #1e40af, #7dd3fc);
+}
 .cpf-actions button:hover:not(:disabled) {
   background: #ffffff17;
 }

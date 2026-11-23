@@ -24,7 +24,7 @@ import {
   Scissors,
   Share2,
   Smartphone,
-  Sparkles,
+  Flower2,
   Star,
   Trash2,
   Type,
@@ -437,7 +437,7 @@ export function SiteEditor({
             </div>
           ) : null}
           <p className="se-frame-hint">
-            <Sparkles size={14} aria-hidden /> Clique em qualquer parte do site para editar
+            <Flower2 size={14} aria-hidden /> Clique em qualquer parte do site para editar
           </p>
         </div>
 
@@ -621,7 +621,7 @@ export function SiteEditor({
                 </h2>
                 <div className="se-toggles">
                   <ToggleRow
-                    icon={<Sparkles size={17} />}
+                    icon={<Flower2 size={17} />}
                     title="Site no ar"
                     description="Desligado, ninguém consegue abrir o seu site."
                     isSelected={publication.enabled}

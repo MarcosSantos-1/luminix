@@ -2,7 +2,7 @@
 
 import { Button, Modal } from '@heroui/react'
 import Image from 'next/image'
-import { ArrowRight, Bell, ExternalLink, Globe, Sparkles } from 'lucide-react'
+import { ArrowRight, Bell, ExternalLink, Globe, Flower2 } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { managerUpdates, welcomeMedia, type ManagerMessageMedia } from './manager-updates'
 import './manager-message-modal.css'
@@ -50,7 +50,7 @@ export function ManagerMessageModal({
     return () => controller.abort()
   }, [view, getPublicUrl])
   const media = view === 'welcome' ? welcomeMedia : undefined
-  const Icon = view === 'welcome' ? Sparkles : Bell
+  const Icon = view === 'welcome' ? Flower2 : Bell
 
   async function copyLink() {
     if (!publicUrl) return

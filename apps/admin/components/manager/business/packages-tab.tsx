@@ -13,7 +13,7 @@ import {
   PackagePlus,
   Play,
   Plus,
-  Sparkles,
+  Flower2,
   TrendingDown,
 } from 'lucide-react'
 import { useState, type FormEvent } from 'react'
@@ -231,7 +231,7 @@ export function PackagesTab({
                     {item.validityDays ? `Vale ${item.validityDays} dias` : 'Sem validade'}
                   </li>
                   <li>
-                    <Sparkles size={13} aria-hidden /> {item.sold}{' '}
+                    <Flower2 size={13} aria-hidden /> {item.sold}{' '}
                     {item.sold === 1 ? 'vendido' : 'vendidos'}
                     {item.activeSold ? ` · ${item.activeSold} em uso` : ''}
                   </li>

@@ -10,7 +10,7 @@ import {
   MessageCircle,
   MoreHorizontal,
   Package,
-  Sparkles,
+  Flower2,
   Star,
   UserPlus,
   Wallet,
@@ -221,7 +221,7 @@ export function HomePanels({
             <div className="manager-goal">
               <div>
                 <h3>Meta mensal</h3>
-                <Sparkles size={17} />
+                <Flower2 size={17} />
               </div>
               <div>
                 <p>

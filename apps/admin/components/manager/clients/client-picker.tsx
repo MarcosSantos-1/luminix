@@ -1,8 +1,10 @@
 'use client'
 
+import { ChevronRight } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { SearchInput } from '@/components/ui/fields'
 import { formatBrPhone } from '@/lib/phone'
+import { ClientAvatar } from '../client-photo'
 import type { ClinicApi } from '../settings/clinic-api'
 
 export type ClientChoice = {
@@ -10,6 +12,8 @@ export type ClientChoice = {
   display_name: string
   contact_phone: string | null
   marketing_opt_in: boolean
+  photo_url?: string | null
+  account_photo?: boolean
 }
 
 export function ClientPicker({
@@ -44,6 +48,7 @@ export function ClientPicker({
   return (
     <div className="bk-step">
       <SearchInput
+        className="lx-search-bar"
         ariaLabel="Buscar cliente"
         placeholder="Buscar cliente"
         value={query}
@@ -60,7 +65,13 @@ export function ClientPicker({
       ) : current.clients.length ? (
         <ul className="bk-list" aria-label="Clientes">
           {current.clients.map((client) => (
-            <li key={client.id}>
+            <li className="bk-client-row" key={client.id}>
+              <ClientAvatar
+                name={client.display_name}
+                photoUrl={client.photo_url}
+                account={client.account_photo ? { api, clientId: client.id } : null}
+                lazy
+              />
               <button type="button" onClick={() => onPick(client)}>
                 <span className="bk-client-copy">
                   <strong>{client.display_name}</strong>
@@ -68,6 +79,7 @@ export function ClientPicker({
                     <small>{formatBrPhone(client.contact_phone)}</small>
                   ) : null}
                 </span>
+                <ChevronRight size={17} aria-hidden />
               </button>
             </li>
           ))}

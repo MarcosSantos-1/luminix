@@ -7,7 +7,7 @@ import {
   Check,
   CreditCard,
   Scissors,
-  Sparkles,
+  Flower2,
   Users,
 } from 'lucide-react'
 import rawCatalog from '@/lib/service-catalog.json'
@@ -252,7 +252,7 @@ export const stepInfo = [
     label: 'Início',
     title: 'Vamos preparar seu espaço?',
     text: 'Uma visão do que vamos organizar. Nome, e-mail e celular já vieram da sua conta.',
-    icon: Sparkles,
+    icon: Flower2,
   },
   {
     key: 'clinic',
@@ -273,7 +273,7 @@ export const stepInfo = [
     label: 'Detalhes',
     title: 'Confira valor e duração',
     text: 'Cada serviço já vem com uma sugestão. Ajuste só o que não combina com o seu atendimento. Nada é cobrado da cliente agora.',
-    icon: Sparkles,
+    icon: Flower2,
   },
   {
     key: 'structure',

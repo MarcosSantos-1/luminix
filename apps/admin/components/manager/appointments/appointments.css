@@ -782,7 +782,12 @@
   border: 1px solid var(--manager-border);
   border-radius: 20px;
   background: var(--manager-surface);
-  backdrop-filter: blur(20px);
+}
+.ag-day:not([data-past]) {
+  cursor: pointer;
+}
+.ag-day:not([data-past]):hover {
+  border-color: color-mix(in srgb, var(--space-highlight, #ffb5d3) 60%, var(--manager-border));
 }
 .ag-day[data-today] {
   border-color: color-mix(in srgb, var(--space-highlight, #ffb5d3) 75%, transparent);
@@ -846,23 +851,26 @@
   background: var(--space-highlight, #ffb5d3);
 }
 .ag-day-rule {
-  max-width: 120px;
-  overflow: hidden;
-  color: #ffe0a1;
-  background: #664014e6;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  max-width: 100%;
+  overflow: visible;
+  color: #fff7ed;
+  background: linear-gradient(135deg, #c2410c, #f59e0b);
+  box-shadow: 0 0 0 1px #fdba7444;
+  text-overflow: unset;
+  white-space: normal;
   cursor: pointer;
 }
 .ag-day-add {
   display: grid;
   place-items: center;
-  width: 30px;
-  height: 30px;
+  width: 34px;
+  height: 34px;
   border: 1px solid var(--manager-border);
   border-radius: 10px;
   color: inherit;
   background: #ffffff0f;
+  font-size: 18px;
+  line-height: 1;
   cursor: pointer;
 }
 .ag-day-add:hover {
@@ -1044,23 +1052,39 @@ button.ag-empty:hover {
     grid-template-columns: 1fr;
   }
   .ag-day {
-    grid-template-columns: 76px minmax(0, 1fr);
+    grid-template-columns: 1fr;
     min-height: 0;
   }
   .ag-day-head {
-    flex-direction: column;
-    grid-row: span 2;
+    flex-direction: row;
+    align-items: center;
+    width: 100%;
+  }
+  .ag-day-head > div:first-child {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
   }
   .ag-day-tags {
-    justify-content: flex-start;
+    justify-content: flex-end;
   }
+  .ag-day > .rental-chip,
   .ag-day > .ag-list,
   .ag-day > .ag-empty,
   .ag-day > .ag-removed {
-    grid-column: 2;
+    grid-column: 1;
   }
   .ag-day > .ag-list {
     grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+  }
+  .ag-day-rule,
+  .ag-day-tags em.ag-day-reserved,
+  .ag-day-tags em.ag-day-holiday,
+  .ag-day-tags em.ag-day-away {
+    max-width: none;
+    overflow: visible;
+    text-overflow: unset;
+    white-space: normal;
   }
   .ag-empty {
     min-height: 60px;
@@ -1075,11 +1099,23 @@ button.ag-empty:hover {
     flex: 1 1 140px;
   }
   .ag-day {
-    grid-template-columns: 58px minmax(0, 1fr);
     padding: 12px 10px;
+  }
+  .ag-day-head {
+    align-items: flex-start;
   }
   .ag-day-head strong {
     font-size: 22px;
+  }
+  .ag-day-tags {
+    flex-basis: 100%;
+    justify-content: flex-start;
+  }
+  .ag-day-tags em,
+  .ag-day-rule {
+    padding: 5px 10px;
+    font-size: 13px;
+    font-weight: 750;
   }
   .ag-day > .ag-list {
     grid-template-columns: 1fr;
@@ -2590,15 +2626,11 @@ button.sh-client-link:focus-visible {
   display: grid;
   gap: 12px;
   padding: 16px 18px;
-  border: 1px solid color-mix(in srgb, #c13fff 40%, var(--manager-border));
+  border: 1px solid #e9d5ff66;
   border-radius: 22px;
-  background:
-    radial-gradient(
-      120% 140% at 0% 0%,
-      color-mix(in srgb, #c13fff 22%, transparent),
-      transparent 60%
-    ),
-    #ffffff0a;
+  background: linear-gradient(155deg, #4c1d6e 0%, #2a143c 48%, #1a1028 100%);
+  box-shadow: 0 14px 28px #00000040;
+  backdrop-filter: none;
 }
 .hp header {
   display: flex;
@@ -2635,9 +2667,10 @@ button.sh-client-link:focus-visible {
   flex-wrap: wrap;
   align-items: center;
   gap: 12px;
-  padding: 8px 10px;
+  padding: 10px;
+  border: 1px solid #ffffff18;
   border-radius: 16px;
-  background: #ffffff0b;
+  background: #140c1ccc;
 }
 .hp time {
   display: grid;
@@ -2645,11 +2678,12 @@ button.sh-client-link:focus-visible {
   width: 52px;
   padding: 4px 0;
   border-radius: 12px;
-  background: #ffffff10;
+  color: #3b0764;
+  background: linear-gradient(180deg, #fae8ff, #e9d5ff);
   line-height: 1.1;
 }
 .hp time small {
-  color: var(--manager-muted);
+  color: #7e22ce;
   font-size: 10.5px;
   font-weight: 700;
   text-transform: uppercase;
@@ -3526,6 +3560,8 @@ button.sh-client-link:focus-visible {
   grid-template-columns: auto minmax(0, 1fr) auto;
 }
 .bk-services strong {
+  display: grid;
+  justify-items: start;
   overflow-wrap: anywhere;
 }
 .bk-service-meta {
@@ -3567,18 +3603,31 @@ button.sh-client-link:focus-visible {
 }
 
 .rental-chip {
-  display: block;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   width: fit-content;
   max-width: 100%;
-  padding: 3px 8px;
   margin: 4px 0;
-  border-radius: 8px;
-  background: color-mix(in srgb, var(--space-accent) 20%, transparent);
-  color: var(--manager-text);
-  font-size: 12px;
-  font-weight: 600;
+  padding: 5px 10px;
+  border-radius: 10px;
+  color: #e0f2fe;
+  background: linear-gradient(135deg, #075985, #0ea5e9);
+  box-shadow: 0 6px 14px #0284c744;
+  font-size: 12.5px;
+  font-weight: 750;
   white-space: normal;
   overflow-wrap: anywhere;
+}
+.bk-services button[data-rental] {
+  border-color: #38bdf880;
+  background: linear-gradient(135deg, #0c4a6e55, #ffffff0c);
+}
+.bk-services .rental-chip {
+  margin: 6px 0 0;
+  color: #f0f9ff;
+  background: linear-gradient(135deg, #0369a1, #38bdf8);
+  white-space: normal;
 }
 .bk-conflict {
   display: flex;
@@ -3746,12 +3795,14 @@ button.sh-client-link:focus-visible {
 
 /* Dia reservado à locação (ADR-035): week tag and month dot. */
 .ag-day-tags em.ag-day-reserved {
-  max-width: min(160px, 100%);
-  overflow: hidden;
-  color: #fde68a;
-  background: #78350f80;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  max-width: 100%;
+  overflow: visible;
+  color: #fff7ed;
+  background: linear-gradient(135deg, #9a3412, #fb923c);
+  box-shadow: 0 0 0 1px #fdba7466;
+  font-weight: 750;
+  text-overflow: unset;
+  white-space: normal;
 }
 .ag .manager-month-day.ag-heat[data-special='reserved']::after {
   background: #fbbf24;

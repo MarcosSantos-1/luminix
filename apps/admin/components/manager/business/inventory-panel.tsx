@@ -391,7 +391,7 @@ export function InventoryPanel({
         {data.items.length ? (
           <div className="data-toolbar">
             <SearchInput
-              className="data-search"
+              className="data-search lx-search-bar"
               ariaLabel="Buscar produto"
               placeholder="Buscar produto"
               value={query}

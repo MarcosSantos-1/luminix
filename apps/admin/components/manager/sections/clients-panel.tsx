@@ -554,7 +554,7 @@ export function ClientsPanel({
       <div className="data-toolbar">
         <div className="data-searchbar">
           <SearchInput
-            className="data-search"
+            className="data-search lx-search-bar"
             ariaLabel="Buscar clientes"
             placeholder="Nome, telefone, e-mail ou CPF"
             value={query}
@@ -598,7 +598,11 @@ export function ClientsPanel({
           />
         </div>
         {canIssueVouchers ? (
-          <Button variant="secondary" onPress={() => setVoucherClient(null)}>
+          <Button
+            className="cli-voucher"
+            variant="secondary"
+            onPress={() => setVoucherClient(null)}
+          >
             <TicketPercent size={18} /> Voucher
           </Button>
         ) : null}
@@ -1379,7 +1383,7 @@ function ClientProfile({
                 <ClipboardCheck size={20} aria-hidden /> Anamnese
               </button>
               {onVoucher ? (
-                <button type="button" onClick={onVoucher}>
+                <button type="button" className="cli-voucher" onClick={onVoucher}>
                   <Gift size={20} aria-hidden /> Voucher
                 </button>
               ) : null}

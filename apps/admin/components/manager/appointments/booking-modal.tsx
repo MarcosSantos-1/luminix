@@ -8,11 +8,12 @@ import {
   ChevronLeft,
   ChevronRight,
   Clock,
+  Cpu,
+  Flower2,
   Layers,
   Moon,
   Pencil,
   Plus,
-  Sparkles,
   TicketPercent,
   Sun,
   Sunrise,
@@ -29,7 +30,7 @@ import {
 } from '@/components/ui/fields'
 import { formatBrPhone, toE164Phone } from '@/lib/phone'
 import { holidaysBetween, shiftDate } from '@/lib/holidays'
-import { dateBr, initials, money } from '../business/format'
+import { dateBr, initials, money, shortDateBr } from '../business/format'
 import { ClientAvatar } from '../client-photo'
 import { voucherDiscount, type ClientVoucher } from '../clients/voucher-modal'
 import { ClinicApiError, type ClinicApi } from '../settings/clinic-api'
@@ -787,6 +788,7 @@ export function BookingModal({
               <button
                 type="button"
                 aria-pressed={item.id === serviceId}
+                data-rental={item.rental_dates?.length ? true : undefined}
                 onClick={() => {
                   setServiceId(item.id)
                   if (item.rental_dates?.length && !item.rental_dates.includes(date))
@@ -796,12 +798,15 @@ export function BookingModal({
                 }}
               >
                 <span className="bk-icon">
-                  <Sparkles size={18} aria-hidden />
+                  <Flower2 size={18} aria-hidden />
                 </span>
                 <strong>
                   {item.name}
                   {item.rental_dates?.length ? (
-                    <small className="rental-chip">Locação · {dateBr(item.rental_dates[0])}</small>
+                    <small className="rental-chip">
+                      <Cpu size={13} aria-hidden /> Locação · {shortDateBr(item.rental_dates[0])}
+                      {item.rental_dates.length > 1 ? ` +${item.rental_dates.length - 1}` : ''}
+                    </small>
                   ) : null}
                 </strong>
                 <span className="bk-service-meta">
@@ -1045,7 +1050,7 @@ export function BookingModal({
           </button>
           <button type="button" onClick={() => go('service')}>
             <span className="bk-icon">
-              <Sparkles size={18} aria-hidden />
+              <Flower2 size={18} aria-hidden />
             </span>
             <span>
               <small>Serviço</small>

@@ -19,7 +19,7 @@ import {
   Play,
   Plus,
   SlidersHorizontal,
-  Sparkles,
+  Flower2,
   ShieldAlert,
   Trash2,
   TrendingUp,
@@ -326,7 +326,7 @@ export function ServicesPanel({
   }
 
   const tabs: { id: Tab; label: string; icon: ReactNode; count: number }[] = [
-    { id: 'services', label: 'Serviços', icon: <Sparkles size={18} />, count: active.length },
+    { id: 'services', label: 'Serviços', icon: <Flower2 size={18} />, count: active.length },
     { id: 'packages', label: 'Pacotes', icon: <Layers size={18} />, count: sellingPackages.length },
     {
       id: 'equipment',

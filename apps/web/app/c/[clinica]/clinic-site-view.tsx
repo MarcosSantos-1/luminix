@@ -7,7 +7,7 @@ import {
   MapPin,
   Map as MapIcon,
   UserRound,
-  Sparkles,
+  Flower2,
 } from 'lucide-react'
 import { Brand } from '../../../components/brand'
 import {
@@ -161,7 +161,7 @@ export function ClinicSiteView({
                   <span className="clinic-monogram">
                     {clinic.name.trim().slice(0, 1).toLocaleUpperCase('pt-BR')}
                   </span>
-                  <Sparkles size={22} />
+                  <Flower2 size={22} />
                 </div>
               )}
             </div>

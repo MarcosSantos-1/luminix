@@ -12,7 +12,7 @@ import {
   MapPin,
   MessageCircle,
   Paintbrush,
-  Sparkles,
+  Flower2,
   TriangleAlert,
   X,
 } from 'lucide-react'
@@ -197,7 +197,7 @@ export function SiteSettings({
               </div>
             )}
             <span className="site-thumb-label">
-              <Sparkles size={13} /> Prévia do seu site
+              <Flower2 size={13} /> Prévia do seu site
             </span>
           </div>
         </div>
@@ -381,12 +381,12 @@ function SlugEditor({
       </p>
       {result && !result.available && check?.suggestion ? (
         <Button size="sm" variant="secondary" onPress={() => type(check.suggestion!)}>
-          <Sparkles size={14} aria-hidden /> Usar “{check.suggestion}”
+          <Flower2 size={14} aria-hidden /> Usar “{check.suggestion}”
         </Button>
       ) : null}
       {!dirty && toSlug(clinicName) !== current && toSlug(clinicName).length >= 3 ? (
         <Button size="sm" variant="ghost" onPress={() => type(toSlug(clinicName))}>
-          <Sparkles size={14} aria-hidden /> Sugerir pelo nome do espaço
+          <Flower2 size={14} aria-hidden /> Sugerir pelo nome do espaço
         </Button>
       ) : null}
       {resource.data.previous.length > 0 ? (

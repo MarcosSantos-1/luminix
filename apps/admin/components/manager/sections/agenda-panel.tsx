@@ -10,6 +10,7 @@ import {
   ChevronLeft,
   ChevronRight,
   CircleDollarSign,
+  Cpu,
   Plus,
   RotateCcw,
   Settings2,
@@ -392,13 +393,6 @@ export function AgendaPanel({
     } else setWeek(startOfMonday(new Date(`${selectedDate}T12:00:00`)))
     setView(nextView)
   }
-  function goToToday() {
-    const now = new Date()
-    setWeek(startOfMonday(now))
-    setMonth(startOfMonth(now))
-    setSelectedDate(ymd(now))
-  }
-
   const weekDays = days.map((day) => {
     const date = ymd(day)
     return { day, date, ...dayItems(date), ...dayRule(date, day.getDay()) }
@@ -535,9 +529,6 @@ export function AgendaPanel({
           >
             <ChevronRight size={18} />
           </Button>
-          <Button variant="ghost" onPress={goToToday}>
-            Hoje
-          </Button>
         </div>
         <div className="manager-toolbar-actions">
           {embedded ? null : (
@@ -559,6 +550,7 @@ export function AgendaPanel({
             </div>
           )}
           <Button
+            className="ag-hours"
             variant="secondary"
             data-manager-spotlight="schedule"
             isDisabled={!data}
@@ -708,7 +700,7 @@ export function AgendaPanel({
                 ) : (
                   <div className="ag-selected-actions">
                     <Button variant="secondary" onPress={() => setDayConfig(selectedDate)}>
-                      <Settings2 size={17} /> Configurar dia
+                      <span aria-hidden>⚙️</span> Configurar dia
                     </Button>
                     {canManage ? (
                       <Button
@@ -722,9 +714,11 @@ export function AgendaPanel({
                 )}
               </Card.Header>
               <Card.Content>
-                {rentalNames(selectedDate) && (
-                  <p className="rental-chip">Aparelho disponível · {rentalNames(selectedDate)}</p>
-                )}
+                {rentalNames(selectedDate) ? (
+                  <p className="rental-chip" title={rentalNames(selectedDate)}>
+                    <Cpu size={14} aria-hidden /> Locação
+                  </p>
+                ) : null}
                 {selected.active.length ? (
                   <div className="ag-list is-wide">
                     {selected.active.map((item) => (
@@ -766,6 +760,13 @@ export function AgendaPanel({
                 aria-label={new Intl.DateTimeFormat('pt-BR', { dateStyle: 'full' }).format(
                   item.day,
                 )}
+                onClick={(event) => {
+                  if (item.date < today) return
+                  const target = event.target
+                  if (!(target instanceof Element)) return
+                  if (target.closest('button, a, summary')) return
+                  setDayConfig(item.date)
+                }}
               >
                 <header className="ag-day-head">
                   <div>
@@ -838,14 +839,16 @@ export function AgendaPanel({
                         }
                         onClick={() => setDayConfig(item.date)}
                       >
-                        <Settings2 size={16} />
+                        <span aria-hidden>⚙️</span>
                       </button>
                     )}
                   </div>
                 </header>
-                {rentalNames(item.date) && (
-                  <p className="rental-chip">Aparelho disponível · {rentalNames(item.date)}</p>
-                )}
+                {rentalNames(item.date) ? (
+                  <p className="rental-chip" title={rentalNames(item.date)}>
+                    <Cpu size={14} aria-hidden /> Locação
+                  </p>
+                ) : null}
                 {item.active.length ? (
                   <div className="ag-list">
                     {item.active.map((entry) => (

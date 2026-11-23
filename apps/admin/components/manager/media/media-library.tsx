@@ -17,7 +17,7 @@ import {
   Pencil,
   Search,
   RotateCcw,
-  Sparkles,
+  Flower2,
   Trash2,
   Upload,
   UserRound,
@@ -235,7 +235,7 @@ export function MediaLibrary({
         ) : null}
         {!data.storageReady ? (
           <p className="media-banner" role="status">
-            <Sparkles size={16} aria-hidden /> Estamos terminando de preparar o armazenamento
+            <Flower2 size={16} aria-hidden /> Estamos terminando de preparar o armazenamento
             privado. Você já pode organizar as pastas; o envio de fotos será liberado em breve.
           </p>
         ) : null}
