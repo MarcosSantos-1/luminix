@@ -83,21 +83,19 @@
   border-radius: 14px;
 }
 .lx-search-bar .search-field__group {
-  min-height: 50px;
-  border: 1px solid #7dd3fc73;
-  border-radius: 18px;
-  background: linear-gradient(180deg, #16324a, #0c1c2e);
-  box-shadow:
-    inset 0 1px #ffffff24,
-    0 8px 18px #00000038;
+  min-height: 48px;
+  border: 1px solid color-mix(in srgb, var(--space-highlight, #ffb5d3) 46%, var(--manager-border, #ffffff26));
+  border-radius: 16px;
+  background: color-mix(in srgb, var(--space-accent, #ec247b) 16%, var(--manager-surface, #ffffff14));
+  box-shadow: inset 0 1px #ffffff1f;
   backdrop-filter: none;
 }
 .lx-search-bar input {
-  color: #f8fafc;
+  color: var(--manager-text, #fff7fb);
   font-size: 15px;
 }
 .lx-search-bar svg {
-  color: #7dd3fc;
+  color: var(--space-highlight, #ffb5d3);
 }
 .lx-checkbox .checkbox__content {
   align-items: flex-start;
