@@ -13,6 +13,8 @@ import {
   uuidSchema,
 } from '../../shared/tenant/route-helpers.js'
 
+import { packagesDue, packagesDueQuery } from '../catalog/package-money.js'
+
 const monthPattern = '^[0-9]{4}-(0[1-9]|1[0-2])$'
 
 /**
@@ -58,6 +60,7 @@ export async function financeRoutes(
           courtesy,
           stock,
           stockUsed,
+          packages,
         ] = await Promise.all([
           connection.query(
             `SELECT e.id, e.kind, e.amount_cents, e.occurred_on, e.description, e.category, e.method,
@@ -174,6 +177,8 @@ export async function financeRoutes(
                 AND (m.created_at AT TIME ZONE 'America/Sao_Paulo') < ($2::date + interval '1 month')`,
             [tenant.clinicId, first],
           ),
+          // Packages with installments behind (sold "a cada sessão" or "paga depois").
+          connection.query(packagesDueQuery, [tenant.clinicId]),
         ])
         const income = toNumber(totals.rows[0]?.income)
         const expense = toNumber(totals.rows[0]?.expense)
@@ -202,6 +207,7 @@ export async function financeRoutes(
             appointmentId: row.appointment_id ? String(row.appointment_id) : null,
             billId: row.bill_id ? String(row.bill_id) : null,
           })),
+          packagesDue: packagesDue(packages.rows),
           pending: pending.rows.map((row) => ({
             appointmentId: String(row.id),
             startsAt: new Date(String(row.starts_at)).toISOString(),

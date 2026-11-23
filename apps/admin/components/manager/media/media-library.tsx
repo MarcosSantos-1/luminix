@@ -41,6 +41,7 @@ import {
 } from '@/components/manager/settings/settings-kit'
 import { SelectField, TextInputField } from '@/components/ui/fields'
 import './media.css'
+import { useSearchFocus, type SearchFocus } from '../workspace/workspace-signals'
 import { ToastNotice } from '@/components/ui/toast-notice'
 
 type FolderInfo = {
@@ -152,16 +153,36 @@ export function formatBytes(bytes: number) {
 export function MediaLibrary({
   clinicId,
   incoming,
+  focus,
 }: {
   clinicId: string
   /** Photos picked in the mobile "+" menu: sent to "Para organizar" once the library loads. */
   incoming?: { files: File[]; nonce: number } | null
+  /** From the client record ("Fotos"): opens that client's album (query = client id). */
+  focus?: SearchFocus | null
 }) {
   const api = useClinicApi(clinicId)
   const library = useClinicResource<Library>(api, 'library')
   const [selected, setSelected] = useState<string | null>(null)
   const [quick, setQuick] = useState<{ done: number; total: number } | null>(null)
   const [quickNotice, setQuickNotice] = useState('')
+  const [wantedClient, setWantedClient] = useState<string | null>(null)
+  useSearchFocus(focus, (clientId) => {
+    if (focus?.tab === 'client' && clientId) setWantedClient(clientId)
+  })
+  const albums = library.data?.folders
+  useEffect(() => {
+    if (!wantedClient || !albums) return
+    const album = albums.find((folder) => folder.clientId === wantedClient)
+    const clientsFolder = albums.find((folder) => folder.systemKey === 'clients')
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- opened once from the record
+    setSelected(album?.id ?? clientsFolder?.id ?? null)
+    setWantedClient(null)
+    if (!album)
+      setQuickNotice(
+        'Esta cliente ainda não tem fotos. Elas entram aqui ao concluir um atendimento com fotos.',
+      )
+  }, [wantedClient, albums])
   const [round, setRound] = useState(0)
   const handledIncoming = useRef<number | null>(null)
   const loaded = library.data

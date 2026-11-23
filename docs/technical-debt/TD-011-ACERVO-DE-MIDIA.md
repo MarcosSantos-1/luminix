@@ -19,3 +19,11 @@ Quando deve ser resolvido: exclusão definitiva e consentimento antes de cliente
 Prioridade: P1 (exclusão definitiva, consentimento), P2 (cotas, álbum por cliente), P3 (vídeo)
 Status: aberto
 ```
+
+## Concluir atendimento: fotos enviadas antes de concluir (2026-11-23)
+
+- As fotos do passo "Fotos" sobem assim que escolhidas (upload otimista). Se a pessoa remove a
+  foto ou fecha o modal sem concluir, o asset já enviado fica sem item no acervo (órfão no R2).
+  Falta uma limpeza de assets `library_photo` sem item após N horas.
+- Vídeo no atendimento ainda não existe: a mídia só aceita imagens WebP (`library_photo`).
+  Precisa de um tipo novo (migration, upload direto ao R2 com limite de tamanho, player no acervo).

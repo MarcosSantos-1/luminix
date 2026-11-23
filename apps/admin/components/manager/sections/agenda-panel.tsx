@@ -36,6 +36,9 @@ import {
   dayLabel,
   localDate,
   needsAttention,
+  serviceTitle,
+  visitBadge,
+  type AppointmentPackage,
   type AppointmentView,
 } from '../appointments/model'
 import {
@@ -45,7 +48,6 @@ import {
   type ProfessionalOverrideRow,
   type WeeklyRow,
 } from '../appointments/schedule-modal'
-import { appointmentStatus } from '../business/format'
 import { useClinicApi } from '../settings/clinic-api'
 import '../appointments/appointments.css'
 import { ToastNotice } from '@/components/ui/toast-notice'
@@ -71,6 +73,8 @@ type Row = {
   status_note?: string | null
   client_photo_large_url?: string | null
   account_photo?: boolean
+  package?: AppointmentPackage | null
+  price_agreed_at?: string | null
   price_type?: string
   rental_dates?: string[] | null
   service_name: string
@@ -148,6 +152,8 @@ function toView(row: Row): AppointmentView {
     photoUrl: row.client_photo_url,
     photoLargeUrl: row.client_photo_large_url,
     accountPhoto: row.account_photo === true,
+    package: row.package ?? null,
+    priceAgreed: Boolean(row.price_agreed_at),
   }
 }
 
@@ -164,13 +170,12 @@ function AppointmentCard({
   ghost?: boolean
   onOpen: (item: AppointmentView) => void
 }) {
-  const status = appointmentStatus[item.status] ?? appointmentStatus.confirmed
   return (
     <button
       type="button"
       className={`ag-card is-${ghost ? 'moved' : item.status}`}
       onClick={() => onOpen(item)}
-      aria-label={`${item.client}, ${item.service}, ${clock(item.startsAt, timezone)}, ${ghost ? 'remarcado' : status.label}`}
+      aria-label={`${item.client}, ${item.service}, ${clock(item.startsAt, timezone)}, ${ghost ? 'remarcado' : visitBadge(item).label}`}
     >
       <span className="ag-card-top">
         <time>
@@ -188,15 +193,18 @@ function AppointmentCard({
         </span>
       </span>
       <strong>{item.client}</strong>
-      <span>{item.service}</span>
+      <span>{serviceTitle(item)}</span>
       {item.professional ? <small>{item.professional}</small> : null}
       {ghost ? (
         <small className="ag-card-note">
           Remarcado para {dayLabel(item.startsAt, timezone)}, {clock(item.startsAt, timezone)}
         </small>
-      ) : item.status !== 'confirmed' ? (
-        <small className="ag-card-note">{status.label}</small>
-      ) : null}
+      ) : (
+        <small className={`ag-card-note is-${visitBadge(item).tone}`}>
+          {visitBadge(item).label}
+          {item.paid ? ' · Pago' : ''}
+        </small>
+      )}
     </button>
   )
 }

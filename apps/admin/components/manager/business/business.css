@@ -4430,3 +4430,343 @@
 .vch-service-pick.is-missing {
   border-color: #fb923c;
 }
+
+/* Serviços: no celular, Novo serviço em destaque e as duas exportações lado a lado */
+.svc-mobile-export {
+  display: none;
+}
+@media (max-width: 650px) {
+  .svc-hero-actions {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .svc-hero-actions .svc-export {
+    display: none;
+  }
+  .svc-hero-actions .svc-mobile-export {
+    display: inline-flex;
+    justify-content: center;
+    width: 100%;
+    height: auto;
+    min-height: 50px;
+    padding: 8px 10px;
+    border-radius: 16px;
+    white-space: normal;
+    line-height: 1.15;
+    font-size: 14px;
+    font-weight: 650;
+  }
+  .svc-hero-actions .svc-mobile-export.is-whats {
+    border-color: #25d36680;
+  }
+  .svc-hero-actions .svc-new {
+    order: -1;
+    grid-column: 1 / -1;
+    width: 100%;
+    height: auto;
+    min-height: 58px;
+    border-radius: 18px;
+    font-size: 17px;
+    font-weight: 750;
+    box-shadow: 0 10px 24px color-mix(in srgb, var(--space-accent, #ec287a) 45%, transparent);
+  }
+}
+
+/* Promoção rodando: os dois botões lado a lado no celular */
+@media (max-width: 650px) {
+  .biz-promo-strip-actions {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    width: 100%;
+  }
+  .biz-promo-strip-actions > :only-child {
+    grid-column: 1 / -1;
+  }
+  .biz-promo-strip-actions .button {
+    width: 100%;
+    height: auto;
+    min-height: 52px;
+    padding: 8px 10px;
+    border-radius: 16px;
+    white-space: normal;
+    line-height: 1.15;
+    font-size: 14px;
+    font-weight: 650;
+  }
+}
+.biz-promo-card.is-focused {
+  animation: promo-focus 2.4s ease-out;
+}
+@keyframes promo-focus {
+  0%,
+  40% {
+    border-color: var(--space-highlight, #ffb5d3);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--space-highlight, #ffb5d3) 55%, transparent);
+  }
+}
+
+/* Marketing: abas Divulgação | Promoções */
+.svc-tabs.mk-tabs {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+@media (max-width: 650px) {
+  .svc-tabs.mk-tabs button {
+    flex-direction: row;
+    min-height: 52px;
+  }
+  .svc-tabs.mk-tabs em {
+    position: static;
+  }
+}
+
+/* Divulgue seu site (accordion) */
+.mk-site {
+  overflow: hidden;
+  border: 1px solid var(--manager-border);
+  border-radius: 22px;
+  background: var(--manager-surface, #ffffff0d);
+}
+.mk-site summary {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+  cursor: pointer;
+  list-style: none;
+}
+.mk-site summary::-webkit-details-marker {
+  display: none;
+}
+.mk-site-icon {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 14px;
+  color: var(--space-deep, #3a0a22);
+  background: var(--space-highlight, #ffb5d3);
+}
+.mk-site-copy {
+  display: grid;
+  flex: 1;
+  min-width: 0;
+  gap: 2px;
+}
+.mk-site-copy strong {
+  font-size: 16px;
+}
+.mk-site-copy small {
+  overflow: hidden;
+  color: var(--manager-muted);
+  font-size: 13px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.mk-site-chevron {
+  flex: none;
+  color: var(--manager-muted);
+  transition: transform 0.2s;
+}
+.mk-site[open] .mk-site-chevron {
+  transform: rotate(180deg);
+}
+.mk-site-body {
+  display: grid;
+  gap: 12px;
+  padding: 0 16px 16px;
+}
+.mk-site-body p {
+  margin: 0;
+}
+.mk-site-actions {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 8px;
+}
+.mk-site-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 50px;
+  padding: 8px 12px;
+  border: 1px solid var(--manager-border);
+  border-radius: 16px;
+  color: var(--manager-text);
+  background: #ffffff0d;
+  font-size: 14px;
+  font-weight: 650;
+  text-align: center;
+  text-decoration: none;
+  cursor: pointer;
+}
+.mk-site-action.is-main {
+  border-color: var(--space-highlight, #ffb5d3);
+  background: color-mix(in srgb, var(--space-accent, #ec287a) 30%, transparent);
+}
+.mk-site-action.is-whats {
+  border-color: #25d36680;
+  background: #25d3661f;
+}
+@media (max-width: 650px) {
+  .mk-site-actions {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+/* Novo serviço: busca que já preenche tudo */
+.svc-find {
+  display: grid;
+  gap: 10px;
+}
+.svc-find-label {
+  font-size: 18px;
+  font-weight: 750;
+}
+.svc-find-input input {
+  min-height: 54px;
+  font-size: 17px;
+}
+.svc-find-error {
+  color: #fca5a5;
+  font-size: 13px;
+}
+.svc-find-hint {
+  color: var(--manager-muted);
+  font-size: 13px;
+}
+.svc-find-list {
+  grid-template-columns: 1fr;
+}
+.svc-find-list button {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  transition:
+    border-color 0.15s,
+    background 0.15s;
+}
+.svc-find-list button:hover,
+.svc-find-list button:focus-visible {
+  border-color: var(--space-highlight, #ffb5d3);
+  background: color-mix(in srgb, var(--space-accent, #ec287a) 18%, transparent);
+}
+.svc-find-list button > span:nth-child(2) {
+  display: grid;
+  flex: 1;
+  min-width: 0;
+  gap: 2px;
+}
+.svc-find-icon {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 12px;
+  color: var(--space-deep, #3a0a22);
+  background: var(--space-highlight, #ffb5d3);
+}
+.svc-find-manual {
+  justify-self: start;
+  padding: 6px 0;
+  border: 0;
+  color: var(--space-highlight, #ffb5d3);
+  background: none;
+  font-size: 14px;
+  font-weight: 650;
+  text-align: left;
+  cursor: pointer;
+}
+.svc-find-picked,
+.svc-find-new {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: 14px;
+  font-size: 13.5px;
+}
+.svc-find-picked {
+  color: #a7f0c4;
+  background: #6ee7a81a;
+}
+.svc-find-new {
+  color: #ffe0a1;
+  background: #ffd98a17;
+}
+.svc-find-fields {
+  display: grid;
+  gap: 12px;
+  padding-top: 14px;
+  border-top: 1px solid var(--manager-border);
+  animation: cv-fade 0.2s ease-out;
+}
+@keyframes cv-fade {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+}
+.svc-cat-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: -4px;
+}
+.svc-cat-chips button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 34px;
+  padding: 0 12px;
+  border: 1px solid var(--manager-border);
+  border-radius: 99px;
+  color: var(--manager-text);
+  background: #ffffff0a;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.svc-cat-chips i {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: hsl(var(--hue, 330) 80% 70%);
+}
+.svc-cat-chips small {
+  color: var(--space-highlight, #ffb5d3);
+  font-size: 11px;
+}
+.svc-cat-chips button[aria-pressed='true'] {
+  border-color: hsl(var(--hue, 330) 80% 70%);
+  background: hsl(var(--hue, 330) 70% 50% / 0.22);
+}
+.svc-cat-new {
+  color: #ffe0a1;
+  font-size: 13px;
+}
+
+/* Estoque: "Montar estoque" e "Já completei" lado a lado (o div genérico do CTA virava grade) */
+.inv-setup-cta > .inv-setup-actions {
+  display: grid;
+  flex: 1 1 100%;
+  grid-auto-columns: minmax(0, 1fr);
+  grid-auto-flow: column;
+  gap: 8px;
+}
+.inv-setup-actions .button {
+  width: 100%;
+  height: auto;
+  min-height: 48px;
+  white-space: normal;
+  line-height: 1.15;
+}
+@media (min-width: 651px) {
+  .inv-setup-cta > .inv-setup-actions {
+    flex: 0 0 auto;
+    grid-auto-columns: auto;
+  }
+}

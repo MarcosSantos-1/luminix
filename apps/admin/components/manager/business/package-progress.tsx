@@ -48,6 +48,7 @@ export function PackageProgress({
   appointmentId,
   onChanged,
   compact,
+  hideCharge,
 }: {
   api?: ClinicApi
   item: ClientPackage
@@ -57,6 +58,8 @@ export function PackageProgress({
   appointmentId?: string
   onChanged?: () => void
   compact?: boolean
+  /** Shows the balance without the "Receber" button (money is recorded after the visit). */
+  hideCharge?: boolean
 }) {
   const [busy, setBusy] = useState(false)
   const visits = item.visits ?? []
@@ -138,7 +141,7 @@ export function PackageProgress({
               : `${money(item.paidCents ?? 0)} pago · faltam ${money(remaining)}`}
             {!paidOff && item.paymentPlan === 'per_visit' ? ' · paga a cada sessão' : ''}
           </span>
-          {!paidOff && api && installment ? (
+          {!paidOff && api && installment && !hideCharge ? (
             <Button size="sm" className="lx-laser" isDisabled={busy} onPress={() => void charge()}>
               {busy ? 'Registrando…' : `Receber ${money(installment)}`}
             </Button>

@@ -4,6 +4,7 @@ import { Button, Spinner } from '@heroui/react'
 import {
   BadgePercent,
   CalendarRange,
+  ChevronRight,
   Copy,
   Eye,
   EyeOff,
@@ -14,7 +15,7 @@ import {
   Plus,
   Scissors,
 } from 'lucide-react'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import {
   CheckboxField,
   DateInputField,
@@ -76,10 +77,13 @@ export function promotionExample(services: Service[]) {
 export function PromotionsSection({
   api,
   data,
+  highlightId,
   onChanged,
 }: {
   api: ClinicApi
   data: Catalog
+  /** Opened from Serviços → "Ver em Marketing": scrolls to and lights up this promotion. */
+  highlightId?: string
   onChanged: () => void
 }) {
   const [promo, setPromo] = useState<Promotion | null>(null)
@@ -87,6 +91,15 @@ export function PromotionsSection({
   const setPromoFromCard = setPromo
   const example = promotionExample(data.services)
   const live = data.promotions.filter((item) => promotionState(item, data.today).tone !== 'off')
+  useEffect(() => {
+    if (!highlightId) return
+    const frame = requestAnimationFrame(() =>
+      document
+        .getElementById(`promo-${highlightId}`)
+        ?.scrollIntoView({ behavior: 'smooth', block: 'center' }),
+    )
+    return () => cancelAnimationFrame(frame)
+  }, [highlightId])
 
   if (promo)
     return (
@@ -132,7 +145,11 @@ export function PromotionsSection({
             {data.promotions.map((item) => {
               const state = promotionState(item, data.today)
               return (
-                <li key={item.id} className="biz-tile biz-promo-card">
+                <li
+                  key={item.id}
+                  id={`promo-${item.id}`}
+                  className={`biz-tile biz-promo-card${item.id === highlightId ? ' is-focused' : ''}`}
+                >
                   <div className="biz-tile-head">
                     <span className="biz-tile-icon" aria-hidden>
                       <BadgePercent size={20} />
@@ -242,7 +259,7 @@ export function PromotionsStrip({
 }: {
   data: Catalog
   onCreate: () => void
-  onOpenAll?: () => void
+  onOpenAll?: (promotionId?: string) => void
 }) {
   const live = data.promotions.filter((item) => promotionState(item, data.today).tone !== 'off')
   return (
@@ -272,8 +289,13 @@ export function PromotionsStrip({
           </Button>
         ) : null}
         {onOpenAll ? (
-          <Button size="sm" className="promo-more" variant="secondary" onPress={onOpenAll}>
-            Ver em Marketing →
+          <Button
+            size="sm"
+            className="promo-more"
+            variant="secondary"
+            onPress={() => onOpenAll(live[0]?.id)}
+          >
+            Ver em Marketing <ChevronRight size={15} aria-hidden />
           </Button>
         ) : null}
       </div>

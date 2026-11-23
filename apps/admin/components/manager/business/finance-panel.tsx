@@ -69,6 +69,18 @@ type Bill = {
   paidCents: number | null
   paidOn: string | null
 }
+type PackageDue = {
+  clientPackageId: string
+  client: string
+  name: string
+  plan: string
+  priceCents: number
+  paidCents: number
+  dueCents: number
+  remainingCents: number
+  done: number
+  sessionsTotal: number
+}
 type Pending = {
   appointmentId: string
   startsAt: string
@@ -93,6 +105,8 @@ type Finance = {
   forecast: { cents: number; appointments: number }
   entries: Entry[]
   pending: Pending[]
+  /** Packages behind on installments ("a cada sessão") or with a balance to pay later. */
+  packagesDue?: PackageDue[]
   bills?: Bill[]
   expenseCategories?: CategoryRow[]
   trend?: TrendRow[]
@@ -294,6 +308,23 @@ export function FinancePanel({
     }
   }
 
+  async function receivePackage(item: PackageDue) {
+    setBusy(item.clientPackageId)
+    setNotice(null)
+    try {
+      await api.post(`client-packages/${item.clientPackageId}/payments`, {
+        amountCents: item.dueCents,
+        occurredOn: data!.today,
+        method,
+      })
+      done(`${money(item.dueCents)} do pacote de ${item.client} lançado como entrada.`)
+    } catch {
+      setNotice({ kind: 'error', text: 'Não foi possível lançar. Tente de novo.' })
+    } finally {
+      setBusy('')
+    }
+  }
+
   async function voidEntry(entry: Entry) {
     setBusy(entry.id)
     try {
@@ -456,6 +487,47 @@ export function FinancePanel({
                       <Plus size={14} aria-hidden /> Lançar {money(item.priceCents)}
                     </Button>
                   )}
+                </div>
+              </li>
+            ))}
+          </ul>
+        </SettingsCard>
+      ) : null}
+
+      {data.packagesDue?.length ? (
+        <SettingsCard
+          icon={<HandCoins size={20} />}
+          title="Pacotes a receber"
+          description="Sessões já feitas e ainda não pagas. Receba para o caixa fechar."
+          help={{
+            title: 'Como é calculado?',
+            text: '“A cada sessão”: a parcela de cada sessão concluída. “Paga depois”: todo o saldo, a partir da primeira sessão. O valor entra no Financeiro ligado ao pacote.',
+          }}
+          badge={
+            <StatusPill tone="off">
+              {money(data.packagesDue.reduce((sum, item) => sum + item.dueCents, 0))}
+            </StatusPill>
+          }
+        >
+          <ul className="biz-list">
+            {data.packagesDue.map((item) => (
+              <li key={item.clientPackageId}>
+                <div className="biz-row-main">
+                  <strong>{item.client}</strong>
+                  <span className="biz-row-meta">
+                    🎁 {item.name} · {item.done}/{item.sessionsTotal} sessões ·{' '}
+                    {item.plan === 'per_visit' ? 'a cada sessão' : 'paga depois'} · pago{' '}
+                    {money(item.paidCents)} de {money(item.priceCents)}
+                  </span>
+                </div>
+                <div className="biz-actions">
+                  <Button
+                    size="sm"
+                    isDisabled={busy === item.clientPackageId}
+                    onPress={() => void receivePackage(item)}
+                  >
+                    <Plus size={14} aria-hidden /> Receber {money(item.dueCents)}
+                  </Button>
                 </div>
               </li>
             ))}

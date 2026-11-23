@@ -19,7 +19,6 @@ import {
   Play,
   Plus,
   ShoppingBag,
-  SlidersHorizontal,
   ShieldAlert,
   Trash2,
   TrendingUp,
@@ -151,8 +150,8 @@ export function ServicesPanel({
   canSellPackages?: boolean
   createSignal: number
   onOpenTeam: () => void
-  /** Promotions live in Marketing; Serviços shows a strip that leads there. */
-  onOpenMarketing?: () => void
+  /** Promotions live in Marketing (tab Promoções); the strip opens the one running. */
+  onOpenMarketing?: (promotionId?: string) => void
   focus?: SearchFocus | null
 }) {
   const api = useClinicApi(clinicId)
@@ -373,44 +372,6 @@ export function ServicesPanel({
             </div>
           </div>
           <div className="svc-hero-actions">
-            {tab === 'services' ? (
-              <Dropdown>
-                <Dropdown.Trigger
-                  className="button button--secondary button--icon-only svc-quick"
-                  aria-label="Atalhos de filtro"
-                >
-                  <SlidersHorizontal size={17} aria-hidden />
-                  {withoutTeam > 0 ? <i className="svc-quick-dot" aria-hidden /> : null}
-                </Dropdown.Trigger>
-                <Dropdown.Popover placement="bottom end">
-                  <Dropdown.Menu
-                    aria-label="Atalhos de filtro"
-                    onAction={(key) =>
-                      quick(
-                        key === 'archived'
-                          ? { ...defaultFilters, status: ['archived'] }
-                          : { ...defaultFilters, other: [String(key)] },
-                      )
-                    }
-                  >
-                    <Dropdown.Item id="promo" textValue="Em promoção">
-                      <BadgePercent size={17} />
-                      <span>{onPromo} em promoção</span>
-                    </Dropdown.Item>
-                    <Dropdown.Item id="noteam" textValue="Sem profissional">
-                      <UsersRound size={17} />
-                      <span>{withoutTeam} sem profissional</span>
-                    </Dropdown.Item>
-                    <Dropdown.Item id="archived" textValue="Pausados">
-                      <Pause size={17} />
-                      <span>
-                        {paused} {paused === 1 ? 'pausado' : 'pausados'}
-                      </span>
-                    </Dropdown.Item>
-                  </Dropdown.Menu>
-                </Dropdown.Popover>
-              </Dropdown>
-            ) : null}
             <Dropdown>
               <Dropdown.Trigger
                 className="button button--secondary svc-export"
@@ -440,9 +401,24 @@ export function ServicesPanel({
                 </Dropdown.Menu>
               </Dropdown.Popover>
             </Dropdown>
+            {/* Phone: the two exports people use most, side by side, without the menu. */}
+            <Button
+              className="svc-mobile-export"
+              variant="secondary"
+              onPress={() => exportTable('pdf')}
+            >
+              <FileText size={18} aria-hidden /> Baixar PDF
+            </Button>
+            <Button
+              className="svc-mobile-export is-whats"
+              variant="secondary"
+              onPress={() => exportTable('whatsapp')}
+            >
+              <MessageCircle size={18} aria-hidden /> Copiar p/ WhatsApp
+            </Button>
             {data.canManage && tab === 'services' ? (
               <Button className="svc-new lx-laser" onPress={() => setEditing(blank())}>
-                <Plus size={16} aria-hidden /> Novo serviço
+                <Plus size={18} aria-hidden /> Novo serviço
               </Button>
             ) : null}
           </div>
@@ -764,14 +740,16 @@ function ServiceEditor({
   const [price, setPrice] = useState(moneyInput(initial.priceCents))
   const [state, setState] = useState<SaveState>({ status: 'idle' })
   const [showErrors, setShowErrors] = useState(false)
-  const [suggestQuery, setSuggestQuery] = useState('')
-  const steps: { id: EditorStep; label: string }[] = [
-    { id: 'what', label: 'O serviço' },
-    { id: 'price', label: 'Preço e tempo' },
-    { id: 'booking', label: 'Agendamento' },
-    ...(team.length > 1 ? [{ id: 'team' as const, label: 'Quem faz' }] : []),
-    ...(isNew ? [] : [{ id: 'supplies' as const, label: 'Produtos' }]),
-    { id: 'review', label: 'Revisar' },
+  // New service: the name box is also the search over the suggestion catalog.
+  const [picked, setPicked] = useState<Suggestion | null>(null)
+  const [manual, setManual] = useState(!isNew)
+  const steps: { id: EditorStep; label: string; emoji: string }[] = [
+    { id: 'what', label: 'O serviço', emoji: '🔎' },
+    { id: 'price', label: 'Preço e tempo', emoji: '💰' },
+    { id: 'booking', label: 'Agendamento', emoji: '📅' },
+    ...(team.length > 1 ? [{ id: 'team' as const, label: 'Quem faz', emoji: '👥' }] : []),
+    ...(isNew ? [] : [{ id: 'supplies' as const, label: 'Produtos', emoji: '🧴' }]),
+    { id: 'review', label: 'Revisar', emoji: '✅' },
   ]
   const [step, setStep] = useState<EditorStep>('what')
   const position = steps.findIndex((item) => item.id === step)
@@ -794,19 +772,68 @@ function ServiceEditor({
     supplies: [],
     review: [],
   }
+  const needle = fold(service.name.trim())
   const suggestions = useMemo(() => {
-    const needle = suggestQuery.trim().toLocaleLowerCase('pt-BR')
-    if (needle.length < 2) return []
+    if (!isNew || needle.length < 2) return []
+    const words = needle.split(/\s+/).filter(Boolean)
     return (catalogSuggestions as Suggestion[])
-      .filter((item) =>
-        `${item.nome} ${item.categoria}`.toLocaleLowerCase('pt-BR').includes(needle),
-      )
+      .map((item) => {
+        const name = fold(item.nome)
+        const score = name.startsWith(needle)
+          ? 3
+          : name.includes(needle)
+            ? 2
+            : words.every((word) => `${name} ${fold(item.categoria)}`.includes(word))
+              ? 1
+              : 0
+        return { item, score }
+      })
+      .filter((entry) => entry.score > 0)
+      .sort((a, b) => b.score - a.score || a.item.nome.localeCompare(b.item.nome, 'pt-BR'))
       .slice(0, 6)
-  }, [suggestQuery])
+      .map((entry) => entry.item)
+  }, [isNew, needle])
+  // The category decides the groups of the page: same spelling as an existing one when it
+  // matches ("unhas" → "Unhas"), so a group never splits in two.
+  const canonical = (value: string) =>
+    categories.find((name) => fold(name) === fold(value.trim())) ?? value.trim()
+  const isNewCategory =
+    Boolean(service.category.trim()) &&
+    !categories.some((name) => fold(name) === fold(service.category))
+  // A category that fits the typed name, from the closest catalog entry.
+  const guessedCategory = useMemo(() => {
+    const words = needle.split(/\s+/).filter((word) => word.length > 2)
+    if (!words.length) return ''
+    let best = { score: 0, category: '' }
+    for (const item of catalogSuggestions as Suggestion[]) {
+      const name = fold(item.nome)
+      const score = words.filter((word) => name.includes(word)).length
+      if (score > best.score) best = { score, category: item.categoria }
+    }
+    return best.category ? canonical(best.category) : ''
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [needle, categories])
+  const showFields = manual || Boolean(picked) || (needle.length >= 3 && !suggestions.length)
+  const categoryChips = [
+    ...new Set([...(guessedCategory ? [guessedCategory] : []), ...categories]),
+  ].slice(0, 12)
+
+  function pick(item: Suggestion) {
+    setPicked(item)
+    set({
+      name: item.nome,
+      category: canonical(item.categoria),
+      description: item.descricao ?? '',
+      durationMinutes: item.duracao_minutos,
+      priceType: item.tipo_preco ?? 'fixed',
+    })
+    setPrice(moneyInput(Math.round(item.preco_sugerido_brl * 100)))
+  }
 
   function next() {
     if (stepErrors[step].length) {
       setShowErrors(true)
+      if (step === 'what' && errors.category) setManual(true)
       return
     }
     setShowErrors(false)
@@ -824,7 +851,7 @@ function ServiceEditor({
     try {
       await api.put(`catalog/services/${service.id}`, {
         name: service.name.trim(),
-        category: service.category.trim(),
+        category: canonical(service.category),
         description: service.description.trim(),
         priceCents: priceCents ?? 0,
         priceType: service.priceType,
@@ -880,7 +907,7 @@ function ServiceEditor({
               disabled={isNew && index > position}
               onClick={() => setStep(item.id)}
             >
-              <i>{index < position ? <Check size={12} /> : index + 1}</i>
+              <i>{index < position ? <Check size={12} /> : item.emoji}</i>
               <span>{item.label}</span>
             </button>
           ))}
@@ -922,77 +949,133 @@ function ServiceEditor({
       {step === 'what' ? (
         <div className="svc-step">
           {isNew ? (
-            <div className="svc-suggest">
-              <span className="svc-suggest-label">
-                <Wand2 size={16} aria-hidden /> Comece de uma sugestão (opcional)
-              </span>
+            <div className="svc-find">
+              <span className="svc-find-label">✨ Qual serviço você quer adicionar?</span>
               <SearchInput
-                className="biz-search"
-                ariaLabel="Buscar sugestão"
+                className="biz-search svc-find-input"
+                ariaLabel="Nome do serviço"
                 placeholder={`Ex.: ${sample || 'limpeza de pele, manicure, escova'}`}
-                value={suggestQuery}
-                onChange={setSuggestQuery}
+                value={service.name}
+                autoFocus
+                onChange={(name) => {
+                  set({ name })
+                  if (picked && name !== picked.nome) setPicked(null)
+                }}
+                onEnter={() => (suggestions.length && !picked ? pick(suggestions[0]) : next())}
               />
-              {suggestions.length ? (
-                <ul className="biz-suggestions">
-                  {suggestions.map((item) => (
-                    <li key={`${item.categoria}-${item.nome}`}>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          set({
-                            name: item.nome,
-                            category: item.categoria,
-                            description: item.descricao ?? '',
-                            durationMinutes: item.duracao_minutos,
-                            priceType: item.tipo_preco ?? 'fixed',
-                          })
-                          setPrice(moneyInput(Math.round(item.preco_sugerido_brl * 100)))
-                          setSuggestQuery('')
-                        }}
-                      >
-                        <strong>{item.nome}</strong>
-                        <small>
-                          {item.categoria} · {item.duracao_minutos} min · sugerido{' '}
-                          {money(Math.round(item.preco_sugerido_brl * 100))}
-                        </small>
-                      </button>
-                    </li>
-                  ))}
-                </ul>
+              {showErrors && errors.name ? (
+                <small className="svc-find-error" role="alert">
+                  {errors.name}
+                </small>
+              ) : null}
+              {!picked && suggestions.length ? (
+                <>
+                  <span className="svc-find-hint">Toque para preencher tudo de uma vez:</span>
+                  <ul className="biz-suggestions svc-find-list">
+                    {suggestions.map((item) => (
+                      <li key={`${item.categoria}-${item.nome}`}>
+                        <button type="button" onClick={() => pick(item)}>
+                          <span className="svc-find-icon" aria-hidden>
+                            {createElement(serviceIcon(item.categoria, item.nome), { size: 18 })}
+                          </span>
+                          <span>
+                            <strong>{item.nome}</strong>
+                            <small>
+                              {canonical(item.categoria)} · ⏱️ {durationLabel(item.duracao_minutos)}{' '}
+                              · 💰 {money(Math.round(item.preco_sugerido_brl * 100))}
+                            </small>
+                          </span>
+                          <ChevronRight size={16} aria-hidden />
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                  {!showFields ? (
+                    <button
+                      type="button"
+                      className="svc-find-manual"
+                      onClick={() => setManual(true)}
+                    >
+                      Não é nenhum desses? Criar “{service.name.trim()}” do zero
+                    </button>
+                  ) : null}
+                </>
+              ) : null}
+              {picked ? (
+                <p className="svc-find-picked">
+                  <Check size={16} aria-hidden /> Preenchido com a sugestão: preço, duração e
+                  descrição. Ajuste o que quiser.
+                </p>
+              ) : !suggestions.length && needle.length >= 3 ? (
+                <p className="svc-find-new">
+                  🆕 Não temos “{service.name.trim()}” nas sugestões. Complete a categoria e a
+                  descrição abaixo.
+                </p>
               ) : null}
             </div>
+          ) : (
+            <TextInput
+              label="Nome"
+              value={service.name}
+              required
+              maxLength={160}
+              error={showErrors ? errors.name : undefined}
+              onChange={(name) => set({ name })}
+            />
+          )}
+
+          {showFields ? (
+            <div className="svc-find-fields">
+              <ComboField
+                label="Categoria"
+                value={service.category}
+                maxLength={120}
+                suggestions={[...new Set([...categories, guessedCategory].filter(Boolean))]}
+                error={showErrors ? errors.category : undefined}
+                help={
+                  <HelpTip title="Para que serve a categoria?">
+                    Agrupa os serviços na página de Serviços, no site e na tabela de preços, como
+                    “Cabelo” ou “Unhas”. Prefira uma que já existe para não separar o mesmo grupo em
+                    dois.
+                  </HelpTip>
+                }
+                onChange={(category) => set({ category })}
+              />
+              {categoryChips.length ? (
+                <div className="svc-cat-chips" role="group" aria-label="Categorias">
+                  {categoryChips.map((name) => (
+                    <button
+                      key={name}
+                      type="button"
+                      aria-pressed={fold(name) === fold(service.category)}
+                      style={{ ['--hue' as string]: categoryHue(name) }}
+                      onClick={() => set({ category: name })}
+                    >
+                      <i aria-hidden />
+                      {name}
+                      {name === guessedCategory && !categories.includes(name) ? (
+                        <small>sugerida</small>
+                      ) : null}
+                    </button>
+                  ))}
+                </div>
+              ) : null}
+              {isNewCategory ? (
+                <small className="svc-cat-new">
+                  🆕 Nova categoria: “{service.category.trim()}” vira um grupo novo na página de
+                  Serviços e no site.
+                </small>
+              ) : null}
+              <TextAreaField
+                label="Descrição (aparece no site)"
+                rows={3}
+                maxLength={1200}
+                value={service.description}
+                placeholder="Conte em poucas palavras o que a cliente recebe."
+                onChange={(description) => set({ description })}
+              />
+            </div>
           ) : null}
-          <TextInput
-            label="Nome"
-            value={service.name}
-            required
-            maxLength={160}
-            error={showErrors ? errors.name : undefined}
-            onChange={(name) => set({ name })}
-          />
-          <ComboField
-            label="Categoria"
-            value={service.category}
-            maxLength={120}
-            suggestions={categories}
-            error={showErrors ? errors.category : undefined}
-            help={
-              <HelpTip title="Para que serve a categoria?">
-                Agrupa os serviços no site e na tabela de preços, como “Cabelo” ou “Unhas”. Use uma
-                que já existe ou escreva uma nova.
-              </HelpTip>
-            }
-            onChange={(category) => set({ category })}
-          />
-          <TextAreaField
-            label="Descrição (aparece no site)"
-            rows={3}
-            maxLength={1200}
-            value={service.description}
-            placeholder="Conte em poucas palavras o que a cliente recebe."
-            onChange={(description) => set({ description })}
-          />
         </div>
       ) : null}
 

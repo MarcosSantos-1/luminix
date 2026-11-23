@@ -24,6 +24,8 @@ async function canvasBlob(bitmap: ImageBitmap, size: number, kind: ImageKind): P
   canvas.height = size
   const context = canvas.getContext('2d')
   if (!context) throw new Error('Seu navegador não conseguiu preparar a imagem.')
+  context.imageSmoothingEnabled = true
+  context.imageSmoothingQuality = 'high'
   const scale =
     kind !== 'professional_photo' && kind !== 'client_photo' && kind !== 'product_photo'
       ? Math.min(size / bitmap.width, size / bitmap.height)
@@ -37,9 +39,11 @@ async function canvasBlob(bitmap: ImageBitmap, size: number, kind: ImageKind): P
   } else {
     context.drawImage(bitmap, (size - width) / 2, (size - height) / 2, width, height)
   }
-  const blob = await new Promise<Blob | null>((resolve) =>
-    canvas.toBlob(resolve, 'image/webp', 0.84),
-  )
+  const encode = (quality: number) =>
+    new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, 'image/webp', quality))
+  // Client records (before/after) need detail: higher quality, within the API's 2.5 MB limit.
+  let blob = await encode(kind === 'library_photo' ? 0.92 : 0.84)
+  if (blob && kind === 'library_photo' && blob.size > 2_300_000) blob = await encode(0.84)
   if (!blob) throw new Error('Seu navegador não conseguiu converter a imagem.')
   return blob
 }

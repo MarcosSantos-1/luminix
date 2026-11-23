@@ -1,4 +1,5 @@
 import { appointmentRentalDates } from './rental-calendar.js'
+import { appointmentPackage, packageView } from '../catalog/package-money.js'
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify'
 import {
   clientVoucherEmail,
@@ -39,6 +40,81 @@ type ClientBody = {
 const uuid = '^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$'
 const time = '^(?:[01][0-9]|2[0-3]):[0-5][0-9]$'
 const ymd = '^[0-9]{4}-[0-9]{2}-[0-9]{2}$'
+/** Payment taken at the visit (check-in or completion). */
+const paymentBody = {
+  anyOf: [
+    { type: 'null' },
+    {
+      type: 'object',
+      additionalProperties: false,
+      required: ['amountCents', 'method', 'description'],
+      properties: {
+        amountCents: { type: 'integer', minimum: 1, maximum: 100000000 },
+        method: { type: 'string', enum: ['pix', 'cash', 'credit', 'debit', 'transfer', 'other'] },
+        description: { type: 'string', minLength: 1, maxLength: 160 },
+      },
+    },
+  ],
+} as const
+
+/** "A combinar"/"a partir de": the amount the clinic set at the visit (finance:manage). */
+async function agreePrice(
+  connection: SqlConnection,
+  clinicId: string,
+  appointmentId: string,
+  priceCents: number | undefined,
+) {
+  if (priceCents === undefined) return
+  await connection.query('SELECT luminix.set_appointment_agreed_price($1, $2, $3)', [
+    clinicId,
+    appointmentId,
+    priceCents,
+  ])
+}
+
+/**
+ * Records money received at the visit. A package session is booked at price 0: the money is an
+ * installment of the package, linked to this visit (add_client_package_payment refuses paying
+ * more than is owed). save_finance_entry checks finance:manage itself.
+ */
+async function recordVisitPayment(
+  connection: SqlConnection,
+  clinicId: string,
+  appointmentId: string,
+  payment: { amountCents: number; method: string; description: string } | null | undefined,
+) {
+  if (!payment) return
+  const today = (await connection.query('SELECT luminix.clinic_today() AS d')).rows[0]?.d
+  const clientPackage = (
+    await connection.query(
+      'SELECT client_package_id FROM luminix.appointments WHERE clinic_id = $1 AND id = $2',
+      [clinicId, appointmentId],
+    )
+  ).rows[0]?.client_package_id as string | null | undefined
+  const entry = await connection.query(
+    'SELECT luminix.save_finance_entry($1::uuid, $2::jsonb) AS id',
+    [
+      clinicId,
+      JSON.stringify({
+        kind: 'income',
+        amountCents: payment.amountCents,
+        occurredOn: isoDate(today),
+        description: payment.description,
+        category: clientPackage ? 'Pacotes' : 'Atendimentos',
+        method: payment.method,
+        ...(clientPackage ? {} : { appointmentId }),
+      }),
+    ],
+  )
+  if (clientPackage)
+    await connection.query('SELECT luminix.add_client_package_payment($1, $2, $3, $4)', [
+      clinicId,
+      clientPackage,
+      String(entry.rows[0].id),
+      appointmentId,
+    ])
+}
+
 const activeAppointmentStatuses = ['scheduled', 'confirmed']
 
 function minutes(value: string) {
@@ -986,6 +1062,7 @@ export async function operationRoutes(
             `SELECT a.id, a.starts_at, a.ends_at, a.status, a.booking_source, a.checked_in_at,
                       a.status_note,
                       a.override_reasons, a.notes, a.previous_starts_at, a.price_cents,
+                      a.price_agreed_at,
                       c.id AS client_id, c.display_name AS client_name,
                       c.contact_phone AS client_phone, c.notes AS client_notes,
                       (SELECT m.small_object_key FROM luminix.media_assets m
@@ -998,7 +1075,8 @@ export async function operationRoutes(
                       luminix.appointment_paid_cents(a.clinic_id, a.id) AS paid_cents,
                       (SELECT cp.name FROM luminix.client_packages cp
                         WHERE cp.clinic_id = a.clinic_id AND cp.id = a.client_package_id
-                          AND cp.kind = 'combo') AS combo_name
+                          AND cp.kind = 'combo') AS combo_name,
+                      ${appointmentPackage} AS package
                  FROM luminix.appointments a
                  JOIN luminix.clinic_clients c ON c.clinic_id = a.clinic_id AND c.id = a.clinic_client_id
                  JOIN luminix.services s ON s.clinic_id = a.clinic_id AND s.id = a.service_id
@@ -1109,6 +1187,7 @@ export async function operationRoutes(
                 ? await clientPhotoUrl(largeKey(photo_key))
                 : null,
               account_photo: seesClients && !photo_key && row.account_photo === true,
+              package: packageView(row.package, seesMoney),
             })),
           ),
           canManage: can.has('agenda:manage'),
@@ -1348,7 +1427,13 @@ export async function operationRoutes(
   )
 
   // The client arrived ("check-in"); it stays open until it is completed.
-  app.put<{ Params: { clinicId: string; appointmentId: string }; Body: Record<string, never> }>(
+  app.put<{
+    Params: { clinicId: string; appointmentId: string }
+    Body: {
+      agreedPriceCents?: number
+      payment?: { amountCents: number; method: string; description: string } | null
+    }
+  }>(
     '/clinics/:clinicId/appointments/:appointmentId/check-in',
     {
       schema: {
@@ -1361,16 +1446,70 @@ export async function operationRoutes(
             appointmentId: { type: 'string', pattern: uuid },
           },
         },
-        body: { type: 'object', additionalProperties: false },
+        body: {
+          type: 'object',
+          additionalProperties: false,
+          properties: {
+            agreedPriceCents: { type: 'integer', minimum: 0, maximum: 100000000 },
+            payment: paymentBody,
+          },
+        },
       },
     },
     async (request, reply) =>
       authorized(request, reply, 'agenda:manage', async (connection, tenant) => {
+        const id = request.params.appointmentId
         await connection.query('SELECT luminix.check_in_appointment($1::uuid, $2::uuid)', [
           tenant.clinicId,
-          request.params.appointmentId,
+          id,
         ])
+        // "A combinar"/"a partir de": the amount is set (and may be charged) at the door, in
+        // the same transaction, so a check-in never leaves a half-recorded payment.
+        await agreePrice(connection, tenant.clinicId, id, request.body?.agreedPriceCents)
+        await recordVisitPayment(connection, tenant.clinicId, id, request.body?.payment)
         return { checkedIn: true }
+      }),
+  )
+
+  // Money at the desk without changing the visit: the agreed amount of "a combinar"/"a partir
+  // de" and/or a payment (also before the visit). Package sessions pay their installment.
+  app.put<{
+    Params: { clinicId: string; appointmentId: string }
+    Body: {
+      agreedPriceCents?: number
+      payment?: { amountCents: number; method: string; description: string } | null
+    }
+  }>(
+    '/clinics/:clinicId/appointments/:appointmentId/charge',
+    {
+      bodyLimit: 2048,
+      schema: {
+        params: {
+          type: 'object',
+          additionalProperties: false,
+          required: ['clinicId', 'appointmentId'],
+          properties: {
+            ...clinicParams.properties,
+            appointmentId: { type: 'string', pattern: uuid },
+          },
+        },
+        body: {
+          type: 'object',
+          additionalProperties: false,
+          minProperties: 1,
+          properties: {
+            agreedPriceCents: { type: 'integer', minimum: 0, maximum: 100000000 },
+            payment: paymentBody,
+          },
+        },
+      },
+    },
+    async (request, reply) =>
+      authorized(request, reply, 'finance:manage', async (connection, tenant) => {
+        const id = request.params.appointmentId
+        await agreePrice(connection, tenant.clinicId, id, request.body.agreedPriceCents)
+        await recordVisitPayment(connection, tenant.clinicId, id, request.body.payment)
+        return { saved: true }
       }),
   )
 
@@ -1419,6 +1558,7 @@ export async function operationRoutes(
     Body: {
       supplies: { itemId: string; quantity: number }[]
       payment: { amountCents: number; method: string; description: string } | null
+      agreedPriceCents?: number
     }
   }>(
     '/clinics/:clinicId/appointments/:appointmentId/complete',
@@ -1452,24 +1592,8 @@ export async function operationRoutes(
                 },
               },
             },
-            payment: {
-              anyOf: [
-                { type: 'null' },
-                {
-                  type: 'object',
-                  additionalProperties: false,
-                  required: ['amountCents', 'method', 'description'],
-                  properties: {
-                    amountCents: { type: 'integer', minimum: 1, maximum: 100000000 },
-                    method: {
-                      type: 'string',
-                      enum: ['pix', 'cash', 'credit', 'debit', 'transfer', 'other'],
-                    },
-                    description: { type: 'string', minLength: 1, maxLength: 160 },
-                  },
-                },
-              ],
-            },
+            payment: paymentBody,
+            agreedPriceCents: { type: 'integer', minimum: 0, maximum: 100000000 },
           },
         },
       },
@@ -1500,22 +1624,8 @@ export async function operationRoutes(
               ).rows[0]?.n,
             )
           : 0
-        if (request.body.payment) {
-          const today = (await connection.query('SELECT luminix.clinic_today() AS d')).rows[0]?.d
-          // save_finance_entry checks finance:manage itself; without it the whole step fails.
-          await connection.query('SELECT luminix.save_finance_entry($1::uuid, $2::jsonb)', [
-            tenant.clinicId,
-            JSON.stringify({
-              kind: 'income',
-              amountCents: request.body.payment.amountCents,
-              occurredOn: isoDate(today),
-              description: request.body.payment.description,
-              category: 'Atendimentos',
-              method: request.body.payment.method,
-              appointmentId: id,
-            }),
-          ])
-        }
+        await agreePrice(connection, tenant.clinicId, id, request.body.agreedPriceCents)
+        await recordVisitPayment(connection, tenant.clinicId, id, request.body.payment)
         return { completed: true, consumed }
       }),
   )

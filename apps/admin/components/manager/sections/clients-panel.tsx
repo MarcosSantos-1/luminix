@@ -10,6 +10,7 @@ import {
   Check,
   ClipboardCheck,
   Gift,
+  Images,
   History,
   IdCard,
   MessageCircle,
@@ -183,12 +184,15 @@ export function ClientsPanel({
   clinicId,
   createSignal = 0,
   focus,
+  onOpenPhotos,
 }: {
   clinicId: string
   /** Kept for callers; the pop-up no longer repeats the space name. */
   clinicName?: string
   createSignal?: number
   focus?: SearchFocus | null
+  /** "Fotos" on the record: opens the client's album in Mídia. */
+  onOpenPhotos?: (client: { id: string; name: string }) => void
 }) {
   const api = useClinicApi(clinicId)
   const [clients, setClients] = useState<Client[]>([])
@@ -791,6 +795,14 @@ export function ClientsPanel({
               setBooking(selected.id)
             }}
             onEdit={() => void openEdit(selected)}
+            onPhotos={
+              onOpenPhotos
+                ? () => {
+                    setSheet(null)
+                    onOpenPhotos({ id: selected.id, name: selected.display_name })
+                  }
+                : undefined
+            }
             onVoucher={
               canIssueVouchers && selected.status === 'active'
                 ? () => setVoucherClient(selected)
@@ -1203,6 +1215,7 @@ function ClientProfile({
   photoError,
   saving,
   onBook,
+  onPhotos,
   onEdit,
   onVoucher,
   onPhoto,
@@ -1221,6 +1234,8 @@ function ClientProfile({
   photoError: string
   saving: boolean
   onBook: () => void
+  /** Opens the client's photo album in Mídia. */
+  onPhotos?: () => void
   onEdit: () => void
   onVoucher?: () => void
   onPhoto: () => void
@@ -1372,16 +1387,11 @@ function ClientProfile({
               <button type="button" onClick={onBook} disabled={client.status !== 'active'}>
                 <CalendarPlus size={20} aria-hidden /> Agendar
               </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setTab('data')
-                  setShowAnamnesis(true)
-                  requestAnimationFrame(() => document.getElementById('clinic-intake')?.focus())
-                }}
-              >
-                <ClipboardCheck size={20} aria-hidden /> Anamnese
-              </button>
+              {onPhotos ? (
+                <button type="button" className="cli-photos" onClick={onPhotos}>
+                  <Images size={20} aria-hidden /> Fotos
+                </button>
+              ) : null}
               {onVoucher ? (
                 <button type="button" className="cli-voucher" onClick={onVoucher}>
                   <Gift size={20} aria-hidden /> Voucher

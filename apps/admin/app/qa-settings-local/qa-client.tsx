@@ -327,7 +327,7 @@ const fixtures: Record<string, unknown> = {
       ['09:00', 'Juliana Lima', 'Corte feminino', 'completed', 12000],
       ['10:30', 'Camila Santos', 'Coloração', 'confirmed', 20000],
       ['13:00', 'Beatriz Alves', 'Limpeza de pele', 'confirmed', 18000],
-      ['15:30', 'Mariana Costa', 'Design de sobrancelhas', 'no_show', 6000],
+      ['15:30', 'Mariana Costa', 'Micropigmentação', 'confirmed', 0],
     ].map(([time, client, service, status, price], index) => ({
       id: `a1b2c3d4-0000-4000-8000-0000000001${index}0`,
       startsAt: `2026-11-09T${time}:00-03:00`,
@@ -346,9 +346,31 @@ const fixtures: Record<string, unknown> = {
       paid: index === 0,
       paidCents: index === 0 ? price : index === 1 ? 10000 : 0,
       bookingSource: index === 1 ? 'client' : 'manager',
-      checkedInAt: null,
-      priceType: 'fixed',
+      checkedInAt: index === 2 ? '2026-11-09T12:55:00-03:00' : null,
+      // Mariana: "a combinar", booked by the team: the amount is set at check-in.
+      priceType: index === 3 ? 'quote' : 'fixed',
       promotion: index === 1,
+      // A package session sold "paga depois": price 0 on the visit, the debt in the package.
+      ...(index === 2
+        ? {
+            service: 'Cobertura de Tatuagem',
+            priceCents: 0,
+            package: {
+              id: 'a1b2c3d4-0000-4000-8000-000000000901',
+              name: 'Cobertura de Tatuagem',
+              kind: 'sessions',
+              plan: 'later',
+              session: 1,
+              total: 4,
+              priceCents: 80000,
+              paidCents: 0,
+              remainingCents: 80000,
+              installmentCents: 20000,
+              visitPaidCents: 0,
+              dueNowCents: 80000,
+            },
+          }
+        : {}),
     })),
     upcoming: [
       ['2026-11-10T09:00', 'Renata Dias', 'Coloração', 25000],

@@ -112,7 +112,9 @@ export function ClinicHome({
       }
       media={
         permissions.includes('media:read')
-          ? (incoming) => <MediaLibrary clinicId={clinic.id} incoming={incoming} />
+          ? (incoming, focus) => (
+              <MediaLibrary clinicId={clinic.id} incoming={incoming} focus={focus} />
+            )
           : undefined
       }
       panels={{
@@ -123,12 +125,17 @@ export function ClinicHome({
             onOpenClient={(client) => go({ section: 'clientes', query: client.name })}
           />
         ),
-        clientes: ({ createSignal, focus }) => (
+        clientes: ({ createSignal, focus, go }) => (
           <ClientsPanel
             clinicId={clinic.id}
             clinicName={clinic.name}
             createSignal={createSignal}
             focus={focus}
+            onOpenPhotos={
+              permissions.includes('media:read')
+                ? (client) => go({ section: 'midia', tab: 'client', query: client.id })
+                : undefined
+            }
           />
         ),
         ...(clinic.status === 'active'
@@ -141,7 +148,7 @@ export function ClinicHome({
                   onOpenClient={(client) => go({ section: 'clientes', query: client.name })}
                 />
               ),
-              servicos: ({ createSignal, navigate, focus }) => (
+              servicos: ({ createSignal, navigate, focus, go }) => (
                 <ServicesPanel
                   canSellPackages={
                     permissions.includes('client:manage') && permissions.includes('client:read')
@@ -150,7 +157,9 @@ export function ClinicHome({
                   createSignal={createSignal}
                   focus={focus}
                   onOpenTeam={() => navigate('Equipe e horários')}
-                  onOpenMarketing={() => navigate('Marketing')}
+                  onOpenMarketing={(promotionId) =>
+                    go({ section: 'marketing', tab: 'promotions', query: promotionId })
+                  }
                   clinicName={clinic.name}
                 />
               ),
@@ -179,8 +188,13 @@ export function ClinicHome({
                     ),
                   }
                 : {}),
-              marketing: ({ navigate }) => (
-                <MarketingPanel clinicId={clinic.id} clinicName={clinic.name} onOpen={navigate} />
+              marketing: ({ navigate, focus }) => (
+                <MarketingPanel
+                  clinicId={clinic.id}
+                  clinicName={clinic.name}
+                  onOpen={navigate}
+                  focus={focus}
+                />
               ),
             }
           : {}),

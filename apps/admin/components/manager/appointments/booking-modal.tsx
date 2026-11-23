@@ -3,7 +3,9 @@
 import { Button, Spinner } from '@heroui/react'
 import {
   AlertTriangle,
+  ArrowRight,
   CalendarDays,
+  CalendarPlus,
   Check,
   ChevronLeft,
   ChevronRight,
@@ -37,6 +39,9 @@ import { ClinicApiError, type ClinicApi } from '../settings/clinic-api'
 import { QuickModal } from '../quick-modal'
 import { clock, localDate, type BookingWarning } from './model'
 import { PackageProgress, type ClientPackage } from '../business/package-progress'
+import { BookingPackageSale } from './booking-package-sale'
+import { showToast } from '@/components/ui/toast-notice'
+import './complete-visit.css'
 
 type Period = { start: string; end: string }
 export type ClosureRow = {
@@ -289,6 +294,8 @@ export function BookingModal({
   const [packs, setPacks] = useState<PackOption[]>([])
   const [packsRound, setPacksRound] = useState(0)
   const [usePack, setUsePack] = useState(true)
+  // "Agendar um pacote": sells one to the client inside the flow, then back to "Qual serviço?".
+  const [selling, setSelling] = useState(false)
   const [voucherList, setVoucherList] = useState<{
     clientId: string
     items: ClientVoucher[]
@@ -331,6 +338,7 @@ export function BookingModal({
     setAgendaWindow(null)
     setPacks([])
     setUsePack(true)
+    setSelling(false)
     setVoucherList(null)
     setVoucherId('')
     setQuery('')
@@ -740,7 +748,31 @@ export function BookingModal({
         </div>
       ) : null}
 
-      {lists && step === 'service' && packs.some((item) => item.left > 0) ? (
+      {lists && step === 'service' && selling ? (
+        <BookingPackageSale
+          api={api}
+          clientId={clientId}
+          clientName={clients.find((item) => item.id === clientId)?.display_name ?? 'a cliente'}
+          today={today}
+          onBack={() => setSelling(false)}
+          onSold={(message) => {
+            setSelling(false)
+            setPacksRound((value) => value + 1)
+            showToast(message)
+          }}
+        />
+      ) : null}
+      {lists && step === 'service' && !selling && clientId ? (
+        <button type="button" className="bk-sell-link" onClick={() => setSelling(true)}>
+          <span aria-hidden>🎁</span>
+          <span>
+            <strong>Agendar um pacote</strong>
+            <small>Ativar um pacote para a cliente e marcar as sessões</small>
+          </span>
+          <ArrowRight size={18} aria-hidden />
+        </button>
+      ) : null}
+      {lists && step === 'service' && !selling && packs.some((item) => item.left > 0) ? (
         <section className="bk-packs" aria-label="Pacotes da cliente">
           <h4>Pacotes da cliente</h4>
           {packs
@@ -758,12 +790,11 @@ export function BookingModal({
                     api={api}
                     item={item}
                     canCharge={item.remainingCents != null}
-                    onChanged={() => setPacksRound((value) => value + 1)}
+                    hideCharge
                     compact
                   />
                   <Button
-                    size="sm"
-                    className="lx-laser"
+                    className="bk-pack-book lx-laser"
                     isDisabled={!offered}
                     onPress={() => {
                       setServiceId(first)
@@ -773,7 +804,8 @@ export function BookingModal({
                       advance()
                     }}
                   >
-                    Agendar sessão {item.used + 1}/{item.sessionsTotal}
+                    <CalendarPlus size={18} aria-hidden /> Agendar sessão {item.used + 1}/
+                    {item.sessionsTotal}
                   </Button>
                 </div>
               )
@@ -781,7 +813,7 @@ export function BookingModal({
           <h4>Outros serviços</h4>
         </section>
       ) : null}
-      {lists && step === 'service' ? (
+      {lists && step === 'service' && !selling ? (
         <ul className="bk-list bk-services" aria-label="Serviços">
           {selectableServices.map((item) => (
             <li key={item.id}>

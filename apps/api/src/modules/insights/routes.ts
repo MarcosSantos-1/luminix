@@ -1,4 +1,5 @@
 import { appointmentRentalDates } from '../operations/rental-calendar.js'
+import { appointmentPackage, packageView } from '../catalog/package-money.js'
 import type { FastifyInstance } from 'fastify'
 import {
   clinicRefParams,
@@ -39,7 +40,7 @@ export async function insightsRoutes(
         )!
         const [appointments, week, upcoming] = await Promise.all([
           connection.query(
-            `SELECT a.id, a.starts_at, a.ends_at, a.status, a.price_cents, a.promotion_id,
+            `SELECT a.id, a.starts_at, a.ends_at, a.status, a.price_cents, a.promotion_id, a.price_agreed_at,
                     a.booking_source, a.checked_in_at, a.status_note, a.notes, a.override_reasons, a.previous_starts_at, c.id AS client_id,
                     c.display_name AS client, c.contact_phone AS phone, c.notes AS client_notes,
                     (SELECT m.small_object_key FROM luminix.media_assets m
@@ -47,7 +48,8 @@ export async function insightsRoutes(
                        AND m.status = 'ready') AS photo_key,
                     luminix.clinic_client_has_account_photo(c.clinic_id, c.id) AS account_photo,
                     s.name AS service, ${appointmentRentalDates} AS rental_dates, s.price_type, p.display_name AS professional,
-                    luminix.appointment_paid_cents(a.clinic_id, a.id) AS paid_cents
+                    luminix.appointment_paid_cents(a.clinic_id, a.id) AS paid_cents,
+                    ${appointmentPackage} AS package
                FROM luminix.appointments a
                JOIN luminix.clinic_clients c ON c.clinic_id = a.clinic_id AND c.id = a.clinic_client_id
                JOIN luminix.services s ON s.clinic_id = a.clinic_id AND s.id = a.service_id
@@ -64,7 +66,7 @@ export async function insightsRoutes(
           ),
           // What comes next, so a quiet day still shows the week ahead.
           connection.query(
-            `SELECT a.id, a.starts_at, a.ends_at, a.status, a.price_cents, a.promotion_id,
+            `SELECT a.id, a.starts_at, a.ends_at, a.status, a.price_cents, a.promotion_id, a.price_agreed_at,
                     a.booking_source, a.checked_in_at, a.status_note, a.notes, a.override_reasons, a.previous_starts_at, c.id AS client_id,
                     c.display_name AS client, c.contact_phone AS phone, c.notes AS client_notes,
                     (SELECT m.small_object_key FROM luminix.media_assets m
@@ -72,7 +74,8 @@ export async function insightsRoutes(
                        AND m.status = 'ready') AS photo_key,
                     luminix.clinic_client_has_account_photo(c.clinic_id, c.id) AS account_photo,
                     s.name AS service, ${appointmentRentalDates} AS rental_dates, s.price_type, p.display_name AS professional,
-                    luminix.appointment_paid_cents(a.clinic_id, a.id) AS paid_cents
+                    luminix.appointment_paid_cents(a.clinic_id, a.id) AS paid_cents,
+                    ${appointmentPackage} AS package
                FROM luminix.appointments a
                JOIN luminix.clinic_clients c ON c.clinic_id = a.clinic_id AND c.id = a.clinic_client_id
                JOIN luminix.services s ON s.clinic_id = a.clinic_id AND s.id = a.service_id
@@ -118,6 +121,8 @@ export async function insightsRoutes(
           statusNote: row.status_note ? String(row.status_note) : null,
           checkedInAt: row.checked_in_at ? new Date(String(row.checked_in_at)).toISOString() : null,
           promotion: Boolean(row.promotion_id),
+          package: packageView(row.package, can.has('finance:manage')),
+          priceAgreed: Boolean(row.price_agreed_at),
         })
         const missingRentals = can.has('service:manage')
           ? (

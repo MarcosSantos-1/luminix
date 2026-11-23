@@ -681,7 +681,7 @@ export async function clientRoutes(app: FastifyInstance, dependencies: AuthDepen
   async function serviceFor(connection: SqlConnection, scope: Scope, serviceId: string) {
     return (
       await connection.query(
-        `SELECT id, name, duration_minutes, booking_mode FROM luminix.services
+        `SELECT id, name, duration_minutes, booking_mode, price_type FROM luminix.services
           WHERE clinic_id = $1 AND id = $2 AND status = 'active'`,
         [scope.clinicId, serviceId],
       )
@@ -788,6 +788,10 @@ export async function clientRoutes(app: FastifyInstance, dependencies: AuthDepen
           return reply.code(400).send({ error: 'Payment unavailable' })
         const service = await serviceFor(connection, scope!, request.body.serviceId)
         if (!service) return reply.code(400).send({ error: 'Service unavailable' })
+        // "A combinar" and "a partir de": the clinic sets the amount at the visit, so these are
+        // paid only at the clinic (no in-app charge of an amount that is not known yet).
+        if (request.body.paymentMethod !== 'local' && service.price_type !== 'fixed')
+          return reply.code(400).send({ error: 'Pay at the clinic' })
         const professionals = await professionalsFor(connection, scope!, String(service.id))
         const date = request.body.localStartsAt.slice(0, 10)
         const time = request.body.localStartsAt.slice(11)

@@ -1,4 +1,5 @@
 import type { FastifyInstance } from 'fastify'
+import { packagesDue, packagesDueQuery } from '../catalog/package-money.js'
 import {
   clinicRefParams,
   createAuthorizedRoute,
@@ -284,6 +285,22 @@ export async function workspaceRoutes(
               )
             ).rows[0]?.total,
           )
+          const owed = packagesDue(
+            (await connection.query(packagesDueQuery, [tenant.clinicId])).rows,
+          )
+          if (owed.length)
+            notices.push({
+              id: `packages-due-${today}`,
+              tone: 'warning',
+              title: `${owed.length} ${owed.length === 1 ? 'pacote com parcela' : 'pacotes com parcelas'} a receber`,
+              text: `${owed
+                .slice(0, 3)
+                .map((item) => item.client.split(' ')[0])
+                .join(
+                  ', ',
+                )}${owed.length > 3 ? '…' : ''}: registre o que entrou para o caixa fechar.`,
+              action: { label: 'Abrir Financeiro', target: 'financeiro' },
+            })
           if (pending)
             notices.push({
               id: `finance-pending-${today}`,

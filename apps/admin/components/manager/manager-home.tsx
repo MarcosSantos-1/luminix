@@ -106,7 +106,7 @@ export function ManagerHome({
    * Media library (Mídia); a placeholder explains it in the demo. The function form receives
    * photos picked from the mobile "+" menu, to be sent as soon as the library opens.
    */
-  media?: ReactNode | ((incoming: MediaIncoming | null) => ReactNode)
+  media?: ReactNode | ((incoming: MediaIncoming | null, focus: SearchFocus | null) => ReactNode)
   /** Real section content backed by the API; replaces the illustrative sketch. */
   panels?: Partial<
     Record<
@@ -308,7 +308,8 @@ export function ManagerHome({
     }
     if (target.create) requestCreate(target.section)
     setFocus(
-      target.query || (target.section === 'servicos' && target.tab)
+      target.query ||
+        ((target.section === 'servicos' || target.section === 'marketing') && target.tab)
         ? {
             section: target.section,
             query: target.query ?? '',
@@ -566,7 +567,8 @@ export function ManagerHome({
             onNavigate={navigate}
           />
         )}
-        {section.id === 'midia' && (typeof media === 'function' ? media(incomingMedia) : media)}
+        {section.id === 'midia' &&
+          (typeof media === 'function' ? media(incomingMedia, panelFocus) : media)}
         {sketch && (
           <SectionSketchView
             sketch={sketch}
