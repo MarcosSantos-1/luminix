@@ -25,6 +25,13 @@ import {
 } from '@/components/onboarding/attendance-policy'
 import type { Payload, Service } from '@/components/onboarding/model'
 import { money } from '../business/format'
+import {
+  detectPixKeyType,
+  formatPixKey,
+  pixKeyLabels,
+  pixKeyProblem,
+  type PixKeyType,
+} from '@/lib/pix-key'
 import { ClinicApiError, useClinicApi, useClinicResource, type ClinicApi } from './clinic-api'
 import { LoadError, SaveBar, SettingsCard, SettingsSkeleton, type SaveState } from './settings-kit'
 
@@ -45,7 +52,6 @@ type Rules = Required<
   specialCancellationHours: number
   reschedulingHours: number | null
 }
-type PixKeyType = 'cpf' | 'cnpj' | 'email' | 'phone' | 'random'
 type Pix = { keyType: PixKeyType | null; key: string; holderName: string; holdMinutes: number }
 type RulesResponse = {
   rules: Rules | null
@@ -202,7 +208,11 @@ export function RulesSettings({
     <RulesEditor
       api={api}
       initial={toPayload(clinicName, data, data.rules)}
-      initialPix={data.pix ?? { keyType: null, key: '', holderName: '', holdMinutes: 120 }}
+      initialPix={
+        data.pix
+          ? { ...data.pix, key: formatPixKey(data.pix.keyType, data.pix.key) }
+          : { keyType: null, key: '', holderName: '', holdMinutes: 120 }
+      }
     />
   )
 }
@@ -218,6 +228,8 @@ function RulesEditor({
 }) {
   const [payload, setPayload] = useState<Payload>(initial)
   const [pix, setPix] = useState<Pix>(initialPix)
+  // Chosen in the list: typing no longer changes the type.
+  const [typeLocked, setTypeLocked] = useState(Boolean(initialPix.keyType))
   const [saved, setSaved] = useState({ payload: initial, pix: initialPix })
   const [state, setState] = useState<SaveState>({ status: 'idle' })
   const [problem, setProblem] = useState<{ field: string; message: string } | null>(null)
@@ -254,6 +266,9 @@ function RulesEditor({
       depositProblem(payload) ??
       (depositOn && (!pix.keyType || !pix.key.trim())
         ? { field: 'pix', message: 'Informe a chave Pix que vai receber o sinal.' }
+        : null) ??
+      (pix.key.trim() && pixKeyProblem(pix.keyType, pix.key)
+        ? { field: 'pix', message: pixKeyProblem(pix.keyType, pix.key)! }
         : null)
     if (found) {
       setProblem(found)
@@ -419,14 +434,30 @@ function RulesEditor({
                     value={pix.keyType ?? ''}
                     placeholder="Escolha"
                     options={pixTypes.map(({ id, label }) => ({ id, label }))}
-                    onChange={(value) => changePix({ keyType: value as PixKeyType })}
+                    onChange={(value) => {
+                      const type = value as PixKeyType
+                      setTypeLocked(true)
+                      changePix({ keyType: type, key: formatPixKey(type, pix.key) })
+                    }}
                   />
                   <TextInputField
                     label="Chave Pix"
                     value={pix.key}
                     maxLength={80}
-                    placeholder={keyType?.placeholder ?? 'Escolha o tipo primeiro'}
-                    onChange={(key) => changePix({ key })}
+                    placeholder={keyType?.placeholder ?? 'CPF, CNPJ, celular, e-mail ou aleatória'}
+                    description={
+                      pix.key.trim() && pix.keyType
+                        ? `Reconhecida como ${pixKeyLabels[pix.keyType]}. Se não for, troque o tipo ao lado.`
+                        : 'Digite a chave: o tipo é reconhecido sozinho.'
+                    }
+                    onChange={(raw) => {
+                      // Our own mask adds ( ) . / -: detect on the bare digits while typing.
+                      const bare = /[a-z@]/i.test(raw) ? raw : raw.replace(/[^\d+]/g, '')
+                      const type = typeLocked
+                        ? pix.keyType
+                        : (detectPixKeyType(bare) ?? (bare ? pix.keyType : null))
+                      changePix({ keyType: type, key: formatPixKey(type, raw) })
+                    }}
                   />
                   <TextInputField
                     label="Nome que aparece no Pix"
