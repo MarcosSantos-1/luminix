@@ -26,6 +26,7 @@ import { useStaff } from '@/components/staff-provider'
 import { formatBrPhone, toE164Phone } from '@/lib/phone'
 import { useClinicApi, useClinicResource, type ClinicApi } from './clinic-api'
 import { SelectField } from '@/components/ui/fields'
+import { isSpaceKind, spaceKinds, useSpaceKind } from '@/lib/space-kind'
 import { AddressMap } from '@/components/onboarding/address-map'
 import {
   Empty,
@@ -137,6 +138,8 @@ function ProfileEditor({
   tab: 'espaco' | 'contato'
 }) {
   const staff = useStaff()
+  const spaceKind = useSpaceKind()
+  const [kindSaving, setKindSaving] = useState(false)
   const [initial] = useState<ProfileForm>(() => ({
     ...profile,
     phone: formatBrPhone(profile.phone),
@@ -224,6 +227,23 @@ function ProfileEditor({
         status: 'error',
         message: 'Não foi possível salvar. Confira a internet e tente de novo.',
       })
+    }
+  }
+
+  // Saved on its own: it renames the space ("Studio Luniere" → "Clínica Luniere").
+  async function changeKind(value: string) {
+    if (!isSpaceKind(value) || value === spaceKind) return
+    setKindSaving(true)
+    try {
+      const result = await api.put<{ name: string }>('space-kind', { spaceKind: value })
+      setForm((current) => ({ ...current, name: result.name }))
+      setSaved((current) => ({ ...current, name: result.name }))
+      setState({ status: 'saved', message: `Pronto! Agora o nome é ${result.name}.` })
+      staff.refresh()
+    } catch {
+      setState({ status: 'error', message: 'Não foi possível trocar o tipo. Tente de novo.' })
+    } finally {
+      setKindSaving(false)
     }
   }
 
@@ -464,6 +484,14 @@ function ProfileEditor({
             </span>
           </div>
           <div className="settings-grid">
+            <SelectField
+              label="Tipo do espaço"
+              value={spaceKind ?? ''}
+              placeholder="Escolha"
+              isDisabled={kindSaving}
+              options={spaceKinds.map(({ id, label }) => ({ id, label }))}
+              onChange={(value) => void changeKind(value)}
+            />
             <TextInput
               label="Nome do espaço"
               icon={<Building2 size={17} />}

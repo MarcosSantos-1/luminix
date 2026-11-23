@@ -34,6 +34,7 @@ const writable = [
   'availability',
   'schedule-plan',
   'theme',
+  'space-kind',
   'profile',
   'booking-rules',
   'slug',

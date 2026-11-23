@@ -4880,3 +4880,14 @@
     grid-auto-columns: auto;
   }
 }
+.svc-eval-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin: 0 0 14px;
+  font-size: 13px;
+}
+.svc-eval-note svg {
+  flex: none;
+  margin-top: 2px;
+}

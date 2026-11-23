@@ -151,6 +151,7 @@ export async function staffApiWrite(
     | `/clinics/${string}/availability`
     | `/clinics/${string}/schedule-plan`
     | `/clinics/${string}/theme`
+    | `/clinics/${string}/space-kind`
     | `/clinics/${string}/profile`
     | `/clinics/${string}/booking-rules`
     | `/clinics/${string}/slug`

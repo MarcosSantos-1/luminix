@@ -20,6 +20,7 @@ import {
   Building2,
   Calendar,
   Check,
+  ClipboardCheck,
   Clock3,
   CreditCard,
   Globe,
@@ -40,6 +41,7 @@ import {
   Scissors,
   Search,
   Star,
+  Store,
   Shield,
   Trash2,
   Upload,
@@ -65,6 +67,13 @@ import { useClinic } from '@/components/clinic-workspace'
 import { uploadClinicMedia } from '@/lib/media-upload'
 import { AddressMap } from './address-map'
 import {
+  isSpaceKind,
+  spaceDisplayName,
+  spaceKindLabel,
+  spaceKinds,
+  useSpaceCopy,
+} from '@/lib/space-kind'
+import {
   applyClinicAudience,
   catalogItemIsSensitive,
   categories,
@@ -82,6 +91,7 @@ import {
   serviceFromCatalog,
   syncIntimateServiceAudiences,
   servicesInCategory,
+  evaluationInCategory,
   type Audience,
   type Payload,
   type Professional,
@@ -252,7 +262,11 @@ function maskTaxId(kind: 'cpf' | 'cnpj', value: string) {
     .replace(/(\d{4})(\d{1,2})$/, '$1-$2')
 }
 
-function groupIndexedServices<T extends { item: Service; position: number }>(entries: T[]) {
+function groupIndexedServices<T extends { item: Service; position: number }>(input: T[]) {
+  // The first-visit evaluation opens its area.
+  const entries = [...input].sort(
+    (a, b) => Number(Boolean(b.item.evaluation)) - Number(Boolean(a.item.evaluation)),
+  )
   const grouped = new Map<string, T[]>()
   for (const entry of entries) {
     const list = grouped.get(entry.item.category) ?? []
@@ -318,6 +332,7 @@ export function ClinicStep({
   onUploadingChange?: (busy: boolean) => void
 }) {
   const details = useOverlayState()
+  const copy = useSpaceCopy()
   const change = (key: keyof Payload['clinic'], value: string) =>
     setPayload({ ...payload, clinic: { ...payload.clinic, [key]: value } })
   const setHomeService = (homeService: boolean) => {
@@ -343,7 +358,7 @@ export function ClinicStep({
       <Card className="ob2-panel">
         <Card.Content className="ob2-form ob2-clinic-form">
           <section className="space-theme-section">
-            <h2>Tema do espaço</h2>
+            <h2>{copy('Tema do espaço')}</h2>
             <p>Escolha as cores que combinam com você. Depois, você pode mudar em Configurações.</p>
             <ThemePicker
               value={spaceTheme(payload.clinic.theme)}
@@ -352,16 +367,43 @@ export function ClinicStep({
           </section>
           <div className="ob2-clinic-layout">
             <div className="ob2-clinic-fields">
-              <GlassField
-                label="Nome da clínica ou estúdio"
-                icon={<Building2 size={18} />}
-                value={payload.name}
-                placeholder="Nome do espaço"
-                required
-                field="name"
-                error={fieldErrors.name}
-                onChange={(value) => setPayload({ ...payload, name: value })}
-              />
+              <div className="ob2-space-name">
+                <GlassSelect
+                  label="Tipo"
+                  icon={<Store size={18} />}
+                  value={payload.clinic.spaceKind ?? ''}
+                  placeholder="Escolha"
+                  required
+                  field="spaceKind"
+                  error={fieldErrors.spaceKind}
+                  options={spaceKinds.map(({ id, label }) => ({ id, label }))}
+                  onChange={(value) =>
+                    isSpaceKind(value) &&
+                    setPayload({ ...payload, clinic: { ...payload.clinic, spaceKind: value } })
+                  }
+                />
+                <GlassField
+                  label={
+                    payload.clinic.spaceKind
+                      ? `Nome ${payload.clinic.spaceKind === 'clinica' ? 'da' : 'do'} ${spaceKindLabel(payload.clinic.spaceKind)}`
+                      : 'Nome do espaço'
+                  }
+                  icon={<Building2 size={18} />}
+                  value={payload.name}
+                  placeholder="Ex.: Luniere"
+                  required
+                  field="name"
+                  error={fieldErrors.name}
+                  onChange={(value) => setPayload({ ...payload, name: value })}
+                />
+              </div>
+              {payload.clinic.spaceKind && payload.name.trim() ? (
+                <p className="ob2-space-preview">
+                  Suas clientes vão ver{' '}
+                  <strong>{spaceDisplayName(payload.clinic.spaceKind, payload.name)}</strong> na
+                  agenda, no site e nos lembretes.
+                </p>
+              ) : null}
               <GlassField
                 label="Ano de abertura"
                 icon={<Calendar size={18} />}
@@ -438,8 +480,10 @@ export function ClinicStep({
           <div className="ob2-clinic-home">
             <p className="ob2-dialog-section">Atende na casa da cliente?</p>
             <p className="ob2-copy">
-              O padrão é não. Marque sim só se alguém da clínica vai até o endereço da cliente. Aí,{' '}
-              <span className="ob2-phrase">em cada dia dos horários</span>, dá para ligar o
+              {copy(
+                'O padrão é não. Marque sim só se alguém da clínica vai até o endereço da cliente.',
+              )}{' '}
+              Aí, <span className="ob2-phrase">em cada dia dos horários</span>, dá para ligar o
               atendimento em domicílio.
             </p>
             <div className="ob2-clinic-home-choices">
@@ -521,7 +565,7 @@ export function ClinicStep({
           </div>
           <div className="ob2-clinic-more">
             <QuietButton onPress={details.open}>
-              <MoreHorizontal size={16} /> Mais detalhes da clínica
+              <MoreHorizontal size={16} /> {copy('Mais detalhes da clínica')}
             </QuietButton>
           </div>
           <div className="ob2-clinic-continue">
@@ -531,7 +575,9 @@ export function ClinicStep({
       </Card>
       <BlurDrawer state={details} title="Mais detalhes">
         <p className="ob2-copy">
-          Nada disto é obrigatório para abrir a clínica. Você completa quando quiser, no painel.
+          {copy(
+            'Nada disto é obrigatório para abrir a clínica. Você completa quando quiser, no painel.',
+          )}
         </p>
         <GlassField
           label="Instagram"
@@ -877,6 +923,77 @@ function ClinicLogoDropzone({
   )
 }
 
+const evaluationReasons: Record<string, string> = {
+  'Estética facial':
+    'Antes de limpezas profundas, peelings ou protocolos, a avaliação conhece a pele, o histórico e o objetivo da cliente.',
+  'Estética corporal':
+    'Mapeia objetivos, medidas e áreas antes de montar um protocolo de várias sessões.',
+  'Massagem e Massoterapia': 'Entende dores, histórico e preferências antes da primeira sessão.',
+  Biomedicina:
+    'Injetáveis e procedimentos avançados pedem avaliação de histórico, contraindicações e expectativas antes de qualquer aplicação.',
+  Quiropraxia: 'A anamnese e a avaliação funcional definem o plano antes de qualquer ajuste.',
+  Tatuagem:
+    'Conversa sobre ideia, tamanho, local e orçamento: dá para avaliar o que é possível antes de reservar a sessão.',
+  Piercing: 'Avalia anatomia, local e joia antes da perfuração.',
+}
+
+/**
+ * The first-visit evaluation or consultation of an area. It is not a regular treatment: it stays
+ * off the panel's service list and is how someone new books from the site.
+ */
+function EvaluationCard({
+  item,
+  selected,
+  onToggle,
+}: {
+  item: Parameters<typeof serviceFromCatalog>[0]
+  selected: boolean
+  onToggle: () => void
+}) {
+  const consultation = item.nome.startsWith('Consulta')
+  const price = Math.round(item.preco_sugerido_brl * 100)
+  return (
+    <section className={`ob2-eval${selected ? ' is-selected' : ''}`} aria-label={item.nome}>
+      <div className="ob2-eval-head">
+        <span className="ob2-eval-icon" aria-hidden>
+          <ClipboardCheck size={22} />
+        </span>
+        <div>
+          <span className="ob2-eval-kicker">Primeira visita</span>
+          <h3>{item.nome}</h3>
+          <small>
+            {formatDuration(item.duracao_minutos)} ·{' '}
+            {price ? `sugestão ${formatMoney(price)}` : 'sugestão: sem custo'}
+          </small>
+        </div>
+      </div>
+      <p>{evaluationReasons[item.categoria] ?? item.descricao}</p>
+      <ul className="ob2-eval-points">
+        <li>
+          Não é um tratamento: fica <strong>fora da lista de serviços</strong> do painel, mas
+          continua na agenda.
+        </li>
+        <li>
+          No site, quem ainda não conhece o espaço escolhe entre agendar um tratamento direto ou{' '}
+          {consultation ? 'começar pela consulta' : 'começar pela avaliação'}.
+        </li>
+        <li>Duração e valor você ajusta na próxima etapa.</li>
+      </ul>
+      <Button
+        className={`ob2-eval-toggle${selected ? ' is-selected' : ''}`}
+        variant="ghost"
+        aria-pressed={selected}
+        onPress={onToggle}
+      >
+        {selected ? <Check size={17} aria-hidden /> : <Plus size={17} aria-hidden />}
+        {selected
+          ? `${consultation ? 'Consulta' : 'Avaliação'} oferecida no site`
+          : `Oferecer ${consultation ? 'consulta' : 'avaliação'}`}
+      </Button>
+    </section>
+  )
+}
+
 export function CatalogStep({
   payload,
   setPayload,
@@ -947,7 +1064,9 @@ export function CatalogStep({
     custom.close()
   }
 
-  const items = area ? servicesInCategory(area) : []
+  const evaluation = area ? evaluationInCategory(area) : undefined
+  // The evaluation has its own card on top; "Marcar todos" covers only the treatments.
+  const items = area ? servicesInCategory(area).filter((item) => !item.avaliacao) : []
   const picked = selectedByCategory(payload.services)
   const room = Math.max(0, 80 - payload.services.length)
   const unmarked = items.filter((item) => !selectedNames.has(item.nome))
@@ -1007,6 +1126,13 @@ export function CatalogStep({
                   </Button>
                 </Card.Content>
               </Card>
+              {evaluation ? (
+                <EvaluationCard
+                  item={evaluation}
+                  selected={selectedNames.has(evaluation.nome)}
+                  onToggle={() => toggle(evaluation)}
+                />
+              ) : null}
               <div className="ob2-services">
                 {items.map((item, index) => {
                   const selected = selectedNames.has(item.nome)
@@ -1262,6 +1388,11 @@ export function ServicesStep({
                           {item.bookingMode === 'manual_release' ? (
                             <span className="ob2-special-badge">
                               <Star size={16} fill="currentColor" aria-hidden /> Especial
+                            </span>
+                          ) : null}
+                          {item.evaluation ? (
+                            <span className="ob2-special-badge ob2-eval-badge">
+                              <ClipboardCheck size={16} aria-hidden /> Primeira visita · site
                             </span>
                           ) : null}
                           <strong>{item.name}</strong>

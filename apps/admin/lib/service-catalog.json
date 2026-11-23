@@ -5,7 +5,8 @@
     "descricao": "Avaliação inicial da pele, objetivos e cuidados realizados para orientar o atendimento.",
     "duracao_minutos": 30,
     "preco_sugerido_brl": 0,
-    "tipo_preco": "fixed"
+    "tipo_preco": "fixed",
+    "avaliacao": true
   },
   {
     "categoria": "Estética facial",
@@ -146,7 +147,8 @@
     "descricao": "Avaliação inicial dos objetivos e áreas de atendimento para planejar os cuidados.",
     "duracao_minutos": 30,
     "preco_sugerido_brl": 0,
-    "tipo_preco": "fixed"
+    "tipo_preco": "fixed",
+    "avaliacao": true
   },
   {
     "categoria": "Estética corporal",
@@ -910,7 +912,8 @@
     "nome": "Consulta para tatuagem",
     "descricao": "Conversa sobre ideia, tamanho, local, orçamento e agendamento.",
     "duracao_minutos": 30,
-    "preco_sugerido_brl": 0
+    "preco_sugerido_brl": 0,
+    "avaliacao": true
   },
   {
     "categoria": "Tatuagem",
@@ -980,7 +983,8 @@
     "nome": "Avaliação para piercing",
     "descricao": "Escolha de joia, local e orientação sobre o procedimento.",
     "duracao_minutos": 30,
-    "preco_sugerido_brl": 0
+    "preco_sugerido_brl": 0,
+    "avaliacao": true
   },
   {
     "categoria": "Piercing",
@@ -1071,7 +1075,8 @@
     "nome": "Avaliação quiroprática",
     "descricao": "Anamnese, avaliação funcional e planejamento de atendimento.",
     "duracao_minutos": 60,
-    "preco_sugerido_brl": 180
+    "preco_sugerido_brl": 180,
+    "avaliacao": true
   },
   {
     "categoria": "Quiropraxia",
@@ -1134,7 +1139,8 @@
     "nome": "Avaliação em massoterapia",
     "descricao": "Conversa inicial sobre objetivos, histórico e preferências para orientar a sessão.",
     "duracao_minutos": 30,
-    "preco_sugerido_brl": 80
+    "preco_sugerido_brl": 80,
+    "avaliacao": true
   },
   {
     "categoria": "Massagem e Massoterapia",
@@ -1190,7 +1196,8 @@
     "nome": "Avaliação estética avançada",
     "descricao": "Consulta para avaliar objetivos, histórico e possíveis procedimentos.",
     "duracao_minutos": 60,
-    "preco_sugerido_brl": 150
+    "preco_sugerido_brl": 150,
+    "avaliacao": true
   },
   {
     "categoria": "Biomedicina",

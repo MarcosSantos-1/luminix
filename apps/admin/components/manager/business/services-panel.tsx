@@ -5,6 +5,7 @@ import {
   BadgePercent,
   CalendarCheck,
   Check,
+  ClipboardCheck,
   ChevronDown,
   ChevronLeft,
   ChevronRight,
@@ -206,7 +207,14 @@ export function ServicesPanel({
   }, [createSignal, data?.canManage])
 
   const categories = useMemo(
-    () => [...new Set((data?.services ?? []).map((service) => service.category))].sort(),
+    () =>
+      [
+        ...new Set(
+          (data?.services ?? [])
+            .filter((service) => !service.evaluation)
+            .map((service) => service.category),
+        ),
+      ].sort(),
     [data],
   )
   if (catalog.error && !data) return <LoadError message={catalog.error} onRetry={catalog.reload} />
@@ -241,7 +249,11 @@ export function ServicesPanel({
   const picked = (group: string) => filters[group] ?? []
   const matches = (group: string, value: string) =>
     !picked(group).length || picked(group).includes(value)
-  const visible = data.services.filter(
+  const listed = data.services.filter((service) => !service.evaluation)
+  const evaluations = data.services.filter(
+    (service) => service.evaluation && service.status === 'active',
+  )
+  const visible = listed.filter(
     (service) =>
       matches('status', service.status) &&
       matches('mode', service.bookingMode) &&
@@ -266,8 +278,8 @@ export function ServicesPanel({
             .filter((service) => service.category === name)
             .sort((a, b) => byStatus(a, b) || a.name.localeCompare(b.name, 'pt-BR')),
         }))
-  const active = data.services.filter((service) => service.status === 'active')
-  const paused = data.services.length - active.length
+  const active = listed.filter((service) => service.status === 'active')
+  const paused = listed.length - active.length
   const withoutTeam = active.filter((service) => service.professionals === 0).length
   const onPromo = active.filter((service) => service.promotion).length
   const activeFilters =
@@ -512,8 +524,7 @@ export function ServicesPanel({
                           options: categories.map((name) => ({
                             id: name,
                             label: name,
-                            count: data.services.filter((service) => service.category === name)
-                              .length,
+                            count: listed.filter((service) => service.category === name).length,
                           })),
                         },
                       ]
@@ -545,6 +556,17 @@ export function ServicesPanel({
               />
             </div>
           </div>
+
+          {evaluations.length ? (
+            <p className="settings-muted svc-eval-note">
+              <ClipboardCheck size={15} aria-hidden />
+              <span>
+                {evaluations.map((service) => service.name).join(', ')}{' '}
+                {evaluations.length === 1 ? 'fica' : 'ficam'} fora desta lista: é a primeira visita
+                de quem chega pelo site, e continua disponível na agenda.
+              </span>
+            </p>
+          ) : null}
 
           {visible.length ? (
             groups.map((group) => (

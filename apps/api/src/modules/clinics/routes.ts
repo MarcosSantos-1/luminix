@@ -47,6 +47,7 @@ type OnboardingPayload = {
   phone: string
   clinic: {
     theme?: string
+    spaceKind?: 'studio' | 'clinica' | 'salao' | 'spa' | 'espaco'
     foundedYear: string
     whatsapp: string
     instagram: string
@@ -88,6 +89,7 @@ type OnboardingPayload = {
     bookingMode: 'instant' | 'request' | 'manual_release'
     audience: 'all' | 'women' | 'men'
     sensitive?: boolean
+    evaluation?: boolean
     resourceName: string
     depositRequired?: boolean
     cancellationHours: number | null
@@ -552,7 +554,7 @@ export async function clinicRoutes(
       authorized(request, reply, null, async (connection, tenant) => {
         const clinic = (
           await connection.query(
-            `SELECT c.id, c.name, c.slug, c.status, c.share_code, s.theme,
+            `SELECT c.id, c.name, c.slug, c.status, c.share_code, c.space_kind, s.theme,
                     CASE WHEN c.status = 'active'
                       THEN coalesce(d.completed_at, c.created_at) + interval '288 hours'
                     END AS trial_ends_at
@@ -603,6 +605,41 @@ export async function clinicRoutes(
             request.body.theme,
           ])
           return { theme: request.body.theme }
+        },
+        undefined,
+        true,
+      ),
+  )
+
+  // Studio, Clínica, Salão, SPA or Espaço: the wording of the panel and the name in front.
+  app.put<{ Params: { clinicId: string }; Body: { spaceKind: string } }>(
+    '/clinics/:clinicId/space-kind',
+    {
+      schema: {
+        params,
+        body: {
+          type: 'object',
+          additionalProperties: false,
+          required: ['spaceKind'],
+          properties: {
+            spaceKind: { type: 'string', enum: ['studio', 'clinica', 'salao', 'spa', 'espaco'] },
+          },
+        },
+      },
+    },
+    async (request, reply) =>
+      authorized(
+        request,
+        reply,
+        'settings:manage',
+        async (connection, tenant) => {
+          const {
+            rows: [row],
+          } = await connection.query(
+            'SELECT luminix.set_clinic_space_kind($1::uuid, $2::text) AS name',
+            [tenant.clinicId, request.body.spaceKind],
+          )
+          return { spaceKind: request.body.spaceKind, name: String(row.name) }
         },
         undefined,
         true,
@@ -878,6 +915,7 @@ export async function clinicRoutes(
             type: 'string',
             enum: ['rosa', 'grafite', 'violeta', 'dourado', 'esmeralda', 'azul'],
           },
+          spaceKind: { type: 'string', enum: ['studio', 'clinica', 'salao', 'spa', 'espaco'] },
           foundedYear: { type: 'string', maxLength: 4, pattern: '^$|^[0-9]{4}$' },
           whatsapp: { type: 'string', maxLength: 16, pattern: '^$|^\\+[1-9][0-9]{7,14}$' },
           instagram: { type: 'string', maxLength: 120 },
@@ -967,6 +1005,7 @@ export async function clinicRoutes(
             audience: { type: 'string', enum: ['all', 'women', 'men'] },
             audienceChosen: { type: 'boolean' },
             sensitive: { type: 'boolean' },
+            evaluation: { type: 'boolean' },
             resourceName: { type: 'string', maxLength: 160 },
             cancellationHours: {
               anyOf: [{ type: 'integer', minimum: 0, maximum: 168 }, { type: 'null' }],

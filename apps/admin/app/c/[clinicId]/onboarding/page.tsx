@@ -33,9 +33,11 @@ import { useStaff } from '@/components/staff-provider'
 import { isCompletePhone } from '@/lib/phone'
 import { clearSignupPhone, peekSignupPhone } from '@/lib/signup-phone'
 import { untitledClinicName } from '@/lib/staff-destination'
+import { SpaceCopyEffect, SpaceKindProvider } from '@/lib/space-kind'
 import { isValidBrazilianTaxId } from '@/lib/tax-id'
 import {
   canonicalServiceName,
+  catalogNameIsEvaluation,
   serviceIsIntimate,
   intimateAudiencesFor,
   isAudience,
@@ -107,6 +109,8 @@ function normalizeService(service: Service): Service {
     audience: isAudience(service.audience) ? service.audience : 'all',
     audienceChosen: service.audienceChosen === true || !sensitive,
     sensitive,
+    // Drafts saved before the evaluation mark existed pick it up from the catalog.
+    ...(service.evaluation || catalogNameIsEvaluation(name) ? { evaluation: true } : {}),
   }
 }
 
@@ -403,7 +407,9 @@ export default function OnboardingPage() {
     if (!payload)
       return { message: 'Cadastro indisponível.', fields: { form: 'Cadastro indisponível.' } }
     if (targetStep === 1) {
-      if (!payload.name.trim()) fields.name = 'Informe o nome da clínica ou estúdio.'
+      if (!payload.clinic.spaceKind)
+        fields.spaceKind = 'Escolha se é Studio, Clínica, Salão, SPA ou Espaço.'
+      if (!payload.name.trim()) fields.name = 'Informe o nome do seu espaço.'
       if (!payload.ownerName.trim())
         fields.ownerName = 'Informe o nome da pessoa responsável pela clínica.'
       if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(payload.email.trim()))
@@ -798,94 +804,97 @@ export default function OnboardingPage() {
   }
 
   return (
-    <OnboardingShell
-      step={step}
-      availableThrough={availableThrough}
-      busy={locked}
-      onBack={() => navigateTo(step - 1)}
-      onSelectStep={navigateTo}
-    >
-      {step === 1 && <ClinicStep {...stepProps} onUploadingChange={setUploadingMedia} />}
-      {step === 2 && <CatalogStep {...stepProps} />}
-      {step === 3 && <ServicesStep {...stepProps} />}
-      {step === 4 && <TeamStep {...stepProps} onUploadingChange={setUploadingMedia} />}
-      {step === 5 && <ScheduleStep {...stepProps} />}
-      {step === 6 && <HoursStep {...stepProps} />}
-      {step === 7 && (
-        <PaymentsStep
-          clinicId={clinic.share_code || clinic.id}
-          onReadyChange={setStripeReady}
-          onSettledChange={(settled) => {
-            setStripeChecked(true)
-            setStripeSettled(settled)
-            if (settled) {
-              setStepError((current) => (current === stripeRequiredMessage ? '' : current))
-              setFieldErrors((current) => {
-                if (!current.payments) return current
-                const next = { ...current }
-                delete next.payments
-                return next
-              })
+    <SpaceKindProvider kind={ready.clinic.spaceKind}>
+      <SpaceCopyEffect kind={ready.clinic.spaceKind} />
+      <OnboardingShell
+        step={step}
+        availableThrough={availableThrough}
+        busy={locked}
+        onBack={() => navigateTo(step - 1)}
+        onSelectStep={navigateTo}
+      >
+        {step === 1 && <ClinicStep {...stepProps} onUploadingChange={setUploadingMedia} />}
+        {step === 2 && <CatalogStep {...stepProps} />}
+        {step === 3 && <ServicesStep {...stepProps} />}
+        {step === 4 && <TeamStep {...stepProps} onUploadingChange={setUploadingMedia} />}
+        {step === 5 && <ScheduleStep {...stepProps} />}
+        {step === 6 && <HoursStep {...stepProps} />}
+        {step === 7 && (
+          <PaymentsStep
+            clinicId={clinic.share_code || clinic.id}
+            onReadyChange={setStripeReady}
+            onSettledChange={(settled) => {
+              setStripeChecked(true)
+              setStripeSettled(settled)
+              if (settled) {
+                setStepError((current) => (current === stripeRequiredMessage ? '' : current))
+                setFieldErrors((current) => {
+                  if (!current.payments) return current
+                  const next = { ...current }
+                  delete next.payments
+                  return next
+                })
+              }
+            }}
+            {...stepProps}
+          />
+        )}
+        {step === 8 && <RulesStep {...stepProps} />}
+        {step === 9 && (
+          <ReviewStep
+            payload={ready}
+            error={stepError}
+            footer={footer}
+            isDisabled={locked}
+            publication={
+              canPublish && (
+                <fieldset disabled={locked} className="grid gap-3">
+                  <legend className="mb-2 font-semibold">Vitrine do seu espaço</legend>
+                  <p>
+                    O link mostra seu catálogo, preços e horários. Você pode personalizar a página
+                    depois.
+                  </p>
+                  {[
+                    {
+                      label: 'Publicar minha vitrine ao concluir',
+                      selected: publishPage,
+                      change: setPublishPage,
+                    },
+                    {
+                      label: 'Mostrar meu endereço comercial no mapa',
+                      selected: publishAddress,
+                      change: setPublishAddress,
+                    },
+                    {
+                      label: 'Mostrar WhatsApp e redes sociais cadastradas',
+                      selected: publishContacts,
+                      change: setPublishContacts,
+                    },
+                  ].map(({ label, selected, change }, index) => (
+                    <Checkbox
+                      key={label}
+                      isSelected={selected && (index === 0 || publishPage)}
+                      isDisabled={locked || (index > 0 && !publishPage)}
+                      onChange={change}
+                    >
+                      <Checkbox.Content>
+                        <Checkbox.Control>
+                          <Checkbox.Indicator />
+                        </Checkbox.Control>
+                        <Label>{label}</Label>
+                      </Checkbox.Content>
+                    </Checkbox>
+                  ))}
+                </fieldset>
+              )
             }
-          }}
-          {...stepProps}
-        />
-      )}
-      {step === 8 && <RulesStep {...stepProps} />}
-      {step === 9 && (
-        <ReviewStep
-          payload={ready}
-          error={stepError}
-          footer={footer}
-          isDisabled={locked}
-          publication={
-            canPublish && (
-              <fieldset disabled={locked} className="grid gap-3">
-                <legend className="mb-2 font-semibold">Vitrine do seu espaço</legend>
-                <p>
-                  O link mostra seu catálogo, preços e horários. Você pode personalizar a página
-                  depois.
-                </p>
-                {[
-                  {
-                    label: 'Publicar minha vitrine ao concluir',
-                    selected: publishPage,
-                    change: setPublishPage,
-                  },
-                  {
-                    label: 'Mostrar meu endereço comercial no mapa',
-                    selected: publishAddress,
-                    change: setPublishAddress,
-                  },
-                  {
-                    label: 'Mostrar WhatsApp e redes sociais cadastradas',
-                    selected: publishContacts,
-                    change: setPublishContacts,
-                  },
-                ].map(({ label, selected, change }, index) => (
-                  <Checkbox
-                    key={label}
-                    isSelected={selected && (index === 0 || publishPage)}
-                    isDisabled={locked || (index > 0 && !publishPage)}
-                    onChange={change}
-                  >
-                    <Checkbox.Content>
-                      <Checkbox.Control>
-                        <Checkbox.Indicator />
-                      </Checkbox.Control>
-                      <Label>{label}</Label>
-                    </Checkbox.Content>
-                  </Checkbox>
-                ))}
-              </fieldset>
-            )
-          }
-          onEdit={(target) => {
-            setEditingFromReview(true)
-            navigateTo(target)
-          }}
-        />
-      )}
-    </OnboardingShell>
+            onEdit={(target) => {
+              setEditingFromReview(true)
+              navigateTo(target)
+            }}
+          />
+        )}
+      </OnboardingShell>
+    </SpaceKindProvider>
   )
 }

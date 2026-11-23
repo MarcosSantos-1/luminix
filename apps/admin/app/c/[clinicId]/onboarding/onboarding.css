@@ -5588,3 +5588,130 @@ html:has(.ob2)::-webkit-scrollbar-thumb:hover,
     background-color: color-mix(in srgb, var(--space-deep, #780033) 90%, #fff 10%);
   }
 }
+
+/* Tipo do espaço + nome, lado a lado ("Studio" | "Luniere"). */
+.ob2-space-name {
+  display: grid;
+  grid-template-columns: minmax(118px, 0.42fr) minmax(0, 1fr);
+  gap: 12px;
+  align-items: start;
+}
+.ob2-space-preview {
+  margin: -4px 0 0;
+  color: rgba(255, 255, 255, 0.78);
+  font-size: 13px;
+  line-height: 1.45;
+}
+.ob2-space-preview strong {
+  color: #fff;
+}
+@media (max-width: 420px) {
+  .ob2-space-name {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Avaliação/consulta de primeira visita: abre a área, separada dos tratamentos. */
+.ob2-eval {
+  --eval-accent: var(--space-accent, #ff2775);
+  --eval-light: var(--space-highlight, #ffb1cd);
+  display: grid;
+  gap: 12px;
+  margin-bottom: 22px;
+  padding: 18px 18px 16px;
+  border: 1px dashed color-mix(in srgb, var(--eval-light) 60%, transparent);
+  border-radius: 22px;
+  color: #fff;
+  background:
+    radial-gradient(
+      100% 120% at 100% 0%,
+      color-mix(in srgb, var(--eval-accent) 34%, transparent),
+      transparent 60%
+    ),
+    rgba(255, 255, 255, 0.07);
+}
+.ob2-eval.is-selected {
+  border-style: solid;
+  border-color: color-mix(in srgb, var(--eval-light) 75%, transparent);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--eval-light) 35%, transparent) inset;
+}
+.ob2-eval-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.ob2-eval-head > div {
+  display: grid;
+  gap: 1px;
+  min-width: 0;
+}
+.ob2-eval-icon {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 46px;
+  height: 46px;
+  border-radius: 15px;
+  background: linear-gradient(
+    145deg,
+    color-mix(in srgb, var(--eval-light) 70%, #fff),
+    var(--eval-accent)
+  );
+  box-shadow: 0 8px 18px color-mix(in srgb, var(--eval-accent) 40%, transparent);
+}
+.ob2-eval-kicker {
+  color: var(--eval-light);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.ob2-eval-head h3 {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 700;
+}
+.ob2-eval-head small {
+  color: rgba(255, 255, 255, 0.72);
+  font-size: 13px;
+}
+.ob2-eval > p {
+  margin: 0;
+  color: rgba(255, 255, 255, 0.86);
+  font-size: 14px;
+  line-height: 1.5;
+}
+.ob2-eval-points {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding-left: 18px;
+  color: rgba(255, 255, 255, 0.76);
+  font-size: 13px;
+  line-height: 1.45;
+}
+.ob2-eval-points strong {
+  color: #fff;
+}
+.ob2 .button.ob2-eval-toggle {
+  justify-self: start;
+  gap: 8px;
+  min-height: 42px;
+  padding-inline: 16px;
+  border: 1px solid color-mix(in srgb, var(--eval-light) 55%, transparent);
+  border-radius: 14px;
+  color: #fff;
+  background: rgba(255, 255, 255, 0.08);
+  font-weight: 650;
+}
+.ob2 .button.ob2-eval-toggle.is-selected {
+  border-color: transparent;
+  background: linear-gradient(
+    120deg,
+    var(--eval-accent),
+    color-mix(in srgb, var(--eval-accent) 60%, var(--eval-light))
+  );
+}
+.ob2-special-badge.ob2-eval-badge {
+  background: color-mix(in srgb, var(--space-highlight, #ffb1cd) 22%, transparent);
+}

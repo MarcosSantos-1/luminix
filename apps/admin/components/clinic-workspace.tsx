@@ -13,6 +13,7 @@ import { signOut } from 'firebase/auth'
 import { AppStatus } from '@/components/app-status'
 import { useStaff } from '@/components/staff-provider'
 import { SpaceThemeProvider } from '@/components/space-theme'
+import { isSpaceKind, SpaceCopyEffect, SpaceKindProvider } from '@/lib/space-kind'
 import { getFirebaseAuth } from '@/lib/firebase'
 
 type ClinicContext = {
@@ -23,6 +24,7 @@ type ClinicContext = {
     status: string
     share_code: string | null
     theme?: string
+    space_kind?: string | null
     trial_ends_at?: string | null
   }
   permissions: string[]
@@ -161,6 +163,7 @@ export function ClinicWorkspace({ children }: { children: ReactNode }) {
       </AppStatus>
     )
   }
+  const spaceKind = visible.clinic.space_kind
   if (
     onboarding ||
     pathname === `/c/${clinicId}` ||
@@ -176,7 +179,13 @@ export function ClinicWorkspace({ children }: { children: ReactNode }) {
           clinicId={visible.clinic.id}
           clinicCode={visible.clinic.share_code}
         >
-          {children}
+          {/* The onboarding uses the kind of its own draft (it can still change there). */}
+          <SpaceKindProvider kind={isSpaceKind(spaceKind) ? spaceKind : null}>
+            {onboarding ? null : (
+              <SpaceCopyEffect kind={isSpaceKind(spaceKind) ? spaceKind : null} />
+            )}
+            {children}
+          </SpaceKindProvider>
         </SpaceThemeProvider>
       </Context.Provider>
     )

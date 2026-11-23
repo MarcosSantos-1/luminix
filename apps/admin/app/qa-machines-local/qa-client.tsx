@@ -11,6 +11,7 @@ import {
 } from '@/components/onboarding/steps'
 import { OnboardingShell } from '@/components/onboarding/shell'
 import { HoursStep } from '@/components/onboarding/hours-editor'
+import { SpaceCopyEffect, SpaceKindProvider } from '@/lib/space-kind'
 import { ClinicVisualFixture } from '@/components/clinic-workspace'
 import { SpaceThemeProvider } from '@/components/space-theme'
 import { SpecialTreatments } from '@/components/onboarding/special-treatments'
@@ -212,41 +213,44 @@ export default function QA({
   return (
     <ClinicVisualFixture>
       <SpaceThemeProvider key={payload.clinic.theme} initialTheme={payload.clinic.theme}>
-        <OnboardingShell
-          step={step}
-          availableThrough={9}
-          busy={false}
-          onBack={() => setView(views[Math.max(0, views.indexOf(view) - 1)])}
-          onSelectStep={(value) => setView(views[Math.max(0, value - 1)])}
-        >
-          {view === 'space' ? (
-            <ClinicStep {...props} />
-          ) : view === 'catalog' ? (
-            <CatalogStep {...props} />
-          ) : view === 'services' ? (
-            <ServicesStep {...props} />
-          ) : view === 'team' ? (
-            <TeamStep {...props} />
-          ) : view === 'schedule' ? (
-            <ScheduleStep {...props} />
-          ) : view === 'hours' ? (
-            <HoursStep {...props} />
-          ) : view === 'payments' ? (
-            <PaymentsStep
-              {...props}
-              clinicId="visual-fixture"
-              onReadyChange={() => {}}
-              onSettledChange={() => {}}
-            />
-          ) : view === 'rules' ? (
-            <RulesStep {...props} />
-          ) : view === 'review' ? (
-            <ReviewStep {...props} onEdit={(value) => setView(views[value - 1])} />
-          ) : (
-            <SpecialTreatments {...props} />
-          )}
-        </OnboardingShell>
-        <LayoutProbe />
+        <SpaceKindProvider kind={payload.clinic.spaceKind}>
+          <SpaceCopyEffect kind={payload.clinic.spaceKind} />
+          <OnboardingShell
+            step={step}
+            availableThrough={9}
+            busy={false}
+            onBack={() => setView(views[Math.max(0, views.indexOf(view) - 1)])}
+            onSelectStep={(value) => setView(views[Math.max(0, value - 1)])}
+          >
+            {view === 'space' ? (
+              <ClinicStep {...props} />
+            ) : view === 'catalog' ? (
+              <CatalogStep {...props} />
+            ) : view === 'services' ? (
+              <ServicesStep {...props} />
+            ) : view === 'team' ? (
+              <TeamStep {...props} />
+            ) : view === 'schedule' ? (
+              <ScheduleStep {...props} />
+            ) : view === 'hours' ? (
+              <HoursStep {...props} />
+            ) : view === 'payments' ? (
+              <PaymentsStep
+                {...props}
+                clinicId="visual-fixture"
+                onReadyChange={() => {}}
+                onSettledChange={() => {}}
+              />
+            ) : view === 'rules' ? (
+              <RulesStep {...props} />
+            ) : view === 'review' ? (
+              <ReviewStep {...props} onEdit={(value) => setView(views[value - 1])} />
+            ) : (
+              <SpecialTreatments {...props} />
+            )}
+          </OnboardingShell>
+          <LayoutProbe />
+        </SpaceKindProvider>
       </SpaceThemeProvider>
     </ClinicVisualFixture>
   )

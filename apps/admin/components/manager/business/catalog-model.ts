@@ -15,6 +15,8 @@ export type Service = {
   bookingMode: BookingMode
   audience: Audience
   sensitive: boolean
+  /** First-visit evaluation/consultation: bookable, but off the service list (it is for the site). */
+  evaluation?: boolean
   status: 'active' | 'archived'
   professionals: number
   /** Who does it (active professionals). */

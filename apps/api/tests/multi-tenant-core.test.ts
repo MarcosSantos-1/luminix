@@ -170,6 +170,8 @@ describe('versioned core migration', () => {
       { name: '0058_rental_hours.sql' },
       { name: '0059_schedule_overrun_rule.sql' },
       { name: '0060_package_payments_and_service_vouchers.sql' },
+      { name: '0061_agreed_appointment_price.sql' },
+      { name: '0062_space_kind_and_evaluations.sql' },
     ])
   })
 

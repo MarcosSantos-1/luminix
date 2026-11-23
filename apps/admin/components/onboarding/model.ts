@@ -1,4 +1,5 @@
 import type { SpaceTheme } from '@/lib/space-theme'
+import type { SpaceKind } from '@/lib/space-kind'
 import {
   ListChecks,
   MapPin,
@@ -22,6 +23,8 @@ export type CatalogItem = {
   sensivel?: boolean
   tipo_preco?: Service['priceType']
   grupo?: string
+  /** First-visit evaluation or consultation: highlighted in onboarding, kept off the panel list. */
+  avaliacao?: boolean
 }
 const catalog = rawCatalog as CatalogItem[]
 
@@ -38,6 +41,8 @@ export type Service = {
   /** Intimate services stay unanswered until the clinic picks Todos, Feminino or Masculino. */
   audienceChosen?: boolean
   sensitive: boolean
+  /** Evaluation/consultation before a treatment (see CatalogItem.avaliacao). */
+  evaluation?: boolean
   resourceName: string
   depositRequired?: boolean
   cancellationHours: number | null
@@ -99,6 +104,7 @@ export type Payload = {
   phone: string
   clinic: {
     theme?: SpaceTheme
+    spaceKind?: SpaceKind
     foundedYear: string
     whatsapp: string
     instagram: string
@@ -219,6 +225,7 @@ export function serviceFromCatalog(item: CatalogItem, audience: Audience): Servi
     audience,
     audienceChosen: !catalogItemIsSensitive(item),
     sensitive: catalogItemIsSensitive(item),
+    ...(item.avaliacao ? { evaluation: true } : {}),
     resourceName: '',
     cancellationHours: null,
   }
@@ -369,6 +376,17 @@ export function categoryArtSrc(name: string) {
 
 export function servicesInCategory(name: string) {
   return catalog.filter((item) => item.categoria === name)
+}
+
+/** The evaluation/consultation of an area, if it has one (always one at most). */
+export function evaluationInCategory(name: string) {
+  return catalog.find((item) => item.categoria === name && item.avaliacao)
+}
+
+const evaluationNames = new Set(catalog.filter((item) => item.avaliacao).map((item) => item.nome))
+
+export function catalogNameIsEvaluation(name: string) {
+  return evaluationNames.has(name)
 }
 
 export function formatMoneyAmount(cents: number) {

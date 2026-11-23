@@ -35,7 +35,7 @@ export async function catalogRoutes(
           connection.query(
             `SELECT s.id, s.name, coalesce(s.category, 'Cuidados') AS category, s.description,
                     s.price_cents, s.price_type, s.duration_minutes, s.booking_mode, s.audience,
-                    s.is_sensitive, s.status, promo.promotion_id, promo.percent, promo.ends_on,
+                    s.is_sensitive, s.is_evaluation, s.status, promo.promotion_id, promo.percent, promo.ends_on,
                     promo.price_cents AS promo_price_cents
                FROM luminix.services s
                LEFT JOIN LATERAL luminix.service_promotion(s.clinic_id, s.id, luminix.clinic_today())
@@ -117,6 +117,7 @@ export async function catalogRoutes(
               bookingMode: row.booking_mode,
               audience: row.audience,
               sensitive: row.is_sensitive === true,
+              evaluation: row.is_evaluation === true,
               status: row.status,
               professionals: count(links.rows, id, 'professionals'),
               professionalIds: (
