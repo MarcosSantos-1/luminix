@@ -554,7 +554,7 @@ export function ManagerHome({
         {section.id !== 'configuracoes' && banner}
         {section.id === 'financeiro' && paymentsHref && (
           <Link href={paymentsHref} className="manager-receipts-link">
-            <CreditCard size={17} aria-hidden /> Receber pelo app (Stripe){' '}
+            <CreditCard size={17} aria-hidden /> Quer receber pelo app (Stripe)?{' '}
             <ArrowRight size={15} aria-hidden />
           </Link>
         )}

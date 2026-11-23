@@ -346,6 +346,16 @@
   text-decoration: none;
 }
 .manager-receipts-link {
+  color: #ffe08a;
+  border-color: #ffe08a66;
+  background: #ffe08a14;
+  font-weight: 650;
+}
+.manager-receipts-link:hover {
+  color: #ffe08a;
+  background: #ffe08a28;
+}
+.manager-receipts-link {
   margin-bottom: 14px;
 }
 .manager-shell.manager-receipts-page {

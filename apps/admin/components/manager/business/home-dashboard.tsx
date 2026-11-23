@@ -1,9 +1,10 @@
 'use client'
 
-import { Button, Card, Chip } from '@heroui/react'
+import { Button, Card } from '@heroui/react'
 import {
   AlertTriangle,
   ArrowRight,
+  BadgeCheck,
   BadgePercent,
   CalendarDays,
   CalendarX,
@@ -11,13 +12,12 @@ import {
   ChevronRight,
   Package,
   Plus,
-  RotateCcw,
 } from 'lucide-react'
 import { useState } from 'react'
 import { useClinicApi, useClinicResource, type ClinicApi } from '../settings/clinic-api'
 import { LoadError, SettingsSkeleton } from '../settings/settings-kit'
 import { managerNavigation, type ManagerSectionId } from '../demo-data'
-import { appointmentStatus, money } from './format'
+import { money, shortName } from './format'
 import { activityDetail, activityKinds, activityTitle, timeAgo } from '../workspace/activity-copy'
 import { useWorkspaceSignals } from '../workspace/workspace-signals'
 import { AppointmentSheet, ClientAvatar } from '../appointments/appointment-sheet'
@@ -53,7 +53,31 @@ type Dashboard = {
   }[]
 }
 
-/** A client of the day (or of the next days) as one big button that opens the sheet. */
+/**
+ * Status on the day list. "Confirmado" is a WhatsApp or client-area confirmation, or a visit that
+ * already passed check-in. Check-in that was finished is "Concluído". A plain booking is "Pendente"
+ * (there is no separate "Agendado"). Reschedules stay in the sheet, not as a badge.
+ */
+function dayBadge(item: AppointmentView) {
+  if (item.status === 'canceled')
+    return { tone: 'bad' as const, label: 'Cancelado', verified: false }
+  if (item.status === 'no_show') return { tone: 'bad' as const, label: 'Faltou', verified: false }
+  if (item.status === 'completed')
+    return { tone: 'done' as const, label: 'Concluído', verified: true }
+  if (item.status === 'confirmed' || item.checkedInAt)
+    return { tone: 'ok' as const, label: 'Confirmado', verified: false }
+  return { tone: 'pending' as const, label: 'Pendente', verified: false }
+}
+
+/** Payment sits under the status and inherits its color. Hidden when there is nothing to settle. */
+function payLabel(item: AppointmentView) {
+  if (item.status === 'canceled' || item.status === 'no_show' || item.priceCents == null)
+    return null
+  if (!item.paid && item.priceCents === 0 && item.priceType !== 'quote') return null
+  return item.paid ? 'Pago' : 'A receber'
+}
+
+/** A client of the day (or of the next days) as one row that opens the sheet. */
 function AppointmentRow({
   item,
   showDay,
@@ -65,15 +89,16 @@ function AppointmentRow({
   showDay?: boolean
   onOpen: (item: AppointmentView) => void
 }) {
-  const status = appointmentStatus[item.status] ?? appointmentStatus.confirmed
+  const badge = dayBadge(item)
+  const pay = payLabel(item)
   return (
     <button
       type="button"
       className={`apt-row is-${item.status}`}
       onClick={() => onOpen(item)}
-      aria-label={`${item.client}, ${item.service}, ${clock(item.startsAt)}. Abrir opções`}
+      aria-label={`${item.client}, ${item.service}, ${clock(item.startsAt)}${needsAttention(item) ? ', tem observações' : ''}. Abrir opções`}
     >
-      <time>
+      <time className="lx-neon">
         {showDay ? (
           <small>
             {dayLabel(item.startsAt).split(',')[0]}{' '}
@@ -88,34 +113,29 @@ function AppointmentRow({
         account={item.accountPhoto ? { api, clientId: item.clientId } : null}
       />
       <span className="apt-row-copy">
-        <strong>{item.client}</strong>
+        <span className="apt-name">
+          <strong title={item.client}>
+            <span className="apt-name-full">{item.client}</span>
+            <span className="apt-name-short">{shortName(item.client)}</span>
+          </strong>
+          {needsAttention(item) ? (
+            <span className="apt-attention" title="Tem observações importantes">
+              <AlertTriangle size={14} aria-hidden />
+            </span>
+          ) : null}
+        </span>
         <span>
           {item.service}
-          {item.professional ? ` · ${item.professional}` : ''}
-          {item.priceCents != null ? ` · ${money(item.priceCents)}` : ''}
+          {item.professional ? <em className="apt-pro"> · {item.professional}</em> : null}
         </span>
       </span>
-      <span className="apt-row-tags">
-        {needsAttention(item) ? (
-          <span className="apt-tag is-attention" title="Tem observações importantes">
-            <AlertTriangle size={13} aria-hidden /> Atenção
-          </span>
-        ) : null}
-        {item.previousStartsAt ? (
-          <span className="apt-tag" title="Remarcado">
-            <RotateCcw size={12} aria-hidden /> Remarcado
-          </span>
-        ) : null}
-        {item.status !== 'canceled' ? (
-          <span className={`apt-tag ${item.paid ? 'is-paid' : 'is-due'}`}>
-            {item.paid ? 'Pago' : 'A receber'}
-          </span>
-        ) : null}
-        <span className={`apt-tag is-status tone-${status.tone} is-${item.status}`}>
-          {status.label}
+      <span className={`apt-row-tags is-${badge.tone}`}>
+        <span className="apt-status">
+          {badge.verified ? <BadgeCheck size={13} aria-hidden /> : null}
+          {badge.label}
         </span>
+        {pay ? <span className="apt-pay">{pay}</span> : null}
       </span>
-      <ChevronRight size={18} className="apt-row-go" aria-hidden />
     </button>
   )
 }
@@ -252,30 +272,16 @@ export function HomeDashboard({
           ] as const
         )
           .filter((item) => item.show)
-          .map(({ id, title, detail, icon: Icon }) => (
-            <Button key={id} className="manager-action" onPress={() => setQuick(id)}>
-              <div>
-                <strong>{title}</strong>
-                <span>{detail}</span>
-              </div>
+          .map(({ id, title, icon: Icon }) => (
+            <Button key={id} className="manager-action lx-neon" onPress={() => setQuick(id)}>
               <Icon />
+              <strong>{title}</strong>
             </Button>
           ))}
       </section>
       <ToastNotice message={notice} onShown={() => setNotice('')} />
       <div className="manager-grid">
         <Card className="manager-panel manager-agenda">
-          <Card.Header className="manager-panel-heading">
-            <div>
-              <Card.Title>Clientes do dia</Card.Title>
-              <Chip size="sm" variant="soft">
-                {live.length}
-              </Chip>
-            </div>
-            <Button variant="ghost" onPress={() => setQuick('agenda')}>
-              Ver agenda <ArrowRight size={16} />
-            </Button>
-          </Card.Header>
           <Card.Content className="apt-day">
             {data.appointments.length ? (
               <div className="apt-rows">
@@ -288,9 +294,6 @@ export function HomeDashboard({
                 <CalendarDays size={22} aria-hidden />
                 <p>
                   <strong>Nenhum atendimento hoje.</strong>
-                  {upcoming.length
-                    ? ' Aproveite para confirmar quem vem nos próximos dias.'
-                    : ' Que tal chamar quem não vem há um tempo?'}
                 </p>
                 {data.canManageAgenda ? (
                   <Button size="sm" variant="secondary" onPress={() => setQuick('booking')}>

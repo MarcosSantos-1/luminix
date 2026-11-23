@@ -33,7 +33,16 @@ import { KpiCards } from '../data-kit'
 import { QuickModal } from '../quick-modal'
 import { useClinicApi, useClinicResource, type ClinicApi } from '../settings/clinic-api'
 import { LoadError, SettingsCard, SettingsSkeleton, StatusPill } from '../settings/settings-kit'
-import { dateBr, money, moneyInput, parseMoney, shortDateBr, timeBr, todayIso } from './format'
+import {
+  dateBr,
+  money,
+  moneyInput,
+  parseMoney,
+  shortDateBr,
+  shortName,
+  timeBr,
+  todayIso,
+} from './format'
 import { BillWizard, billEmoji, EntryWizard, expenseCategories } from './finance-wizards'
 import './business.css'
 import { ToastNotice } from '@/components/ui/toast-notice'
@@ -198,6 +207,7 @@ export function FinancePanel({
   const [setup, setSetup] = useState(false)
   const [reviewing, setReviewing] = useState(false)
   const [asking, setAsking] = useState<Pending | null>(null)
+  const [undo, setUndo] = useState<Entry | null>(null)
   const [show, setShow] = useState<'all' | 'income' | 'expense'>('all')
   // Starts at 0: arriving here through a "+" elsewhere must open the form on mount.
   const lastSignal = useRef(0)
@@ -288,6 +298,7 @@ export function FinancePanel({
     setBusy(entry.id)
     try {
       await api.post(`finance/entries/${entry.id}/void`, {})
+      setUndo(null)
       done('Lançamento desfeito.')
     } catch {
       setNotice({ kind: 'error', text: 'Não foi possível desfazer.' })
@@ -320,11 +331,11 @@ export function FinancePanel({
           <ChevronRight size={18} />
         </Button>
         <div className="biz-month-actions">
-          <Button onPress={() => setForm('income')}>
-            <ArrowUpCircle size={17} aria-hidden /> Entrada
+          <Button className="fin-add-in" onPress={() => setForm('income')}>
+            <ArrowUpCircle size={17} aria-hidden /> Adicionar Entrada
           </Button>
-          <Button variant="secondary" onPress={() => setForm('expense')}>
-            <ArrowDownCircle size={17} aria-hidden /> Saída
+          <Button className="fin-add-out" onPress={() => setForm('expense')}>
+            <ArrowDownCircle size={17} aria-hidden /> Adicionar Saída
           </Button>
         </div>
       </div>
@@ -587,7 +598,10 @@ export function FinancePanel({
             <ol className="fin-rank">
               {data.topClients.map((row) => (
                 <li key={row.client}>
-                  <span>{row.client}</span>
+                  <span title={row.client}>
+                    <span className="fin-name-short">{shortName(row.client)}</span>
+                    <span className="fin-name-full">{row.client}</span>
+                  </span>
                   <small>
                     {row.visits} {row.visits === 1 ? 'pagamento' : 'pagamentos'}
                   </small>
@@ -691,10 +705,11 @@ export function FinancePanel({
                 </div>
                 <div className="biz-actions">
                   <Button
+                    className="fin-undo"
                     size="sm"
-                    variant="ghost"
+                    variant="secondary"
                     isDisabled={busy === entry.id}
-                    onPress={() => void voidEntry(entry)}
+                    onPress={() => setUndo(entry)}
                   >
                     <Undo2 size={14} aria-hidden /> Desfazer
                   </Button>
@@ -706,12 +721,46 @@ export function FinancePanel({
           <div className="biz-empty">
             <Wallet size={24} aria-hidden />
             <p>
-              Nenhum lançamento aqui. Use “Nova entrada”, “Nova saída” ou dê baixa nas contas fixas.
+              Nenhum lançamento aqui. Use “Adicionar Entrada”, “Adicionar Saída” ou dê baixa nas
+              contas fixas.
             </p>
           </div>
         )}
       </SettingsCard>
 
+      {undo ? (
+        <QuickModal
+          isOpen
+          onOpenChange={(open) => {
+            if (!open && busy !== undo.id) setUndo(null)
+          }}
+          title="Desfazer este lançamento?"
+          subtitle={undo.description}
+          footer={
+            <>
+              <Button
+                variant="secondary"
+                isDisabled={busy === undo.id}
+                onPress={() => setUndo(null)}
+              >
+                Voltar
+              </Button>
+              <Button
+                variant="danger"
+                isDisabled={busy === undo.id}
+                onPress={() => void voidEntry(undo)}
+              >
+                {busy === undo.id ? 'Desfazendo…' : 'Desfazer'}
+              </Button>
+            </>
+          }
+        >
+          <p className="settings-muted">
+            {undo.kind === 'income' ? 'Esta entrada' : 'Esta saída'} de {money(undo.amountCents)}{' '}
+            sai do mês. Dá para lançar de novo depois, se precisar.
+          </p>
+        </QuickModal>
+      ) : null}
       {form ? (
         <EntryWizard
           api={api}

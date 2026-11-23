@@ -23,7 +23,7 @@ import {
   Trash2,
   Wallet,
 } from 'lucide-react'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 import {
   DateInputField,
   MoneyField,
@@ -55,7 +55,7 @@ import {
   type ClinicApi,
 } from '../settings/clinic-api'
 import { Empty, LoadError, SettingsCard, SettingsSkeleton } from '../settings/settings-kit'
-import { money, moneyInput, parseMoney, shortDateBr, timeBr } from './format'
+import { money, moneyCompact, moneyInput, parseMoney, shortDateBr, timeBr } from './format'
 import './business.css'
 import { useSearchFocus, type SearchFocus } from '../workspace/workspace-signals'
 import { ToastNotice } from '@/components/ui/toast-notice'
@@ -153,6 +153,34 @@ export function InventoryPanel({
   const [category, setCategory] = useState('')
   const [busy, setBusy] = useState('')
   const [notice, setNotice] = useState<{ kind: 'ok' | 'error'; text: string } | null>(null)
+  const setupKey = `luminix:stock-setup-tucked:${clinicId}`
+  const storedTucked = useSyncExternalStore(
+    (onStoreChange) => {
+      const onStorage = (event: StorageEvent) => {
+        if (event.key === setupKey) onStoreChange()
+      }
+      window.addEventListener('storage', onStorage)
+      return () => window.removeEventListener('storage', onStorage)
+    },
+    () => {
+      try {
+        return window.localStorage.getItem(setupKey) === '1'
+      } catch {
+        return false
+      }
+    },
+    () => false,
+  )
+  const [tuckedNow, setTuckedNow] = useState(false)
+  const setupTucked = storedTucked || tuckedNow
+  function tuckSetup() {
+    try {
+      window.localStorage.setItem(setupKey, '1')
+    } catch {
+      // Still hide the banner for this visit.
+    }
+    setTuckedNow(true)
+  }
   // Starts at 0: arriving here through a "+" elsewhere must open the form on mount.
   const lastSignal = useRef(0)
   const blank = (): Item => ({
@@ -264,8 +292,11 @@ export function InventoryPanel({
     }
   }
 
+  const showSetup = !data.items.length || suggestions.length > 0
+  const setupBanner = showSetup && !(setupTucked && data.items.length)
+  const setupFold = showSetup && setupTucked && data.items.length > 0
   return (
-    <div className="biz-stack">
+    <div className="biz-stack inv-page">
       <KpiCards
         label="Resumo do estoque"
         active={view}
@@ -303,7 +334,9 @@ export function InventoryPanel({
           {
             id: 'value',
             label: 'Valor em estoque',
-            value: money(data.stockValueCents),
+            value: (
+              <span title={money(data.stockValueCents)}>{moneyCompact(data.stockValueCents)}</span>
+            ),
             hint: withoutCost ? `${withoutCost} sem custo informado` : 'Pelo custo informado',
             icon: <Wallet size={22} />,
             tone: 'good',
@@ -316,7 +349,7 @@ export function InventoryPanel({
         onShown={() => setNotice(null)}
       />
 
-      {!data.items.length || suggestions.length ? (
+      {setupBanner ? (
         <div className="inv-setup-cta">
           <span className="kpi-icon" aria-hidden>
             <PackageOpen size={22} />
@@ -330,7 +363,14 @@ export function InventoryPanel({
               quanto cada atendimento gasta, para descontar sozinho.
             </span>
           </div>
-          <Button onPress={() => setSetup(true)}>Montar estoque</Button>
+          <div className="inv-setup-actions">
+            <Button onPress={() => setSetup(true)}>Montar estoque</Button>
+            {data.items.length ? (
+              <Button variant="secondary" onPress={tuckSetup}>
+                Já completei
+              </Button>
+            ) : null}
+          </div>
         </div>
       ) : null}
 
@@ -476,15 +516,17 @@ export function InventoryPanel({
                   <div className="inv-actions">
                     {step ? (
                       <Button
+                        className="inv-out"
                         variant="secondary"
                         isDisabled={item.quantity <= 0 || busy === item.id}
+                        aria-label={`Usei 1 ${stepLabel(item)} de ${item.name}`}
                         onPress={() => void quick(item, 'out')}
                       >
-                        <Minus size={16} aria-hidden /> Usei 1{' '}
-                        {item.packageSize ? stepLabel(item) : ''}
+                        <Minus size={16} aria-hidden /> Usei
                       </Button>
                     ) : (
                       <Button
+                        className="inv-out"
                         variant="secondary"
                         isDisabled={item.quantity <= 0}
                         onPress={() => setMoving({ item, kind: 'out' })}
@@ -493,6 +535,7 @@ export function InventoryPanel({
                       </Button>
                     )}
                     <Button
+                      className="inv-in"
                       variant="secondary"
                       isDisabled={busy === item.id}
                       onPress={() => setMoving({ item, kind: 'in' })}
@@ -586,6 +629,28 @@ export function InventoryPanel({
         </details>
       ) : null}
 
+      {setupFold ? (
+        <details className="fold inv-setup-fold">
+          <summary>
+            <span className="kpi-icon" aria-hidden>
+              <PackageOpen size={20} />
+            </span>
+            <span className="fold-copy">
+              <strong>Complete o seu estoque</strong>
+              <small>Sugestões para os serviços que você já oferece.</small>
+            </span>
+            <ChevronDown className="fold-chevron" size={20} aria-hidden />
+          </summary>
+          <div className="fold-body inv-setup-fold-body">
+            <p>
+              Escolha os produtos que você usa. Cada um já vem com a medida e o quanto cada
+              atendimento gasta, para descontar sozinho.
+            </p>
+            <Button onPress={() => setSetup(true)}>Montar estoque</Button>
+          </div>
+        </details>
+      ) : null}
+
       {editing ? (
         <ItemEditor
           key={editing.id}
@@ -669,20 +734,20 @@ function StockCount({
       <div className={`inv-count-fields${size ? '' : ' is-single'}`}>
         {size ? (
           <TextInputField
+            label={`${pluralize(label, 2)} fechados`}
             ariaLabel={`${pluralize(label, 2)} fechados de ${name}`}
             inputMode="numeric"
             placeholder="0"
             value={packs}
-            suffix={`${pluralize(label, 2)} fechad${label === 'caixa' || label === 'bisnaga' ? 'as' : 'os'}`}
             onChange={onPacks}
           />
         ) : null}
         <TextInputField
+          label={size ? `${unitShort(unit)} soltos` : 'Quantidade'}
           ariaLabel={size ? `${unitShort(unit)} soltos de ${name}` : `Quanto tem de ${name}`}
           inputMode="decimal"
           placeholder="0"
           value={loose}
-          suffix={size ? `${unitShort(unit)} soltos` : unitShort(unit)}
           onChange={onLoose}
         />
       </div>

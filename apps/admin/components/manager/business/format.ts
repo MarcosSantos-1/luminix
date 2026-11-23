@@ -6,6 +6,39 @@ export function money(cents: number) {
   return brl.format(cents / 100)
 }
 
+/**
+ * Keeps a big amount inside a small card. From R$ 5.000,00 up: "R$ 5,0k", then "R$ 1,2 mi".
+ * The full "R$ 5.000,00" stays available as a title on the element that shows this.
+ */
+export function moneyCompact(cents: number) {
+  const sign = cents < 0 ? '−' : ''
+  const abs = Math.abs(cents)
+  if (abs < 500_000) return money(cents)
+  if (abs < 100_000_000) {
+    const thousands = abs / 100_000
+    const digits = thousands >= 100 ? 0 : 1
+    const text = thousands.toLocaleString('pt-BR', {
+      minimumFractionDigits: digits,
+      maximumFractionDigits: digits,
+    })
+    return `${sign}R$ ${text}k`
+  }
+  const millions = abs / 100_000_000
+  const digits = millions >= 10 ? 0 : 1
+  const text = millions.toLocaleString('pt-BR', {
+    minimumFractionDigits: digits,
+    maximumFractionDigits: digits,
+  })
+  return `${sign}R$ ${text} mi`
+}
+
+/** "Juliana Lima Costa" → "Juliana C." so a name fits one line on a phone. */
+export function shortName(name: string) {
+  const parts = name.trim().split(/\s+/).filter(Boolean)
+  if (parts.length <= 1) return parts[0] ?? ''
+  return `${parts[0]} ${parts[parts.length - 1].charAt(0).toLocaleUpperCase('pt-BR')}.`
+}
+
 /** "120", "120,5", "R$ 1.200,50" → cents; empty or invalid → null. */
 export function parseMoney(value: string): number | null {
   const clean = value.replace(/[^\d,.]/g, '')

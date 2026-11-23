@@ -229,7 +229,20 @@ export function AppointmentSheet({
               size="lg"
               viewable
             />
-            <span className="sh-who">{shown.client}</span>
+            {onOpenClient && access.openClients ? (
+              <button
+                type="button"
+                className="sh-who sh-client-link"
+                onClick={() => {
+                  onClose()
+                  onOpenClient({ id: shown.clientId, name: shown.client })
+                }}
+              >
+                {shown.client}
+              </button>
+            ) : (
+              <span className="sh-who">{shown.client}</span>
+            )}
             <span
               className={`sh-status is-${shown.checkedInAt && isOpen(shown.status) ? 'here' : shown.status}`}
             >
@@ -528,7 +541,7 @@ function SheetBody({
           {item.professional && (
             <span>
               <UserRound size={15} aria-hidden />
-              {item.professional}
+              Profissional: {item.professional}
             </span>
           )}
         </div>
@@ -670,17 +683,18 @@ function SheetBody({
                 </Button>
               )}
               <div className="sh-row">
-                <Button variant="secondary" onPress={() => setView('move')}>
+                <Button className="sh-move" variant="secondary" onPress={() => setView('move')}>
                   <CalendarClock size={18} aria-hidden /> Remarcar
                 </Button>
                 <Button
+                  className="sh-miss"
                   variant="secondary"
                   isDisabled={busy}
                   onPress={() => void setStatus('no_show', `Falta registrada para ${item.client}.`)}
                 >
                   <UserX size={18} aria-hidden /> Não veio
                 </Button>
-                <Button variant="secondary" onPress={() => setView('cancel')}>
+                <Button className="sh-cancel" variant="secondary" onPress={() => setView('cancel')}>
                   <CalendarX2 size={18} aria-hidden /> Cancelar
                 </Button>
               </div>
@@ -792,11 +806,12 @@ function SheetBody({
             onChange={setCancelNote}
           />
           <div className="apt-step-foot">
-            <Button variant="secondary" onPress={() => setView('move')}>
+            <Button className="sh-move" variant="secondary" onPress={() => setView('move')}>
               <CalendarClock size={16} aria-hidden /> Remarcar
             </Button>
             <Button
-              variant="danger"
+              className="sh-cancel"
+              variant="secondary"
               isDisabled={busy || !cancelNote.trim()}
               onPress={() =>
                 void setStatus('canceled', `Atendimento de ${item.client} cancelado.`, cancelNote)
