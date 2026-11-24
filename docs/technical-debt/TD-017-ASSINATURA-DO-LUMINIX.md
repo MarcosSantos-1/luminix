@@ -6,8 +6,8 @@ Módulo: `apps/api/src/modules/billing`, `clinic_subscriptions`, `manager-plan.t
 
 Problema:
 
-1. Stripe Billing não configurada (aguarda CNPJ da Kommite): sem preços, chaves e webhook, o
-   botão de pagar fica desligado. Testar o fluxo completo em modo teste antes de abrir.
+1. Stripe Billing está só em modo teste (ligado em 2026-11-24, ver ADR-039). Live aguarda o CNPJ
+   da Kommite; ao trocar, limpar os dados de assinatura gravados por pagamentos de teste.
 2. Pix não renova sozinho: falta lembrete (e-mail/aviso) alguns dias antes do "pago até".
 3. Sem e-mails de assinatura (boas-vindas ao plano, falha no cartão, só leitura).
 4. A área do cliente (site/app) já explica "agendamento online pausado" ao tentar marcar, mas a

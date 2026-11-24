@@ -55,3 +55,19 @@ assinatura usa o mesmo cliente Stripe e herda essa regra até ser revista.
 - Migration 0067: duas tabelas com RLS + FORCE (inventário 54), funções `SECURITY DEFINER`,
   gatilho que cria a assinatura de cada clínica nova.
 - Pendências em [TD-017](../technical-debt/TD-017-ASSINATURA-DO-LUMINIX.md).
+
+### Modo teste ligado — 2026-11-24
+
+Na conta Stripe de teste da plataforma (`acct_1UBfvrCz54koiZqR`, a mesma do Connect): produto
+`prod_VgfRVP4GKfxsTr`, preços `price_1UfI76Cz54koiZqR3YAhk0x3` (mensal, `luminix_monthly`) e
+`price_1UfI76Cz54koiZqR5nhjWuGb` (anual, `luminix_annual`), webhook `we_1UfI7RCz54koiZqRJ1uJWiKn`
+para `/billing/stripe/webhook` e portal padrão `bpc_1UfI7RCz54koiZqRbMjpaMit` (troca de cartão,
+faturas, cancelamento no fim do período). Variáveis `STRIPE_BILLING_*` no Fly e no `.env` local.
+Validado: webhook sem assinatura recusado (400); assinatura de teste com clínica inexistente chegou
+assinada e foi ignorada (`P0002`), depois cancelada e apagada; sessão Pix criada. Cartão de teste:
+`4242 4242 4242 4242`; recusa: `4000 0000 0000 0341` (falha na renovação).
+
+**Atenção ao ir para produção:** pagamentos de teste gravam `paid_until`/clientes `cus_` de teste
+nas clínicas do banco principal. Antes das chaves live, limpar `stripe_customer_id`,
+`stripe_subscription_id`, `card_status` e `paid_until` vindos do modo teste e trocar preços,
+webhook e segredo pelos da conta live.
