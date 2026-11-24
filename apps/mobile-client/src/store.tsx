@@ -1,3 +1,4 @@
+import { Linking } from 'react-native'
 // Client state backed by Firebase Authentication and the Luminix API (`/client/*`, ADR-029).
 // Same account as the site: whatever is saved on one appears on the other. The phone keeps only
 // conveniences: intro seen, permissions screen seen, active space and read notices.
@@ -200,6 +201,11 @@ const messages: Record<string, string> = {
   'Record required': 'Complete a ficha que este espaço pede antes de agendar.',
   'Record expired': 'Sua ficha venceu. Confirme seus dados para agendar de novo.',
   'Payment unavailable': 'Este espaço recebe o pagamento no dia do atendimento.',
+  'Pix unavailable': 'Este espaço ainda não recebe Pix pelo app. Escolha cartão ou pague no local.',
+  'Pay at the clinic':
+    'Para horários tão próximos, o pagamento é feito no espaço. Escolha "pagar no local".',
+  'Payment closed': 'O prazo para pagar este horário acabou. Agende de novo.',
+  'Contact the space': 'Este horário já foi pago pelo app. Para cancelar, fale com o espaço.',
 }
 export function friendly(error: unknown) {
   if (error instanceof ApiError)
@@ -746,19 +752,21 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       async book({ serviceId, professionalId, start, method }) {
         if (!slug) return { error: 'Escolha um espaço.' }
         try {
-          const result = await api<{ status: 'confirmed' | 'scheduled' }>(
-            `/client/spaces/${encodeURIComponent(slug)}/appointments`,
-            {
-              method: 'POST',
-              body: {
-                serviceId,
-                ...(professionalId ? { professionalId } : {}),
-                localStartsAt: start,
-                paymentMethod: method,
-              },
+          const result = await api<{
+            status: 'confirmed' | 'scheduled'
+            payment?: { url: string } | null
+          }>(`/client/spaces/${encodeURIComponent(slug)}/appointments`, {
+            method: 'POST',
+            body: {
+              serviceId,
+              ...(professionalId ? { professionalId } : {}),
+              localStartsAt: start,
+              paymentMethod: method,
             },
-          )
+          })
           await loadAppointments(slug)
+          // Pix/card in the app (ADR-040): the payment happens on the Stripe page.
+          if (result.payment?.url) await Linking.openURL(result.payment.url)
           return { error: null, status: result.status }
         } catch (error) {
           return { error: friendly(error) }

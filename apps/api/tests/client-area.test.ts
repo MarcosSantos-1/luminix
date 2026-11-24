@@ -611,7 +611,7 @@ describe('área do cliente', () => {
     expect(expired.json()).toEqual({ error: 'Record expired' })
   })
 
-  it('só aceita Pix ou cartão quando o espaço liga pagamento no app', async () => {
+  it('só aceita Pix ou cartão com pagamento no app e conta Stripe pronta', async () => {
     const date = nextWeekday()
     await call('cliente-4', 'PUT', '/client/me', { name: 'Quatro', email: 'quatro@example.com' })
     await call('cliente-4', 'PUT', '/client/me/anamnesis', {
@@ -657,7 +657,10 @@ describe('área do cliente', () => {
       localStartsAt: `${date}T10:00`,
       paymentMethod: 'pix',
     })
-    expect(paid.statusCode).toBe(201)
+    // Pix/card in the app is a real Stripe charge now (ADR-040): without a Stripe Connect
+    // account and provider nothing is held. The paid flow is in online-payments.test.ts.
+    expect(paid.statusCode).toBe(503)
+    expect(paid.json()).toEqual({ error: 'Payment unavailable' })
   })
 
   it('publica voucher apenas na conta vinculada e registra um único resgate', async () => {

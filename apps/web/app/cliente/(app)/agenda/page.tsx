@@ -1,9 +1,14 @@
 'use client'
 
 import Link from 'next/link'
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { CalendarDays, ChevronLeft, ChevronRight, Plus, Rows3 } from 'lucide-react'
-import { cancelAppointment, useClient } from '../../../../lib/client-app/store'
+import {
+  cancelAppointment,
+  refreshSpace,
+  resumePayment,
+  useClient,
+} from '../../../../lib/client-app/store'
 import { DepositPix } from '../../../../components/client-app/deposit-pix'
 import {
   addDays,
@@ -38,6 +43,23 @@ export default function AgendaPage() {
     setProblem('')
     setOpenState(value)
   }
+
+  // Back from the Stripe page (ADR-040): say what happens next and fetch the confirmation.
+  const [returned, setReturned] = useState<'ok' | 'cancelado' | null>(null)
+  const slug = space?.summary.slug
+  useEffect(() => {
+    const value = new URLSearchParams(window.location.search).get('pagamento')
+    if (value !== 'ok' && value !== 'cancelado') return
+    window.history.replaceState(null, '', window.location.pathname)
+    // The webhook usually lands within seconds; look again a couple of times.
+    const timers = [
+      setTimeout(() => setReturned(value), 0),
+      ...(slug
+        ? [3_000, 9_000].map((delay) => setTimeout(() => void refreshSpace(slug), delay))
+        : []),
+    ]
+    return () => timers.forEach(clearTimeout)
+  }, [slug])
 
   const appointments = useMemo(
     () => [...(space?.appointments ?? [])].sort((a, b) => a.start.localeCompare(b.start)),
@@ -78,6 +100,13 @@ export default function AgendaPage() {
 
   return (
     <div className="ca-page ca-agenda">
+      {returned ? (
+        <p className={`ca-pay-return${returned === 'ok' ? ' is-ok' : ''}`} role="status">
+          {returned === 'ok'
+            ? 'Pagamento enviado! Assim que for confirmado, seu horário aparece como confirmado.'
+            : 'Pagamento não concluído. Você pode tentar de novo enquanto o horário estiver guardado.'}
+        </p>
+      ) : null}
       <PageHeader
         title={selected === dayKey(today) ? 'Hoje' : dateLabel(selected, 'short')}
         kicker={dateLabel(selected)}
@@ -201,6 +230,10 @@ export default function AgendaPage() {
                       {timeLabel(item.start)} · {durationLabel(item.durationMinutes)}
                       {item.deposit?.status === 'awaiting' ? ' · falta o sinal' : ''}
                       {item.deposit?.status === 'reported' ? ' · sinal em conferência' : ''}
+                      {item.onlinePayment?.status === 'awaiting' && item.onlinePayment.dueAt
+                        ? ` · pague até ${new Date(item.onlinePayment.dueAt).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`
+                        : ''}
+                      {item.onlinePayment?.status === 'paid' ? ' · pago pelo app' : ''}
                     </small>
                   </span>
                   <StatusBadge appointment={item} />
@@ -247,6 +280,37 @@ export default function AgendaPage() {
                   space.appointments.find((item) => item.id === open.id)?.deposit ?? open.deposit
                 }
               />
+            ) : null}
+            {open.onlinePayment?.status === 'awaiting' ? (
+              <div className="ca-pay-due">
+                <p>
+                  Falta pagar para garantir o horário
+                  {open.onlinePayment.dueAt
+                    ? ` (até ${new Date(open.onlinePayment.dueAt).toLocaleTimeString('pt-BR', {
+                        hour: '2-digit',
+                        minute: '2-digit',
+                      })})`
+                    : ''}
+                  .
+                </p>
+                <button
+                  type="button"
+                  className="ca-button"
+                  disabled={busy}
+                  onClick={async () => {
+                    setBusy(true)
+                    const result = await resumePayment(space.summary.slug, open.id)
+                    if (result.url) return window.location.assign(result.url)
+                    setBusy(false)
+                    setProblem(result.error ?? '')
+                  }}
+                >
+                  Pagar agora
+                </button>
+              </div>
+            ) : null}
+            {open.onlinePayment?.status === 'paid' ? (
+              <p className="ca-pay-done">Pago pelo app ✓</p>
             ) : null}
             {space.policy?.instructions && <p>{space.policy.instructions}</p>}
             <p className="ca-error" role="alert">

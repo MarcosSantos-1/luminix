@@ -21,8 +21,8 @@ import { Avatar, Empty, PageHeader } from '../../../../components/client-app/ui'
 
 const methods = [
   { value: 'local', label: 'Pagar no espaço', hint: 'No dia do atendimento', icon: Store },
-  { value: 'pix', label: 'Pix', hint: 'Pagamento simulado', icon: QrCode },
-  { value: 'card', label: 'Cartão', hint: 'Pagamento simulado', icon: CreditCard },
+  { value: 'pix', label: 'Pix', hint: 'Paga agora, na hora', icon: QrCode },
+  { value: 'card', label: 'Cartão', hint: 'Paga agora, à vista', icon: CreditCard },
 ] as const
 
 /** "" = no preference: the space gives the time to the first professional free. */
@@ -217,6 +217,11 @@ export default function BookingPage() {
       // The slot list is stale: fetch it again.
       setAvailability(null)
       setTime(null)
+      return
+    }
+    // Pix/card in the app: straight to the Stripe page; the agenda shows the result.
+    if (result.paymentUrl) {
+      window.location.assign(result.paymentUrl)
       return
     }
     const who = team.find((item) => item.id === agenda)?.name ?? null
@@ -435,7 +440,10 @@ export default function BookingPage() {
               </button>
             ))}
           </div>
-          <p className="ca-note">Pix e cartão ainda são simulados: nenhuma cobrança é feita.</p>
+          <p className="ca-note">
+            Pix e cartão abrem a página segura da Stripe. O horário fica guardado por 30 minutos até
+            o pagamento.
+          </p>
         </section>
       )}
 

@@ -53,6 +53,7 @@ Tipo do espaço (Studio, Clínica, Salão, SPA, Espaço), avaliação de primeir
 Sinal por Pix do espaço (reserva, copia-e-cola, confirmação pela equipe, expiração) e regras de cancelar/remarcar aplicadas: [ADR-037](decisions/ADR-037-SINAL-POR-PIX-DO-ESPACO.md).
 Link de confirmação por agendamento sem login (`/confirmar`), alertas e objetivos da anamnese: [ADR-038](decisions/ADR-038-LINK-DE-CONFIRMACAO-E-ALERTAS-DA-ANAMNESE.md).
 Assinatura do Luminix (R$ 99,90/mês ou R$ 900/ano, cartão ou Pix, 12 dias grátis, carência e só leitura): [ADR-039](decisions/ADR-039-ASSINATURA-DO-LUMINIX.md).
+Pagamento do atendimento pelo app na conta Stripe da clínica (horário segurado, webhook, Financeiro): [ADR-040](decisions/ADR-040-PAGAMENTO-DOS-ATENDIMENTOS-PELO-APP.md).
 
 ## Diretórios
 

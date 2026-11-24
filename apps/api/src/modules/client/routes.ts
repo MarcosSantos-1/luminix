@@ -7,6 +7,12 @@ import { publicMediaUrl } from '../clinics/media-storage.js'
 import { isPaid } from '../../shared/tenant/route-helpers.js'
 import { localDateTime, zonedLocalToUtc } from '../operations/routes.js'
 import { pixCopyPaste, type PixKeyType } from '../../shared/pix.js'
+import { connectReady, createConnectProvider } from '../payments/stripe-connect.js'
+import {
+  createOnlinePaymentsProvider,
+  PixUnavailableError,
+  type OnlinePaymentsProvider,
+} from '../payments/online-checkout.js'
 
 // Client area API (ADR-029). The person comes only from the verified Firebase token; the clinic
 // comes from a slug the person is linked to, resolved by `client_clinic_scope`. Reads then run
@@ -205,6 +211,24 @@ export async function clientRoutes(app: FastifyInstance, dependencies: AuthDepen
   // Own counter, more generous than the staff one: browsing days and times is many small reads.
   const authenticate = createStaffAuthenticator(dependencies, 120)
   const pool: TenantPool | undefined = dependencies.tenantPool
+  // Pay the visit in the app (ADR-040). Absent provider: read from env; null: disabled.
+  let onlinePayments: OnlinePaymentsProvider | null | undefined = dependencies.onlinePayments
+  const payments = () => {
+    if (onlinePayments === undefined) onlinePayments = createOnlinePaymentsProvider()
+    return onlinePayments
+  }
+  /** Where the client lands after the Stripe page (the site's client agenda). */
+  const paymentReturnUrl = () => {
+    const fallback = process.env.NODE_ENV !== 'production' ? 'http://localhost:3001' : undefined
+    const raw = process.env.PUBLIC_CLINIC_WEB_ORIGIN || fallback
+    try {
+      const url = raw ? new URL(raw) : null
+      const local = url?.hostname === 'localhost' && process.env.NODE_ENV !== 'production'
+      return url && (url.protocol === 'https:' || local) ? `${url.origin}/cliente/agenda` : null
+    } catch {
+      return null
+    }
+  }
   const origins = allowedOrigins()
 
   // CORS only for /client routes: the web area and the app's web build call the API directly.
@@ -403,7 +427,7 @@ export async function clientRoutes(app: FastifyInstance, dependencies: AuthDepen
                   a.deposit_cents, a.deposit_status, a.deposit_due_at,
                   a.list_price_cents, a.previous_starts_at, a.rescheduled_at, a.updated_at,
                   a.created_at, a.client_payment_method, ${appointmentRentalDates} AS rental_dates,
-                  a.cancellation_origin, a.canceled_at,
+                  a.cancellation_origin, a.canceled_at, a.online_payment_status, a.online_payment_due_at,
                   CASE WHEN a.cancellation_origin IS NOT NULL THEN a.status_note END AS cancel_reason,
                   s.id AS service_id, s.name AS service_name, s.category AS service_category,
                   p.id AS professional_id, p.display_name AS professional_name,
@@ -472,6 +496,10 @@ export async function clientRoutes(app: FastifyInstance, dependencies: AuthDepen
             createdAt: row.created_at,
             paymentMethod: row.client_payment_method,
             paid: isPaid(row),
+            // Paid in the app (ADR-040): awaiting until the due time, then paid or expired.
+            onlinePayment: row.online_payment_status
+              ? { status: row.online_payment_status, dueAt: row.online_payment_due_at ?? null }
+              : null,
             rentalDates: row.rental_dates,
             // The space canceled it because its agenda changed (ADR-035).
             canceledBySpace: row.cancellation_origin === 'schedule_change',
@@ -840,105 +868,293 @@ export async function clientRoutes(app: FastifyInstance, dependencies: AuthDepen
         },
       },
     },
-    async (request, reply) =>
-      asClient(request, reply, request.params.slug, async (connection, scope) => {
-        // Space without a valid plan (ADR-039): its page stays up, new bookings pause.
-        const access = await connection.query(
-          "SELECT luminix.clinic_access_state($1::uuid)->>'state' AS state",
-          [scope!.clinicId],
-        )
-        if (access.rows[0]?.state === 'read_only')
-          return reply.code(409).send({ error: 'Booking paused' })
-        if (scope!.recordProblem) return reply.code(409).send({ error: scope!.recordProblem })
-        if (request.body.paymentMethod !== 'local' && !(await acceptsInApp(connection, scope!)))
-          return reply.code(400).send({ error: 'Payment unavailable' })
-        const service = await serviceFor(connection, scope!, request.body.serviceId)
-        if (!service) return reply.code(400).send({ error: 'Service unavailable' })
-        const needsDeposit =
-          (
-            await connection.query('SELECT luminix.service_requires_deposit($1, $2) AS needed', [
-              scope!.clinicId,
-              service.id,
-            ])
-          ).rows[0]?.needed === true
-        // An app that cannot show the Pix code must not hold a slot the client cannot pay.
-        if (needsDeposit && request.body.deposit !== 'pix')
-          return reply.code(409).send({ error: 'Deposit required' })
-        // "A combinar" and "a partir de": the clinic sets the amount at the visit, so these are
-        // paid only at the clinic (no in-app charge of an amount that is not known yet).
-        if (request.body.paymentMethod !== 'local' && service.price_type !== 'fixed')
-          return reply.code(400).send({ error: 'Pay at the clinic' })
-        const professionals = await professionalsFor(connection, scope!, String(service.id))
-        const date = request.body.localStartsAt.slice(0, 10)
-        const time = request.body.localStartsAt.slice(11)
-        // Without a choice (or with one professional) the first free agenda takes the booking.
-        const candidates = !professionals.length
-          ? ['']
-          : request.body.professionalId
-            ? professionals.some((item) => item.id === request.body.professionalId)
-              ? [request.body.professionalId]
-              : []
-            : professionals.map((item) => item.id)
-        if (!candidates.length) return reply.code(400).send({ error: 'Professional unavailable' })
-        const { slots, deviceMissing } = await freeSlots(
-          connection,
-          scope!,
-          date,
-          Number(service.duration_minutes),
-          candidates,
-          null,
-          String(service.id),
-        )
-        if (deviceMissing) return reply.code(409).send({ error: 'Service unavailable' })
-        const professionalId = candidates.find((id) => slots[id]?.includes(time))
-        if (professionalId === undefined) return reply.code(409).send({ error: 'Slot taken' })
-        const startsAt = zonedLocalToUtc(request.body.localStartsAt, timezone)
-        const endsAt = new Date(startsAt.getTime() + Number(service.duration_minutes) * 60_000)
-        const id = (
+    async (request, reply) => {
+      const online = request.body.paymentMethod !== 'local'
+      let account: string | null = null
+      const provider = online ? payments() : null
+      if (online) {
+        // 1) Before holding a slot: the space must have a ready Stripe account (outside SQL).
+        if (!provider) return reply.code(503).send({ error: 'Payment unavailable' })
+        let connect
+        let context
+        try {
+          connect = dependencies.connectProvider ?? createConnectProvider()
+          context = await connect.context()
+        } catch {
+          return reply.code(503).send({ error: 'Payment unavailable' })
+        }
+        const found = (await asClient(
+          request,
+          reply,
+          request.params.slug,
+          async (connection, scope) =>
+            (
+              await connection.query(
+                'SELECT luminix.clinic_online_account($1, $2, $3) AS account',
+                [scope!.clinicId, context.platformAccountId, context.livemode],
+              )
+            ).rows[0]?.account ?? null,
+        )) as string | null
+        if (reply.sent) return found
+        if (!found) return reply.code(409).send({ error: 'Payment unavailable' })
+        account = found
+        try {
+          if (!connectReady(await connect.status(account)))
+            return reply.code(409).send({ error: 'Payment unavailable' })
+        } catch {
+          return reply.code(503).send({ error: 'Payment unavailable' })
+        }
+      }
+      // 2) Book (and hold, when paying in the app) in one short transaction.
+      const booked = (await asClient(
+        request,
+        reply,
+        request.params.slug,
+        async (connection, scope) => {
+          // Space without a valid plan (ADR-039): its page stays up, new bookings pause.
+          const access = await connection.query(
+            "SELECT luminix.clinic_access_state($1::uuid)->>'state' AS state",
+            [scope!.clinicId],
+          )
+          if (access.rows[0]?.state === 'read_only')
+            return reply.code(409).send({ error: 'Booking paused' })
+          if (scope!.recordProblem) return reply.code(409).send({ error: scope!.recordProblem })
+          if (request.body.paymentMethod !== 'local' && !(await acceptsInApp(connection, scope!)))
+            return reply.code(400).send({ error: 'Payment unavailable' })
+          const service = await serviceFor(connection, scope!, request.body.serviceId)
+          if (!service) return reply.code(400).send({ error: 'Service unavailable' })
+          const needsDeposit =
+            (
+              await connection.query('SELECT luminix.service_requires_deposit($1, $2) AS needed', [
+                scope!.clinicId,
+                service.id,
+              ])
+            ).rows[0]?.needed === true
+          // An app that cannot show the Pix code must not hold a slot the client cannot pay.
+          // Paying the full price in the app covers the deposit.
+          if (needsDeposit && !online && request.body.deposit !== 'pix')
+            return reply.code(409).send({ error: 'Deposit required' })
+          // "A combinar" and "a partir de": the clinic sets the amount at the visit, so these are
+          // paid only at the clinic (no in-app charge of an amount that is not known yet).
+          if (request.body.paymentMethod !== 'local' && service.price_type !== 'fixed')
+            return reply.code(400).send({ error: 'Pay at the clinic' })
+          const professionals = await professionalsFor(connection, scope!, String(service.id))
+          const date = request.body.localStartsAt.slice(0, 10)
+          const time = request.body.localStartsAt.slice(11)
+          // Without a choice (or with one professional) the first free agenda takes the booking.
+          const candidates = !professionals.length
+            ? ['']
+            : request.body.professionalId
+              ? professionals.some((item) => item.id === request.body.professionalId)
+                ? [request.body.professionalId]
+                : []
+              : professionals.map((item) => item.id)
+          if (!candidates.length) return reply.code(400).send({ error: 'Professional unavailable' })
+          const { slots, deviceMissing } = await freeSlots(
+            connection,
+            scope!,
+            date,
+            Number(service.duration_minutes),
+            candidates,
+            null,
+            String(service.id),
+          )
+          if (deviceMissing) return reply.code(409).send({ error: 'Service unavailable' })
+          const professionalId = candidates.find((id) => slots[id]?.includes(time))
+          if (professionalId === undefined) return reply.code(409).send({ error: 'Slot taken' })
+          const startsAt = zonedLocalToUtc(request.body.localStartsAt, timezone)
+          const endsAt = new Date(startsAt.getTime() + Number(service.duration_minutes) * 60_000)
+          const id = (
+            await connection.query(
+              'SELECT luminix.client_book_appointment($1, $2, $3, $4, $5, $6, $7) AS id',
+              [
+                scope!.clinicId,
+                scope!.clientId,
+                service.id,
+                professionalId || null,
+                startsAt.toISOString(),
+                endsAt.toISOString(),
+                request.body.paymentMethod,
+              ],
+            )
+          ).rows[0]?.id
+          if (online) {
+            const hold = (
+              await connection.query(
+                'SELECT * FROM luminix.client_hold_for_online_payment($1, $2, $3, 35)',
+                [scope!.clinicId, scope!.clientId, id],
+              )
+            ).rows[0]
+            return {
+              online: {
+                id: String(id),
+                clinicId: scope!.clinicId,
+                clientId: scope!.clientId,
+                amount: Number(hold.amount_cents),
+                dueAt: new Date(String(hold.due_at)),
+                service: String(service.name),
+              },
+            }
+          }
+          if (needsDeposit) {
+            const hold = (
+              await connection.query('SELECT * FROM luminix.client_hold_for_deposit($1, $2, $3)', [
+                scope!.clinicId,
+                scope!.clientId,
+                id,
+              ])
+            ).rows[0]
+            if (hold) {
+              const pix = await spacePix(connection, scope!.clinicId)
+              return reply.code(201).send({
+                id,
+                status: 'scheduled',
+                deposit: depositView(
+                  {
+                    id,
+                    deposit_cents: hold.deposit_cents,
+                    deposit_status: 'awaiting',
+                    deposit_due_at: hold.deposit_due_at,
+                  },
+                  pix,
+                ),
+              })
+            }
+          }
+          return reply.code(201).send({
+            id,
+            status: service.booking_mode === 'instant' ? 'confirmed' : 'scheduled',
+            deposit: null,
+          })
+        },
+      )) as
+        | {
+            online?: {
+              id: string
+              clinicId: string
+              clientId: string
+              amount: number
+              dueAt: Date
+              service: string
+            }
+          }
+        | undefined
+      if (reply.sent || !booked?.online || !provider || !account) return booked
+      const hold = booked.online
+      const release = () =>
+        asClient(request, reply, request.params.slug, async (connection, scope) => {
+          await connection.query('SELECT luminix.client_release_online_hold($1, $2, $3)', [
+            scope!.clinicId,
+            scope!.clientId,
+            hold.id,
+          ])
+          return true
+        })
+      const returnUrl = paymentReturnUrl()
+      // Stripe needs at least 30 minutes to pay; a visit sooner than that is paid at the space.
+      if (!returnUrl || hold.dueAt.getTime() - Date.now() < 31 * 60_000) {
+        await release()
+        if (reply.sent) return
+        return reply
+          .code(409)
+          .send({ error: returnUrl ? 'Pay at the clinic' : 'Payment unavailable' })
+      }
+      // 3) Stripe outside any transaction, on the clinic's own account.
+      let checkout
+      try {
+        checkout = await provider.createCheckout({
+          account,
+          appointmentId: hold.id,
+          clinicId: hold.clinicId,
+          method: request.body.paymentMethod as 'pix' | 'card',
+          amountCents: hold.amount,
+          description: hold.service,
+          email: null,
+          expiresAt: hold.dueAt,
+          returnUrl,
+        })
+      } catch (error) {
+        await release()
+        if (reply.sent) return
+        if (error instanceof PixUnavailableError)
+          return reply.code(409).send({ error: 'Pix unavailable' })
+        request.log.warn({ event: 'online_payment_checkout_failed' })
+        return reply.code(503).send({ error: 'Payment unavailable' })
+      }
+      // 4) Record the session; the webhook confirms the payment later.
+      const saved = await asClient(
+        request,
+        reply,
+        request.params.slug,
+        async (connection, scope) => {
           await connection.query(
-            'SELECT luminix.client_book_appointment($1, $2, $3, $4, $5, $6, $7) AS id',
+            'SELECT luminix.client_open_online_payment($1, $2, $3, $4, $5, $6, $7)',
             [
               scope!.clinicId,
               scope!.clientId,
-              service.id,
-              professionalId || null,
-              startsAt.toISOString(),
-              endsAt.toISOString(),
+              hold.id,
+              account,
+              checkout.id,
               request.body.paymentMethod,
+              hold.amount,
             ],
           )
-        ).rows[0]?.id
-        if (needsDeposit) {
-          const hold = (
-            await connection.query('SELECT * FROM luminix.client_hold_for_deposit($1, $2, $3)', [
-              scope!.clinicId,
-              scope!.clientId,
-              id,
-            ])
-          ).rows[0]
-          if (hold) {
-            const pix = await spacePix(connection, scope!.clinicId)
-            return reply.code(201).send({
-              id,
-              status: 'scheduled',
-              deposit: depositView(
-                {
-                  id,
-                  deposit_cents: hold.deposit_cents,
-                  deposit_status: 'awaiting',
-                  deposit_due_at: hold.deposit_due_at,
-                },
-                pix,
-              ),
-            })
-          }
-        }
-        return reply.code(201).send({
-          id,
-          status: service.booking_mode === 'instant' ? 'confirmed' : 'scheduled',
-          deposit: null,
-        })
-      }),
+          return true
+        },
+      )
+      if (reply.sent) return saved
+      return reply.code(201).send({
+        id: hold.id,
+        status: 'scheduled',
+        deposit: null,
+        payment: {
+          method: request.body.paymentMethod,
+          amountCents: hold.amount,
+          dueAt: hold.dueAt.toISOString(),
+          url: checkout.url,
+        },
+      })
+    },
+  )
+
+  // Back to an unfinished payment (the client closed the Stripe page): the open session URL.
+  app.post<{ Params: { slug: string; appointmentId: string } }>(
+    '/client/spaces/:slug/appointments/:appointmentId/payment',
+    { schema: { params: appointmentParams } },
+    async (request, reply) => {
+      const provider = payments()
+      if (!provider) return reply.code(503).send({ error: 'Payment unavailable' })
+      const open = (await asClient(
+        request,
+        reply,
+        request.params.slug,
+        async (connection, scope) => {
+          await connection.query('SELECT luminix.expire_deposit_holds($1)', [scope!.clinicId])
+          return (
+            (
+              await connection.query(
+                `SELECT p.account_id, p.session_id
+               FROM luminix.online_payments p
+               JOIN luminix.appointments a ON a.clinic_id = p.clinic_id AND a.id = p.appointment_id
+              WHERE p.clinic_id = $1 AND p.appointment_id = $2 AND a.clinic_client_id = $3
+                AND p.status = 'open' AND a.online_payment_status = 'awaiting'
+              ORDER BY p.created_at DESC LIMIT 1`,
+                [scope!.clinicId, request.params.appointmentId, scope!.clientId],
+              )
+            ).rows[0] ?? null
+          )
+        },
+      )) as { account_id: string; session_id: string } | null
+      if (reply.sent) return open
+      if (!open) return reply.code(409).send({ error: 'Payment closed' })
+      try {
+        const url = await provider.openUrl(String(open.account_id), String(open.session_id))
+        if (!url) return reply.code(409).send({ error: 'Payment closed' })
+        return { url }
+      } catch {
+        return reply.code(503).send({ error: 'Payment unavailable' })
+      }
+    },
   )
 
   // "Já paguei": the hold stops expiring and the space confirms after checking the bank.
@@ -961,6 +1177,14 @@ export async function clientRoutes(app: FastifyInstance, dependencies: AuthDepen
     { schema: { params: appointmentParams } },
     async (request, reply) =>
       asClient(request, reply, request.params.slug, async (connection, scope) => {
+        // Paid in the app: the refund comes with the next stage (ADR-040), so the space cancels.
+        const paid = await connection.query(
+          `SELECT 1 FROM luminix.appointments
+            WHERE clinic_id = $1 AND id = $2 AND clinic_client_id = $3
+              AND online_payment_status = 'paid'`,
+          [scope!.clinicId, request.params.appointmentId, scope!.clientId],
+        )
+        if (paid.rows.length) return reply.code(409).send({ error: 'Contact the space' })
         await connection.query('SELECT luminix.client_cancel_appointment($1, $2, $3)', [
           scope!.clinicId,
           scope!.clientId,

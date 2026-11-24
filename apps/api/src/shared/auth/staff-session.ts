@@ -1,4 +1,5 @@
 import type { BillingProvider } from '../../modules/billing/provider.js'
+import type { OnlinePaymentsProvider } from '../../modules/payments/online-checkout.js'
 import type { FastifyReply, FastifyRequest } from 'fastify'
 
 import type { SqlConnection } from '../database/migrations.js'
@@ -12,6 +13,8 @@ export type AuthDependencies = {
   connectProvider?: ConnectProvider
   /** Stripe Billing for the Luminix subscription; null disables it (tests), absent reads env. */
   billingProvider?: BillingProvider | null
+  /** Stripe Checkout on the clinic's Connect account (ADR-040); null disables, absent reads env. */
+  onlinePayments?: OnlinePaymentsProvider | null
   /** Firebase accounts for staff invitations; created lazily in production. */
   staffDirectory?: StaffDirectory
   /** Access e-mails (invite, sign-in link). Absent: the admin uses Firebase's own e-mail. */

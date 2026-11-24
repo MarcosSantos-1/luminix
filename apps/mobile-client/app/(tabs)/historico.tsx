@@ -7,7 +7,7 @@ import { Enter, Icon, Press, Rings, type, type IconName } from '../../src/ui'
 import { EmptyState, StatusBadge, TabPage, money, usePalette } from '../../src/ui/space'
 
 const methodIcon: Record<string, IconName> = { pix: 'zap', card: 'credit-card', local: 'home' }
-const methodLabel = { pix: 'Pix (simulado)', card: 'Cartão (simulado)', local: 'No espaço' }
+const methodLabel = { pix: 'Pix pelo app', card: 'Cartão pelo app', local: 'No espaço' }
 const paymentLabel = { paid: 'Pago', pending: 'A pagar no espaço', refunded: 'Estornado' }
 
 export default function History() {

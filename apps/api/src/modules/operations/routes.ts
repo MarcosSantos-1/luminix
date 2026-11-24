@@ -1089,6 +1089,7 @@ export async function operationRoutes(
                         WHERE cp.clinic_id = a.clinic_id AND cp.id = a.client_package_id
                           AND cp.kind = 'combo') AS combo_name,
                       ${appointmentPackage} AS package,
+                      a.online_payment_status, a.online_payment_due_at,
                       link.answer AS link_answer, link.answered_at AS link_answered_at,
                       link.opened_at AS link_opened_at
                  FROM luminix.appointments a

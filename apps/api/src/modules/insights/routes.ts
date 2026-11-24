@@ -52,6 +52,7 @@ export async function insightsRoutes(
                     s.name AS service, ${appointmentRentalDates} AS rental_dates, s.price_type, p.display_name AS professional,
                     luminix.appointment_paid_cents(a.clinic_id, a.id) AS paid_cents,
                     ${appointmentPackage} AS package,
+                    a.online_payment_status, a.online_payment_due_at,
                     link.answer AS link_answer, link.answered_at AS link_answered_at,
                     link.opened_at AS link_opened_at
                FROM luminix.appointments a
@@ -83,6 +84,7 @@ export async function insightsRoutes(
                     s.name AS service, ${appointmentRentalDates} AS rental_dates, s.price_type, p.display_name AS professional,
                     luminix.appointment_paid_cents(a.clinic_id, a.id) AS paid_cents,
                     ${appointmentPackage} AS package,
+                    a.online_payment_status, a.online_payment_due_at,
                     link.answer AS link_answer, link.answered_at AS link_answered_at,
                     link.opened_at AS link_opened_at
                FROM luminix.appointments a
@@ -131,6 +133,15 @@ export async function insightsRoutes(
           bookingSource: String(row.booking_source),
           statusNote: row.status_note ? String(row.status_note) : null,
           checkedInAt: row.checked_in_at ? new Date(String(row.checked_in_at)).toISOString() : null,
+          // Paid in the app (ADR-040): awaiting holds the slot until the due time.
+          onlinePayment: row.online_payment_status
+            ? {
+                status: String(row.online_payment_status),
+                dueAt: row.online_payment_due_at
+                  ? new Date(String(row.online_payment_due_at)).toISOString()
+                  : null,
+              }
+            : null,
           // Confirmation link (ADR-038): the client's own answer drives "Confirmado" and the dot.
           link:
             row.link_answer || row.link_opened_at

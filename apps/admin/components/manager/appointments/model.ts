@@ -45,6 +45,8 @@ export type AppointmentView = {
   deposit?: AppointmentDeposit | null
   /** Confirmation link (ADR-038): opened and/or answered by whoever received it. */
   link?: AppointmentLinkState | null
+  /** Client paying in the app (ADR-040): awaiting holds the slot until dueAt. */
+  onlinePayment?: { status: 'awaiting' | 'paid' | 'expired'; dueAt: string | null } | null
 }
 
 export type AppointmentLinkState = {
@@ -141,13 +143,18 @@ export function isQuote(item: Pick<AppointmentView, 'priceCents' | 'priceType'>)
  * confirmation by WhatsApp shows as the green dot on the WhatsApp button, not here.
  */
 export function visitBadge(
-  item: Pick<AppointmentView, 'status' | 'checkedInAt' | 'bookingSource' | 'deposit' | 'link'>,
+  item: Pick<
+    AppointmentView,
+    'status' | 'checkedInAt' | 'bookingSource' | 'deposit' | 'link' | 'onlinePayment'
+  >,
 ): { tone: 'pending' | 'ok' | 'done' | 'bad'; label: string; key: string } {
   if (item.status === 'canceled') return { tone: 'bad', label: 'Cancelado', key: 'canceled' }
   if (item.deposit?.status === 'awaiting' && isOpen(item.status))
     return { tone: 'pending', label: 'Aguardando sinal', key: 'deposit' }
   if (item.deposit?.status === 'reported' && isOpen(item.status))
     return { tone: 'pending', label: 'Sinal informado', key: 'deposit' }
+  if (item.onlinePayment?.status === 'awaiting' && isOpen(item.status))
+    return { tone: 'pending', label: 'Aguardando pagamento', key: 'deposit' }
   if (item.status === 'no_show') return { tone: 'bad', label: 'Faltou', key: 'no_show' }
   if (item.status === 'completed') return { tone: 'done', label: 'Concluído', key: 'completed' }
   if (item.checkedInAt) return { tone: 'ok', label: 'Chegou', key: 'here' }

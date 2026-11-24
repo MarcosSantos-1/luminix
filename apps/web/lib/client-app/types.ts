@@ -65,7 +65,11 @@ export type Appointment = {
   paid: boolean
   /** Sinal por Pix do espaço (ADR-037). */
   deposit?: Deposit | null
+  /** Paid in the app through Stripe (ADR-040). */
+  onlinePayment?: OnlinePayment | null
 }
+
+export type OnlinePayment = { status: 'awaiting' | 'paid' | 'expired'; dueAt: string | null }
 
 export type Deposit = {
   cents: number

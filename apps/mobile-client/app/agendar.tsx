@@ -23,8 +23,8 @@ const stageTitles: Record<Stage, string> = {
 
 const methods: { value: PaymentMethod; label: string; hint: string; icon: IconName }[] = [
   { value: 'local', label: 'Pagar no espaço', hint: 'No dia do atendimento', icon: 'home' },
-  { value: 'pix', label: 'Pix', hint: 'Pagamento simulado', icon: 'zap' },
-  { value: 'card', label: 'Cartão', hint: 'Pagamento simulado', icon: 'credit-card' },
+  { value: 'pix', label: 'Pix', hint: 'Paga agora, na hora', icon: 'zap' },
+  { value: 'card', label: 'Cartão', hint: 'Paga agora, à vista', icon: 'credit-card' },
 ]
 
 function StepTitle({ index, children }: { index: number; children: string }) {
@@ -614,7 +614,7 @@ export default function Book() {
               )
             })}
             <Text style={[type.small, { color: palette.muted }]}>
-              Pix e cartão ainda são simulados: nenhuma cobrança é feita.
+              Pix e cartão abrem a página segura da Stripe. O horário fica guardado por 30 minutos.
             </Text>
           </Enter>
         )}

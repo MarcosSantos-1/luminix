@@ -25,6 +25,7 @@ import type {
   Deposit,
   BookingPolicy,
   Notice,
+  OnlinePayment,
   Payment,
   SpaceLink,
   SpaceSummary,
@@ -67,6 +68,7 @@ type ApiAppointment = {
   canceledBySpace?: boolean
   cancelReason?: string | null
   deposit?: Deposit | null
+  onlinePayment?: OnlinePayment | null
   service: { id: string; name: string; category: string | null }
   professional: { id: string; name: string } | null
 }
@@ -179,6 +181,11 @@ const messages: Record<string, string> = {
   'Record required': 'Complete a ficha que este espaço pede antes de agendar.',
   'Record expired': 'Sua ficha venceu. Confirme seus dados para agendar de novo.',
   'Payment unavailable': 'Este espaço recebe o pagamento no dia do atendimento.',
+  'Pix unavailable': 'Este espaço ainda não recebe Pix pelo app. Escolha cartão ou pague no local.',
+  'Pay at the clinic':
+    'Para horários tão próximos, o pagamento é feito no espaço. Escolha "pagar no local".',
+  'Payment closed': 'O prazo para pagar este horário acabou. Agende de novo.',
+  'Contact the space': 'Este horário já foi pago pelo app. Para cancelar, fale com o espaço.',
   'Deposit unavailable': 'O prazo do sinal acabou. Agende de novo ou fale com o espaço.',
 }
 
@@ -262,17 +269,20 @@ function toAppointment(row: ApiAppointment): Appointment {
     paymentMethod: row.paymentMethod,
     paid: row.paid,
     deposit: row.deposit ?? null,
+    onlinePayment: row.onlinePayment ?? null,
   }
 }
 
-/** Simulated payments: Pix/card count as paid at booking; at the space, when the clinic records it. */
+/** Payments: Pix/card in the app count once Stripe confirms them (ADR-040); at the space, when
+ * the clinic records them. */
 function paymentsOf(appointments: Appointment[]): Payment[] {
   return appointments
     .filter((item) => item.priceCents > 0)
     .flatMap((item): Payment[] => {
       const method = item.paymentMethod ?? 'local'
-      const prepaid = method !== 'local'
-      if (item.status === 'cancelled' && !prepaid && !item.paid) return []
+      const online = item.onlinePayment?.status
+      if (online === 'expired') return []
+      if (item.status === 'cancelled' && !item.paid) return []
       return [
         {
           id: `pay-${item.id}`,
@@ -280,8 +290,7 @@ function paymentsOf(appointments: Appointment[]): Payment[] {
           label: item.serviceName,
           amountCents: item.priceCents,
           method,
-          status:
-            item.status === 'cancelled' ? 'refunded' : prepaid || item.paid ? 'paid' : 'pending',
+          status: item.paid || online === 'paid' ? 'paid' : 'pending',
           at: item.createdAt,
         },
       ]
@@ -690,12 +699,15 @@ export async function book(
   status?: 'confirmed' | 'scheduled'
   id?: string
   deposit?: Deposit | null
+  /** Stripe page to pay now (Pix or card in the app). */
+  paymentUrl?: string | null
 }> {
   try {
     const result = await api<{
       id: string
       status: 'confirmed' | 'scheduled'
       deposit?: Deposit | null
+      payment?: { url: string } | null
     }>(`/client/spaces/${encodeURIComponent(slug)}/appointments`, {
       method: 'POST',
       body: {
@@ -708,7 +720,13 @@ export async function book(
       },
     })
     await refreshSpace(slug)
-    return { error: null, status: result.status, id: result.id, deposit: result.deposit ?? null }
+    return {
+      error: null,
+      status: result.status,
+      id: result.id,
+      deposit: result.deposit ?? null,
+      paymentUrl: result.payment?.url ?? null,
+    }
   } catch (error) {
     return { error: friendly(error) }
   }
@@ -727,6 +745,20 @@ export async function reschedule(slug: string, appointmentId: string, start: str
     return null
   } catch (error) {
     return friendly(error)
+  }
+}
+
+/** Back to an unfinished payment: the open Stripe page, or an error when the time ran out. */
+export async function resumePayment(slug: string, appointmentId: string) {
+  try {
+    const result = await api<{ url: string }>(
+      `/client/spaces/${encodeURIComponent(slug)}/appointments/${appointmentId}/payment`,
+      { method: 'POST' },
+    )
+    return { url: result.url, error: null }
+  } catch (error) {
+    await refreshSpace(slug)
+    return { url: null, error: friendly(error) }
   }
 }
 
