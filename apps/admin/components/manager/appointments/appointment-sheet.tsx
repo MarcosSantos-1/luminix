@@ -40,6 +40,7 @@ import {
   dayLabel,
   isOpen,
   needsAgreedPrice,
+  presenceConfirmed,
   visitBadge,
   serviceTitle,
   localDate,
@@ -251,7 +252,8 @@ function WhatsAppMenu({ item, today }: { item: AppointmentView; today: string })
   const phone = item.phone
   const open = isOpen(item.status)
   if (!phone || !open) return null
-  const confirmed = item.status === 'confirmed'
+  // Green only when the client herself confirmed (own booking or the link), never by default.
+  const confirmed = presenceConfirmed(item)
   return (
     <Popover>
       <Button

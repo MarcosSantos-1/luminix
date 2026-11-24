@@ -48,7 +48,7 @@ export type AppointmentView = {
 }
 
 export type AppointmentLinkState = {
-  answer: 'confirmed' | 'reschedule' | 'not_me' | null
+  answer: 'confirmed' | 'reschedule' | 'not_me' | 'canceled' | null
   answeredAt: string | null
   openedAt: string | null
 }
@@ -141,7 +141,7 @@ export function isQuote(item: Pick<AppointmentView, 'priceCents' | 'priceType'>)
  * confirmation by WhatsApp shows as the green dot on the WhatsApp button, not here.
  */
 export function visitBadge(
-  item: Pick<AppointmentView, 'status' | 'checkedInAt' | 'bookingSource' | 'deposit'>,
+  item: Pick<AppointmentView, 'status' | 'checkedInAt' | 'bookingSource' | 'deposit' | 'link'>,
 ): { tone: 'pending' | 'ok' | 'done' | 'bad'; label: string; key: string } {
   if (item.status === 'canceled') return { tone: 'bad', label: 'Cancelado', key: 'canceled' }
   if (item.deposit?.status === 'awaiting' && isOpen(item.status))
@@ -151,9 +151,26 @@ export function visitBadge(
   if (item.status === 'no_show') return { tone: 'bad', label: 'Faltou', key: 'no_show' }
   if (item.status === 'completed') return { tone: 'done', label: 'Concluído', key: 'completed' }
   if (item.checkedInAt) return { tone: 'ok', label: 'Chegou', key: 'here' }
-  if (item.bookingSource && item.bookingSource !== 'manager' && item.bookingSource !== 'import')
-    return { tone: 'ok', label: 'Confirmado', key: 'confirmed' }
+  if (item.link?.answer === 'reschedule' && isOpen(item.status))
+    return { tone: 'pending', label: 'Quer remarcar', key: 'reschedule' }
+  if (presenceConfirmed(item)) return { tone: 'ok', label: 'Confirmado', key: 'confirmed' }
   return { tone: 'pending', label: 'Agendado', key: 'scheduled' }
+}
+
+/**
+ * The client confirmed she is coming: she booked it herself (client area, site), or answered
+ * "Confirmar presença" on the confirmation link (ADR-038). A visit the team booked stays pending
+ * until then, whatever its database status.
+ */
+export function presenceConfirmed(
+  item: Pick<AppointmentView, 'status' | 'bookingSource' | 'link'>,
+) {
+  if (!isOpen(item.status)) return false
+  if (item.link?.answer === 'confirmed') return true
+  if (item.link?.answer === 'reschedule') return false
+  return Boolean(
+    item.bookingSource && item.bookingSource !== 'manager' && item.bookingSource !== 'import',
+  )
 }
 
 export function isOpen(status: string) {

@@ -71,7 +71,7 @@ type Row = {
   paid_cents?: number | null
   booking_source?: string
   checked_in_at?: string | null
-  link_answer?: 'confirmed' | 'reschedule' | 'not_me' | null
+  link_answer?: 'confirmed' | 'reschedule' | 'not_me' | 'canceled' | null
   link_answered_at?: string | null
   link_opened_at?: string | null
   status_note?: string | null

@@ -1,6 +1,7 @@
 import { createHash, randomBytes } from 'node:crypto'
 import type { FastifyInstance } from 'fastify'
 import type { SqlConnection } from '../../shared/database/migrations.js'
+import { publicMediaUrl } from '../clinics/media-storage.js'
 
 // Confirmation link of one visit (ADR-038). No login: whoever has the link sees the essentials
 // of that visit and answers. The token is 32 random bytes (base64url, 43 chars); the database
@@ -32,7 +33,16 @@ export function appointmentLinkUrl(token: string) {
   }
 }
 
-const answers = ['confirmed', 'reschedule', 'not_me'] as const
+/** A missing media origin hides the logo instead of failing the whole page. */
+function logoUrl(key: string) {
+  try {
+    return publicMediaUrl(key)
+  } catch {
+    return null
+  }
+}
+
+const answers = ['confirmed', 'reschedule', 'not_me', 'canceled'] as const
 type Answer = (typeof answers)[number]
 
 /**
@@ -67,9 +77,16 @@ export async function appointmentLinkRoutes(app: FastifyInstance, database: SqlC
         const result = await database.query('SELECT luminix.read_appointment_link($1) AS link', [
           hashLinkToken(request.params.token),
         ])
-        const link = result.rows[0]?.link ?? null
+        const link = (result.rows[0]?.link ?? null) as {
+          clinic?: { logoKey?: string | null } & Record<string, unknown>
+        } | null
         if (!link) return reply.code(404).send({ error: 'Link not found' })
-        return link
+        // The storage key never leaves the API: only the public URL of the space's logo.
+        const { logoKey, ...clinic } = link.clinic ?? {}
+        return {
+          ...link,
+          clinic: { ...clinic, logoUrl: logoKey ? logoUrl(String(logoKey)) : null },
+        }
       } catch {
         request.log.warn({ event: 'appointment_link_unavailable' })
         return reply.code(503).send({ error: 'Link unavailable' })
@@ -105,6 +122,7 @@ export async function appointmentLinkRoutes(app: FastifyInstance, database: SqlC
         const code = (error as { code?: string }).code
         if (code === 'P0002') return reply.code(404).send({ error: 'Link not found' })
         if (code === '55000') return reply.code(409).send({ error: 'Appointment closed' })
+        if (code === 'P0001') return reply.code(409).send({ error: 'Cancellation closed' })
         if (code === '22023') return reply.code(400).send({ error: 'Invalid answer' })
         request.log.warn({ event: 'appointment_link_answer_unavailable' })
         return reply.code(503).send({ error: 'Link unavailable' })

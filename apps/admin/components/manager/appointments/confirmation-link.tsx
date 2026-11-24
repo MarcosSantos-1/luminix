@@ -1,7 +1,16 @@
 'use client'
 
 import { Button } from '@heroui/react'
-import { CalendarClock, Check, Copy, Link2, Mail, MessageCircle, UserX } from 'lucide-react'
+import {
+  CalendarClock,
+  CalendarX2,
+  Check,
+  Copy,
+  Link2,
+  Mail,
+  MessageCircle,
+  UserX,
+} from 'lucide-react'
 import { useState } from 'react'
 import { whatsapp } from '../business/format'
 import { ClinicApiError, type ClinicApi } from '../settings/clinic-api'
@@ -20,6 +29,13 @@ function linkState(item: AppointmentView) {
       icon: CalendarClock,
       title: 'Pediu para remarcar pelo link',
       hint: 'Chame a cliente para combinar outro horário.',
+    }
+  if (answer === 'canceled')
+    return {
+      tone: 'bad',
+      icon: CalendarX2,
+      title: 'Cancelado pela cliente pelo link',
+      hint: 'O horário foi liberado na agenda.',
     }
   if (answer === 'not_me')
     return {

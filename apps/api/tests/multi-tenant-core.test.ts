@@ -175,6 +175,7 @@ describe('versioned core migration', () => {
       { name: '0063_pix_deposit.sql' },
       { name: '0064_onboarding_pix.sql' },
       { name: '0065_appointment_links.sql' },
+      { name: '0066_appointment_link_cancel_and_logo.sql' },
     ])
   })
 

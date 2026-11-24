@@ -63,3 +63,18 @@ sem abrir a anamnese inteira.
 
 Ao ligar o envio automático (WhatsApp/e-mail na criação do agendamento), ao permitir preencher a
 anamnese pelo link ou ao vincular a ficha local a uma conta pelo convite (ADR-027).
+
+## Revisão 2026-11-24 — cancelar pelo link, logo e presença confirmada (migration 0066)
+
+- **Cancelar pelo link:** resposta `canceled`, com as mesmas regras do cancelamento pela área do
+  cliente (espaço permite e prazo aberto; sinal Pix não pago sempre pode ser desistido).
+  `appointment_cancel_until` diz até quando; a página mostra o prazo e, fechado, oferece falar com
+  o espaço. Cancelado é final: o link não aceita outra resposta.
+- **Logo:** a leitura traz a chave do logo do espaço; a API devolve só a URL pública
+  (`logoUrl`), nunca a chave. Sem logo, a página usa as iniciais do espaço.
+- **Presença confirmada no admin:** `presenceConfirmed` (agendado pela própria cliente ou
+  "Confirmar presença" no link) decide o selo "Confirmado" nos cards (agenda e Clientes do dia) e
+  o ponto verde do WhatsApp; "Pediu para remarcar" vira o selo "Quer remarcar". Agendado pela
+  equipe fica "Agendado" (amarelo) até a cliente responder, seja qual for o status no banco.
+- **Página:** faixa com logo nas cores do tema, bilhete com data, "Adicionar à agenda" (.ics com
+  lembrete de 2 h) e "Como chegar" depois de confirmar.

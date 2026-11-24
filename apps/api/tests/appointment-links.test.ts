@@ -217,6 +217,49 @@ describe('link de confirmação', () => {
     expect(row.status).toBe('scheduled')
   })
 
+  it('cancels within the space rules and refuses when the space does not allow it', async () => {
+    const appointment = await visit('confirmed')
+    const token = tokenOf((await issue(appointment)).json().url)
+    const read = (await call(null, 'GET', `/client/appointment-links/${token}`)).json()
+    expect(read.appointment.cancelUntil).toBeTruthy()
+    expect(read.clinic).toHaveProperty('logoUrl', null)
+    expect(read.clinic).not.toHaveProperty('logoKey')
+
+    const canceled = await call(null, 'POST', `/client/appointment-links/${token}`, {
+      answer: 'canceled',
+    })
+    expect(canceled.statusCode).toBe(200)
+    const [row] = await sql(
+      'SELECT status, status_note FROM luminix.appointments WHERE clinic_id = $1 AND id = $2',
+      [clinic, appointment],
+    )
+    expect(row.status).toBe('canceled')
+    // Canceled is final: no confirming afterwards through the same link.
+    expect(
+      (await call(null, 'POST', `/client/appointment-links/${token}`, { answer: 'confirmed' }))
+        .statusCode,
+    ).toBe(404)
+
+    await asOwner(() =>
+      sql(
+        `INSERT INTO luminix.booking_policies (clinic_id, allow_client_cancellation)
+         VALUES ($1, false)`,
+        [clinic],
+      ),
+    )
+    const locked = await visit('confirmed')
+    const lockedToken = tokenOf((await issue(locked)).json().url)
+    expect(
+      (await call(null, 'GET', `/client/appointment-links/${lockedToken}`)).json().appointment
+        .cancelUntil,
+    ).toBeNull()
+    const refused = await call(null, 'POST', `/client/appointment-links/${lockedToken}`, {
+      answer: 'canceled',
+    })
+    expect(refused.statusCode).toBe(409)
+    expect(refused.json().error).toBe('Cancellation closed')
+  })
+
   it('refuses past visits, other clinics and malformed tokens', async () => {
     const past = await visit('scheduled', -3)
     expect((await issue(past)).statusCode).toBe(409)

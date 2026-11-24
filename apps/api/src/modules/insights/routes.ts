@@ -51,11 +51,15 @@ export async function insightsRoutes(
                     luminix.clinic_client_has_account_photo(c.clinic_id, c.id) AS account_photo,
                     s.name AS service, ${appointmentRentalDates} AS rental_dates, s.price_type, p.display_name AS professional,
                     luminix.appointment_paid_cents(a.clinic_id, a.id) AS paid_cents,
-                    ${appointmentPackage} AS package
+                    ${appointmentPackage} AS package,
+                    link.answer AS link_answer, link.answered_at AS link_answered_at,
+                    link.opened_at AS link_opened_at
                FROM luminix.appointments a
                JOIN luminix.clinic_clients c ON c.clinic_id = a.clinic_id AND c.id = a.clinic_client_id
                JOIN luminix.services s ON s.clinic_id = a.clinic_id AND s.id = a.service_id
                LEFT JOIN luminix.professionals p ON p.clinic_id = a.clinic_id AND p.id = a.professional_id
+               LEFT JOIN luminix.appointment_links link
+                 ON link.clinic_id = a.clinic_id AND link.appointment_id = a.id
               WHERE a.clinic_id = $1 AND (a.starts_at AT TIME ZONE '${zone}')::date = $2::date
               ORDER BY a.starts_at, a.id`,
             [tenant.clinicId, today],
@@ -78,11 +82,15 @@ export async function insightsRoutes(
                     luminix.clinic_client_has_account_photo(c.clinic_id, c.id) AS account_photo,
                     s.name AS service, ${appointmentRentalDates} AS rental_dates, s.price_type, p.display_name AS professional,
                     luminix.appointment_paid_cents(a.clinic_id, a.id) AS paid_cents,
-                    ${appointmentPackage} AS package
+                    ${appointmentPackage} AS package,
+                    link.answer AS link_answer, link.answered_at AS link_answered_at,
+                    link.opened_at AS link_opened_at
                FROM luminix.appointments a
                JOIN luminix.clinic_clients c ON c.clinic_id = a.clinic_id AND c.id = a.clinic_client_id
                JOIN luminix.services s ON s.clinic_id = a.clinic_id AND s.id = a.service_id
                LEFT JOIN luminix.professionals p ON p.clinic_id = a.clinic_id AND p.id = a.professional_id
+               LEFT JOIN luminix.appointment_links link
+                 ON link.clinic_id = a.clinic_id AND link.appointment_id = a.id
               WHERE a.clinic_id = $1 AND (a.starts_at AT TIME ZONE '${zone}')::date > $2::date
                 AND a.status IN ('scheduled', 'confirmed')
               ORDER BY a.starts_at, a.id LIMIT 6`,
@@ -123,6 +131,19 @@ export async function insightsRoutes(
           bookingSource: String(row.booking_source),
           statusNote: row.status_note ? String(row.status_note) : null,
           checkedInAt: row.checked_in_at ? new Date(String(row.checked_in_at)).toISOString() : null,
+          // Confirmation link (ADR-038): the client's own answer drives "Confirmado" and the dot.
+          link:
+            row.link_answer || row.link_opened_at
+              ? {
+                  answer: row.link_answer ? String(row.link_answer) : null,
+                  answeredAt: row.link_answered_at
+                    ? new Date(String(row.link_answered_at)).toISOString()
+                    : null,
+                  openedAt: row.link_opened_at
+                    ? new Date(String(row.link_opened_at)).toISOString()
+                    : null,
+                }
+              : null,
           promotion: Boolean(row.promotion_id),
           package: packageView(row.package, can.has('finance:manage')),
           priceAgreed: Boolean(row.price_agreed_at),
