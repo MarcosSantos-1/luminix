@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
-import { useEffect, type ReactNode } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import {
   ArrowLeftRight,
   Bell,
@@ -15,7 +15,9 @@ import {
 } from 'lucide-react'
 import { rememberPendingSpace, useClient } from '../../lib/client-app/store'
 import { recordState } from '@luminix/contracts/anamnesis'
-import { Avatar, SpaceLogo } from './ui'
+import { Avatar, Preparing, SpaceLogo } from './ui'
+import { useClinic } from './use-clinic'
+import { loadPackages } from '../../lib/client-app/store'
 import { Toaster } from './toast'
 
 /**
@@ -71,7 +73,22 @@ export function AppShell({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (target) router.replace(target)
   }, [target, router])
+  // The space's screen stays up until its services and the client's visits are here, instead of
+  // pages full of empty cards. Loaded once per visit; a slow network still gets in after 8 s.
+  const slug = space?.summary.slug ?? null
+  const { status: clinicStatus } = useClinic(slug)
+  const [held, setHeld] = useState(true)
+  const dataReady = Boolean(space?.loaded) && clinicStatus !== 'loading'
+  useEffect(() => {
+    if (slug) void loadPackages(slug)
+  }, [slug])
+  useEffect(() => {
+    if (!held) return
+    const timer = setTimeout(() => setHeld(false), dataReady ? 700 : 8000)
+    return () => clearTimeout(timer)
+  }, [held, dataReady])
   if (!ready || !account || !space || !anamnesis || target) return <Splash />
+  if (held && !target) return <Preparing space={space.summary} />
 
   const unread = space.notices.filter((item) => !item.read).length
   // Exact segment match: /cliente/agendar must not light up /cliente/agenda.

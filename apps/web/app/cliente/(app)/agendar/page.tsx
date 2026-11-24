@@ -94,6 +94,8 @@ export default function BookingPage() {
     const search = new URLSearchParams(window.location.search)
     // eslint-disable-next-line react-hooks/set-state-in-effect -- one-time read of the URL after hydration
     setParams({ service: search.get('servico'), move: search.get('remarcar') })
+    // Coming from a chosen service ("Escolher horário"): the next step is the time.
+    if (search.get('servico')) setAt('time')
   }, [])
 
   const slug = space?.summary.slug ?? null

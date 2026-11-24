@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from 'next'
 import type { ReactNode } from 'react'
 import { ClientRoot } from '../../components/client-app/shell'
 import './cliente.css'
+import './cliente-polish.css'
 
 export const metadata: Metadata = {
   title: { default: 'Área do cliente', template: '%s | Luminix' },

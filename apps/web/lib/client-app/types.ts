@@ -158,3 +158,16 @@ export type Availability = {
   /** Free start times per professional id; "" is the single agenda of a space without team. */
   slots: Record<string, string[]>
 }
+
+/** A package the space sells (sessions of one service, or a combo). Sold by the team. */
+export type SpacePackage = {
+  id: string
+  name: string
+  kind: 'sessions' | 'combo'
+  sessions: number
+  priceCents: number
+  validityDays: number | null
+  /** The same sessions one by one, when cheaper in the package. */
+  singleCents: number | null
+  items: { serviceId: string; name: string; sessions: number }[]
+}

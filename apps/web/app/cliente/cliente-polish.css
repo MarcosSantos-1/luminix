@@ -1,0 +1,976 @@
+/* Client area — finish layer (loaded after cliente.css).
+   No hard outlines: surfaces are separated by light, layered shadows and very soft tints of the
+   space's own colors. Selection is a tinted surface with a glow, never a black stroke. Motion is
+   short and calm, and everything stops with "reduce motion". */
+
+.ca {
+  --tint: color-mix(in srgb, var(--accent) 7%, #fff);
+  --tint-strong: color-mix(in srgb, var(--accent) 14%, #fff);
+  --surface: linear-gradient(180deg, #ffffff 0%, color-mix(in srgb, var(--light) 28%, #fff) 100%);
+  --surface-hover: linear-gradient(
+    180deg,
+    #ffffff 0%,
+    color-mix(in srgb, var(--light) 55%, #fff) 100%
+  );
+  --deep-grad: linear-gradient(
+    140deg,
+    color-mix(in srgb, var(--deep) 92%, var(--accent)) 0%,
+    var(--deep) 55%,
+    color-mix(in srgb, var(--deep) 78%, #000) 100%
+  );
+  --accent-grad: linear-gradient(
+    140deg,
+    color-mix(in srgb, var(--accent) 88%, #fff) 0%,
+    var(--accent) 50%,
+    color-mix(in srgb, var(--accent) 70%, var(--deep)) 100%
+  );
+  --edge: inset 0 1px 0 rgba(255, 255, 255, 0.9);
+  --shadow-sm: 0 1px 2px rgba(23, 23, 28, 0.04), 0 4px 14px rgba(23, 23, 28, 0.05);
+  --shadow: 0 2px 6px rgba(23, 23, 28, 0.04), 0 16px 38px rgba(23, 23, 28, 0.07);
+  --shadow-lg: 0 4px 10px rgba(23, 23, 28, 0.05), 0 28px 60px rgba(23, 23, 28, 0.12);
+  --glow: 0 0 0 4px color-mix(in srgb, var(--accent) 16%, transparent);
+  --picked:
+    0 10px 26px color-mix(in srgb, var(--accent) 22%, transparent),
+    0 0 0 1.5px color-mix(in srgb, var(--accent) 38%, transparent);
+  --ease: cubic-bezier(0.2, 0.8, 0.2, 1);
+  background:
+    radial-gradient(
+      1100px 520px at 100% -10%,
+      color-mix(in srgb, var(--accent) 7%, transparent),
+      transparent 70%
+    ),
+    radial-gradient(
+      900px 480px at -10% 30%,
+      color-mix(in srgb, var(--light) 70%, transparent),
+      transparent 70%
+    ),
+    var(--bg);
+  background-attachment: fixed;
+}
+
+/* Focus: a soft halo, never a box drawn inside a field. */
+.ca :focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--accent) 55%, transparent);
+  outline-offset: 3px;
+}
+.ca input:focus-visible,
+.ca textarea:focus-visible,
+.ca select:focus-visible {
+  outline: none;
+}
+
+/* ── Buttons ──────────────────────────────────────────────── */
+.ca-button {
+  position: relative;
+  overflow: hidden;
+  background: var(--deep-grad) !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.16),
+    0 10px 24px color-mix(in srgb, var(--deep) 26%, transparent);
+  transition:
+    transform 0.18s var(--ease),
+    box-shadow 0.25s var(--ease),
+    opacity 0.15s;
+}
+/* A light that sweeps across on hover. */
+.ca-button::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    110deg,
+    transparent 30%,
+    rgba(255, 255, 255, 0.16) 50%,
+    transparent 70%
+  );
+  transform: translateX(-110%);
+  transition: transform 0.7s var(--ease);
+  pointer-events: none;
+}
+.ca-button:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.18),
+    0 16px 32px color-mix(in srgb, var(--deep) 32%, transparent);
+}
+.ca-button:hover:not(:disabled)::after {
+  transform: translateX(110%);
+}
+.ca-button:active:not(:disabled) {
+  transform: scale(0.98);
+}
+.ca-button:disabled {
+  opacity: 0.45;
+  box-shadow: none;
+}
+.ca-button.ghost,
+.ca-button.danger {
+  background: var(--surface) !important;
+  box-shadow: var(--edge), var(--shadow-sm);
+}
+.ca-button.ghost:hover:not(:disabled),
+.ca-button.danger:hover:not(:disabled) {
+  background: var(--surface-hover) !important;
+  box-shadow: var(--edge), var(--shadow);
+}
+.ca-button.ghost::after,
+.ca-button.danger::after {
+  display: none;
+}
+.ca-icon-button {
+  background: var(--surface) !important;
+  box-shadow: var(--edge), var(--shadow-sm);
+  transition:
+    transform 0.18s var(--ease),
+    box-shadow 0.2s;
+}
+.ca-icon-button:hover {
+  transform: translateY(-1px);
+  box-shadow: var(--edge), var(--shadow);
+}
+.ca-icon-button.solid {
+  background: var(--deep-grad) !important;
+  box-shadow: 0 8px 20px color-mix(in srgb, var(--deep) 28%, transparent);
+}
+.ca-filter-button {
+  background: var(--deep-grad) !important;
+  box-shadow: 0 10px 22px color-mix(in srgb, var(--deep) 26%, transparent);
+  transition: transform 0.18s var(--ease);
+}
+.ca-filter-button:hover {
+  transform: translateY(-1px);
+}
+
+/* ── Fields ───────────────────────────────────────────────── */
+.ca-search {
+  background: var(--surface);
+  box-shadow: var(--edge), var(--shadow);
+  transition: box-shadow 0.25s var(--ease);
+}
+.ca-search:focus-within {
+  box-shadow: var(--edge), var(--shadow), var(--glow);
+}
+.ca-search:focus-within > svg {
+  color: var(--accent);
+}
+.ca-search-soft {
+  background: color-mix(in srgb, var(--light) 55%, #fff);
+  box-shadow: inset 0 1px 2px rgba(23, 23, 28, 0.05);
+}
+.ca-search-soft:focus-within {
+  background: #fff;
+  box-shadow:
+    inset 0 1px 2px rgba(23, 23, 28, 0.04),
+    var(--glow);
+}
+.ca-search button {
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--light) 70%, transparent);
+}
+.ca-form input:not([type='checkbox'], [type='radio'], [type='file']),
+.ca-form textarea {
+  border: 0;
+  background: color-mix(in srgb, var(--light) 45%, #fff);
+  box-shadow: inset 0 1px 2px rgba(23, 23, 28, 0.05);
+  transition:
+    box-shadow 0.25s var(--ease),
+    background 0.2s;
+}
+.ca-form input:focus,
+.ca-form textarea:focus {
+  background: #fff;
+  box-shadow:
+    inset 0 1px 2px rgba(23, 23, 28, 0.04),
+    var(--glow);
+}
+
+/* ── Surfaces ─────────────────────────────────────────────── */
+.ca-list > li,
+.ca-service,
+.ca-rail-card:not([data-tone='dark']),
+.ca-calendar,
+.ca-empty,
+.ca-stats div:not(:first-child),
+.ca-card-step,
+.ca-review,
+.ca-profile-grid section,
+.ca-space-preview {
+  background: var(--surface) !important;
+  box-shadow: var(--edge), var(--shadow);
+}
+.ca-card-step {
+  position: relative;
+  overflow: hidden;
+}
+/* A faint wash of the space's color in the corner of each step. */
+.ca-card-step::before {
+  content: '';
+  position: absolute;
+  top: -120px;
+  right: -120px;
+  width: 280px;
+  height: 280px;
+  border-radius: 50%;
+  background: radial-gradient(
+    circle,
+    color-mix(in srgb, var(--accent) 9%, transparent),
+    transparent 70%
+  );
+  pointer-events: none;
+}
+.ca-card-step > * {
+  position: relative;
+}
+.ca-list > li {
+  transition:
+    transform 0.2s var(--ease),
+    box-shadow 0.25s var(--ease);
+}
+.ca-list > li:has(> button, > a):hover {
+  transform: translateY(-2px);
+  box-shadow: var(--edge), var(--shadow-lg);
+}
+.ca-service {
+  position: relative;
+  align-items: center;
+  transition:
+    transform 0.22s var(--ease),
+    box-shadow 0.25s var(--ease);
+}
+.ca-service:hover {
+  transform: translateY(-3px);
+  box-shadow: var(--edge), var(--shadow-lg);
+}
+.ca-service-art {
+  position: relative;
+  background: linear-gradient(145deg, var(--tint-strong), var(--light));
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.6);
+}
+.ca-service-art img {
+  transition: transform 0.5s var(--ease);
+}
+.ca-service:hover .ca-service-art img {
+  transform: scale(1.06);
+}
+.ca-service-go {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 32px;
+  height: 32px;
+  margin-left: auto;
+  border-radius: 50%;
+  background: var(--tint);
+  color: var(--deep);
+  opacity: 0;
+  transform: translateX(-6px);
+  transition:
+    opacity 0.2s,
+    transform 0.25s var(--ease);
+}
+.ca-service:hover .ca-service-go {
+  opacity: 1;
+  transform: none;
+}
+.ca-rail-card {
+  transition:
+    transform 0.22s var(--ease),
+    box-shadow 0.25s var(--ease);
+}
+.ca-rail-card:hover {
+  transform: translateY(-3px);
+  box-shadow: var(--edge), var(--shadow-lg);
+}
+.ca-rail-card[data-tone='dark'],
+.ca-stats div:first-child,
+.ca-event[data-tone='dark'] .ca-event-card,
+.ca-slide:not([data-kind='notice']):not([data-kind='promo']) {
+  background: var(--deep-grad);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.1),
+    0 18px 40px color-mix(in srgb, var(--deep) 28%, transparent);
+}
+.ca-slide[data-kind='promo'] {
+  background: var(--accent-grad);
+  box-shadow: 0 18px 40px color-mix(in srgb, var(--accent) 30%, transparent);
+}
+.ca-slide[data-kind='notice'] {
+  background: linear-gradient(140deg, #fff, var(--tint-strong));
+  box-shadow: var(--edge), var(--shadow);
+}
+.ca-hero {
+  background:
+    radial-gradient(
+      600px 260px at 85% 0%,
+      color-mix(in srgb, var(--accent) 35%, transparent),
+      transparent 70%
+    ),
+    var(--deep-grad);
+}
+.ca-rail-card i,
+.ca-actions a > span {
+  transition: transform 0.25s var(--ease);
+}
+.ca-rail-card:hover i {
+  transform: translateX(3px);
+}
+.ca-actions a > span {
+  background: var(--surface) !important;
+  box-shadow: var(--edge), var(--shadow-sm);
+}
+.ca-actions a:hover > span {
+  transform: translateY(-2px);
+  box-shadow: var(--edge), var(--shadow);
+}
+.ca-date-tile,
+.ca-list-icon {
+  background: linear-gradient(160deg, var(--tint-strong), var(--light));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.7);
+}
+
+/* Notes: a soft tinted glass with the icon in a chip, never a flat yellow slab. */
+.ca-flag-note,
+.ca-pay-due {
+  position: relative;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  border-radius: 18px;
+  background: linear-gradient(120deg, #fff8ea 0%, #fffdf8 100%);
+  box-shadow:
+    var(--edge),
+    0 6px 18px rgba(156, 106, 0, 0.08);
+  color: #6b4806;
+}
+.ca-flag-note > svg {
+  box-sizing: content-box;
+  margin: 0;
+  padding: 7px;
+  border-radius: 11px;
+  background: #ffe9bd;
+  color: #8a5a00;
+}
+.ca-flag-note.is-strong {
+  background: linear-gradient(120deg, var(--tint) 0%, #fff 100%);
+  box-shadow:
+    var(--edge),
+    0 6px 18px color-mix(in srgb, var(--accent) 10%, transparent);
+  color: var(--ink);
+}
+.ca-flag-note.is-strong > svg {
+  background: var(--tint-strong);
+  color: var(--deep);
+}
+.ca-flag[data-kind='special'] {
+  background: linear-gradient(120deg, #fff0cf, #fff7e6);
+}
+.ca-flag[data-kind='deposit'] {
+  background: linear-gradient(120deg, var(--tint-strong), var(--tint));
+}
+
+/* ── Pickers ──────────────────────────────────────────────── */
+.ca-chips button,
+.ca-times button,
+.ca-days button,
+.ca-team button,
+.ca-methods button,
+.ca-amounts button,
+.ca-booking .ca-pick-list button,
+.ca-pick-list button {
+  background: var(--surface) !important;
+  box-shadow: var(--edge), var(--shadow-sm);
+  transition:
+    transform 0.18s var(--ease),
+    box-shadow 0.25s var(--ease),
+    background 0.2s,
+    color 0.2s;
+}
+.ca-chips button:hover,
+.ca-times button:hover,
+.ca-days button:hover,
+.ca-team button:hover,
+.ca-methods button:hover,
+.ca-amounts button:hover,
+.ca-pick-list button:hover {
+  transform: translateY(-1px);
+  box-shadow: var(--edge), var(--shadow);
+}
+.ca-team button[aria-checked='true'],
+.ca-methods button[aria-checked='true'],
+.ca-amounts button[aria-checked='true'],
+.ca-booking .ca-pick-list button[aria-pressed='true'] {
+  background: linear-gradient(160deg, #fff, var(--tint-strong)) !important;
+  box-shadow: var(--edge), var(--picked);
+}
+.ca-methods button[aria-checked='true'] > svg,
+.ca-amounts button[aria-checked='true'] > svg {
+  color: var(--accent);
+}
+.ca-methods button > svg,
+.ca-amounts button > svg {
+  box-sizing: content-box;
+  flex: none;
+  padding: 9px;
+  border-radius: 13px;
+  background: var(--tint);
+  color: var(--deep);
+  transition: background 0.2s;
+}
+.ca-methods button[aria-checked='true'] > svg,
+.ca-amounts button[aria-checked='true'] > svg {
+  background: #fff;
+  box-shadow: var(--shadow-sm);
+}
+.ca-chips button[aria-pressed='true'],
+.ca-times button[aria-pressed='true'],
+.ca-days button[aria-pressed='true'],
+.ca-cal-grid button[aria-pressed='true'] {
+  background: var(--deep-grad) !important;
+  color: #fff;
+  box-shadow: 0 8px 20px color-mix(in srgb, var(--deep) 26%, transparent);
+  animation: ca-pop 0.32s var(--ease);
+}
+.ca-chip-special {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.ca-chip-special:not([aria-pressed='true']) {
+  background: linear-gradient(120deg, var(--tint-strong), #fff) !important;
+  color: var(--deep);
+}
+.ca-chip-special b {
+  display: grid;
+  place-items: center;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: var(--deep);
+  color: #fff;
+  font-size: 11px;
+}
+.ca-chip-special[aria-pressed='true'] b {
+  background: #fff;
+  color: var(--deep);
+}
+/* The shadow of a chosen day needs room inside the scrolling row. */
+.ca-days {
+  padding-top: 6px;
+  padding-bottom: 20px;
+  margin-bottom: -10px;
+}
+.ca-chips,
+.ca-team {
+  padding-top: 6px;
+  padding-bottom: 14px;
+  margin-bottom: -8px;
+}
+.ca-cal-grid button {
+  transition:
+    background 0.2s,
+    transform 0.18s var(--ease);
+}
+.ca-cal-grid button:hover:not([aria-pressed='true']) {
+  background: var(--tint);
+}
+.ca-cal-grid button[data-today]:not([aria-pressed='true']) {
+  background: var(--tint);
+  box-shadow: none;
+  color: var(--deep);
+}
+.ca-segment {
+  background: color-mix(in srgb, var(--light) 80%, #fff);
+  box-shadow: inset 0 1px 3px rgba(23, 23, 28, 0.06);
+}
+.ca-segment button[aria-selected='true'] {
+  background: var(--surface);
+  box-shadow: var(--edge), var(--shadow-sm);
+}
+
+/* Booking: the chosen service reads as a soft ribbon. */
+.ca-booking .ca-picked {
+  background: linear-gradient(120deg, var(--tint-strong) 0%, #fff 90%);
+  box-shadow: var(--edge), var(--shadow-sm);
+}
+.ca-stepper button > span {
+  background: var(--surface);
+  box-shadow: var(--edge), var(--shadow-sm);
+  transition:
+    background 0.3s,
+    box-shadow 0.3s,
+    transform 0.3s var(--ease);
+}
+.ca-stepper [data-state='current'] button > span {
+  background: var(--deep-grad);
+  box-shadow:
+    0 6px 16px color-mix(in srgb, var(--deep) 28%, transparent),
+    var(--glow);
+  transform: scale(1.08);
+}
+.ca-stepper [data-state='done'] button > span {
+  background: linear-gradient(160deg, var(--tint-strong), var(--light));
+}
+.ca-stepper li + li::before {
+  transition: background 0.4s;
+}
+.ca-review div + div {
+  border-top-color: color-mix(in srgb, var(--line) 60%, transparent);
+}
+.ca-review-total {
+  margin: 4px -16px -6px;
+  padding: 14px 16px !important;
+  border-radius: 0 0 22px 22px;
+  background: linear-gradient(120deg, var(--tint-strong), var(--tint));
+}
+
+/* ── Packages ─────────────────────────────────────────────── */
+.ca-packages > header {
+  align-items: center;
+}
+.ca-packages h2 {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.ca-packages h2 svg {
+  color: var(--accent);
+}
+.ca-package-grid {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 250px), 1fr));
+}
+.ca-package {
+  position: relative;
+  overflow: hidden;
+  display: grid;
+  align-content: start;
+  gap: 6px;
+  width: 100%;
+  height: 100%;
+  padding: 18px;
+  border-radius: 26px;
+  background: var(--deep-grad);
+  color: #fff;
+  text-align: left;
+  cursor: pointer;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.12),
+    0 18px 40px color-mix(in srgb, var(--deep) 26%, transparent);
+  transition:
+    transform 0.25s var(--ease),
+    box-shadow 0.3s var(--ease);
+}
+.ca-package::before {
+  content: '';
+  position: absolute;
+  top: -60px;
+  right: -40px;
+  width: 200px;
+  height: 200px;
+  border-radius: 50%;
+  background: radial-gradient(
+    circle,
+    color-mix(in srgb, var(--accent) 55%, transparent),
+    transparent 70%
+  );
+  opacity: 0.7;
+  transition: transform 0.6s var(--ease);
+  pointer-events: none;
+}
+.ca-package:hover {
+  transform: translateY(-3px);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.14),
+    0 24px 50px color-mix(in srgb, var(--deep) 34%, transparent);
+}
+.ca-package:hover::before {
+  transform: scale(1.25);
+}
+.ca-package > * {
+  position: relative;
+}
+.ca-package small {
+  color: rgba(255, 255, 255, 0.72);
+}
+.ca-package strong {
+  font-family: var(--font-display), sans-serif;
+  font-size: 19px;
+  line-height: 1.15;
+}
+.ca-package-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 6px;
+}
+.ca-package-icon {
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 13px;
+  background: rgba(255, 255, 255, 0.14);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.2);
+}
+.ca-package-top em {
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: #fff;
+  color: var(--deep);
+  font-size: 12px;
+  font-style: normal;
+  font-weight: 800;
+}
+.ca-package-items {
+  color: rgba(255, 255, 255, 0.78);
+  font-size: 13px;
+  line-height: 1.4;
+}
+.ca-package-price {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 8px;
+  margin-top: 8px;
+  padding-top: 12px;
+  border-top: 1px solid rgba(255, 255, 255, 0.14);
+}
+.ca-package-price s {
+  color: rgba(255, 255, 255, 0.55);
+  font-size: 13px;
+}
+.ca-package-price b {
+  font-family: var(--font-display), sans-serif;
+  font-size: 20px;
+}
+.ca-package-price small {
+  flex-basis: 100%;
+}
+.ca-package-hero {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 16px;
+  border-radius: 22px;
+  background: var(--deep-grad);
+  color: #fff;
+  box-shadow: 0 14px 32px color-mix(in srgb, var(--deep) 24%, transparent);
+}
+.ca-package-hero > span:last-child {
+  display: grid;
+  gap: 2px;
+}
+.ca-package-hero small {
+  color: rgba(255, 255, 255, 0.72);
+}
+.ca-package-hero strong {
+  font-family: var(--font-display), sans-serif;
+  font-size: 24px;
+}
+.ca-package-hero em {
+  color: #b8f5cf;
+  font-size: 13px;
+  font-style: normal;
+  font-weight: 700;
+}
+.ca-package-list {
+  display: grid;
+  gap: 6px;
+}
+.ca-package-list li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  border-radius: 14px;
+  background: var(--surface);
+  box-shadow: var(--edge), var(--shadow-sm);
+}
+.ca-package-list b {
+  display: grid;
+  place-items: center;
+  min-width: 34px;
+  height: 26px;
+  border-radius: 9px;
+  background: var(--tint-strong);
+  color: var(--deep);
+  font-size: 12.5px;
+}
+
+/* ── Sheets (modals) ──────────────────────────────────────── */
+.ca-sheet-wrap {
+  background: rgba(15, 15, 20, 0.42);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+}
+.ca-sheet {
+  background:
+    radial-gradient(
+      420px 200px at 100% 0%,
+      color-mix(in srgb, var(--accent) 8%, transparent),
+      transparent 70%
+    ),
+    var(--bg);
+  box-shadow: 0 -10px 40px rgba(15, 15, 20, 0.18);
+  animation: ca-sheet-in 0.36s var(--ease);
+}
+.ca-sheet > * {
+  animation: ca-up 0.42s var(--ease) both;
+}
+.ca-sheet > *:nth-child(2) {
+  animation-delay: 0.04s;
+}
+.ca-sheet > *:nth-child(3) {
+  animation-delay: 0.08s;
+}
+.ca-sheet > *:nth-child(n + 4) {
+  animation-delay: 0.12s;
+}
+.ca-sheet-wrap[data-closing] {
+  animation: ca-fade-out 0.2s ease forwards;
+}
+.ca-sheet-wrap[data-closing] .ca-sheet {
+  animation: ca-sheet-out 0.2s ease forwards;
+}
+.ca-detail dl {
+  padding: 2px 16px;
+  border-radius: 18px;
+  background: var(--surface);
+  box-shadow: var(--edge), var(--shadow-sm);
+}
+.ca-detail dl div:first-child {
+  border-top: 0;
+}
+.ca-detail dl div {
+  border-top-color: color-mix(in srgb, var(--line) 60%, transparent);
+}
+@media (min-width: 960px) {
+  .ca-sheet {
+    box-shadow: var(--shadow-lg);
+    animation: ca-modal-in 0.34s var(--ease);
+  }
+  .ca-sheet-wrap[data-closing] .ca-sheet {
+    animation: ca-modal-out 0.2s ease forwards;
+  }
+}
+
+/* ── Motion ───────────────────────────────────────────────── */
+/* Pages come in by blocks; lists and grids by item. */
+.ca-page > * {
+  animation: ca-up 0.5s var(--ease) both;
+}
+.ca-page > *:nth-child(2) {
+  animation-delay: 0.05s;
+}
+.ca-page > *:nth-child(3) {
+  animation-delay: 0.1s;
+}
+.ca-page > *:nth-child(4) {
+  animation-delay: 0.15s;
+}
+.ca-page > *:nth-child(n + 5) {
+  animation-delay: 0.2s;
+}
+.ca-list > li,
+.ca-service-grid > li,
+.ca-package-grid > li,
+.ca-pick-list > li,
+.ca-times > button,
+.ca-team > button {
+  animation: ca-up 0.45s var(--ease) both;
+}
+.ca-service-grid > li,
+.ca-package-grid > li {
+  animation-delay: calc(min(var(--i, 0), 10) * 45ms);
+}
+.ca-list > li:nth-child(2),
+.ca-pick-list > li:nth-child(2),
+.ca-times > button:nth-child(2),
+.ca-team > button:nth-child(2) {
+  animation-delay: 0.04s;
+}
+.ca-list > li:nth-child(3),
+.ca-pick-list > li:nth-child(3),
+.ca-times > button:nth-child(3),
+.ca-team > button:nth-child(3) {
+  animation-delay: 0.08s;
+}
+.ca-list > li:nth-child(4),
+.ca-pick-list > li:nth-child(4),
+.ca-times > button:nth-child(4),
+.ca-team > button:nth-child(4) {
+  animation-delay: 0.12s;
+}
+.ca-list > li:nth-child(n + 5),
+.ca-pick-list > li:nth-child(n + 5),
+.ca-times > button:nth-child(n + 5),
+.ca-team > button:nth-child(n + 5) {
+  animation-delay: 0.16s;
+}
+/* The booking step that just opened. */
+.ca-card-step {
+  animation: ca-step-in 0.42s var(--ease) both;
+}
+.ca-done-mark {
+  animation: ca-pop-big 0.6s var(--ease) both;
+  box-shadow:
+    0 14px 34px color-mix(in srgb, var(--deep) 30%, transparent),
+    0 0 0 10px var(--tint);
+}
+
+/* Skeletons: a slow light in the space's tint. */
+.ca-skeleton {
+  background: linear-gradient(
+    100deg,
+    color-mix(in srgb, var(--light) 60%, #fff) 20%,
+    #fff 40%,
+    color-mix(in srgb, var(--light) 60%, #fff) 60%
+  ) !important;
+  background-size: 220% 100% !important;
+  box-shadow: var(--edge);
+  animation: ca-shine 1.6s ease-in-out infinite;
+}
+
+/* Loading screen while the space's data arrives. */
+.ca-preparing {
+  background:
+    radial-gradient(
+      700px 420px at 50% 115%,
+      color-mix(in srgb, var(--accent) 45%, transparent),
+      transparent 70%
+    ),
+    var(--deep-grad);
+}
+.ca-preparing-glow {
+  position: absolute !important;
+  width: 340px;
+  height: 340px;
+  border-radius: 50%;
+  background: radial-gradient(
+    circle,
+    color-mix(in srgb, var(--accent) 40%, transparent),
+    transparent 65%
+  );
+  filter: blur(10px);
+  animation: ca-breathe-glow 3.2s ease-in-out infinite;
+  pointer-events: none;
+}
+.ca-preparing-step {
+  animation: ca-up 0.45s var(--ease) both;
+}
+.ca-preparing[data-waiting] .ca-preparing-bar::after {
+  width: 40%;
+  transform: none;
+  animation: ca-indeterminate 1.3s ease-in-out infinite;
+}
+
+/* Toasts sit on frosted glass. */
+.ca-toast {
+  background: color-mix(in srgb, var(--ink) 88%, transparent);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.08),
+    0 18px 44px rgba(23, 23, 28, 0.3);
+}
+
+@keyframes ca-up {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+}
+@keyframes ca-step-in {
+  from {
+    opacity: 0;
+    transform: translateY(14px) scale(0.985);
+  }
+}
+@keyframes ca-pop {
+  40% {
+    transform: scale(1.06);
+  }
+}
+@keyframes ca-pop-big {
+  from {
+    opacity: 0;
+    transform: scale(0.6) rotate(-8deg);
+  }
+  60% {
+    transform: scale(1.08);
+  }
+}
+@keyframes ca-sheet-in {
+  from {
+    transform: translateY(100%);
+  }
+}
+@keyframes ca-sheet-out {
+  to {
+    transform: translateY(100%);
+  }
+}
+@keyframes ca-modal-in {
+  from {
+    opacity: 0;
+    transform: translateY(16px) scale(0.96);
+  }
+}
+@keyframes ca-modal-out {
+  to {
+    opacity: 0;
+    transform: translateY(10px) scale(0.97);
+  }
+}
+@keyframes ca-fade-out {
+  to {
+    opacity: 0;
+  }
+}
+@keyframes ca-indeterminate {
+  from {
+    transform: translateX(-110%);
+  }
+  to {
+    transform: translateX(260%);
+  }
+}
+@keyframes ca-breathe-glow {
+  50% {
+    transform: scale(1.12);
+    opacity: 0.75;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ca *,
+  .ca *::before,
+  .ca *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+}
+
+/* Inside a white step card, options sit on a faint tint so they read as touchable. */
+.ca-card-step .ca-days button:not([aria-pressed='true']),
+.ca-card-step .ca-times button:not([aria-pressed='true']),
+.ca-card-step .ca-team button:not([aria-checked='true']),
+.ca-card-step .ca-methods button:not([aria-checked='true']),
+.ca-card-step .ca-amounts button:not([aria-checked='true']),
+.ca-card-step .ca-pick-list button:not([aria-pressed='true']) {
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--light) 30%, #fff),
+    color-mix(in srgb, var(--light) 70%, #fff)
+  ) !important;
+  box-shadow:
+    var(--edge),
+    0 1px 2px rgba(23, 23, 28, 0.06);
+}
+.ca-card-step .ca-days button:not([aria-pressed='true']):hover,
+.ca-card-step .ca-times button:not([aria-pressed='true']):hover,
+.ca-card-step .ca-pick-list button:not([aria-pressed='true']):hover {
+  background: linear-gradient(180deg, #fff, var(--tint-strong)) !important;
+}

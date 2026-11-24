@@ -822,6 +822,59 @@ export async function clientRoutes(app: FastifyInstance, dependencies: AuthDepen
     ).rows[0]
   }
 
+  // Packages the space sells (sessions of one service, or a combo), shown in "Serviços". The
+  // team sells them at the space; the client sees what exists and asks for it.
+  app.get<{ Params: { slug: string } }>(
+    '/client/spaces/:slug/packages',
+    { schema: { params: slugParams } },
+    async (request, reply) =>
+      asClient(request, reply, request.params.slug, async (connection, scope) => {
+        const [packages, items] = await Promise.all([
+          connection.query(
+            `SELECT p.id, p.name, p.kind, p.sessions, p.price_cents, p.validity_days
+               FROM luminix.service_packages p
+              WHERE p.clinic_id = $1 AND p.status = 'active'
+                AND NOT EXISTS (
+                  SELECT 1 FROM luminix.service_package_items i
+                    JOIN luminix.services s ON s.clinic_id = i.clinic_id AND s.id = i.service_id
+                   WHERE i.clinic_id = p.clinic_id AND i.package_id = p.id AND s.status <> 'active')
+              ORDER BY p.price_cents, lower(p.name), p.id LIMIT 60`,
+            [scope!.clinicId],
+          ),
+          connection.query(
+            `SELECT i.package_id, i.service_id, i.sessions, s.name, s.price_cents, s.price_type
+               FROM luminix.service_package_items i
+               JOIN luminix.services s ON s.clinic_id = i.clinic_id AND s.id = i.service_id
+              WHERE i.clinic_id = $1 ORDER BY i.package_id, i.position, i.service_id`,
+            [scope!.clinicId],
+          ),
+        ])
+        return {
+          packages: packages.rows.map((row) => {
+            const own = items.rows.filter((item) => String(item.package_id) === String(row.id))
+            // What the same sessions cost one by one, when every service has a fixed price.
+            const single = own.every((item) => item.price_type === 'fixed')
+              ? own.reduce((sum, item) => sum + Number(item.price_cents) * Number(item.sessions), 0)
+              : null
+            return {
+              id: String(row.id),
+              name: String(row.name),
+              kind: row.kind === 'combo' ? 'combo' : 'sessions',
+              sessions: Number(row.sessions),
+              priceCents: Number(row.price_cents),
+              validityDays: row.validity_days == null ? null : Number(row.validity_days),
+              singleCents: single && single > Number(row.price_cents) ? single : null,
+              items: own.map((item) => ({
+                serviceId: String(item.service_id),
+                name: String(item.name),
+                sessions: Number(item.sessions),
+              })),
+            }
+          }),
+        }
+      }),
+  )
+
   app.get<{
     Params: { slug: string }
     Querystring: { serviceId: string; date: string; ignore?: string }

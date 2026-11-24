@@ -514,4 +514,35 @@ describe('pagamento do atendimento pelo app', () => {
     })
     expect(wrong.statusCode).toBe(400)
   })
+
+  it('lists the packages the space sells, with the price one by one', async () => {
+    await asOwner(async () => {
+      const [pkg] = await sql(
+        `INSERT INTO luminix.service_packages (clinic_id, service_id, name, sessions, price_cents, validity_days)
+         VALUES ($1, $2, '4 limpezas', 4, 60000, 120) RETURNING id`,
+        [clinic, service],
+      )
+      await sql(
+        `INSERT INTO luminix.service_package_items (clinic_id, package_id, service_id, sessions)
+         VALUES ($1, $2, $3, 4)`,
+        [clinic, pkg.id, service],
+      )
+    })
+    const listed = await call('ana-online', 'GET', `/client/spaces/${slug}/packages`)
+    expect(listed.statusCode).toBe(200)
+    expect(listed.json().packages).toEqual([
+      expect.objectContaining({
+        name: '4 limpezas',
+        kind: 'sessions',
+        sessions: 4,
+        priceCents: 60000,
+        validityDays: 120,
+        singleCents: 72000,
+        items: [{ serviceId: service, name: 'Limpeza de pele', sessions: 4 }],
+      }),
+    ])
+    expect((await call('estranha', 'GET', `/client/spaces/${slug}/packages`)).statusCode).not.toBe(
+      200,
+    )
+  })
 })

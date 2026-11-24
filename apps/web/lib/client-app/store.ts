@@ -29,6 +29,7 @@ import type {
   Payment,
   SpaceLink,
   SpaceSummary,
+  SpacePackage,
 } from './types'
 
 type ApiAnamnesis = unknown
@@ -801,6 +802,24 @@ export async function resumePayment(slug: string, appointmentId: string) {
     await refreshSpace(slug)
     return { url: null, error: friendly(error) }
   }
+}
+
+const packageCache = new Map<string, Promise<SpacePackage[] | null>>()
+/** Packages of the space; remembered for the visit, a failure is tried again next time. */
+export function loadPackages(slug: string) {
+  let pending = packageCache.get(slug)
+  if (!pending) {
+    pending = api<{ packages: SpacePackage[] }>(
+      `/client/spaces/${encodeURIComponent(slug)}/packages`,
+    )
+      .then((data) => data.packages)
+      .catch(() => null)
+    packageCache.set(slug, pending)
+    void pending.then((value) => {
+      if (!value) packageCache.delete(slug)
+    })
+  }
+  return pending
 }
 
 /** Stripe's receipt of a payment made in the app. */

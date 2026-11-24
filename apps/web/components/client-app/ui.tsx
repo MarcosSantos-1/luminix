@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, type ReactNode } from 'react'
+import { useCallback, useEffect, useState, type ReactNode } from 'react'
 import { CalendarClock, MapPin, ShieldCheck, X } from 'lucide-react'
 import { effectivePrice, formatMoney, initials } from '../../lib/client-app/format'
 import type { Appointment, BookingPolicy, SpaceSummary } from '../../lib/client-app/types'
@@ -64,17 +64,24 @@ export function Sheet({
   onClose: () => void
   children: ReactNode
 }) {
+  // Leaves with its own animation, then tells the page.
+  const [closing, setClosing] = useState(false)
+  const close = useCallback(() => {
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return onClose()
+    setClosing(true)
+    setTimeout(onClose, 200)
+  }, [onClose])
   useEffect(() => {
-    const onKey = (event: KeyboardEvent) => event.key === 'Escape' && onClose()
+    const onKey = (event: KeyboardEvent) => event.key === 'Escape' && close()
     document.addEventListener('keydown', onKey)
     document.body.style.overflow = 'hidden'
     return () => {
       document.removeEventListener('keydown', onKey)
       document.body.style.overflow = ''
     }
-  }, [onClose])
+  }, [close])
   return (
-    <div className="ca-sheet-wrap" onClick={onClose}>
+    <div className="ca-sheet-wrap" data-closing={closing || undefined} onClick={close}>
       <div
         className="ca-sheet"
         role="dialog"
@@ -84,7 +91,7 @@ export function Sheet({
       >
         <header>
           <h2>{title}</h2>
-          <button type="button" className="ca-icon-button" aria-label="Fechar" onClick={onClose}>
+          <button type="button" className="ca-icon-button" aria-label="Fechar" onClick={close}>
             <X size={18} aria-hidden />
           </button>
         </header>
@@ -173,20 +180,48 @@ export function SpaceMap({ space }: { space: SpaceSummary }) {
   )
 }
 
-/** Short transition while the space area is assembled, then `onDone`. */
-export function Preparing({ space, onDone }: { space: SpaceSummary; onDone: () => void }) {
+const waitingSteps = [
+  'Preparando o seu acesso…',
+  'Buscando seus horários…',
+  'Carregando serviços e pacotes…',
+  'Quase lá…',
+]
+
+/**
+ * The space's own loading screen. With `onDone` it is a short transition (entering a space);
+ * without it, it stays while the space's data loads, telling what it is doing.
+ */
+export function Preparing({ space, onDone }: { space: SpaceSummary; onDone?: () => void }) {
+  const [step, setStep] = useState(0)
   useEffect(() => {
+    if (!onDone) return
     const timer = setTimeout(onDone, 2200)
     return () => clearTimeout(timer)
   }, [onDone])
+  useEffect(() => {
+    if (onDone) return
+    const timer = setInterval(
+      () => setStep((value) => Math.min(value + 1, waitingSteps.length - 1)),
+      1400,
+    )
+    return () => clearInterval(timer)
+  }, [onDone])
   return (
-    <div className="ca ca-preparing" data-theme={space.theme} role="status">
+    <div
+      className="ca ca-preparing"
+      data-theme={space.theme}
+      data-waiting={onDone ? undefined : true}
+      role="status"
+    >
       <Lines />
+      <span className="ca-preparing-glow" aria-hidden />
       <span className="ca-preparing-logo">
         <SpaceLogo space={space} size={84} />
       </span>
       <strong>{space.name}</strong>
-      <p>Preparando o seu acesso…</p>
+      <p key={step} className="ca-preparing-step">
+        {onDone ? waitingSteps[0] : waitingSteps[step]}
+      </p>
       <span className="ca-preparing-bar" aria-hidden />
     </div>
   )
