@@ -9,8 +9,12 @@ Problema:
 1. O link é gerado à mão pela equipe. Ainda não sai sozinho ao criar o agendamento nem em um job
    de lembrete (24–48 h antes).
 2. WhatsApp é compartilhamento manual (`wa.me`). A API oficial da conta Kommite recusa envio para
-   o Brasil (erro 130497, portfólio não verificado); falta verificação da empresa ou número
-   brasileiro próprio e o template de utilidade com o link.
+   qualquer número do Brasil (erro 130497). Confirmado pelo suporte da Meta em 2026-11-24: é a
+   verificação da empresa pendente no portfólio Kommite (`1182509990967853`), que exige CNPJ.
+   Sem ela também não dá para cadastrar número brasileiro como remetente. App `1619665652807784`,
+   WABA `1196912292660206`, número de teste `+1 555-163-0285`; receber mensagens funciona.
+   Próximo passo: CNPJ da Kommite → Central de Segurança → Verificação da empresa → template de
+   utilidade com o link.
 3. A pessoa não consegue preencher a anamnese pelo link (sem conta). Hoje a página só avisa que a
    ficha está pendente; criar conta a partir dela duplicaria a ficha (ADR-029).
 4. "Pediu para remarcar" e "não é a cliente" aparecem só no atendimento: não há aviso no sino nem
