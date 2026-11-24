@@ -8,6 +8,7 @@ import {
   BadgePercent,
   CalendarDays,
   CalendarX,
+  QrCode,
   Check,
   EllipsisVertical,
   Package,
@@ -22,6 +23,7 @@ import { activityDetail, activityKinds, activityTitle, timeAgo } from '../worksp
 import { useWorkspaceSignals, type GoTarget } from '../workspace/workspace-signals'
 import { managerUpdates } from '../manager-updates'
 import { HomeBanner } from './home-banner'
+import { DepositChecklist, type PendingDeposit } from './deposit-checklist'
 import { AppointmentSheet, ClientAvatar } from '../appointments/appointment-sheet'
 import { BookingModal, QuickClientModal } from '../appointments/booking-modal'
 import {
@@ -53,6 +55,8 @@ type Dashboard = {
   lowStock?: { name: string; quantity: number; unit: string }[]
   expiringStock?: { name: string; days: number }[]
   activePromotions: number
+  /** Sinais por Pix to check (ADR-037); only for who manages the agenda. */
+  pendingDeposits?: PendingDeposit[]
   activity?: {
     entity: string
     action: string
@@ -199,7 +203,7 @@ export function HomeDashboard({
   const dashboard = useClinicResource<Dashboard>(api, 'dashboard')
   const [notice, setNotice] = useState('')
   const [opened, setOpened] = useState<AppointmentView | null>(null)
-  const [quick, setQuick] = useState<'booking' | 'agenda' | 'client' | null>(null)
+  const [quick, setQuick] = useState<'booking' | 'agenda' | 'client' | 'deposits' | null>(null)
   if (dashboard.error && !dashboard.data)
     return <LoadError message={dashboard.error} onRetry={dashboard.reload} />
   if (!dashboard.data) return <SettingsSkeleton cards={2} />
@@ -247,7 +251,23 @@ export function HomeDashboard({
     onGo && sections.includes('marketing')
       ? onGo({ section: 'marketing', tab: 'promotions' })
       : onNavigate(sections.includes('marketing') ? 'Marketing' : 'Serviços')
+  const deposits = data.pendingDeposits ?? []
+  const reported = deposits.filter((item) => item.status === 'reported').length
   const banners: (Parameters<typeof HomeBanner>[0] & { id: string })[] = [
+    // First: money the client says she already sent is waiting for the team.
+    ...(deposits.length
+      ? [
+          {
+            id: 'deposits',
+            title: 'Sinais para conferir',
+            text: reported
+              ? `${reported === 1 ? '1 cliente avisou' : `${reported} clientes avisaram`} que pagou o sinal por Pix. Confira no extrato e confirme.`
+              : `${deposits.length === 1 ? '1 reserva aguarda' : `${deposits.length} reservas aguardam`} o pagamento do sinal.`,
+            icon: QrCode,
+            action: { label: 'Conferir', onPress: () => setQuick('deposits') },
+          },
+        ]
+      : []),
     ...(latestUpdate && signals?.openUpdates && seenUpdate !== latestUpdate.id
       ? [
           {
@@ -518,6 +538,13 @@ export function HomeDashboard({
         onOpenChange={(open) => setQuick(open ? 'client' : null)}
         onCreated={changed}
         onOpenFull={() => onNavigate('Adicionar cliente')}
+      />
+      <DepositChecklist
+        api={api}
+        isOpen={quick === 'deposits'}
+        items={deposits}
+        onOpenChange={(open) => setQuick(open ? 'deposits' : null)}
+        onConfirmed={changed}
       />
       <QuickModal
         isOpen={quick === 'agenda'}

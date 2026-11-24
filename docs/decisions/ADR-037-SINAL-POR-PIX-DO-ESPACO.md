@@ -58,6 +58,22 @@ os valores em chips; o sinal tem cartão próprio, com a lista de serviços e o 
 lado de cada um; "Se a cliente desistir" só aparece com sinal ligado; um resumo "Como a cliente
 vê" acompanha as mudanças.
 
+### Onboarding, Stripe e onde confirmar (2026-11-23)
+
+- **Onboarding (Pagamentos):** ao escolher sinal sem recebimento pelo app, abre a explicação
+  (`DepositPixExplainer`) e aparecem a chave Pix (tipo reconhecido e máscara ao digitar), o nome
+  e o prazo. A chave é obrigatória para seguir. A API valida e normaliza a chave no rascunho e a
+  migration 0064 (`persist_completed_pix`) copia para `booking_policies` ao concluir.
+- **Configurações:** a mesma explicação abre ao ligar o sinal e no botão “Como funciona?”.
+- **Com recebimento pelo app (Stripe):** a tela não pede chave Pix nem mostra a explicação.
+  **Pendente:** a cobrança do sinal pelo Stripe ainda não existe (TD-009). Sem chave Pix, o
+  servidor não exige sinal, então nesse caso as reservas seguem sem sinal até a cobrança online.
+- **Onde confirmar:** a página Início mostra o aviso “Sinais para conferir” sempre que houver
+  sinal pendente (os informados pela cliente primeiro), com a lista e “Confirmar recebido”. O
+  atendimento na agenda também mostra “Aguardando sinal” / “Sinal informado”.
+- Serviços especiais (aparelho alugado) agendados pela cliente nos dias do aparelho seguem o
+  mesmo fluxo quando marcados com sinal.
+
 ## Alternativas consideradas
 
 - **Esperar o Stripe:** deixaria o recurso parado e cobraria taxa de quem já recebe por Pix.

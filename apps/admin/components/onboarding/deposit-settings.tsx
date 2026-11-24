@@ -1,10 +1,19 @@
-import { Card, Checkbox, Label, Switch } from '@heroui/react'
+import { Button, Card, Checkbox, Label, Switch } from '@heroui/react'
 import { Banknote, CalendarCheck, Check, ChevronDown, Percent, Search, Star } from 'lucide-react'
 import Image from 'next/image'
 import { useRef, useState, type ReactNode } from 'react'
 import type { Payload, Service } from './model'
 import { formatMoney } from './model'
-import { ChoiceCard, GlassField, GlassSelect, type FieldErrors } from './ui'
+import {
+  BlurDialog,
+  ChoiceCard,
+  GlassField,
+  GlassSelect,
+  QuietButton,
+  type FieldErrors,
+} from './ui'
+import { DepositPixExplainer } from './deposit-pix-explainer'
+import { detectPixKeyType, formatPixKey, pixKeyLabels, type PixKeyType } from '@/lib/pix-key'
 import {
   isSpecialService,
   serviceNeedsDeposit,
@@ -331,6 +340,14 @@ export function DepositSettings({
   const regular = payload.services.filter((service) => !isSpecialService(service))
   const charged = payload.services.filter((service) => serviceNeedsDeposit(service, preferences))
   const free = payload.services.filter((service) => !serviceNeedsDeposit(service, preferences))
+  // Without payments in the app, the deposit goes to the space's own Pix (ADR-037).
+  const byPix = enabled && !preferences.acceptInApp
+  const pix = preferences.pix ?? { keyType: null, key: '', holderName: '', holdMinutes: 120 }
+  const [explain, setExplain] = useState(false)
+  const [typeLocked, setTypeLocked] = useState(Boolean(preferences.pix?.keyType))
+  const setPix = (patch: Partial<typeof pix>) =>
+    setPayload({ ...payload, preferences: { ...preferences, pix: { ...pix, ...patch } } })
+  const holdLabel = (minutes: number) => (minutes < 60 ? `${minutes} min` : `${minutes / 60} h`)
   return (
     <Card className="ob2-panel">
       <Card.Content className="ob2-form">
@@ -357,9 +374,26 @@ export function DepositSettings({
             icon={<Banknote size={22} />}
             selected={enabled}
             selection="single"
-            onPress={() => setPayload(withDepositEnabled(payload, true))}
+            onPress={() => {
+              setPayload(withDepositEnabled(payload, true))
+              if (!enabled && !preferences.acceptInApp) setExplain(true)
+            }}
           />
         </div>
+        <BlurDialog
+          isOpen={explain}
+          onOpenChange={setExplain}
+          size="md"
+          title="Como funciona o sinal por Pix"
+          description="Sem pagamento pelo app, a cliente paga o sinal no Pix do seu espaço e você confirma."
+          footer={
+            <Button className="ob2-cta" fullWidth onPress={() => setExplain(false)}>
+              Entendi
+            </Button>
+          }
+        >
+          <DepositPixExplainer holdLabel={holdLabel(pix.holdMinutes)} />
+        </BlurDialog>
         {!enabled && special.length > 0 ? (
           <p className="ob2-rule-example">
             Você tem {special.length}{' '}
@@ -393,6 +427,73 @@ export function DepositSettings({
               />
               <DepositExample percent={percent} services={charged} />
             </div>
+            {byPix ? (
+              <div className="ob2-pix" data-field="pix">
+                <div className="ob2-pix-head">
+                  <strong>Pix que recebe o sinal</strong>
+                  <QuietButton onPress={() => setExplain(true)}>Como funciona?</QuietButton>
+                </div>
+                <div className="ob2-pix-grid">
+                  <GlassSelect
+                    label="Tipo da chave"
+                    value={pix.keyType ?? ''}
+                    placeholder="Escolha"
+                    options={(Object.keys(pixKeyLabels) as PixKeyType[]).map((id) => ({
+                      id,
+                      label: pixKeyLabels[id],
+                    }))}
+                    onChange={(value) => {
+                      const type = value as PixKeyType
+                      setTypeLocked(true)
+                      setPix({ keyType: type, key: formatPixKey(type, pix.key) })
+                    }}
+                  />
+                  <GlassField
+                    label="Chave Pix"
+                    required
+                    field="pixKey"
+                    value={formatPixKey(pix.keyType, pix.key)}
+                    placeholder="CPF, CNPJ, celular, e-mail ou aleatória"
+                    error={fieldErrors.pix}
+                    onChange={(raw) => {
+                      // The mask adds ( ) . / -: detect on the bare digits while typing.
+                      const bare = /[a-z@]/i.test(raw) ? raw : raw.replace(/[^\d+]/g, '')
+                      const type = typeLocked
+                        ? pix.keyType
+                        : (detectPixKeyType(bare) ?? (bare ? pix.keyType : null))
+                      setPix({ keyType: type, key: formatPixKey(type, raw) })
+                    }}
+                  />
+                  <GlassField
+                    label="Nome que aparece no Pix"
+                    value={pix.holderName}
+                    maxLength={60}
+                    placeholder="Opcional: usa o nome do espaço"
+                    onChange={(holderName) => setPix({ holderName })}
+                  />
+                  <GlassSelect
+                    label="Prazo para pagar"
+                    value={String(pix.holdMinutes)}
+                    options={[30, 60, 120, 360, 1440].map((value) => ({
+                      id: String(value),
+                      label: value === 1440 ? '24 h' : holdLabel(value),
+                    }))}
+                    onChange={(value) => setPix({ holdMinutes: Number(value) })}
+                  />
+                </div>
+                <p className="ob2-copy">
+                  {pix.key.trim() && pix.keyType
+                    ? `Reconhecida como ${pixKeyLabels[pix.keyType]}. `
+                    : ''}
+                  A cliente paga direto para essa chave e você confirma na página Início, em “Sinais
+                  para conferir”.
+                </p>
+              </div>
+            ) : enabled ? (
+              <p className="ob2-rule-example">
+                Recebimento pelo app ativo: o sinal é pago no próprio app, sem chave Pix.
+              </p>
+            ) : null}
             <div className="ob2-booking-types" data-field="depositServices">
               {special.length > 0 ? (
                 <SpecialEquipment payload={payload} setPayload={setPayload} />

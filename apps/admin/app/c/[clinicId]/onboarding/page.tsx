@@ -31,6 +31,7 @@ import type { FieldErrors } from '@/components/onboarding/ui'
 import { WelcomeStep } from '@/components/onboarding/welcome'
 import { useStaff } from '@/components/staff-provider'
 import { isCompletePhone } from '@/lib/phone'
+import { pixKeyProblem } from '@/lib/pix-key'
 import { clearSignupPhone, peekSignupPhone } from '@/lib/signup-phone'
 import { untitledClinicName } from '@/lib/staff-destination'
 import { SpaceCopyEffect, SpaceKindProvider } from '@/lib/space-kind'
@@ -494,6 +495,17 @@ export default function OnboardingPage() {
     if (stepInfo[targetStep]?.key === 'payments') {
       const deposit = depositProblem(payload)
       if (deposit) fields[deposit.field] = deposit.message
+      // Sinal without payments in the app: the space's Pix receives it (ADR-037).
+      const pix = payload.preferences.pix
+      if (
+        (payload.preferences.depositScope ?? 'none') !== 'none' &&
+        !payload.preferences.acceptInApp
+      ) {
+        const keyProblem = pix?.key.trim()
+          ? pixKeyProblem(pix.keyType, pix.key)
+          : 'Informe a chave Pix que vai receber o sinal.'
+        if (keyProblem) fields.pix = keyProblem
+      }
     }
     const message = Object.values(fields)[0] ?? ''
     return { message, fields }

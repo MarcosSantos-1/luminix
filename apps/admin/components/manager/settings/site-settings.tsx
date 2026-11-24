@@ -13,6 +13,7 @@ import {
   MessageCircle,
   Paintbrush,
   Flower2,
+  Sparkles,
   TriangleAlert,
   X,
 } from 'lucide-react'
@@ -346,6 +347,10 @@ function SlugEditor({
         text: 'Pode. Quem tiver o link antigo continua chegando ao seu site, porque guardamos o endereço anterior para você. Cada endereço só pode ser usado por um espaço, como acontece no Instagram.',
       }}
     >
+      {/* On a phone the base address sits above the field, which keeps the whole width. */}
+      <span className="slug-base" aria-hidden>
+        {base}
+      </span>
       <TextInputField
         ariaLabel="Endereço do site"
         className="slug-input"
@@ -385,8 +390,13 @@ function SlugEditor({
         </Button>
       ) : null}
       {!dirty && toSlug(clinicName) !== current && toSlug(clinicName).length >= 3 ? (
-        <Button size="sm" variant="ghost" onPress={() => type(toSlug(clinicName))}>
-          <Flower2 size={14} aria-hidden /> Sugerir pelo nome do espaço
+        <Button
+          className="slug-suggest"
+          variant="secondary"
+          onPress={() => type(toSlug(clinicName))}
+        >
+          <Sparkles size={16} aria-hidden /> Sugerir pelo nome do espaço
+          <span className="slug-suggest-preview">{toSlug(clinicName)}</span>
         </Button>
       ) : null}
       {resource.data.previous.length > 0 ? (

@@ -1,4 +1,5 @@
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify'
+import { normalizePixKey, validPixKey, type PixKeyType } from '../../shared/pix.js'
 import { clinicWelcomeEmail } from '../../shared/integrations/email/clinic-emails.js'
 import {
   adminUrl,
@@ -155,6 +156,8 @@ type OnboardingPayload = {
     specialCancellationHours: number
     acceptInApp: boolean
     packagePaymentMode: 'clinic_only' | 'in_app' | 'both'
+    /** Sinal por Pix do espaço (ADR-037), used when payments are not taken in the app. */
+    pix?: { keyType: PixKeyType | null; key: string; holderName: string; holdMinutes: number }
   }
 }
 
@@ -252,6 +255,10 @@ function validPayload(payload: OnboardingPayload): boolean {
     (!payload.preferences.acceptInApp
       ? payload.preferences.packagePaymentMode === 'clinic_only'
       : true) &&
+    // An empty Pix key is fine while filling in; a typed one must match its type.
+    (!payload.preferences.pix?.key.trim() ||
+      (payload.preferences.pix.keyType !== null &&
+        validPixKey(payload.preferences.pix.keyType, payload.preferences.pix.key))) &&
     unique((payload.professionalSchedules ?? []).map((entry) => entry.professionalId)) &&
     (professionalIds.size === 0 ||
       (payload.professionalSchedules ?? []).every(
@@ -1188,6 +1195,22 @@ export async function clinicRoutes(
           specialCancellationHours: { type: 'integer', minimum: 0, maximum: 336 },
           acceptInApp: { type: 'boolean' },
           packagePaymentMode: { type: 'string', enum: ['clinic_only', 'in_app', 'both'] },
+          pix: {
+            type: 'object',
+            additionalProperties: false,
+            required: ['keyType', 'key', 'holderName', 'holdMinutes'],
+            properties: {
+              keyType: {
+                anyOf: [
+                  { type: 'string', enum: ['cpf', 'cnpj', 'email', 'phone', 'random'] },
+                  { type: 'null' },
+                ],
+              },
+              key: { type: 'string', maxLength: 80 },
+              holderName: { type: 'string', maxLength: 60 },
+              holdMinutes: { type: 'integer', minimum: 15, maximum: 1440 },
+            },
+          },
         },
       },
     },
@@ -1291,6 +1314,9 @@ export async function clinicRoutes(
     async (request, reply) => {
       if (!validPayload(request.body.payload))
         return reply.code(400).send({ error: 'Invalid onboarding data' })
+      // The draft keeps the key as the Pix directory stores it (digits, +55...).
+      const pix = request.body.payload.preferences.pix
+      if (pix?.key.trim() && pix.keyType) pix.key = normalizePixKey(pix.keyType, pix.key)
       return authorized(
         request,
         reply,

@@ -9,7 +9,8 @@ precedência serviço → especial (`manual_release`) → espaço; remarcação 
 mesmo prazo; sinal por Pix do espaço com reserva, confirmação pela equipe e expiração (ADR-037).
 Ainda pendente: ciência/aceite das regras guardado por reserva (versão aceita), recado publicado no
 portal antes da confirmação, isenção administrativa auditada, devolução/retenção do sinal
-registradas no sistema (hoje manuais) e avisos automáticos.
+registradas no sistema (hoje manuais), avisos automáticos e a **cobrança do sinal pelo Stripe**
+(com recebimento pelo app ativo, a tela não pede chave Pix e o sinal ainda não é cobrado).
 
 Data: 2026-10-25.
 

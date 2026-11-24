@@ -1,5 +1,6 @@
 import type { SpaceTheme } from '@/lib/space-theme'
 import type { SpaceKind } from '@/lib/space-kind'
+import type { PixKeyType } from '@/lib/pix-key'
 import {
   ListChecks,
   MapPin,
@@ -148,6 +149,8 @@ export type Payload = {
     specialCancellationHours: number
     acceptInApp: boolean
     packagePaymentMode: 'clinic_only' | 'in_app' | 'both'
+    /** Sinal por Pix do espaço (ADR-037): only when payments are not taken in the app. */
+    pix?: { keyType: PixKeyType | null; key: string; holderName: string; holdMinutes: number }
   }
 }
 export type Draft = {

@@ -173,6 +173,7 @@ describe('versioned core migration', () => {
       { name: '0061_agreed_appointment_price.sql' },
       { name: '0062_space_kind_and_evaluations.sql' },
       { name: '0063_pix_deposit.sql' },
+      { name: '0064_onboarding_pix.sql' },
     ])
   })
 

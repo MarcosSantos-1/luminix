@@ -222,6 +222,32 @@ export async function insightsRoutes(
           [tenant.clinicId, today],
         )
         result.activePromotions = toNumber(promos.rows[0]?.active)
+        // Sinais por Pix to check (ADR-037): the ones the client says she paid come first.
+        if (can.has('agenda:manage')) {
+          const deposits = await connection.query(
+            `SELECT a.id, a.starts_at, a.deposit_cents, a.deposit_status, a.deposit_due_at,
+                    a.deposit_reported_at, c.display_name AS client, s.name AS service
+               FROM luminix.appointments a
+               JOIN luminix.clinic_clients c ON c.clinic_id = a.clinic_id AND c.id = a.clinic_client_id
+               JOIN luminix.services s ON s.clinic_id = a.clinic_id AND s.id = a.service_id
+              WHERE a.clinic_id = $1 AND a.deposit_status IN ('awaiting', 'reported')
+                AND a.status IN ('scheduled', 'confirmed')
+              ORDER BY a.deposit_status = 'reported' DESC, a.starts_at LIMIT 30`,
+            [tenant.clinicId],
+          )
+          result.pendingDeposits = deposits.rows.map((row) => ({
+            id: String(row.id),
+            startsAt: new Date(String(row.starts_at)).toISOString(),
+            client: String(row.client),
+            service: String(row.service),
+            cents: toNumber(row.deposit_cents),
+            status: String(row.deposit_status),
+            dueAt: new Date(String(row.deposit_due_at)).toISOString(),
+            reportedAt: row.deposit_reported_at
+              ? new Date(String(row.deposit_reported_at)).toISOString()
+              : null,
+          }))
+        }
         if (can.has('audit:read')) {
           const activity = await connection.query(
             'SELECT * FROM luminix.list_recent_activity($1::uuid, 8)',

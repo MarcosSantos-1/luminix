@@ -539,7 +539,8 @@
   transform: none;
 }
 
-.ob2 .button.ob2-cta {
+.ob2 .button.ob2-cta,
+.ob2-dialog .button.ob2-cta {
   position: relative;
   isolation: isolate;
   overflow: hidden;

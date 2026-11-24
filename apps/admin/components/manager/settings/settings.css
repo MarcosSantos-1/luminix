@@ -1691,3 +1691,74 @@
     grid-template-columns: minmax(0, 1fr);
   }
 }
+
+/* Endereço do site: the field never grows past the card (mobile overflow). */
+.slug-input,
+.slug-input > .textfield,
+.slug-input .input-group {
+  min-width: 0;
+  max-width: 100%;
+}
+.slug-input .input-group__input {
+  width: 100%;
+  min-width: 0;
+  font-weight: 700;
+}
+.slug-input .slug-prefix {
+  flex: none;
+  white-space: nowrap;
+}
+.slug-base {
+  display: none;
+  color: var(--manager-muted);
+  font-size: 13px;
+  word-break: break-all;
+}
+@media (max-width: 560px) {
+  .slug-base {
+    display: block;
+    margin-bottom: -6px;
+  }
+  .slug-input .slug-prefix {
+    display: none;
+  }
+}
+
+/* "Sugerir pelo nome": a real button, with the suggestion visible. */
+.settings-stack .button.slug-suggest {
+  justify-self: start;
+  flex-wrap: wrap;
+  gap: 8px;
+  min-height: 46px;
+  height: auto;
+  padding: 8px 16px;
+  border: 1px solid color-mix(in srgb, var(--space-highlight, #ffb5d3) 70%, transparent);
+  border-radius: 14px;
+  color: #fff;
+  background: linear-gradient(
+    120deg,
+    color-mix(in srgb, var(--space-accent, #ec287a) 70%, transparent),
+    color-mix(in srgb, var(--space-accent, #ec287a) 35%, transparent)
+  );
+  box-shadow: 0 8px 20px color-mix(in srgb, var(--space-accent, #ec287a) 30%, transparent);
+  font-weight: 700;
+  white-space: normal;
+  text-align: left;
+}
+.settings-stack .button.slug-suggest:hover {
+  filter: brightness(1.08);
+}
+.slug-suggest-preview {
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: #00000033;
+  font-size: 12px;
+  font-weight: 600;
+  word-break: break-all;
+}
+@media (max-width: 560px) {
+  .settings-stack .button.slug-suggest {
+    justify-self: stretch;
+    justify-content: center;
+  }
+}

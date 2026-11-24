@@ -234,3 +234,50 @@ describe('sinal por Pix', () => {
     expect(booked.json()).toMatchObject({ status: 'confirmed', deposit: null })
   })
 })
+
+describe('chave Pix no onboarding', () => {
+  it('copies the key of the completed draft into the rules', async () => {
+    await db.exec('RESET ROLE')
+    const [draftClinic] = await sql(`SELECT c.id FROM luminix.clinics c WHERE c.id = $1`, [clinic])
+    expect(draftClinic).toBeTruthy()
+    const [member] = await sql(
+      'SELECT id FROM luminix.clinic_memberships WHERE clinic_id = $1 LIMIT 1',
+      [clinic],
+    )
+    await sql(
+      `INSERT INTO luminix.onboarding_drafts (clinic_id, created_by_membership_id, payload)
+       VALUES ($1, $2, $3::jsonb)
+       ON CONFLICT (clinic_id) DO UPDATE SET payload = excluded.payload, status = 'draft'`,
+      [
+        clinic,
+        member.id,
+        JSON.stringify({
+          preferences: {
+            acceptInApp: false,
+            pix: { keyType: 'cpf', key: '52998224725', holderName: 'Dona', holdMinutes: 60 },
+          },
+        }),
+      ],
+    )
+    await db.exec(`
+      ALTER TABLE luminix.onboarding_drafts DISABLE TRIGGER USER;
+      ALTER TABLE luminix.onboarding_drafts ENABLE TRIGGER persist_completed_pix;
+    `)
+    await sql("UPDATE luminix.onboarding_drafts SET status = 'completed' WHERE clinic_id = $1", [
+      clinic,
+    ])
+    await db.exec('ALTER TABLE luminix.onboarding_drafts ENABLE TRIGGER USER')
+    const [rules] = await sql(
+      `SELECT pix_key, pix_key_type, pix_holder_name, deposit_hold_minutes
+         FROM luminix.booking_policies WHERE clinic_id = $1`,
+      [clinic],
+    )
+    expect(rules).toEqual({
+      pix_key: '52998224725',
+      pix_key_type: 'cpf',
+      pix_holder_name: 'Dona',
+      deposit_hold_minutes: 60,
+    })
+    await db.exec('SET ROLE luminix_api')
+  })
+})

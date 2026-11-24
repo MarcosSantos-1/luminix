@@ -4922,3 +4922,50 @@
   line-height: 1.55;
   white-space: pre-wrap;
 }
+
+/* Sinais para conferir (ADR-037). */
+.deposit-list {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.deposit-list li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 14px;
+  padding: 12px 14px;
+  border: 1px solid #ffffff1f;
+  border-radius: 16px;
+  background: #ffffff0a;
+}
+.deposit-list li.is-reported {
+  border-color: #8ef0b466;
+  background: #8ef0b412;
+}
+.deposit-list li > div {
+  display: grid;
+  flex: 1 1 220px;
+  gap: 2px;
+  min-width: 0;
+}
+.deposit-list small {
+  color: var(--manager-muted);
+  font-size: 13px;
+}
+.deposit-list-state {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: #ffe08a;
+  font-size: 12px;
+  font-weight: 700;
+}
+.deposit-list li.is-reported .deposit-list-state {
+  color: #8ef0b4;
+}
+.deposit-list b {
+  font-size: 16px;
+}

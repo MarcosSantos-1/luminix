@@ -3,6 +3,7 @@
 import {
   CalendarClock,
   CircleAlert,
+  CircleHelp,
   Eye,
   HandCoins,
   MessageSquareText,
@@ -25,6 +26,10 @@ import {
 } from '@/components/onboarding/attendance-policy'
 import type { Payload, Service } from '@/components/onboarding/model'
 import { money } from '../business/format'
+import { Button } from '@heroui/react'
+import { DepositPixExplainer } from '@/components/onboarding/deposit-pix-explainer'
+import '@/components/onboarding/deposit-settings.css'
+import { QuickModal } from '../quick-modal'
 import {
   detectPixKeyType,
   formatPixKey,
@@ -208,6 +213,7 @@ export function RulesSettings({
     <RulesEditor
       api={api}
       initial={toPayload(clinicName, data, data.rules)}
+      acceptInApp={data.acceptInApp}
       initialPix={
         data.pix
           ? { ...data.pix, key: formatPixKey(data.pix.keyType, data.pix.key) }
@@ -221,11 +227,15 @@ function RulesEditor({
   api,
   initial,
   initialPix,
+  acceptInApp,
 }: {
   api: ClinicApi
   initial: Payload
   initialPix: Pix
+  /** Payments in the app (Stripe): the deposit is paid there, no Pix key. */
+  acceptInApp: boolean
 }) {
+  const [explain, setExplain] = useState(false)
   const [payload, setPayload] = useState<Payload>(initial)
   const [pix, setPix] = useState<Pix>(initialPix)
   // Chosen in the list: typing no longer changes the type.
@@ -264,10 +274,10 @@ function RulesEditor({
   async function save() {
     const found =
       depositProblem(payload) ??
-      (depositOn && (!pix.keyType || !pix.key.trim())
+      (depositOn && !acceptInApp && (!pix.keyType || !pix.key.trim())
         ? { field: 'pix', message: 'Informe a chave Pix que vai receber o sinal.' }
         : null) ??
-      (pix.key.trim() && pixKeyProblem(pix.keyType, pix.key)
+      (!acceptInApp && pix.key.trim() && pixKeyProblem(pix.keyType, pix.key)
         ? { field: 'pix', message: pixKeyProblem(pix.keyType, pix.key)! }
         : null)
     if (found) {
@@ -303,7 +313,7 @@ function RulesEditor({
         : ''
     }.`,
     depositOn && example
-      ? `${example.name}: sinal de ${money(Math.round((example.priceCents * percent) / 100))} por Pix para garantir o horário, pago em até ${holdLabel(pix.holdMinutes)}.`
+      ? `${example.name}: sinal de ${money(Math.round((example.priceCents * percent) / 100))} ${acceptInApp ? 'pelo app' : `por Pix, pago em até ${holdLabel(pix.holdMinutes)}`} para garantir o horário.`
       : 'Não paga nada antes: o pagamento é no dia.',
     depositOn
       ? (sinalOutcomeOptions.find((option) => option.id === outcome)?.title ??
@@ -388,18 +398,44 @@ function RulesEditor({
 
           <SettingsCard
             icon={<QrCode size={20} />}
-            title="Sinal por Pix"
-            description="Um valor pago antes para garantir o horário. A cliente paga no Pix do espaço e você confirma."
+            title={acceptInApp ? 'Sinal' : 'Sinal por Pix'}
+            description={
+              acceptInApp
+                ? 'Um valor pago antes para garantir o horário, pelo próprio app.'
+                : 'Um valor pago antes para garantir o horário. A cliente paga no Pix do espaço e você confirma.'
+            }
+            badge={
+              acceptInApp ? null : (
+                <Button size="sm" variant="secondary" onPress={() => setExplain(true)}>
+                  <CircleHelp size={15} aria-hidden /> Como funciona?
+                </Button>
+              )
+            }
           >
             <Chips
               label="Pedir sinal"
               value={depositOn ? 'on' : 'off'}
               options={[
                 { value: 'off', label: 'Sem sinal' },
-                { value: 'on', label: 'Pedir sinal por Pix' },
+                { value: 'on', label: acceptInApp ? 'Pedir sinal' : 'Pedir sinal por Pix' },
               ]}
-              onChange={(next) => change(withDepositEnabled(payload, next === 'on'))}
+              onChange={(next) => {
+                change(withDepositEnabled(payload, next === 'on'))
+                if (next === 'on' && !depositOn && !acceptInApp) setExplain(true)
+              }}
             />
+            <QuickModal
+              isOpen={explain}
+              onOpenChange={setExplain}
+              size="md"
+              title="Como funciona o sinal por Pix"
+              subtitle="Sem pagamento pelo app, a cliente paga o sinal no Pix do seu espaço e você confirma."
+              footer={<Button onPress={() => setExplain(false)}>Entendi</Button>}
+            >
+              <DepositPixExplainer
+                holdLabel={pix.holdMinutes === 1440 ? '24 h' : holdLabel(pix.holdMinutes)}
+              />
+            </QuickModal>
             {depositOn ? (
               <div className="rules-deposit">
                 <Line title="Quanto do preço" hint="O restante é pago no dia.">
@@ -413,60 +449,74 @@ function RulesEditor({
                     onChange={(depositPercent) => prefs({ depositPercent })}
                   />
                 </Line>
-                <Line title="Prazo para pagar" hint="Sem pagamento, o horário volta a ficar livre.">
-                  <Chips
-                    label="Prazo para pagar o sinal"
-                    value={pix.holdMinutes}
-                    options={[30, 60, 120, 360, 1440].map((value) => ({
-                      value,
-                      label: value === 1440 ? '24 h' : holdLabel(value),
-                    }))}
-                    onChange={(holdMinutes) => changePix({ holdMinutes })}
-                  />
-                </Line>
+                {acceptInApp ? (
+                  <p className="settings-muted">
+                    Recebimento pelo app ativo: o sinal é pago no próprio app, sem chave Pix.
+                  </p>
+                ) : null}
+                {acceptInApp ? null : (
+                  <Line
+                    title="Prazo para pagar"
+                    hint="Sem pagamento, o horário volta a ficar livre."
+                  >
+                    <Chips
+                      label="Prazo para pagar o sinal"
+                      value={pix.holdMinutes}
+                      options={[30, 60, 120, 360, 1440].map((value) => ({
+                        value,
+                        label: value === 1440 ? '24 h' : holdLabel(value),
+                      }))}
+                      onChange={(holdMinutes) => changePix({ holdMinutes })}
+                    />
+                  </Line>
+                )}
 
-                <div
-                  className={`rules-pix${problem?.field === 'pix' ? ' is-invalid' : ''}`}
-                  data-field="pix"
-                >
-                  <SelectField
-                    label="Tipo da chave"
-                    value={pix.keyType ?? ''}
-                    placeholder="Escolha"
-                    options={pixTypes.map(({ id, label }) => ({ id, label }))}
-                    onChange={(value) => {
-                      const type = value as PixKeyType
-                      setTypeLocked(true)
-                      changePix({ keyType: type, key: formatPixKey(type, pix.key) })
-                    }}
-                  />
-                  <TextInputField
-                    label="Chave Pix"
-                    value={pix.key}
-                    maxLength={80}
-                    placeholder={keyType?.placeholder ?? 'CPF, CNPJ, celular, e-mail ou aleatória'}
-                    description={
-                      pix.key.trim() && pix.keyType
-                        ? `Reconhecida como ${pixKeyLabels[pix.keyType]}. Se não for, troque o tipo ao lado.`
-                        : 'Digite a chave: o tipo é reconhecido sozinho.'
-                    }
-                    onChange={(raw) => {
-                      // Our own mask adds ( ) . / -: detect on the bare digits while typing.
-                      const bare = /[a-z@]/i.test(raw) ? raw : raw.replace(/[^\d+]/g, '')
-                      const type = typeLocked
-                        ? pix.keyType
-                        : (detectPixKeyType(bare) ?? (bare ? pix.keyType : null))
-                      changePix({ keyType: type, key: formatPixKey(type, raw) })
-                    }}
-                  />
-                  <TextInputField
-                    label="Nome que aparece no Pix"
-                    value={pix.holderName}
-                    maxLength={60}
-                    placeholder="Opcional: usa o nome do espaço"
-                    onChange={(holderName) => changePix({ holderName })}
-                  />
-                </div>
+                {acceptInApp ? null : (
+                  <div
+                    className={`rules-pix${problem?.field === 'pix' ? ' is-invalid' : ''}`}
+                    data-field="pix"
+                  >
+                    <SelectField
+                      label="Tipo da chave"
+                      value={pix.keyType ?? ''}
+                      placeholder="Escolha"
+                      options={pixTypes.map(({ id, label }) => ({ id, label }))}
+                      onChange={(value) => {
+                        const type = value as PixKeyType
+                        setTypeLocked(true)
+                        changePix({ keyType: type, key: formatPixKey(type, pix.key) })
+                      }}
+                    />
+                    <TextInputField
+                      label="Chave Pix"
+                      value={pix.key}
+                      maxLength={80}
+                      placeholder={
+                        keyType?.placeholder ?? 'CPF, CNPJ, celular, e-mail ou aleatória'
+                      }
+                      description={
+                        pix.key.trim() && pix.keyType
+                          ? `Reconhecida como ${pixKeyLabels[pix.keyType]}. Se não for, troque o tipo ao lado.`
+                          : 'Digite a chave: o tipo é reconhecido sozinho.'
+                      }
+                      onChange={(raw) => {
+                        // Our own mask adds ( ) . / -: detect on the bare digits while typing.
+                        const bare = /[a-z@]/i.test(raw) ? raw : raw.replace(/[^\d+]/g, '')
+                        const type = typeLocked
+                          ? pix.keyType
+                          : (detectPixKeyType(bare) ?? (bare ? pix.keyType : null))
+                        changePix({ keyType: type, key: formatPixKey(type, raw) })
+                      }}
+                    />
+                    <TextInputField
+                      label="Nome que aparece no Pix"
+                      value={pix.holderName}
+                      maxLength={60}
+                      placeholder="Opcional: usa o nome do espaço"
+                      onChange={(holderName) => changePix({ holderName })}
+                    />
+                  </div>
+                )}
 
                 <div
                   className={`rules-services${problem?.field === 'depositServices' ? ' is-invalid' : ''}`}
