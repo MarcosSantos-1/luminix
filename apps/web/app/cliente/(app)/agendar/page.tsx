@@ -187,7 +187,16 @@ export default function BookingPage() {
         {done.deposit && done.id ? (
           <DepositPix slug={space.summary.slug} appointmentId={done.id} deposit={done.deposit} />
         ) : null}
-        <Link className="ca-button" href="/cliente/agenda">
+        <Link
+          className="ca-button"
+          href={
+            done.id
+              ? `/cliente/agenda?horario=${done.id}`
+              : moving
+                ? `/cliente/agenda?horario=${moving.id}`
+                : `/cliente/agenda?dia=${done.start.slice(0, 10)}`
+          }
+        >
           Ver na agenda
         </Link>
         <Link className="ca-link" href="/cliente">
@@ -510,10 +519,24 @@ export default function BookingPage() {
               })}
           </div>
           {current === undefined ? (
-            <div className="ca-times" aria-hidden>
-              {Array.from({ length: 8 }, (_, index) => (
-                <span key={index} className="ca-skeleton ca-time-skeleton" />
-              ))}
+            <div className="ca-slots-loading" role="status">
+              <p>
+                <span className="ca-dots" aria-hidden>
+                  <i />
+                  <i />
+                  <i />
+                </span>
+                Buscando horários livres de {dateLabel(day, 'short')}…
+              </p>
+              <div className="ca-times" aria-hidden>
+                {Array.from({ length: 8 }, (_, index) => (
+                  <span
+                    key={index}
+                    className="ca-skeleton ca-time-skeleton"
+                    style={{ animationDelay: `${index * 70}ms` }}
+                  />
+                ))}
+              </div>
             </div>
           ) : current === null ? (
             <p className="ca-muted">Não foi possível buscar os horários. Tente de novo.</p>

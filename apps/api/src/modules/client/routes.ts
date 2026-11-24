@@ -202,6 +202,7 @@ function sqlFailure(error: unknown) {
   if (message.includes('Cancellation closed')) return { status: 409, error: 'Cancellation closed' }
   if (message.includes('Rescheduling closed')) return { status: 409, error: 'Rescheduling closed' }
   if (message.includes('Deposit unavailable')) return { status: 409, error: 'Deposit unavailable' }
+  if (message.includes('Appointment closed')) return { status: 409, error: 'Appointment closed' }
   if (code === '42501') return { status: 403, error: 'Access denied' }
   if (code === '22023' || code === '23514' || code === '22P02')
     return { status: 400, error: 'Invalid request' }
@@ -430,6 +431,10 @@ export async function clientRoutes(app: FastifyInstance, dependencies: AuthDepen
                   a.created_at, a.client_payment_method, ${appointmentRentalDates} AS rental_dates,
                   a.cancellation_origin, a.canceled_at, a.online_payment_status, a.online_payment_due_at,
                   a.online_payment_kind, a.online_payment_cents,
+                  (a.booking_source = 'client' OR a.client_confirmed_at IS NOT NULL OR EXISTS (
+                    SELECT 1 FROM luminix.appointment_links l
+                     WHERE l.clinic_id = a.clinic_id AND l.appointment_id = a.id
+                       AND l.answer = 'confirmed')) AS presence_confirmed,
                   CASE WHEN a.cancellation_origin IS NOT NULL THEN a.status_note END AS cancel_reason,
                   s.id AS service_id, s.name AS service_name, s.category AS service_category,
                   p.id AS professional_id, p.display_name AS professional_name,
@@ -518,6 +523,8 @@ export async function clientRoutes(app: FastifyInstance, dependencies: AuthDepen
             paid: isPaid(row),
             // Paid in the app (ADR-040): awaiting until the due time, then paid or expired.
             paidCents: Number(row.paid_cents ?? 0),
+            // Booked by the space and not confirmed by the client yet (ADR-043).
+            presenceConfirmed: row.presence_confirmed === true,
             onlinePayment: row.online_payment_status
               ? {
                   status: row.online_payment_status,
@@ -1337,6 +1344,21 @@ export async function clientRoutes(app: FastifyInstance, dependencies: AuthDepen
     async (request, reply) =>
       asClient(request, reply, request.params.slug, async (connection, scope) => {
         await connection.query('SELECT luminix.client_report_deposit($1, $2, $3)', [
+          scope!.clinicId,
+          scope!.clientId,
+          request.params.appointmentId,
+        ])
+        return { ok: true }
+      }),
+  )
+
+  // "Vou, sim": the client confirms a visit the space booked for her (ADR-043).
+  app.post<{ Params: { slug: string; appointmentId: string } }>(
+    '/client/spaces/:slug/appointments/:appointmentId/confirm',
+    { schema: { params: appointmentParams } },
+    async (request, reply) =>
+      asClient(request, reply, request.params.slug, async (connection, scope) => {
+        await connection.query('SELECT luminix.client_confirm_presence($1, $2, $3)', [
           scope!.clinicId,
           scope!.clientId,
           request.params.appointmentId,

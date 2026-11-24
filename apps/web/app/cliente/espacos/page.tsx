@@ -5,11 +5,11 @@ import { useCallback, useEffect, useState } from 'react'
 import {
   ArrowLeft,
   ArrowRight,
-  Check,
   ClipboardCheck,
   ExternalLink,
   FilePlus2,
   Hash,
+  LogOut,
   MapPin,
   Plus,
   Search,
@@ -28,7 +28,14 @@ import { firstName } from '../../../lib/client-app/format'
 import type { SpaceSummary } from '../../../lib/client-app/types'
 import { fetchSpace, searchSpaces } from '../../../components/client-app/use-clinic'
 import { Splash } from '../../../components/client-app/shell'
-import { Empty, Preparing, Sheet, SpaceLogo, SpaceMap } from '../../../components/client-app/ui'
+import {
+  Empty,
+  Lines,
+  Preparing,
+  Sheet,
+  SpaceLogo,
+  SpaceMap,
+} from '../../../components/client-app/ui'
 
 /** One window at a time: list → how to find → search → confirm → record permission. */
 type View = 'list' | 'how' | 'search' | 'confirm' | 'share'
@@ -172,40 +179,60 @@ export default function SpacesPage() {
               <ArrowLeft size={18} aria-hidden />
             </button>
           )}
-          <button type="button" className="ca-link" onClick={signOut}>
-            Sair
+          <button type="button" className="ca-signout-pill" onClick={signOut}>
+            <LogOut size={16} aria-hidden /> Sair
           </button>
         </header>
 
         <div key={current} className="ca-window">
           {current === 'list' && (
             <>
-              <h1>Seus espaços</h1>
-              <p className="ca-lead">
-                Toque para entrar. Horários e histórico são separados por espaço.
-              </p>
-              <ul className="ca-space-list">
-                {linked.map(({ summary }) => (
-                  <li key={summary.slug}>
-                    <button type="button" className="ca-space" onClick={() => open(summary.slug)}>
-                      <SpaceRow space={summary}>
-                        {summary.slug === account.activeSlug && (
-                          <span className="ca-badge" data-status="confirmed">
-                            <Check size={13} aria-hidden /> Atual
-                          </span>
-                        )}
-                      </SpaceRow>
-                    </button>
-                    <button
-                      type="button"
-                      className="ca-icon-button"
-                      aria-label={`Remover ${summary.name}`}
-                      onClick={() => setRemoving(summary)}
+              <h1>
+                Olá, {firstName(account.name)}
+                <span>{linked.length === 1 ? 'Seu espaço' : 'Escolha um espaço'}</span>
+              </h1>
+              <ul className="ca-space-cards" data-count={Math.min(linked.length, 3)}>
+                {[...linked]
+                  .sort(
+                    (a, b) =>
+                      Number(b.summary.slug === account.activeSlug) -
+                      Number(a.summary.slug === account.activeSlug),
+                  )
+                  .map(({ summary }, index) => (
+                    <li
+                      key={summary.slug}
+                      data-theme={summary.theme}
+                      style={{ '--i': index } as React.CSSProperties}
                     >
-                      <Trash2 size={16} aria-hidden />
-                    </button>
-                  </li>
-                ))}
+                      <button
+                        type="button"
+                        className="ca-space-card"
+                        onClick={() => open(summary.slug)}
+                      >
+                        <Lines />
+                        <SpaceLogo space={summary} size={linked.length === 1 ? 84 : 60} />
+                        <span className="ca-space-card-text">
+                          <strong>{summary.name}</strong>
+                          {summary.city || summary.category ? (
+                            <small>
+                              {[summary.category, summary.city].filter(Boolean).join(' · ')}
+                            </small>
+                          ) : null}
+                        </span>
+                        <span className="ca-space-card-go">
+                          Entrar <ArrowRight size={17} aria-hidden />
+                        </span>
+                      </button>
+                      <button
+                        type="button"
+                        className="ca-space-card-remove"
+                        aria-label={`Remover ${summary.name}`}
+                        onClick={() => setRemoving(summary)}
+                      >
+                        <Trash2 size={15} aria-hidden />
+                      </button>
+                    </li>
+                  ))}
               </ul>
               <button type="button" className="ca-add-space" onClick={() => setView('how')}>
                 <span>

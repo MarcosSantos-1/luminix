@@ -1,10 +1,11 @@
 'use client'
 
 import Link from 'next/link'
-import { useEffect, useMemo, useState } from 'react'
-import { CalendarDays, ChevronLeft, ChevronRight, Plus, Rows3 } from 'lucide-react'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { BellRing, CalendarDays, Check, ChevronLeft, ChevronRight, Plus, Rows3 } from 'lucide-react'
 import {
   cancelAppointment,
+  confirmPresence,
   refreshSpace,
   resumePayment,
   useClient,
@@ -41,6 +42,17 @@ export default function AgendaPage() {
   const [open, setOpenState] = useState<Appointment | null>(null)
   const [busy, setBusy] = useState(false)
   const setOpen = (value: Appointment | null) => setOpenState(value)
+  // Arriving from a visit or a day elsewhere (?horario= or ?dia=): that day opens and the visit
+  // shines for a moment above the others.
+  const [focus, setFocus] = useState<string | null>(null)
+  const [pulse, setPulse] = useState(0)
+  function goTo(day: string, appointmentId?: string) {
+    const date = new Date(`${day}T12:00:00`)
+    setSelected(day)
+    setCursor(new Date(date.getFullYear(), date.getMonth(), date.getDate()))
+    setFocus(appointmentId ?? null)
+    setPulse((value) => value + 1)
+  }
 
   // Back from the Stripe page (ADR-040): say what happens next and fetch the confirmation.
   const slug = space?.summary.slug
@@ -64,6 +76,29 @@ export default function AgendaPage() {
       : []
     return () => timers.forEach(clearTimeout)
   }, [slug])
+
+  const pendingLink = useRef(true)
+  useEffect(() => {
+    if (!pendingLink.current || !space?.loaded) return
+    pendingLink.current = false
+    const search = new URLSearchParams(window.location.search)
+    const id = search.get('horario')
+    const day = search.get('dia')
+    const found = id ? space.appointments.find((item) => item.id === id) : null
+    if (!found && !(day && /^d{4}-d{2}-d{2}$/.test(day))) return
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- one-time read of the URL after the data arrives
+    goTo(found ? found.start.slice(0, 10) : day!, found?.id)
+    requestAnimationFrame(() =>
+      document
+        .querySelector(found ? `[data-visit="${found.id}"]` : '.ca-calendar')
+        ?.scrollIntoView({ behavior: 'smooth', block: 'center' }),
+    )
+  }, [space])
+  useEffect(() => {
+    if (!focus) return
+    const timer = setTimeout(() => setFocus(null), 2600)
+    return () => clearTimeout(timer)
+  }, [focus, pulse])
 
   const appointments = useMemo(
     () => [...(space?.appointments ?? [])].sort((a, b) => a.start.localeCompare(b.start)),
@@ -101,6 +136,22 @@ export default function AgendaPage() {
       ['confirmed', 'requested'].includes(displayStatus(item)) && !item.start.startsWith(selected),
   )
   const canChange = open && ['confirmed', 'requested'].includes(displayStatus(open))
+  // Visits the space booked that wait for the client's "vou, sim" (ADR-043).
+  const toConfirm = appointments.filter(
+    (item) =>
+      !item.presenceConfirmed &&
+      ['confirmed', 'requested'].includes(displayStatus(item)) &&
+      new Date(`${item.start}:00-03:00`).getTime() > today.getTime(),
+  )
+  async function confirm(item: Appointment) {
+    if (!space) return
+    setBusy(true)
+    const failure = await confirmPresence(space.summary.slug, item.id)
+    setBusy(false)
+    if (failure) return toast.error('Não foi possível confirmar', failure)
+    toast.success('Presença confirmada', `${item.serviceName} · ${dateLabel(item.start)}`)
+    if (open?.id === item.id) setOpen(null)
+  }
 
   return (
     <div className="ca-page ca-agenda">
@@ -118,7 +169,30 @@ export default function AgendaPage() {
         }
       />
 
-      <section className="ca-calendar">
+      {toConfirm.length > 0 && (
+        <section className="ca-confirm-banner" aria-label="Horários para confirmar">
+          <span className="ca-confirm-banner-icon" aria-hidden>
+            <BellRing size={20} />
+          </span>
+          <div>
+            <strong>
+              {toConfirm.length === 1
+                ? 'O espaço marcou um horário para você'
+                : `O espaço marcou ${toConfirm.length} horários para você`}
+            </strong>
+            <small>Confirme se você vai, para o espaço se organizar.</small>
+          </div>
+          <button
+            type="button"
+            className="ca-chip-button"
+            onClick={() => goTo(toConfirm[0].start.slice(0, 10), toConfirm[0].id)}
+          >
+            Ver
+          </button>
+        </section>
+      )}
+
+      <section className="ca-calendar" key={`cal-${pulse}`} data-pulse={pulse || undefined}>
         <header>
           <button
             type="button"
@@ -183,6 +257,9 @@ export default function AgendaPage() {
               key={item.id}
               type="button"
               className="ca-event"
+              data-visit={item.id}
+              data-focus={focus === item.id || undefined}
+              data-pending={!item.presenceConfirmed || undefined}
               data-tone={index === 0 && displayStatus(item) !== 'cancelled' ? 'dark' : 'light'}
               onClick={() => setOpen(item)}
             >
@@ -196,7 +273,14 @@ export default function AgendaPage() {
                 <small>
                   {item.category} · {durationLabel(item.durationMinutes)}
                 </small>
-                <StatusBadge appointment={item} />
+                <span className="ca-event-tags">
+                  <StatusBadge appointment={item} />
+                  {!item.presenceConfirmed && toConfirm.includes(item) ? (
+                    <span className="ca-badge" data-status="pending">
+                      Confirme sua presença
+                    </span>
+                  ) : null}
+                </span>
               </span>
             </button>
           ))
@@ -213,7 +297,7 @@ export default function AgendaPage() {
         {upcoming.length ? (
           <ul className="ca-list">
             {upcoming.map((item) => (
-              <li key={item.id}>
+              <li key={item.id} data-visit={item.id} data-focus={focus === item.id || undefined}>
                 <button type="button" onClick={() => setOpen(item)}>
                   <span className="ca-date-tile">
                     <b>{item.start.slice(8, 10)}</b>
@@ -332,6 +416,21 @@ export default function AgendaPage() {
               <p className="ca-pay-done">
                 Valor devolvido ✓<small> No Pix volta na hora; no cartão, em alguns dias.</small>
               </p>
+            ) : null}
+            {toConfirm.includes(open) ? (
+              <div className="ca-presence">
+                <p>
+                  <strong>O espaço marcou este horário para você.</strong> Confirme se você vai.
+                </p>
+                <button
+                  type="button"
+                  className="ca-button"
+                  disabled={busy}
+                  onClick={() => void confirm(open)}
+                >
+                  <Check size={18} aria-hidden /> Vou, sim
+                </button>
+              </div>
             ) : null}
             {space.policy?.instructions && <p>{space.policy.instructions}</p>}
           </div>

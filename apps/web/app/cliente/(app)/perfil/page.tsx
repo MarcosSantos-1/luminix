@@ -6,6 +6,8 @@ import { expiresAt, levelNames } from '@luminix/contracts/anamnesis'
 import { useState, type FormEvent, type ReactNode } from 'react'
 import {
   ArrowLeftRight,
+  ExternalLink,
+  MapPin,
   Bell,
   ChevronRight,
   ClipboardList,
@@ -135,18 +137,29 @@ export default function ProfilePage() {
         </div>
       </header>
 
-      <Link href="/cliente/espacos" className="ca-profile-space">
-        <SpaceLogo space={space.summary} size={44} />
-        <span className="ca-list-text">
-          <strong>{space.summary.name}</strong>
-          <small>
-            {spaceCount === 1 ? 'Seu espaço atual' : `Espaço atual · ${spaceCount} vinculados`}
-          </small>
-        </span>
-        <span className="ca-chip-button">
-          <ArrowLeftRight size={15} aria-hidden /> Trocar
-        </span>
-      </Link>
+      <section className="ca-profile-space" aria-label="Seu espaço">
+        <div className="ca-profile-space-head">
+          <SpaceLogo space={space.summary} size={52} />
+          <span className="ca-list-text">
+            <small>
+              {spaceCount === 1 ? 'Seu espaço' : `Espaço atual · ${spaceCount} vinculados`}
+            </small>
+            <strong>{space.summary.name}</strong>
+            {space.summary.city ? <small>{space.summary.city}</small> : null}
+          </span>
+          <Link href="/cliente/espacos" className="ca-chip-button">
+            <ArrowLeftRight size={15} aria-hidden /> Trocar
+          </Link>
+        </div>
+        <div className="ca-profile-space-actions">
+          <a href="/cliente/localizacao" target="_blank" rel="noopener noreferrer">
+            <MapPin size={16} aria-hidden /> Ver localização
+          </a>
+          <a href={`/c/${space.summary.slug}`} target="_blank" rel="noopener noreferrer">
+            <ExternalLink size={16} aria-hidden /> Ver página
+          </a>
+        </div>
+      </section>
 
       <div className="ca-profile-grid">
         <section>
@@ -214,7 +227,7 @@ export default function ProfilePage() {
 
       <button
         type="button"
-        className="ca-button ghost"
+        className="ca-button ghost ca-signout"
         onClick={() => {
           signOut()
           router.replace('/cliente/entrar')

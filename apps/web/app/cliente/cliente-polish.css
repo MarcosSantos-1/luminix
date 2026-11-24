@@ -193,7 +193,6 @@
 .ca-stats div:not(:first-child),
 .ca-card-step,
 .ca-review,
-.ca-profile-grid section,
 .ca-space-preview {
   background: var(--surface) !important;
   box-shadow: var(--edge), var(--shadow);

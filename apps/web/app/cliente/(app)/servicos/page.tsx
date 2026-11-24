@@ -13,7 +13,6 @@ import {
   Search,
   ShieldCheck,
   SlidersHorizontal,
-  Sparkles,
   Tag,
   X,
 } from 'lucide-react'
@@ -263,7 +262,10 @@ export default function ServicesPage() {
         <section className="ca-section ca-packages" aria-label="Pacotes">
           <header>
             <h2>
-              <Sparkles size={18} aria-hidden /> Pacotes
+              <span className="ca-section-icon" aria-hidden>
+                <Gift size={18} />
+              </span>
+              Pacotes
             </h2>
             <small>Mais sessões, melhor preço</small>
           </header>

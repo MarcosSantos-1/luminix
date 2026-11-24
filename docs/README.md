@@ -56,6 +56,7 @@ Assinatura do Luminix (R$ 99,90/mês ou R$ 900/ano, cartão ou Pix, 12 dias grá
 Pagamento do atendimento pelo app na conta Stripe da clínica (horário segurado, webhook, Financeiro): [ADR-040](decisions/ADR-040-PAGAMENTO-DOS-ATENDIMENTOS-PELO-APP.md).
 Situação da conta Stripe com aviso por e-mail, cadastro seguindo durante a análise e "E agora?": [ADR-041](decisions/ADR-041-SITUACAO-DA-CONTA-STRIPE-E-PROXIMOS-PASSOS.md).
 Sinal pelo app (só o sinal ou tudo), restante no espaço, comprovante e agendamento em etapas na área da cliente: [ADR-042](decisions/ADR-042-SINAL-PELO-APP.md).
+Confirmar presença pela área da cliente e pacotes visíveis: [ADR-043](decisions/ADR-043-CONFIRMAR-PRESENCA-E-AREA-DA-CLIENTE.md).
 
 ## Diretórios
 

@@ -6,6 +6,7 @@ import {
   ArrowRight,
   Bell,
   CalendarDays,
+  CalendarPlus,
   ChevronDown,
   Clock,
   History,
@@ -24,7 +25,9 @@ import {
   relativeDay,
   timeLabel,
 } from '../../../lib/client-app/format'
-import { whatsappLink } from '../../../lib/public-clinic'
+import { clinicServicePhotos, whatsappLink } from '../../../lib/public-clinic'
+import { serviceCategoryArt } from '../../../lib/clinic-categories'
+import Image from 'next/image'
 import { useClinic } from '../../../components/client-app/use-clinic'
 import {
   Avatar,
@@ -127,6 +130,7 @@ export default function HomePage() {
   const services = clinic?.services ?? []
   const promos = services.filter((service) => service.promoPercent)
   const contact = whatsappLink(clinic?.whatsapp ?? null)
+  const photos = clinic ? clinicServicePhotos(clinic) : new Map<string, string>()
   const address = [space.summary.address, space.summary.city].filter(Boolean).join(' · ')
 
   const slides: Slide[] = [
@@ -148,7 +152,11 @@ export default function HomePage() {
           </p>
           <div className="ca-slide-foot">
             <StatusBadge appointment={next} />
-            <Link href="/cliente/agenda" className="ca-round" aria-label="Ver na agenda">
+            <Link
+              href={`/cliente/agenda?horario=${next.id}`}
+              className="ca-round"
+              aria-label="Ver na agenda"
+            >
               <ArrowRight size={18} aria-hidden />
             </Link>
           </div>
@@ -202,14 +210,9 @@ export default function HomePage() {
                 <h2>{space.summary.name}</h2>
                 <p className="ca-slide-meta">{address}</p>
                 <div className="ca-slide-foot">
-                  <a
-                    className="ca-chip-button"
-                    href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${space.summary.name} ${address}`)}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                  >
-                    Abrir no mapa <ArrowRight size={16} aria-hidden />
-                  </a>
+                  <Link className="ca-chip-button" href="/cliente/localizacao">
+                    Ver localização <ArrowRight size={16} aria-hidden />
+                  </Link>
                 </div>
               </>
             ),
@@ -235,9 +238,9 @@ export default function HomePage() {
   ]
 
   const actions = [
-    { href: '/cliente/agendar', label: 'Agendar', icon: CalendarDays },
-    { href: '/cliente/agenda', label: 'Meus horários', icon: Clock },
-    { href: '/cliente/historico', label: 'Histórico', icon: History },
+    { href: '/cliente/agendar', label: 'Agendar', icon: CalendarPlus, tone: 'primary' },
+    { href: '/cliente/agenda', label: 'Meus horários', icon: CalendarDays, tone: 'violet' },
+    { href: '/cliente/historico', label: 'Histórico', icon: History, tone: 'amber' },
   ]
 
   return (
@@ -250,6 +253,11 @@ export default function HomePage() {
             <span>{space.summary.name}</span>
             <ChevronDown size={15} aria-hidden />
           </Link>
+          {address || space.summary.mapQuery ? (
+            <Link href="/cliente/localizacao" className="ca-hero-pill">
+              <MapPin size={15} aria-hidden /> <span>Ver localização</span>
+            </Link>
+          ) : null}
           <Link
             href="/cliente/notificacoes"
             className="ca-bell"
@@ -274,8 +282,8 @@ export default function HomePage() {
         <div>
           <Slider slides={slides} />
           <nav className="ca-actions" aria-label="Atalhos">
-            {actions.map(({ href, label, icon: Icon }) => (
-              <Link key={href} href={href}>
+            {actions.map(({ href, label, icon: Icon, tone }) => (
+              <Link key={href} href={href} data-tone={tone}>
                 <span>
                   <Icon size={20} aria-hidden />
                 </span>
@@ -283,7 +291,7 @@ export default function HomePage() {
               </Link>
             ))}
             {contact && (
-              <a href={contact} target="_blank" rel="noopener noreferrer">
+              <a href={contact} target="_blank" rel="noopener noreferrer" data-tone="green">
                 <span>
                   <MessageCircle size={20} aria-hidden />
                 </span>
@@ -302,19 +310,22 @@ export default function HomePage() {
             <ul className="ca-list">
               {upcoming.slice(0, 3).map((item) => (
                 <li key={item.id}>
-                  <span className="ca-date-tile">
-                    <b>{item.start.slice(8, 10)}</b>
-                    {new Date(item.start)
-                      .toLocaleDateString('pt-BR', { month: 'short' })
-                      .replace('.', '')}
-                  </span>
-                  <span className="ca-list-text">
-                    <strong>{item.serviceName}</strong>
-                    <small>
-                      {timeLabel(item.start)} · {durationLabel(item.durationMinutes)}
-                    </small>
-                  </span>
-                  <StatusBadge appointment={item} />
+                  <Link href={`/cliente/agenda?horario=${item.id}`}>
+                    <span className="ca-date-tile">
+                      <b>{item.start.slice(8, 10)}</b>
+                      {new Date(item.start)
+                        .toLocaleDateString('pt-BR', { month: 'short' })
+                        .replace('.', '')}
+                    </span>
+                    <span className="ca-list-text">
+                      <strong>{item.serviceName}</strong>
+                      <small>
+                        {timeLabel(item.start)} · {durationLabel(item.durationMinutes)}
+                        {item.presenceConfirmed ? '' : ' · confirme sua presença'}
+                      </small>
+                    </span>
+                    <StatusBadge appointment={item} />
+                  </Link>
                 </li>
               ))}
             </ul>
@@ -330,23 +341,34 @@ export default function HomePage() {
           <Link href="/cliente/servicos">Ver todos</Link>
         </header>
         <div className="ca-rail">
-          {services.slice(0, 6).map((service, position) => (
-            <Link
-              key={service.id}
-              href={`/cliente/agendar?servico=${service.id}`}
-              className="ca-rail-card"
-              data-tone={position === 0 ? 'dark' : 'light'}
-            >
-              <small>{service.category}</small>
-              <strong>{service.name}</strong>
-              <span>
-                {priceLabel(service)} · {durationLabel(service.durationMinutes)}
-              </span>
-              <i aria-hidden>
-                <ArrowRight size={17} />
-              </i>
-            </Link>
-          ))}
+          {services.slice(0, 6).map((service, position) => {
+            const image = photos.get(service.id) ?? serviceCategoryArt(service)
+            return (
+              <Link
+                key={service.id}
+                href={`/cliente/agendar?servico=${service.id}`}
+                className="ca-rail-card"
+                data-tone={position === 0 ? 'dark' : 'light'}
+              >
+                <span className="ca-rail-art" aria-hidden>
+                  {image ? (
+                    <Image src={image} alt="" width={160} height={110} unoptimized />
+                  ) : (
+                    <b>{service.name.slice(0, 1)}</b>
+                  )}
+                  {service.promoPercent ? <em>-{service.promoPercent}%</em> : null}
+                </span>
+                <small>{service.category}</small>
+                <strong>{service.name}</strong>
+                <span>
+                  {priceLabel(service)} · {durationLabel(service.durationMinutes)}
+                </span>
+                <i aria-hidden>
+                  <ArrowRight size={17} />
+                </i>
+              </Link>
+            )
+          })}
           {!clinic && <span className="ca-rail-card ca-skeleton" aria-hidden />}
         </div>
       </section>

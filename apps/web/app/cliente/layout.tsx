@@ -3,6 +3,7 @@ import type { ReactNode } from 'react'
 import { ClientRoot } from '../../components/client-app/shell'
 import './cliente.css'
 import './cliente-polish.css'
+import './cliente-pages.css'
 
 export const metadata: Metadata = {
   title: { default: 'Área do cliente', template: '%s | Luminix' },

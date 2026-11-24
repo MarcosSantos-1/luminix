@@ -63,6 +63,8 @@ export type Appointment = {
   rescheduledAt: string | null
   paymentMethod: Payment['method'] | null
   paid: boolean
+  /** She booked it, or confirmed a visit the space booked (ADR-043). */
+  presenceConfirmed: boolean
   /** Already paid for this visit (deposit, app or at the space). */
   paidCents: number
   /** Sinal por Pix do espaço (ADR-037). */

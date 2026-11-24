@@ -66,6 +66,7 @@ type ApiAppointment = {
   paymentMethod: Payment['method'] | null
   paid: boolean
   paidCents?: number
+  presenceConfirmed?: boolean
   rentalDates?: string[] | null
   canceledBySpace?: boolean
   cancelReason?: string | null
@@ -74,7 +75,12 @@ type ApiAppointment = {
   service: { id: string; name: string; category: string | null }
   professional: { id: string; name: string } | null
 }
-type Prefs = Pick<Account, 'language' | 'notify'> & { activeSlug: string | null; read: string[] }
+type Prefs = Pick<Account, 'language' | 'notify'> & {
+  activeSlug: string | null
+  read: string[]
+  /** Notices the client deleted (they are derived from data, so the device hides them). */
+  hidden?: string[]
+}
 
 type VoucherNotice = { id: string; title: string; body: string; at: string }
 
@@ -100,6 +106,7 @@ const DEFAULT_PREFS: Prefs = {
   notify: { reminders: true, promotions: true },
   activeSlug: null,
   read: [],
+  hidden: [],
 }
 const INITIAL: State = {
   authReady: false,
@@ -189,6 +196,7 @@ const messages: Record<string, string> = {
   'Payment closed': 'O prazo para pagar este horário acabou. Agende de novo.',
   'Contact the space': 'Este horário já foi pago pelo app. Para cancelar, fale com o espaço.',
   'Deposit unavailable': 'O prazo do sinal acabou. Agende de novo ou fale com o espaço.',
+  'Appointment closed': 'Este horário já passou ou foi encerrado.',
   'Deposit required': 'Este serviço pede um sinal para reservar o horário. Escolha como pagar.',
 }
 
@@ -272,6 +280,8 @@ function toAppointment(row: ApiAppointment): Appointment {
     paymentMethod: row.paymentMethod,
     paid: row.paid,
     paidCents: row.paidCents ?? 0,
+    // Older API answers lack it: the client's own bookings are confirmed by her.
+    presenceConfirmed: row.presenceConfirmed ?? row.source === 'client',
     deposit: row.deposit ?? null,
     onlinePayment: row.onlinePayment
       ? {
@@ -418,6 +428,7 @@ function accountOf(current: State): Account | null {
   if (current.user && current.me?.profile) {
     const profile = current.me.profile
     const read = new Set(current.prefs.read)
+    const hidden = new Set(current.prefs.hidden ?? [])
     const spaces: Record<string, SpaceLink> = {}
     for (const link of current.me.spaces) {
       const summary = current.summaries[link.slug]
@@ -438,6 +449,7 @@ function accountOf(current: State): Account | null {
           ...noticesOf({ summary, linkedAt: link.linkedAt }, appointments),
           ...(data?.voucherNotices ?? []).map((item) => ({ ...item, kind: 'promo' as const })),
         ]
+          .filter((item) => !hidden.has(item.id))
           .sort((a, b) => b.at.localeCompare(a.at))
           .map((item) => ({ ...item, read: read.has(item.id) })),
       }
@@ -872,6 +884,25 @@ export function markNoticesRead(slug: string, noticeId?: string) {
   const ids = noticeId ? [noticeId] : space.notices.map((item) => item.id)
   // Bounded: old ids fall off; they would no longer be listed anyway.
   savePrefs({ read: [...new Set([...state.prefs.read, ...ids])].slice(-400) })
+}
+
+/** Deletes notices from this device (one, or all the ones given). */
+export function deleteNotices(ids: string[]) {
+  if (!ids.length) return
+  savePrefs({ hidden: [...new Set([...(state.prefs.hidden ?? []), ...ids])].slice(-600) })
+}
+
+/** "Vou, sim": the client confirms a visit the space booked for her (ADR-043). */
+export async function confirmPresence(slug: string, appointmentId: string) {
+  try {
+    await api(`/client/spaces/${encodeURIComponent(slug)}/appointments/${appointmentId}/confirm`, {
+      method: 'POST',
+    })
+    await refreshSpace(slug)
+    return null
+  } catch (error) {
+    return friendly(error)
+  }
 }
 
 /** Space the visitor came from (site button), kept until a session can link it. */

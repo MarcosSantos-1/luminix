@@ -1101,7 +1101,11 @@ export async function operationRoutes(
                         WHERE op.clinic_id = a.clinic_id AND op.appointment_id = a.id
                           AND op.status IN ('paid', 'paid_late')
                         ORDER BY op.created_at DESC LIMIT 1) AS online_refund_status,
-                      link.answer AS link_answer, link.answered_at AS link_answered_at,
+                      -- The latest answer wins: the link (ADR-038) or the client area (ADR-043).
+                      CASE WHEN a.client_confirmed_at IS NOT NULL
+                            AND a.client_confirmed_at > coalesce(link.answered_at, '-infinity')
+                           THEN 'confirmed' ELSE link.answer END AS link_answer,
+                      greatest(link.answered_at, a.client_confirmed_at) AS link_answered_at,
                       link.opened_at AS link_opened_at
                  FROM luminix.appointments a
                  JOIN luminix.clinic_clients c ON c.clinic_id = a.clinic_id AND c.id = a.clinic_client_id

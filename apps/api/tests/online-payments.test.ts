@@ -545,4 +545,37 @@ describe('pagamento do atendimento pelo app', () => {
       200,
     )
   })
+
+  it('the client confirms a visit the space booked; the agenda reads it (ADR-043)', async () => {
+    const id = await asOwner(async () => {
+      const [client] = await sql(
+        'SELECT id FROM luminix.clinic_clients WHERE clinic_id = $1 LIMIT 1',
+        [clinic],
+      )
+      const day = nextWeekday()
+      const [row] = await sql(
+        `INSERT INTO luminix.appointments (clinic_id, clinic_client_id, service_id, starts_at, ends_at,
+           status, booking_source, price_cents)
+         VALUES ($1, $2, $3, ($4 || 'T15:00:00Z')::timestamptz, ($4 || 'T16:00:00Z')::timestamptz,
+           'scheduled', 'manager', 18000) RETURNING id`,
+        [clinic, client.id, service, day],
+      )
+      return String(row.id)
+    })
+    const before = (await call('ana-online', 'GET', `/client/spaces/${slug}/appointments`)).json()
+    expect(
+      before.appointments.find((item: { id: string }) => item.id === id).presenceConfirmed,
+    ).toBe(false)
+    const confirmed = await call(
+      'ana-online',
+      'POST',
+      `/client/spaces/${slug}/appointments/${id}/confirm`,
+    )
+    expect(confirmed.statusCode).toBe(200)
+    expect(await visit(id)).toMatchObject({ status: 'confirmed' })
+    const after = (await call('ana-online', 'GET', `/client/spaces/${slug}/appointments`)).json()
+    expect(
+      after.appointments.find((item: { id: string }) => item.id === id).presenceConfirmed,
+    ).toBe(true)
+  })
 })
