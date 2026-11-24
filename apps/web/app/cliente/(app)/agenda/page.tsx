@@ -259,7 +259,7 @@ export default function AgendaPage() {
               className="ca-event"
               data-visit={item.id}
               data-focus={focus === item.id || undefined}
-              data-pending={!item.presenceConfirmed || undefined}
+              data-pending={toConfirm.includes(item) || undefined}
               data-tone={index === 0 && displayStatus(item) !== 'cancelled' ? 'dark' : 'light'}
               onClick={() => setOpen(item)}
             >
@@ -275,11 +275,6 @@ export default function AgendaPage() {
                 </small>
                 <span className="ca-event-tags">
                   <StatusBadge appointment={item} />
-                  {!item.presenceConfirmed && toConfirm.includes(item) ? (
-                    <span className="ca-badge" data-status="pending">
-                      Confirme sua presença
-                    </span>
-                  ) : null}
                 </span>
               </span>
             </button>

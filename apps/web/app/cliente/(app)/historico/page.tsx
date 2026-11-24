@@ -31,8 +31,13 @@ const fold = (text: string) =>
 
 const monthKey = (date: Date) =>
   `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`
-const monthName = (key: string) =>
-  new Date(`${key}-15T12:00:00`).toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })
+const monthName = (key: string) => {
+  const text = new Date(`${key}-15T12:00:00`).toLocaleDateString('pt-BR', {
+    month: 'long',
+    year: 'numeric',
+  })
+  return text.charAt(0).toUpperCase() + text.slice(1)
+}
 
 type VisitFilter = 'all' | 'done' | 'cancelled'
 type PayFilter = 'all' | 'paid' | 'pending' | 'refunded'

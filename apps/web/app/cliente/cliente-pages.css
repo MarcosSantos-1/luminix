@@ -1125,3 +1125,271 @@
     animation: none !important;
   }
 }
+
+/* A notice is the main button (the text) plus a small delete button at the end. */
+.ca-list.ca-notices > li > button:first-child {
+  flex: 1;
+  width: auto;
+  min-width: 0;
+}
+.ca-list.ca-notices > li > .ca-notice-delete {
+  flex: none;
+  width: 34px;
+  height: 34px;
+  padding: 0;
+}
+.ca-notices .ca-list-text small {
+  white-space: normal;
+}
+.ca-notices .ca-list-text strong {
+  white-space: normal;
+}
+.ca-notices > li[data-unread] {
+  background: linear-gradient(120deg, var(--tint), #fff 60%) !important;
+}
+.ca-agenda > .ca-confirm-banner {
+  margin-bottom: 2px;
+}
+
+/* ── Sign in / sign up ────────────────────────────────────── */
+.ca-auth-hero {
+  background:
+    radial-gradient(
+      620px 340px at 85% 0%,
+      color-mix(in srgb, var(--accent) 45%, transparent),
+      transparent 70%
+    ),
+    radial-gradient(520px 300px at 0% 100%, rgba(255, 255, 255, 0.08), transparent 70%),
+    var(--deep-grad);
+}
+.ca-auth-points {
+  display: grid;
+  gap: 10px;
+  margin-top: 26px;
+}
+.ca-auth-points li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: rgba(255, 255, 255, 0.86);
+  font-size: 14.5px;
+  animation: ca-up 0.5s var(--ease) both;
+}
+.ca-auth-points li:nth-child(2) {
+  animation-delay: 0.08s;
+}
+.ca-auth-points li:nth-child(3) {
+  animation-delay: 0.16s;
+}
+.ca-auth-points svg {
+  box-sizing: content-box;
+  flex: none;
+  padding: 7px;
+  border-radius: 11px;
+  background: rgba(255, 255, 255, 0.12);
+}
+.ca-auth-panel {
+  background: transparent;
+}
+.ca-auth-form {
+  gap: 16px;
+  padding: 26px 22px;
+  border-radius: 30px;
+  background: var(--surface);
+  box-shadow: var(--edge), var(--shadow-lg);
+  animation: ca-step-in 0.5s var(--ease) both;
+}
+.ca-auth-form > header {
+  display: grid;
+  gap: 4px;
+  margin-bottom: 4px;
+}
+.ca-auth-form > header h2 {
+  font-size: 26px;
+}
+.ca-auth-form > header p {
+  color: var(--muted);
+}
+/* Fields with an icon: tall, soft and lit on focus. */
+.ca-field {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+.ca-field > svg {
+  position: absolute;
+  left: 16px;
+  color: var(--muted);
+  pointer-events: none;
+  transition: color 0.2s;
+}
+.ca-form .ca-field input:not([type='checkbox'], [type='radio'], [type='file']) {
+  min-height: 56px;
+  padding-left: 46px;
+  border-radius: 18px;
+  font-size: 15.5px;
+  background: color-mix(in srgb, var(--light) 50%, #fff);
+  box-shadow:
+    inset 0 1px 2px rgba(23, 23, 28, 0.06),
+    0 0 0 1px color-mix(in srgb, var(--line) 70%, transparent);
+}
+.ca-form .ca-field input:hover {
+  background: color-mix(in srgb, var(--light) 25%, #fff);
+}
+.ca-form .ca-field input:focus {
+  background: #fff;
+  box-shadow:
+    inset 0 1px 2px rgba(23, 23, 28, 0.04),
+    0 0 0 1.5px color-mix(in srgb, var(--accent) 55%, transparent),
+    var(--glow);
+}
+.ca-field:focus-within > svg {
+  color: var(--accent);
+}
+.ca-field.ca-password button {
+  top: 50%;
+  right: 8px;
+  border-radius: 12px;
+  transform: translateY(-50%);
+  transition: background 0.2s;
+}
+.ca-field.ca-password button:hover {
+  background: var(--tint);
+}
+.ca-auth-form .ca-button {
+  min-height: 56px;
+  margin-top: 4px;
+}
+.ca-switch a {
+  color: var(--accent);
+  font-weight: 700;
+}
+@media (min-width: 960px) {
+  .ca-auth-panel {
+    background:
+      radial-gradient(
+        500px 320px at 100% 0%,
+        color-mix(in srgb, var(--accent) 10%, transparent),
+        transparent 70%
+      ),
+      var(--bg);
+  }
+  .ca-auth-form {
+    padding: 34px 32px;
+  }
+}
+
+/* Sign in, second pass: brand logo, roomier form, louder points. */
+.ca-auth-logo {
+  display: inline-block;
+  justify-self: start;
+}
+.ca-auth-logo img {
+  display: block;
+  width: auto;
+  height: 38px;
+}
+.ca-auth-hero h1 {
+  max-width: 13ch;
+}
+.ca-auth-hero p {
+  font-size: 16px;
+  line-height: 1.55;
+}
+.ca-auth-points {
+  gap: 14px;
+  margin-top: 34px;
+}
+.ca-auth-points li {
+  align-items: flex-start;
+  gap: 14px;
+  padding: 14px 16px;
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.07);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(6px);
+}
+.ca-auth-points li > span {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 48px;
+  height: 48px;
+  border-radius: 16px;
+  background: linear-gradient(150deg, color-mix(in srgb, var(--accent) 70%, #fff), var(--accent));
+  color: #fff;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.35),
+    0 10px 22px color-mix(in srgb, var(--accent) 40%, transparent);
+}
+.ca[data-theme='luminix'] .ca-auth-points li > span {
+  background: linear-gradient(150deg, #ffffff, #d9d9e3);
+  color: #17171c;
+}
+.ca-auth-points li > div {
+  display: grid;
+  gap: 3px;
+}
+.ca-auth-points strong {
+  color: #fff;
+  font-size: 15.5px;
+}
+.ca-auth-points small {
+  color: rgba(255, 255, 255, 0.72);
+  font-size: 13.5px;
+}
+.ca-auth-points svg {
+  padding: 0;
+  background: none;
+}
+.ca-auth-panel .ca-form.ca-auth-form {
+  width: 100%;
+  max-width: 500px;
+  gap: 18px;
+}
+.ca-form.ca-auth-form label {
+  gap: 9px;
+  font-size: 14px;
+}
+.ca-form .ca-field {
+  width: 100%;
+}
+.ca-form .ca-field input:not([type='checkbox'], [type='radio'], [type='file']) {
+  width: 100%;
+  min-height: 60px;
+  padding: 0 52px 0 50px;
+  font-size: 16px;
+}
+.ca-field > svg {
+  left: 18px;
+}
+@media (min-width: 960px) {
+  .ca-auth-panel {
+    padding: 48px;
+  }
+  .ca-auth-form {
+    padding: 40px 40px 34px;
+  }
+  .ca-auth-hero {
+    padding: 48px 60px 64px;
+  }
+}
+
+/* Home services on wide screens: an even grid, no lonely card on the last row. */
+@media (min-width: 960px) {
+  .ca-home .ca-rail {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+  }
+  .ca-home .ca-rail-card {
+    max-width: none;
+  }
+}
+/* Unread mark on the corner of the notice icon. */
+.ca-notices > li[data-unread]::after {
+  top: 12px;
+  left: 50px;
+}
+.ca-month-label {
+  text-transform: none;
+}

@@ -1,9 +1,21 @@
 'use client'
 
+import Image from 'next/image'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useEffect, useState, type FormEvent } from 'react'
-import { ArrowRight, Eye, EyeOff } from 'lucide-react'
+import {
+  ArrowRight,
+  BellRing,
+  CalendarCheck,
+  Eye,
+  EyeOff,
+  LockKeyhole,
+  Mail,
+  Phone,
+  ShieldCheck,
+  UserRound,
+} from 'lucide-react'
 import {
   peekPendingSpace,
   resetPassword,
@@ -59,8 +71,8 @@ export function AuthScreen({ mode }: { mode: 'entrar' | 'cadastro' }) {
     <div className="ca ca-auth" data-theme={space?.theme ?? 'luminix'}>
       <section className="ca-auth-hero">
         <Lines />
-        <Link href="/" className="ca-wordmark">
-          Luminix
+        <Link href="/" className="ca-auth-logo" aria-label="Luminix">
+          <Image src="/brand/logo-letter.png" width={2170} height={725} alt="Luminix" priority />
         </Link>
         <div>
           {space ? (
@@ -78,38 +90,88 @@ export function AuthScreen({ mode }: { mode: 'entrar' | 'cadastro' }) {
             Uma conta Luminix vale para todos os espaços que você frequenta: salão, clínica,
             estúdio.
           </p>
+          <ul className="ca-auth-points">
+            <li>
+              <span aria-hidden>
+                <CalendarCheck size={22} />
+              </span>
+              <div>
+                <strong>Agende e remarque</strong>
+                <small>Escolha dia e horário sem trocar mensagens.</small>
+              </div>
+            </li>
+            <li>
+              <span aria-hidden>
+                <BellRing size={22} />
+              </span>
+              <div>
+                <strong>Lembretes e confirmações</strong>
+                <small>Tudo o que o espaço avisa, num lugar só.</small>
+              </div>
+            </li>
+            <li>
+              <span aria-hidden>
+                <ShieldCheck size={22} />
+              </span>
+              <div>
+                <strong>Sua ficha protegida</strong>
+                <small>Você decide quais espaços podem ver.</small>
+              </div>
+            </li>
+          </ul>
         </div>
       </section>
 
       <section className="ca-auth-panel">
-        <form className="ca-form" onSubmit={submit} noValidate>
-          <h2>{signingUp ? 'Criar conta' : 'Entrar'}</h2>
+        <form className="ca-form ca-auth-form" onSubmit={submit} noValidate>
+          <header>
+            <h2>{signingUp ? 'Criar conta' : 'Que bom te ver'}</h2>
+            <p>{signingUp ? 'Leva menos de um minuto.' : 'Entre com seu e-mail e senha.'}</p>
+          </header>
           {signingUp && (
             <label>
               Nome completo
-              <input name="name" autoComplete="name" required />
+              <span className="ca-field">
+                <UserRound size={18} aria-hidden />
+                <input name="name" autoComplete="name" placeholder="Como você se chama" required />
+              </span>
             </label>
           )}
           <label>
             E-mail
-            <input name="email" type="email" inputMode="email" autoComplete="email" required />
+            <span className="ca-field">
+              <Mail size={18} aria-hidden />
+              <input
+                name="email"
+                type="email"
+                inputMode="email"
+                autoComplete="email"
+                placeholder="voce@email.com"
+                required
+              />
+            </span>
           </label>
           {signingUp && (
             <label>
               Celular <small>opcional</small>
-              <input
-                name="phone"
-                type="tel"
-                inputMode="tel"
-                autoComplete="tel"
-                placeholder="(11) 90000-0000"
-              />
+              <span className="ca-field">
+                <Phone size={18} aria-hidden />
+                <input
+                  name="phone"
+                  type="tel"
+                  inputMode="tel"
+                  autoComplete="tel"
+                  placeholder="(11) 90000-0000"
+                />
+              </span>
             </label>
           )}
           <label>
             Senha
-            <span className="ca-password">
+            <span className="ca-field ca-password">
+              <LockKeyhole size={18} aria-hidden />
               <input
+                placeholder={signingUp ? 'Crie uma senha' : 'Sua senha'}
                 name="password"
                 type={visible ? 'text' : 'password'}
                 autoComplete={signingUp ? 'new-password' : 'current-password'}

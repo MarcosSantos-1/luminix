@@ -117,8 +117,24 @@ const statusText = {
   cancelled: 'Cancelado',
 } as const
 
+/** Booked by the space, still in the future and not confirmed by the client (ADR-043). */
+export function awaitsPresence(appointment: Appointment, now = new Date()) {
+  const status = displayStatus(appointment, now)
+  return (
+    appointment.presenceConfirmed === false &&
+    (status === 'confirmed' || status === 'requested') &&
+    new Date(`${appointment.start}:00-03:00`).getTime() > now.getTime()
+  )
+}
+
 export function StatusBadge({ appointment }: { appointment: Appointment }) {
   const status = displayStatus(appointment)
+  if (awaitsPresence(appointment))
+    return (
+      <span className="ca-badge" data-status="pending">
+        Confirme sua presença
+      </span>
+    )
   return (
     <span className="ca-badge" data-status={status}>
       {statusText[status]}

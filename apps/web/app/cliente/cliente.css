@@ -1846,9 +1846,7 @@
   box-shadow: 0 2px 8px rgba(23, 23, 28, 0.08);
 }
 .ca-notices li[data-unread] {
-  box-shadow:
-    var(--shadow),
-    inset 3px 0 0 var(--accent);
+  box-shadow: var(--shadow);
 }
 .ca-notices li:not([data-unread]) strong {
   font-weight: 550;
@@ -2824,19 +2822,24 @@
   }
   /* Header, calendar, then the day's list on the left; "Próximos" on the right. The last row
      takes the extra height, so a long list never stretches the calendar. */
+  /* Calendar and the chosen day side by side; banners, header and "Próximos" span both. */
   .ca-agenda {
     grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-    grid-template-rows: auto auto 1fr;
     align-items: start;
     column-gap: 28px;
   }
-  .ca-agenda > .ca-page-header {
+  .ca-agenda > * {
     grid-column: 1 / -1;
   }
-  .ca-agenda > .ca-section {
+  .ca-agenda > .ca-calendar {
+    grid-column: 1;
+  }
+  .ca-agenda > .ca-timeline {
     grid-column: 2;
-    grid-row: 2 / span 2;
+  }
+  .ca-agenda > .ca-section {
     align-content: start;
+    margin-top: 6px;
   }
   .ca-profile-grid {
     grid-template-columns: 1fr 1fr;
