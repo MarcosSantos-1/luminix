@@ -1,6 +1,9 @@
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify'
 import type { createStaffAuthenticator } from '../../shared/auth/staff-session.js'
 import { withClinicTransaction, type TenantPool } from '../../shared/tenant/clinic-transaction.js'
+import type { SqlConnection } from '../../shared/database/migrations.js'
+import type { ClinicMail } from '../notifications/clinic-mail.js'
+import { connectSubmitted, syncConnectStatus } from './connect-status.js'
 import {
   connectReady,
   createConnectProvider,
@@ -21,6 +24,8 @@ export async function paymentRoutes(
   authenticate: ReturnType<typeof createStaffAuthenticator>,
   pool: TenantPool | undefined,
   suppliedProvider?: ConnectProvider,
+  /** Saves the status and e-mails the owner when Stripe answers (ADR-041). */
+  notify?: { database: SqlConnection; mail?: ClinicMail },
 ) {
   let provider = suppliedProvider
   const attempts = new Map<string, { count: number; until: number }>()
@@ -77,8 +82,33 @@ export async function paymentRoutes(
               requirementsDue: 0,
               testMode: !context.livemode,
             }
-        await transaction(async () => undefined)
-        return { status, ready: connectReady(status) }
+        const notice =
+          binding?.account_id && notify
+            ? await syncConnectStatus(
+                notify.database,
+                notify.mail,
+                binding.account_id,
+                status,
+                request.log,
+              )
+            : null
+        const inApp = await transaction(async (connection, tenant) => {
+          const row = (
+            await connection.query(
+              'SELECT accept_in_app, guide_done_at FROM luminix.payment_preferences WHERE clinic_id = $1',
+              [tenant.clinicId],
+            )
+          ).rows[0]
+          return { enabled: row?.accept_in_app === true, guideDone: Boolean(row?.guide_done_at) }
+        })
+        return {
+          status,
+          ready: connectReady(status),
+          // Sent with nothing left to fill: the setup goes on while Stripe reviews.
+          submitted: connectSubmitted(status),
+          notice,
+          inApp,
+        }
       }
       const purpose = request.body!.purpose
       if (!binding) return reply.code(409).send({ error: 'Configure os recebimentos primeiro.' })
@@ -142,5 +172,77 @@ export async function paymentRoutes(
       },
     },
     (request, reply) => handle(request as Request, reply, true),
+  )
+
+  // "Clientes pagam pelo app" on/off (ADR-041). On needs an account already sent to Stripe;
+  // clients only see Pix/card once Stripe approves it.
+  app.put<{ Params: { clinicId: string }; Body: { enabled: boolean } }>(
+    '/clinics/:clinicId/payments/in-app',
+    {
+      bodyLimit: 256,
+      schema: {
+        params,
+        body: {
+          type: 'object',
+          additionalProperties: false,
+          required: ['enabled'],
+          properties: { enabled: { type: 'boolean' } },
+        },
+      },
+    },
+    async (request, reply) => {
+      const identityId = await authenticate(request, reply)
+      if (!identityId) return
+      if (!pool) return reply.code(503).send({ error: 'Recebimentos indisponíveis.' })
+      try {
+        await withClinicTransaction(
+          pool,
+          identityId,
+          request.params.clinicId,
+          'settings:manage',
+          async (connection, tenant) => {
+            await connection.query('SELECT luminix.set_in_app_payments($1::uuid, $2)', [
+              tenant.clinicId,
+              request.body.enabled,
+            ])
+          },
+        )
+        return { enabled: request.body.enabled }
+      } catch (error) {
+        const code = error as { code?: string; statusCode?: number }
+        if (code.statusCode === 403) return reply.code(403).send({ error: 'Clinic access denied' })
+        if (code.code === '55000')
+          return reply.code(409).send({ error: 'Connect account not submitted' })
+        return reply.code(503).send({ error: 'Recebimentos indisponíveis.' })
+      }
+    },
+  )
+
+  app.post<{ Params: { clinicId: string } }>(
+    '/clinics/:clinicId/payments/guide-done',
+    { bodyLimit: 64, schema: { params } },
+    async (request, reply) => {
+      const identityId = await authenticate(request, reply)
+      if (!identityId) return
+      if (!pool) return reply.code(503).send({ error: 'Recebimentos indisponíveis.' })
+      try {
+        await withClinicTransaction(
+          pool,
+          identityId,
+          request.params.clinicId,
+          'settings:manage',
+          async (connection, tenant) => {
+            await connection.query('SELECT luminix.finish_payments_guide($1::uuid)', [
+              tenant.clinicId,
+            ])
+          },
+        )
+        return { done: true }
+      } catch (error) {
+        if ((error as { statusCode?: number }).statusCode === 403)
+          return reply.code(403).send({ error: 'Clinic access denied' })
+        return reply.code(503).send({ error: 'Recebimentos indisponíveis.' })
+      }
+    },
   )
 }

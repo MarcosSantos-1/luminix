@@ -896,3 +896,172 @@
     background: rgba(255, 255, 255, 0.22);
   }
 }
+
+/* One clear status of the Stripe account (ADR-041). */
+.connect-state {
+  display: flex;
+  gap: 14px;
+  align-items: flex-start;
+  margin: 4px 0 14px;
+  padding: 16px 18px;
+  border: 1px solid #ffffff2e;
+  border-radius: 20px;
+  background: #ffffff0f;
+  line-height: 1.5;
+}
+.connect-state p {
+  margin: 0;
+}
+.connect-state-icon {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 14px;
+  background: #ffffff1f;
+}
+.connect-state-title {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 4px !important;
+  font-size: 17px;
+  font-weight: 700;
+}
+.connect-state-tag {
+  padding: 2px 9px;
+  border-radius: 99px;
+  background: #ffffff26;
+  font-size: 11.5px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+.connect-state-more {
+  margin-top: 8px !important;
+  opacity: 0.85;
+  font-size: 14px;
+}
+.connect-state.is-approved {
+  border-color: #39e58c66;
+  background: color-mix(in srgb, #39e58c 14%, transparent);
+}
+.connect-state.is-approved .connect-state-icon {
+  color: #b7ffd6;
+}
+.connect-state.is-reviewing {
+  border-color: #ffe08a66;
+  background: #ffe08a14;
+}
+.connect-state.is-reviewing .connect-state-icon {
+  color: #ffe08a;
+}
+.connect-state.is-needs_info,
+.connect-state.is-filling {
+  border-color: #ffc38a66;
+  background: #ffc38a14;
+}
+.connect-state.is-restricted {
+  border-color: #ffb4b466;
+  background: #ffb4b412;
+}
+.connect-state.is-restricted .connect-state-icon {
+  color: #ffb4b4;
+}
+
+/* "E agora?": guided next steps after approval. */
+.connect-next {
+  display: grid;
+  gap: 14px;
+  margin: 6px 0 16px;
+  padding: 18px;
+  border: 1px solid #ffffff2e;
+  border-radius: 22px;
+  background: #ffffff0a;
+  scroll-margin-top: 24px;
+}
+.connect-next header {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+.connect-next h3 {
+  margin: 0;
+  font-size: 18px;
+}
+.connect-next header p {
+  margin: 2px 0 0;
+  opacity: 0.85;
+  font-size: 14px;
+}
+.connect-next-icon,
+.connect-next-num {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 12px;
+  background: #ffffff1f;
+}
+.connect-next-switch {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 16px;
+  border: 1px solid #ffe08a66;
+  border-radius: 16px;
+  background: #ffe08a14;
+}
+.connect-next-switch.is-on {
+  border-color: #39e58c66;
+  background: color-mix(in srgb, #39e58c 14%, transparent);
+}
+.connect-next-switch > div {
+  display: grid;
+  flex: 1 1 240px;
+  gap: 2px;
+}
+.connect-next-switch span {
+  opacity: 0.9;
+  font-size: 14px;
+}
+.connect-next-list {
+  display: grid;
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.connect-next-list li {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+}
+.connect-next-list p {
+  margin: 2px 0 4px;
+  opacity: 0.88;
+  font-size: 14px;
+  line-height: 1.5;
+}
+.connect-next-link {
+  padding: 0;
+  border: 0;
+  color: var(--space-highlight, #ffaccf);
+  background: none;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 700;
+  text-decoration: none;
+  cursor: pointer;
+}
+.connect-next-done {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  margin: 0;
+  opacity: 0.85;
+}

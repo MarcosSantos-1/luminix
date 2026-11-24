@@ -236,6 +236,52 @@ export async function workspaceRoutes(
             })
         }
         if (can.has('settings:manage')) {
+          // Stripe receiving account (ADR-041): where the analysis stands and what to do next.
+          const connect = (
+            await connection.query(
+              `SELECT a.notice_state, coalesce(p.accept_in_app, false) AS in_app,
+                      p.guide_done_at IS NOT NULL AS guide_done
+                 FROM luminix.stripe_connect_accounts a
+                 LEFT JOIN luminix.payment_preferences p ON p.clinic_id = a.clinic_id
+                WHERE a.clinic_id = $1 AND a.account_id IS NOT NULL
+                ORDER BY a.connected_at DESC NULLS LAST LIMIT 1`,
+              [tenant.clinicId],
+            )
+          ).rows[0]
+          const state = connect?.notice_state as string | undefined
+          const go = { target: 'recebimentos' }
+          if (state === 'approved' && !(connect?.in_app && connect?.guide_done))
+            notices.push({
+              id: 'connect-approved',
+              tone: 'success',
+              title: 'Seu cadastro na Stripe foi aprovado!',
+              text: 'Falta um passo: ligar o pagamento pelo app. A gente te mostra o caminho.',
+              action: { label: 'Prosseguir', ...go },
+            })
+          else if (state === 'needs_info')
+            notices.push({
+              id: 'connect-needs-info',
+              tone: 'warning',
+              title: 'A Stripe pediu mais uma informação',
+              text: 'Abra o cadastro de recebimentos para ver o que falta.',
+              action: { label: 'Completar', ...go },
+            })
+          else if (state === 'restricted')
+            notices.push({
+              id: 'connect-restricted',
+              tone: 'warning',
+              title: 'A Stripe não aprovou o cadastro',
+              text: 'O espaço continua recebendo no local. Veja o que a Stripe informou.',
+              action: { label: 'Ver', ...go },
+            })
+          else if (state === 'reviewing')
+            notices.push({
+              id: 'connect-reviewing',
+              tone: 'info',
+              title: 'Cadastro na Stripe em análise',
+              text: 'Costuma levar de minutos a alguns dias úteis. Avisamos por e-mail quando sair.',
+              action: { label: 'Acompanhar', ...go },
+            })
           const site = (
             await connection.query(
               'SELECT coalesce(public_enabled, false) AS published FROM luminix.clinic_profiles WHERE clinic_id = $1',

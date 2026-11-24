@@ -7,11 +7,8 @@ import {
   sendLater,
   type ClinicMail,
 } from '../notifications/clinic-mail.js'
-import {
-  connectReady,
-  createConnectProvider,
-  type ConnectProvider,
-} from '../payments/stripe-connect.js'
+import { connectSubmitted } from '../payments/connect-status.js'
+import { createConnectProvider, type ConnectProvider } from '../payments/stripe-connect.js'
 import { withClinicTransaction, type TenantPool } from '../../shared/tenant/clinic-transaction.js'
 import { clinicRefParams, createAuthorizedRoute } from '../../shared/tenant/authorized-route.js'
 import { saveOnboardingDraft } from './onboarding-persist.js'
@@ -369,7 +366,9 @@ export async function clinicRoutes(
         return row?.account_id ? String(row.account_id) : null
       })
       const status = accountId ? await connectProvider.status(accountId) : null
-      if (!status || !connectReady(status))
+      // Sent to Stripe with nothing left to fill is enough to go on (ADR-041): clients only see
+      // Pix/card once Stripe approves the account.
+      if (!status || !connectSubmitted(status))
         throw Object.assign(new Error('Stripe onboarding incomplete'), { statusCode: 409 })
     } catch (error) {
       if ([403, 409].includes((error as { statusCode?: number }).statusCode ?? 0)) throw error

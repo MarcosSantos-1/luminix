@@ -18,6 +18,7 @@ import {
   UserRound,
 } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import { useRouter } from 'next/navigation'
 import './data-kit.css'
 import { AccountModal, type OwnAccount } from './account-modal'
 import { useManagerMessages } from '@/hooks/use-manager-messages'
@@ -223,6 +224,7 @@ export function ManagerHome({
   const fileInput = useRef<HTMLInputElement>(null)
   const glassPanel = useRef<HTMLDivElement>(null)
   const sectionHeading = useRef<HTMLHeadingElement>(null)
+  const router = useRouter()
   const [planOpen, setPlanOpen] = useState(false)
   const [planNow, setPlanNow] = useState(() => Date.now())
   const [debugPlanOpen, setDebugPlanOpen] = useState(false)
@@ -323,6 +325,11 @@ export function ManagerHome({
 
   /** Opens a page (and settings tab), optionally filling its search or pointing at a field. */
   function go(target: GoTarget) {
+    // "Receber pelo app" is its own page (Stripe); notices about it lead to the next steps.
+    if (target.section === 'recebimentos') {
+      if (workspace) router.push(`/c/${workspace.clinicId}/recebimentos#proximos-passos`)
+      return
+    }
     if (!allowedIds.includes(target.section as ManagerSectionId)) return
     changeSearch(false)
     select(target.section as ManagerSectionId)

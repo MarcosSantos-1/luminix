@@ -13,6 +13,7 @@ export type EmailTag =
   | 'client_voucher'
   | 'appointment_canceled_by_space'
   | 'appointment_link'
+  | 'connect_status'
 
 export type OutgoingEmail = {
   to: string

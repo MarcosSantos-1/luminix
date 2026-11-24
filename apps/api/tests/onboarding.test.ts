@@ -564,7 +564,7 @@ it('synchronizes settings with open drafts and rejects stale versions', async ()
   )
 })
 
-it('requires current Stripe readiness for advancement and completion, with an outside-app alternative', async () => {
+it('requires a Stripe account sent with nothing pending to advance and complete, with an outside-app alternative', async () => {
   vi.spyOn(Date, 'now').mockReturnValue(Date.now() + 122_000)
   const uniquePayload = JSON.parse(
     JSON.stringify(payload)
@@ -627,11 +627,19 @@ it('requires current Stripe readiness for advancement and completion, with an ou
       })
     ).statusCode,
   ).toBe(200)
+  // ADR-041: the setup goes on once the form was sent with nothing left to fill (Stripe may
+  // still be reviewing); it stops while fields are pending or the account is restricted.
   for (const status of [
-    { ...readyStatus, state: 'pending' as const },
-    { ...readyStatus, chargesEnabled: false },
-    { ...readyStatus, payoutsEnabled: false },
     { ...readyStatus, requirementsDue: 1 },
+    { ...readyStatus, state: 'pending' as const, chargesEnabled: false, requirementsDue: 2 },
+    { ...readyStatus, state: 'restricted' as const, chargesEnabled: false, requirementsDue: 0 },
+    { ...readyStatus, state: 'not_started' as const, chargesEnabled: false, payoutsEnabled: false },
+  ]) {
+    connectStatus.mockResolvedValueOnce(status)
+    expect((await save('rules')).json().error).toBe('Stripe onboarding incomplete')
+  }
+  for (const status of [
+    { ...readyStatus, state: 'pending' as const, chargesEnabled: false, payoutsEnabled: false },
     {
       state: 'reviewing' as const,
       chargesEnabled: false,
@@ -641,7 +649,8 @@ it('requires current Stripe readiness for advancement and completion, with an ou
     },
   ]) {
     connectStatus.mockResolvedValueOnce(status)
-    expect((await save('rules')).json().error).toBe('Stripe onboarding incomplete')
+    expect((await save('rules')).statusCode).toBe(200)
+    version++
   }
   connectStatus.mockRejectedValueOnce(new Error('private Stripe secret'))
   const unavailable = await save('review')
@@ -658,7 +667,7 @@ it('requires current Stripe readiness for advancement and completion, with an ou
   version++
   expect((await save('rules')).statusCode).toBe(200)
   version++
-  connectStatus.mockResolvedValueOnce({ ...readyStatus, payoutsEnabled: false })
+  connectStatus.mockResolvedValueOnce({ ...readyStatus, requirementsDue: 1 })
   expect(
     (await call('onboarding-b', 'POST', clinicB, 'onboarding/complete', { version })).statusCode,
   ).toBe(409)

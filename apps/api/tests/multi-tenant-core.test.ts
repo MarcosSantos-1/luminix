@@ -179,6 +179,7 @@ describe('versioned core migration', () => {
       { name: '0067_clinic_subscriptions.sql' },
       { name: '0068_online_payments.sql' },
       { name: '0069_online_refunds.sql' },
+      { name: '0070_connect_status_and_guide.sql' },
     ])
   })
 

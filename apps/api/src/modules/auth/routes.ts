@@ -44,7 +44,10 @@ export async function authRoutes(app: FastifyInstance, dependencies: AuthDepende
   const mail = { mailer: dependencies.mailer, adminOrigin: dependencies.adminOrigin }
   await clinicRoutes(app, authenticate, dependencies.tenantPool, dependencies.connectProvider, mail)
   await operationRoutes(app, authenticate, dependencies.tenantPool, mail, dependencies)
-  await paymentRoutes(app, authenticate, dependencies.tenantPool, dependencies.connectProvider)
+  await paymentRoutes(app, authenticate, dependencies.tenantPool, dependencies.connectProvider, {
+    database: dependencies.database,
+    mail,
+  })
   await teamRoutes(app, authenticate, dependencies)
   await mediaRoutes(app, authenticate, dependencies.tenantPool)
   await catalogRoutes(app, authenticate, dependencies.tenantPool)

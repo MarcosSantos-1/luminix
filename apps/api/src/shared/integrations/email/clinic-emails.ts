@@ -118,3 +118,76 @@ export function clinicWelcomeEmail(input: {
     ].join('\n'),
   }
 }
+
+/**
+ * Stripe answered about the space's receiving account (ADR-041): approved, needs more data or
+ * not approved. Sent once per answer; the button opens "Receber pelo app" in the panel.
+ */
+export function connectStatusEmail(input: {
+  to: string
+  ownerName: string
+  clinicName: string
+  kind: 'approved' | 'needs_info' | 'restricted'
+  /** https://app.luminix.beauty/c/<code>/recebimentos */
+  pageUrl: string
+}): OutgoingEmail {
+  const first = firstName(input.ownerName || 'tudo bem')
+  const clinic = escapeHtml(input.clinicName)
+  const copy = {
+    approved: {
+      subject: `Pronto! O ${input.clinicName} já pode receber pelo app`,
+      eyebrow: 'Cadastro aprovado',
+      title: `${escapeHtml(first)}, a Stripe aprovou o cadastro do ${clinic}!`,
+      text: 'Agora suas clientes podem pagar por Pix ou cartão na hora de agendar, e o dinheiro cai na conta do espaço. Falta só um passo: entrar no painel e ligar o pagamento pelo app. Leva um minuto, e a gente te mostra o caminho.',
+      button: 'Ver próximos passos',
+    },
+    needs_info: {
+      subject: `A Stripe pediu mais uma informação do ${input.clinicName}`,
+      eyebrow: 'Falta uma informação',
+      title: `${escapeHtml(first)}, falta só um detalhe no cadastro`,
+      text: 'A Stripe analisou o cadastro de recebimentos e pediu mais um dado ou documento. Abra o painel e toque em "Completar cadastro": ela mostra exatamente o que falta.',
+      button: 'Completar cadastro',
+    },
+    restricted: {
+      subject: `A Stripe não aprovou o cadastro do ${input.clinicName}`,
+      eyebrow: 'Cadastro não aprovado',
+      title: `${escapeHtml(first)}, a Stripe não aprovou o cadastro por enquanto`,
+      text: 'Por enquanto o espaço continua recebendo do jeito de sempre, no próprio espaço. Abra o painel para ver o que a Stripe informou, ou fale com o nosso suporte que a gente te ajuda.',
+      button: 'Ver o que aconteceu',
+    },
+  }[input.kind]
+  return {
+    to: input.to,
+    tag: 'connect_status',
+    subject: copy.subject,
+    ...renderEmail({
+      preheader: copy.text.slice(0, 110),
+      eyebrow: copy.eyebrow,
+      title: copy.title,
+      blocks: [
+        { kind: 'paragraphs', html: [copy.text] },
+        {
+          kind: 'items',
+          heading: 'Precisa de ajuda?',
+          items: [
+            {
+              icon: 'chat',
+              title: `WhatsApp ${support.whatsappLabel}`,
+              text: 'Fale com a equipe do Luminix.',
+              link: { label: 'Chamar', href: support.whatsappLink },
+            },
+          ],
+        },
+      ],
+      button: { label: copy.button, href: input.pageUrl },
+      footnote: `Você recebeu este e-mail porque cadastrou o ${clinic} para receber pelo app.`,
+    }),
+    text: [
+      copy.title.replace(/<[^>]+>/g, ''),
+      '',
+      copy.text,
+      '',
+      `${copy.button}: ${input.pageUrl}`,
+    ].join('\n'),
+  }
+}

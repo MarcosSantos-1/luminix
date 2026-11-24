@@ -37,6 +37,7 @@ import { onAuthStateChanged } from 'firebase/auth'
 import { useStaff } from '@/components/staff-provider'
 import { useClinic } from '@/components/clinic-workspace'
 import { getFirebaseAuth } from '@/lib/firebase'
+import { ConnectNextSteps } from './connect-next-steps'
 import './connect-panel.css'
 
 type Purpose = 'onboarding' | 'management' | 'payments' | 'payouts'
@@ -48,20 +49,33 @@ type Status = {
   requirementsDue: number
   testMode: boolean
 }
-const labels = {
-  not_started: 'Configure seus recebimentos',
-  pending: 'Cadastro em andamento',
-  reviewing: 'Dados enviados. A Stripe ainda está conferindo.',
-  active: 'Conta habilitada pela Stripe',
-  restricted: 'Complete o cadastro na Stripe',
+/** Where the account stands for the owner (ADR-041); the API saves it, the panel shows it. */
+type Notice = 'filling' | 'reviewing' | 'approved' | 'needs_info' | 'restricted'
+/** Same rule as the API, for the first paint or when the API could not save it. */
+function noticeOf(status: Status, ready: boolean): Notice {
+  if (ready) return 'approved'
+  if (status.requirementsDue > 0 || status.state === 'not_started') return 'filling'
+  if (status.state === 'restricted') return 'restricted'
+  return 'reviewing'
 }
-const summaries = {
-  not_started: 'Ainda falta criar o recebimento da clínica na Stripe.',
-  pending: 'O cadastro começou. Se faltar algum dado, a Stripe mostra no formulário.',
-  reviewing: 'Não falta nenhum dado seu. Neste teste, você já pode continuar.',
-  active: 'A Stripe liberou pagamentos e repasses neste teste.',
+const headlines: Record<Notice, string> = {
+  filling: 'Falta completar o cadastro',
+  reviewing: 'Cadastro enviado: a Stripe está analisando',
+  approved: 'Tudo certo: você já pode receber pelo app',
+  needs_info: 'A Stripe pediu mais uma informação',
+  restricted: 'A Stripe não aprovou o cadastro',
+}
+const leads: Record<Notice, string> = {
+  filling:
+    'Abra o formulário seguro da Stripe e preencha os dados do espaço, da pessoa responsável e da conta bancária.',
+  reviewing:
+    'Não falta nada seu. A análise costuma levar de minutos a alguns dias úteis. Enquanto isso, você segue usando o Luminix normalmente e recebendo no espaço. Avisamos por e-mail e aqui no painel quando sair.',
+  approved:
+    'A Stripe aprovou a conta. Agora é só ligar o pagamento pelo app e suas clientes podem pagar por Pix ou cartão ao agendar.',
+  needs_info:
+    'Depois de analisar, a Stripe precisa de mais um dado ou documento. Toque em "Completar cadastro": ela mostra exatamente o que falta.',
   restricted:
-    'Abra o formulário da Stripe e preencha os dados da clínica, da pessoa responsável e da conta bancária.',
+    'Por enquanto o espaço continua recebendo no local, como sempre. Abra o cadastro para ver o que a Stripe informou ou fale com o nosso suporte.',
 }
 
 type PanelProps = {
@@ -136,7 +150,7 @@ function FlowDisclosure({
   )
 }
 
-function StripeAccessGuide() {
+function StripeAccessGuide({ testMode }: { testMode: boolean }) {
   return (
     <>
       <ol className="connect-prep-list">
@@ -211,19 +225,23 @@ function StripeAccessGuide() {
               conta bancária que forem necessários. Senhas, documentos e dados bancários são
               preenchidos diretamente na Stripe.
             </p>
-            <p>
-              Este ambiente é de teste. Use os dados de teste indicados pela Stripe nos campos de
-              documentos e banco; números aleatórios podem ser recusados.
-            </p>
-            <Link
-              className="ob2-areas-link connect-doc-link"
-              href="https://docs.stripe.com/connect/testing"
-              target="_blank"
-              rel="noreferrer"
-            >
-              Abrir guia de dados de teste da Stripe
-              <Link.Icon />
-            </Link>
+            {testMode ? (
+              <>
+                <p>
+                  Este ambiente é de teste. Use os dados de teste indicados pela Stripe nos campos
+                  de documentos e banco; números aleatórios podem ser recusados.
+                </p>
+                <Link
+                  className="ob2-areas-link connect-doc-link"
+                  href="https://docs.stripe.com/connect/testing"
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  Abrir guia de dados de teste da Stripe
+                  <Link.Icon />
+                </Link>
+              </>
+            ) : null}
           </div>
         </li>
       </ol>
@@ -275,6 +293,20 @@ function ConnectContent({
   const { user } = useStaff()
   const [status, setStatus] = useState<Status | null>(null)
   const [canContinue, setCanContinue] = useState(false)
+  const [notice, setNotice] = useState<Notice | null>(null)
+  const [inApp, setInApp] = useState<{ enabled: boolean; guideDone: boolean } | null>(null)
+  // Test-only guidance disappears once the platform runs with real (live) keys.
+  const testMode = status?.testMode !== false
+  // Coming from the "Prosseguir" notice: the next steps render after the status loads.
+  const scrolled = useRef(false)
+  useEffect(() => {
+    if (scrolled.current || notice !== 'approved' || !inApp || !dashboard) return
+    if (window.location.hash !== '#proximos-passos') return
+    scrolled.current = true
+    requestAnimationFrame(() =>
+      document.getElementById('proximos-passos')?.scrollIntoView({ behavior: 'smooth' }),
+    )
+  }, [notice, inApp, dashboard])
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(true)
   const [opening, setOpening] = useState(false)
@@ -335,6 +367,50 @@ function ConnectContent({
   useEffect(() => {
     if (!loading) onSettledChange?.(prepSettled)
   }, [loading, prepSettled, onSettledChange])
+  /** The setup goes on once the form was sent with nothing pending (ADR-041). */
+  function apply(body: {
+    status: Status
+    ready?: boolean
+    submitted?: boolean
+    notice?: Notice | null
+    inApp?: { enabled: boolean; guideDone: boolean }
+  }) {
+    setStatus(body.status)
+    setCanContinue(body.submitted ?? body.ready === true)
+    setNotice(body.notice ?? noticeOf(body.status, body.ready === true))
+    setInApp(body.inApp ?? null)
+  }
+  async function saveInApp(enabled: boolean) {
+    try {
+      const response = await fetch(`/api/clinics/${clinicId}/payments/in-app`, {
+        method: 'PUT',
+        headers: {
+          authorization: `Bearer ${await user!.getIdToken()}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ enabled }),
+      })
+      if (!response.ok) throw new Error('save failed')
+      setInApp((current) => ({ guideDone: current?.guideDone ?? false, enabled }))
+      return true
+    } catch {
+      toast.danger('Não foi possível salvar agora. Tente de novo.')
+      return false
+    }
+  }
+  async function finishGuide() {
+    try {
+      const response = await fetch(`/api/clinics/${clinicId}/payments/guide-done`, {
+        method: 'POST',
+        headers: { authorization: `Bearer ${await user!.getIdToken()}` },
+      })
+      if (!response.ok) throw new Error('save failed')
+      setInApp((current) => ({ enabled: current?.enabled ?? false, guideDone: true }))
+      toast.success('Tudo pronto! Qualquer dúvida, o suporte está aqui.')
+    } catch {
+      toast.danger('Não foi possível salvar agora. Tente de novo.')
+    }
+  }
   const lifetime = useRef<AbortController | null>(null)
   const refreshSequence = useRef(0)
   const instances = useRef<StripeConnectInstance[]>([])
@@ -374,18 +450,15 @@ function ConnectContent({
     try {
       const body = await request()
       if (!lifetime.current?.signal.aborted && sequence === refreshSequence.current) {
-        setStatus(body.status)
-        setCanContinue(body.ready === true)
-        if (body.ready && body.status.state === 'active')
-          toast.success('Cadastro Stripe pronto. Você já pode continuar.', { timeout: 5000 })
-        else if (body.ready && body.status.state === 'reviewing')
-          toast.success('A Stripe não pediu mais nenhum dado. Você já pode avançar neste teste.', {
+        apply(body)
+        const next: Notice = body.notice ?? noticeOf(body.status, body.ready === true)
+        if (next === 'approved')
+          toast.success('Cadastro aprovado. Você já pode receber pelo app.', { timeout: 5000 })
+        else if (next === 'reviewing')
+          toast.success('Cadastro enviado. A Stripe está analisando; você já pode continuar.', {
             timeout: 6000,
           })
-        else
-          toast.info('Situação atualizada. Confira abaixo o que falta para continuar.', {
-            timeout: 5000,
-          })
+        else toast.info('Situação atualizada. Confira abaixo o que falta.', { timeout: 5000 })
       }
     } catch (cause) {
       if (!lifetime.current?.signal.aborted && sequence === refreshSequence.current) {
@@ -407,10 +480,7 @@ function ConnectContent({
     lifetime.current = controller
     void request()
       .then((body) => {
-        if (!controller.signal.aborted) {
-          setStatus(body.status)
-          setCanContinue(body.ready === true)
-        }
+        if (!controller.signal.aborted) apply(body)
       })
       .catch((cause) => {
         if (!controller.signal.aborted)
@@ -549,19 +619,10 @@ function ConnectContent({
                 {flow && awaitingForm ? (
                   <span className="connect-pulse" aria-hidden="true" />
                 ) : null}
-                {status ? labels[status.state] : 'Recebimentos da clínica'}
+                {status && notice ? headlines[notice] : 'Recebimentos da clínica'}
               </Card.Title>
               {flow && status ? (
-                <p className="connect-lead">
-                  {status.state === 'restricted' ? (
-                    <>
-                      Abra o formulário da Stripe e preencha os dados da clínica, da{' '}
-                      <span className="connect-keep">pessoa responsável</span> e da conta bancária.
-                    </>
-                  ) : (
-                    summaries[status.state]
-                  )}
-                </p>
+                <p className="connect-lead">{notice ? leads[notice] : null}</p>
               ) : null}
             </div>
           </Card.Header>
@@ -624,7 +685,7 @@ function ConnectContent({
                   helpLabel="Por que a Stripe pede uma confirmação?"
                   helpText="Essa confirmação protege o acesso aos seus dados bancários. Ela é feita diretamente pela Stripe."
                 >
-                  <StripeAccessGuide />
+                  <StripeAccessGuide testMode={testMode} />
                 </FlowDisclosure>
                 <FlowDisclosure
                   id="connect-when-money"
@@ -688,10 +749,12 @@ function ConnectContent({
                     por cima. Se houver reembolso ou contestação, o valor sai do saldo da clínica na
                     Stripe.
                   </p>
-                  <p>
-                    Nada disso é cobrado de verdade neste cadastro. Estamos só preparando a conta,
-                    em modo de teste.
-                  </p>
+                  {testMode ? (
+                    <p>
+                      Nada disso é cobrado de verdade neste cadastro. Estamos só preparando a conta,
+                      em modo de teste.
+                    </p>
+                  ) : null}
                   <ul className="connect-faq-list">
                     <li>
                       <strong>Cartão nacional</strong>
@@ -902,20 +965,24 @@ function ConnectContent({
                               responsável e da conta bancária que forem necessários. Senhas,
                               documentos e dados bancários são preenchidos diretamente na Stripe.
                             </p>
-                            <p>
-                              Este ambiente é de teste. Use os dados de teste indicados pela Stripe
-                              nos campos de documentos e banco; números aleatórios podem ser
-                              recusados.
-                            </p>
-                            <Link
-                              className="ob2-areas-link connect-doc-link"
-                              href="https://docs.stripe.com/connect/testing"
-                              target="_blank"
-                              rel="noreferrer"
-                            >
-                              Abrir guia de dados de teste da Stripe
-                              <Link.Icon />
-                            </Link>
+                            {testMode ? (
+                              <>
+                                <p>
+                                  Este ambiente é de teste. Use os dados de teste indicados pela
+                                  Stripe nos campos de documentos e banco; números aleatórios podem
+                                  ser recusados.
+                                </p>
+                                <Link
+                                  className="ob2-areas-link connect-doc-link"
+                                  href="https://docs.stripe.com/connect/testing"
+                                  target="_blank"
+                                  rel="noreferrer"
+                                >
+                                  Abrir guia de dados de teste da Stripe
+                                  <Link.Icon />
+                                </Link>
+                              </>
+                            ) : null}
                           </div>
                         </li>
                       </ol>
@@ -934,100 +1001,56 @@ function ConnectContent({
                 Consultando a situação da sua conta…
               </div>
             )}
-            {status && status.state !== 'not_started' && (!loading || flow) && (
-              <div aria-live="polite" className="connect-status-grid">
-                {(status.state === 'active' || status.state === 'reviewing'
-                  ? [
-                      {
-                        title: 'Pagamentos dos clientes',
-                        enabled: status.chargesEnabled,
-                        icon: CreditCard,
-                        text: 'Ainda falta a Stripe autorizar a conta. Isso é a conferência dos dados, e costuma levar 1 ou 2 dias. Não é o prazo do dinheiro da venda.',
-                      },
-                      {
-                        title: 'Depósitos na sua conta',
-                        enabled: status.payoutsEnabled,
-                        icon: Banknote,
-                        text: 'Ainda falta a Stripe autorizar os depósitos. Com a conta liberada, cada venda segue o prazo do cartão, do Pix ou do boleto.',
-                      },
-                    ]
-                  : []
-                ).map(({ title, enabled, icon: Icon, text }) => (
-                  <article
-                    key={title}
-                    className={enabled ? 'connect-status is-ok' : 'connect-status is-wait'}
-                  >
-                    <div className="connect-status-head">
-                      <span className="connect-step-icon" aria-hidden="true">
-                        <Icon size={18} />
-                      </span>
-                      <h3>{title}</h3>
-                    </div>
-                    <p
-                      className={
-                        enabled
-                          ? 'connect-status-pill is-ready'
-                          : status.state === 'restricted'
-                            ? 'connect-status-pill is-alert'
-                            : 'connect-status-pill is-pending'
-                      }
+            {status && notice && status.state !== 'not_started' && (!loading || flow) && (
+              <div aria-live="polite" className={`connect-state is-${notice}`}>
+                <span className="connect-state-icon" aria-hidden="true">
+                  {notice === 'approved' ? (
+                    <CheckCircle2 size={22} />
+                  ) : notice === 'reviewing' ? (
+                    <Clock3 size={22} />
+                  ) : (
+                    <TriangleAlert size={22} />
+                  )}
+                </span>
+                <div>
+                  <p className="connect-state-title">
+                    {headlines[notice]}
+                    {status.testMode ? (
+                      <span className="connect-state-tag">Ambiente de testes</span>
+                    ) : null}
+                  </p>
+                  <p>{leads[notice]}</p>
+                  {notice === 'approved' && !dashboard ? (
+                    <p className="connect-state-more">
+                      Depois de concluir o cadastro do espaço, em Financeiro → Receber pelo app você
+                      liga o pagamento e vê os próximos passos.
+                    </p>
+                  ) : null}
+                  {notice === 'needs_info' || notice === 'filling' || notice === 'restricted' ? (
+                    <button
+                      type="button"
+                      className="ob2-areas-link connect-text-action"
+                      disabled={opening || loading}
+                      onClick={() => void open('onboarding')}
                     >
-                      {enabled ? (
-                        <CheckCircle2 aria-hidden="true" size={16} />
-                      ) : (
-                        <Clock3 aria-hidden="true" size={16} />
-                      )}
-                      {enabled ? 'Liberado em teste' : 'Ainda não liberado'}
-                    </p>
-                    <p>
-                      {enabled
-                        ? 'Liberado neste teste, sem dinheiro real. No pagamento de verdade, cada venda ainda espera o prazo do cartão, do Pix ou do boleto.'
-                        : text}
-                    </p>
-                  </article>
-                ))}
-                {status.requirementsDue > 0 && (
-                  <div className="connect-note is-warn connect-span">
-                    <TriangleAlert aria-hidden="true" className="connect-note-icon" />
-                    <div>
-                      <p className="connect-note-title">
-                        Vamos completar seus dados de recebimento
-                      </p>
-                      <p>
-                        Abra o formulário seguro abaixo. A Stripe orienta cada etapa e mostra quais
-                        dados ou documentos precisa receber. Ao terminar, volte aqui para conferir o
-                        resultado.
-                      </p>
-                      <button
-                        type="button"
-                        className="ob2-areas-link connect-text-action"
-                        disabled={opening || loading}
-                        onClick={() => void open('onboarding')}
-                      >
-                        Abrir cadastro e preencher meus dados
-                      </button>
-                    </div>
-                  </div>
-                )}
-                {status.state === 'reviewing' && (
-                  <p className="connect-note is-info connect-span">
-                    A Stripe não está pedindo mais nenhum dado. Ela deixou uma análise interna em
-                    aberto e, neste ambiente de teste, essa análise não conclui sozinha. Você já
-                    pode avançar no cadastro da clínica. A cobrança dos clientes continua desligada
-                    até a Stripe liberar pagamentos e repasses.
-                  </p>
-                )}
-                {!ready && status.state !== 'reviewing' && status.requirementsDue === 0 && (
-                  <p className="connect-note is-info connect-span">
-                    A conta ainda não está pronta. Abra o cadastro para verificar se é necessário
-                    enviar algum dado ou aguardar uma análise da Stripe.
-                    {showRefresh
-                      ? ' Se você já enviou tudo, use “Atualizar situação” para consultar novamente.'
-                      : ''}
-                  </p>
-                )}
+                      {notice === 'restricted'
+                        ? 'Ver o que a Stripe informou'
+                        : 'Completar cadastro'}
+                    </button>
+                  ) : null}
+                </div>
               </div>
             )}
+            {dashboard && status && notice === 'approved' && inApp ? (
+              <ConnectNextSteps
+                clinicRef={clinicId}
+                enabled={inApp.enabled}
+                guideDone={inApp.guideDone}
+                onToggle={saveInApp}
+                onDone={finishGuide}
+                onOpenPayouts={() => void open('payouts')}
+              />
+            ) : null}
             {error && (
               <p role="alert" className="connect-note is-warn">
                 {error}

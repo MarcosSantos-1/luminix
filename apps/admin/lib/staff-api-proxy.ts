@@ -145,6 +145,8 @@ export async function staffApiWrite(
     | `/clinics/${string}/showcase`
     | `/clinics/${string}/onboarding`
     | `/clinics/${string}/payments/connect/session`
+    | `/clinics/${string}/payments/in-app`
+    | `/clinics/${string}/payments/guide-done`
     | `/clinics/${string}/onboarding/complete`
     | `/clinics/${string}/clients`
     | `/clinics/${string}/appointments`

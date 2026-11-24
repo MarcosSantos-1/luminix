@@ -832,7 +832,13 @@ export async function clientRoutes(app: FastifyInstance, dependencies: AuthDepen
           // 0 or 1 professional: the agenda is chosen for the client, no picker.
           choose: professionals.length > 1,
           // Pix/card only when the space turned on payments in the app.
-          inAppPayments: await acceptsInApp(connection, scope!),
+          // Switch on AND account approved (ADR-041), so the client never picks a dead option.
+          inAppPayments:
+            (
+              await connection.query('SELECT luminix.clinic_online_ready($1) AS ready', [
+                scope!.clinicId,
+              ])
+            ).rows[0]?.ready === true,
           professionals,
           slots,
         }

@@ -33,11 +33,13 @@ export default function ReceiptsPage() {
           </Link>
           <ManagerDesignButton />
         </header>
-        <h1>Receber pelo app (Stripe)</h1>
+        <h1>Receber pelo app</h1>
         {canManage && (
           <p className="manager-receipts-intro">
-            Configure a conta da clínica para receber por cartão, Pix ou boleto nos agendamentos
-            pelo app. O cadastro é opcional.
+            Com o pagamento pelo app, sua cliente paga por Pix ou cartão na hora de agendar e o
+            dinheiro cai na conta do espaço. Quem cuida do pagamento e do depósito é a Stripe,
+            empresa usada por milhões de negócios no mundo; o Luminix nunca vê cartão nem dados
+            bancários. É opcional: sem ele, você continua recebendo no espaço como sempre.
           </p>
         )}
         <ConnectPanel dashboard />
