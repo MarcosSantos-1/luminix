@@ -6,12 +6,11 @@ import {
   CircleHelp,
   Eye,
   HandCoins,
-  MessageSquareText,
   QrCode,
   RotateCcw,
 } from 'lucide-react'
 import { useState, type ReactNode } from 'react'
-import { CheckboxField, SelectField, TextAreaField, TextInputField } from '@/components/ui/fields'
+import { CheckboxField, SelectField, TextInputField } from '@/components/ui/fields'
 import {
   depositProblem,
   isSpecialService,
@@ -530,13 +529,21 @@ function RulesEditor({
                   </div>
                   <ul>
                     {priced.map((service) => (
-                      <li key={service.id}>
+                      <li
+                        key={service.id}
+                        className={isSpecialService(service) ? 'is-special' : undefined}
+                      >
                         <CheckboxField
                           label={service.name}
                           description={
-                            isSpecialService(service)
-                              ? `Especial · ${service.category}`
-                              : service.category
+                            isSpecialService(service) ? (
+                              <>
+                                <span className="rules-special-tag">⭐ Especial (alugado)</span>{' '}
+                                {service.category}
+                              </>
+                            ) : (
+                              service.category
+                            )
                           }
                           isSelected={service.depositRequired === true}
                           onChange={(on) => change(setServicesDeposit(payload, [service.id], on))}
@@ -574,8 +581,11 @@ function RulesEditor({
                     aria-checked={outcome === option.id}
                     onClick={() => change(withSinalOutcome(payload, option.id))}
                   >
-                    <strong>{option.title}</strong>
-                    <small>{option.detail}</small>
+                    <span className="rules-radio" aria-hidden />
+                    <span className="rules-outcome-copy">
+                      <strong>{option.title}</strong>
+                      <small>{option.detail}</small>
+                    </span>
                   </button>
                 ))}
               </div>
@@ -586,21 +596,6 @@ function RulesEditor({
               ) : null}
             </SettingsCard>
           ) : null}
-
-          <SettingsCard
-            icon={<MessageSquareText size={20} />}
-            title="Recado para as clientes"
-            description="Aparece antes de confirmar o horário. Ex.: “Chegue 10 minutos antes.”"
-          >
-            <TextAreaField
-              ariaLabel="Recado para as clientes"
-              rows={3}
-              maxLength={500}
-              value={p.clientInstructions ?? ''}
-              placeholder="Escreva um recado (opcional)"
-              onChange={(clientInstructions) => prefs({ clientInstructions })}
-            />
-          </SettingsCard>
         </div>
 
         <aside className="manager-panel rules-preview" aria-label="Como a cliente vê">
@@ -611,7 +606,6 @@ function RulesEditor({
             {summary.map((line) => (
               <li key={line}>{line}</li>
             ))}
-            {p.clientInstructions?.trim() ? <li>“{p.clientInstructions.trim()}”</li> : null}
           </ul>
           <small>Resumo mostrado no site antes de a cliente confirmar o horário.</small>
         </aside>
