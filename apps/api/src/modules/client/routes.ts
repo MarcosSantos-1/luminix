@@ -993,6 +993,13 @@ export async function clientRoutes(app: FastifyInstance, dependencies: AuthDepen
                 amount: Number(hold.amount_cents),
                 dueAt: new Date(String(hold.due_at)),
                 service: String(service.name),
+                clinicName: String(
+                  (
+                    await connection.query('SELECT name FROM luminix.clinics WHERE id = $1', [
+                      scope!.clinicId,
+                    ])
+                  ).rows[0]?.name ?? '',
+                ),
               },
             }
           }
@@ -1036,6 +1043,7 @@ export async function clientRoutes(app: FastifyInstance, dependencies: AuthDepen
               amount: number
               dueAt: Date
               service: string
+              clinicName: string
             }
           }
         | undefined
@@ -1069,6 +1077,7 @@ export async function clientRoutes(app: FastifyInstance, dependencies: AuthDepen
           method: request.body.paymentMethod as 'pix' | 'card',
           amountCents: hold.amount,
           description: hold.service,
+          businessName: hold.clinicName,
           email: null,
           expiresAt: hold.dueAt,
           returnUrl,

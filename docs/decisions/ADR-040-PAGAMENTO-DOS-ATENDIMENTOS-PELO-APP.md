@@ -41,6 +41,12 @@ Webhook Connect `we_1UfIWCCz54koiZqRILq9wCzy` (modo teste) com `checkout.session
 `checkout.session.expired`. O provider só funciona com `sk_test_` enquanto o bloqueio de chaves
 live da ADR-016 existir.
 
+### Validação na Stripe de teste — 2026-11-24
+
+A conta Connect de teste do "Studio Luniere" recusava Checkout por não ter nome público. Com
+`display_name` preenchido, sessões de cartão e de Pix abrem na conta da clínica. O provider
+preenche o nome do espaço e repete uma vez quando a Stripe recusa por isso.
+
 ## Consequências
 
 - Migration 0068: `online_payments`, `connect_events` (RLS + FORCE; inventário 56) e colunas de

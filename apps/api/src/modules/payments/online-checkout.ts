@@ -30,6 +30,8 @@ export interface OnlinePaymentsProvider {
     method: OnlineMethod
     amountCents: number
     description: string
+    /** The space's name: Checkout refuses connected accounts without a business name. */
+    businessName: string
     email: string | null
     expiresAt: Date
     returnUrl: string
@@ -49,63 +51,29 @@ export function createOnlinePaymentsProvider(
   const webhookSecret = environment.STRIPE_CONNECT_WEBHOOK_SECRET
   if (!environment.STRIPE_SECRET_KEY?.startsWith('sk_test_') || !webhookSecret) return null
   const stripe = createStripeClient(environment)
+  type CheckoutInput = Parameters<OnlinePaymentsProvider['createCheckout']>[0]
+  const pixError = (input: CheckoutInput, error: unknown) =>
+    input.method === 'pix' && /pix/i.test((error as Error)?.message ?? '')
 
   return {
     async createCheckout(input) {
       try {
-        const session = await stripe.checkout.sessions.create(
-          {
-            mode: 'payment',
-            locale: 'pt-BR',
-            payment_method_types: [input.method === 'pix' ? 'pix' : 'card'],
-            ...(input.method === 'pix'
-              ? {
-                  payment_method_options: {
-                    pix: {
-                      expires_after_seconds: Math.max(
-                        600,
-                        Math.floor((input.expiresAt.getTime() - Date.now()) / 1000),
-                      ),
-                    },
-                  },
-                }
-              : {}),
-            line_items: [
-              {
-                quantity: 1,
-                price_data: {
-                  currency: 'brl',
-                  unit_amount: input.amountCents,
-                  product_data: { name: input.description.slice(0, 120) },
-                },
-              },
-            ],
-            ...(input.email ? { customer_email: input.email } : {}),
-            client_reference_id: input.appointmentId,
-            expires_at: Math.floor(input.expiresAt.getTime() / 1000),
-            success_url: `${input.returnUrl}?pagamento=ok`,
-            cancel_url: `${input.returnUrl}?pagamento=cancelado`,
-            metadata: {
-              luminix_clinic_id: input.clinicId,
-              luminix_appointment_id: input.appointmentId,
-            },
-            payment_intent_data: {
-              metadata: {
-                luminix_clinic_id: input.clinicId,
-                luminix_appointment_id: input.appointmentId,
-              },
-            },
-          },
-          {
-            stripeAccount: input.account,
-            idempotencyKey: `luminix-visit-${input.appointmentId}-${input.method}`,
-          },
-        )
-        if (!session.url) throw new Error('Checkout without URL')
-        return { id: session.id, url: session.url }
+        return await open(input)
       } catch (error) {
-        const message = (error as Stripe.errors.StripeError)?.message ?? ''
-        if (input.method === 'pix' && /pix/i.test(message)) throw new PixUnavailableError()
+        // Accounts onboarded without a public name: give them the space's name, try once more.
+        const named = /business name|account name/i.test((error as Error)?.message ?? '')
+        if (named && input.businessName.trim()) {
+          await stripe.v2.core.accounts.update(input.account, {
+            display_name: input.businessName.trim().slice(0, 100),
+          })
+          try {
+            return await open(input)
+          } catch (retry) {
+            if (pixError(input, retry)) throw new PixUnavailableError()
+            throw retry
+          }
+        }
+        if (pixError(input, error)) throw new PixUnavailableError()
         throw error
       }
     },
@@ -117,28 +85,83 @@ export function createOnlinePaymentsProvider(
       )
       return session.status === 'open' ? session.url : null
     },
-    readEvent(rawBody, signature) {
-      const event = stripe.webhooks.constructEvent(rawBody, signature, webhookSecret)
-      if (!event.account) return null
-      const paid =
-        event.type === 'checkout.session.completed' ||
-        event.type === 'checkout.session.async_payment_succeeded'
-      const expired =
-        event.type === 'checkout.session.expired' ||
-        event.type === 'checkout.session.async_payment_failed'
-      if (!paid && !expired) return null
-      const session = event.data.object as Stripe.Checkout.Session
-      if (!session.metadata?.luminix_appointment_id) return null
-      // Pix finishes the checkout first and pays later (async): only "paid" counts.
-      if (paid && session.payment_status !== 'paid') return null
-      return {
-        id: event.id,
-        type: event.type,
-        account: event.account,
-        session: session.id,
-        intent: intentId(session.payment_intent),
-        outcome: paid ? 'paid' : 'expired',
-      }
-    },
+    readEvent: (rawBody, signature) => readEvent(rawBody, signature),
+  }
+
+  async function open(input: CheckoutInput) {
+    const session = await stripe.checkout.sessions.create(
+      {
+        mode: 'payment',
+        locale: 'pt-BR',
+        payment_method_types: [input.method === 'pix' ? 'pix' : 'card'],
+        ...(input.method === 'pix'
+          ? {
+              payment_method_options: {
+                pix: {
+                  expires_after_seconds: Math.max(
+                    600,
+                    Math.floor((input.expiresAt.getTime() - Date.now()) / 1000),
+                  ),
+                },
+              },
+            }
+          : {}),
+        line_items: [
+          {
+            quantity: 1,
+            price_data: {
+              currency: 'brl',
+              unit_amount: input.amountCents,
+              product_data: { name: input.description.slice(0, 120) },
+            },
+          },
+        ],
+        ...(input.email ? { customer_email: input.email } : {}),
+        client_reference_id: input.appointmentId,
+        expires_at: Math.floor(input.expiresAt.getTime() / 1000),
+        success_url: `${input.returnUrl}?pagamento=ok`,
+        cancel_url: `${input.returnUrl}?pagamento=cancelado`,
+        metadata: {
+          luminix_clinic_id: input.clinicId,
+          luminix_appointment_id: input.appointmentId,
+        },
+        payment_intent_data: {
+          metadata: {
+            luminix_clinic_id: input.clinicId,
+            luminix_appointment_id: input.appointmentId,
+          },
+        },
+      },
+      {
+        stripeAccount: input.account,
+        idempotencyKey: `luminix-visit-${input.appointmentId}-${input.method}`,
+      },
+    )
+    if (!session.url) throw new Error('Checkout without URL')
+    return { id: session.id, url: session.url }
+  }
+
+  function readEvent(rawBody: Buffer, signature: string): ConnectPaymentEvent | null {
+    const event = stripe.webhooks.constructEvent(rawBody, signature, webhookSecret!)
+    if (!event.account) return null
+    const paid =
+      event.type === 'checkout.session.completed' ||
+      event.type === 'checkout.session.async_payment_succeeded'
+    const expired =
+      event.type === 'checkout.session.expired' ||
+      event.type === 'checkout.session.async_payment_failed'
+    if (!paid && !expired) return null
+    const session = event.data.object as Stripe.Checkout.Session
+    if (!session.metadata?.luminix_appointment_id) return null
+    // Pix finishes the checkout first and pays later (async): only "paid" counts.
+    if (paid && session.payment_status !== 'paid') return null
+    return {
+      id: event.id,
+      type: event.type,
+      account: event.account,
+      session: session.id,
+      intent: intentId(session.payment_intent),
+      outcome: paid ? 'paid' : 'expired',
+    }
   }
 }
