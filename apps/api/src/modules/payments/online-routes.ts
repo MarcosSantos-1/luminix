@@ -1,6 +1,7 @@
 import type { FastifyInstance } from 'fastify'
 import type { AuthDependencies } from '../../shared/auth/staff-session.js'
 import { createOnlinePaymentsProvider, type OnlinePaymentsProvider } from './online-checkout.js'
+import { refundDue } from './refunds.js'
 
 /**
  * Connect webhook (ADR-040): events of the clinics' connected accounts. The signature is checked
@@ -38,9 +39,16 @@ export async function onlinePaymentRoutes(app: FastifyInstance, dependencies: Au
           [event.id, event.type, event.account, event.session, event.intent, event.outcome],
         )
         const outcome = String(result.rows[0]?.result ?? '')
-        // Money after the slot was released: needs a refund (etapa 2); never silent.
-        if (outcome === 'paid_late')
+        // Money after the slot was released: give it back right away.
+        if (outcome === 'paid_late') {
           request.log.warn({ event: 'online_payment_paid_late', type: event.type })
+          const clinic = (
+            await dependencies.database.query('SELECT luminix.online_payment_clinic($1) AS id', [
+              event.session,
+            ])
+          ).rows[0]?.id
+          if (clinic) await refundDue(dependencies.database, stripe, String(clinic), request.log)
+        }
         return { received: true }
       } catch (error) {
         const code = (error as { code?: string }).code

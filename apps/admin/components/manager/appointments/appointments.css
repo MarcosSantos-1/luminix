@@ -4049,3 +4049,45 @@ button.sh-client-link:focus-visible {
   font-weight: 600;
   text-decoration: none;
 }
+
+/* Paid in the app (ADR-040): state of the payment and its refund. */
+.sh-online {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  margin: 4px 0 10px;
+  padding: 12px 16px;
+  border: 1px solid #39e58c55;
+  border-radius: 18px;
+  background: color-mix(in srgb, #39e58c 10%, transparent);
+}
+.sh-online > svg {
+  flex: none;
+  color: #b7ffd6;
+}
+.sh-online > div {
+  display: grid;
+  flex: 1 1 220px;
+  gap: 2px;
+}
+.sh-online small {
+  color: var(--manager-muted);
+  font-size: 13px;
+}
+.sh-online.is-refunded,
+.sh-online.is-pending {
+  border-color: #ffffff2e;
+  background: #ffffff0a;
+}
+.sh-online.is-refunded > svg,
+.sh-online.is-pending > svg {
+  color: var(--manager-muted);
+}
+.sh-online.is-failed {
+  border-color: #ffb4b466;
+  background: #ffb4b412;
+}
+.sh-online.is-failed > svg {
+  color: #ffb4b4;
+}

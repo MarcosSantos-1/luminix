@@ -19,6 +19,8 @@ let service: string
 let sessions = 0
 let pixWorks = true
 let ready = true
+let refundWorks = true
+const refunds: string[] = []
 
 const connect: ConnectProvider = {
   context: async () => ({
@@ -47,6 +49,11 @@ const online: OnlinePaymentsProvider = {
   readEvent: (raw, signature) => {
     if (signature !== 'ok') throw new Error('bad signature')
     return JSON.parse(raw.toString('utf8')) as ConnectPaymentEvent
+  },
+  refund: async ({ paymentId }) => {
+    if (!refundWorks) throw new Error('stripe down')
+    refunds.push(paymentId)
+    return `re_${refunds.length}`
   },
 }
 
@@ -258,14 +265,26 @@ describe('pagamento do atendimento pelo app', () => {
     expect(entry).toMatchObject({ method: 'credit', amount_cents: 18000 })
     expect(String(entry.description)).toContain('Pago pelo app')
 
-    // A paid visit is canceled by the space until refunds exist (etapa 2).
+    // Canceling a paid visit within the deadline gives the full amount back (etapa 2).
     const cancel = await call(
       'ana-online',
       'POST',
       `/client/spaces/${slug}/appointments/${body.id}/cancel`,
     )
-    expect(cancel.statusCode).toBe(409)
-    expect(cancel.json().error).toBe('Contact the space')
+    expect(cancel.statusCode).toBe(200)
+    expect(cancel.json()).toEqual({ ok: true, refunded: true })
+    expect(await visit(body.id)).toMatchObject({
+      status: 'canceled',
+      online_payment_status: 'refunded',
+      paid: 0,
+    })
+    const [entryAfter] = await asOwner(() =>
+      sql(
+        `SELECT status FROM luminix.finance_entries WHERE clinic_id = $1 AND appointment_id = $2`,
+        [clinic, body.id],
+      ),
+    )
+    expect(entryAfter.status).toBe('void')
   })
 
   it('frees the slot when the time runs out; money after that is flagged, not counted', async () => {
@@ -289,6 +308,14 @@ describe('pagamento do atendimento pelo app', () => {
     )
     expect(row.status).toBe('paid_late')
     expect((await visit(booked.id)).paid).toBe(0)
+    // Late money goes back on its own.
+    const [late] = await asOwner(() =>
+      sql(
+        'SELECT refund_status, refund_reason FROM luminix.online_payments WHERE session_id = $1',
+        [session],
+      ),
+    )
+    expect(late).toMatchObject({ refund_status: 'refunded', refund_reason: 'paid_late' })
   })
 
   it('an expired session releases the hold right away', async () => {
@@ -343,5 +370,70 @@ describe('pagamento do atendimento pelo app', () => {
     expect(res.json().error).toBe('Payment unavailable')
     // Paying at the space keeps working.
     expect((await book('local')).statusCode).toBe(201)
+  })
+
+  it('the space canceling a paid visit refunds it after the response', async () => {
+    const booked = (await book('card')).json()
+    await hook({ id: 'evt_paid_staff', session: `cs_test_${sessions}` })
+    const res = await call(
+      'dona-online',
+      'PUT',
+      `/clinics/${clinic}/appointments/${booked.id}/status`,
+      {
+        status: 'canceled',
+        note: 'Profissional doente',
+      },
+    )
+    expect(res.statusCode).toBe(200)
+    // The sweep runs after the reply; give it a moment.
+    for (
+      let tries = 0;
+      tries < 20 && (await visit(booked.id)).online_payment_status !== 'refunded';
+      tries++
+    )
+      await new Promise((resolve) => setTimeout(resolve, 50))
+    expect(await visit(booked.id)).toMatchObject({
+      status: 'canceled',
+      online_payment_status: 'refunded',
+    })
+  })
+
+  it('"Estornar" refunds a completed visit; a failed refund can be retried', async () => {
+    const booked = (await book('card')).json()
+    await hook({ id: 'evt_paid_done', session: `cs_test_${sessions}` })
+    await call('dona-online', 'PUT', `/clinics/${clinic}/appointments/${booked.id}/status`, {
+      status: 'completed',
+    })
+    refundWorks = false
+    const failed = await call(
+      'dona-online',
+      'POST',
+      `/clinics/${clinic}/appointments/${booked.id}/refund`,
+    )
+    expect(failed.statusCode).toBe(502)
+    const [state] = await asOwner(() =>
+      sql(
+        'SELECT refund_status FROM luminix.online_payments WHERE clinic_id = $1 AND appointment_id = $2',
+        [clinic, booked.id],
+      ),
+    )
+    expect(state.refund_status).toBe('failed')
+    refundWorks = true
+    const retried = await call(
+      'dona-online',
+      'POST',
+      `/clinics/${clinic}/appointments/${booked.id}/refund`,
+    )
+    expect(retried.statusCode).toBe(200)
+    expect(await visit(booked.id)).toMatchObject({
+      status: 'completed',
+      online_payment_status: 'refunded',
+      paid: 0,
+    })
+    // Nothing left to refund.
+    expect(
+      (await call('dona-online', 'POST', `/clinics/${clinic}/appointments/${booked.id}/refund`))
+        .statusCode,
+    ).toBe(409)
   })
 })

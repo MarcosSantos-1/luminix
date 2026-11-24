@@ -53,6 +53,10 @@ export async function insightsRoutes(
                     luminix.appointment_paid_cents(a.clinic_id, a.id) AS paid_cents,
                     ${appointmentPackage} AS package,
                     a.online_payment_status, a.online_payment_due_at,
+                      (SELECT op.refund_status FROM luminix.online_payments op
+                        WHERE op.clinic_id = a.clinic_id AND op.appointment_id = a.id
+                          AND op.status IN ('paid', 'paid_late')
+                        ORDER BY op.created_at DESC LIMIT 1) AS online_refund_status,
                     link.answer AS link_answer, link.answered_at AS link_answered_at,
                     link.opened_at AS link_opened_at
                FROM luminix.appointments a
@@ -85,6 +89,10 @@ export async function insightsRoutes(
                     luminix.appointment_paid_cents(a.clinic_id, a.id) AS paid_cents,
                     ${appointmentPackage} AS package,
                     a.online_payment_status, a.online_payment_due_at,
+                      (SELECT op.refund_status FROM luminix.online_payments op
+                        WHERE op.clinic_id = a.clinic_id AND op.appointment_id = a.id
+                          AND op.status IN ('paid', 'paid_late')
+                        ORDER BY op.created_at DESC LIMIT 1) AS online_refund_status,
                     link.answer AS link_answer, link.answered_at AS link_answered_at,
                     link.opened_at AS link_opened_at
                FROM luminix.appointments a
@@ -137,6 +145,7 @@ export async function insightsRoutes(
           onlinePayment: row.online_payment_status
             ? {
                 status: String(row.online_payment_status),
+                refundStatus: row.online_refund_status ? String(row.online_refund_status) : null,
                 dueAt: row.online_payment_due_at
                   ? new Date(String(row.online_payment_due_at)).toISOString()
                   : null,

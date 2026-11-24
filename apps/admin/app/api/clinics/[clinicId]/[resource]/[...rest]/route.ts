@@ -46,6 +46,7 @@ const writes: Record<'PUT' | 'POST', RegExp[]> = {
     new RegExp(`^marketing/posts/${id}/remove$`, 'i'),
     new RegExp(`^appointments/${id}/deposit/confirm$`, 'i'),
     new RegExp(`^appointments/${id}/confirmation-link$`, 'i'),
+    new RegExp(`^appointments/${id}/refund$`, 'i'),
     /^billing\/(checkout|portal)$/,
   ],
 }

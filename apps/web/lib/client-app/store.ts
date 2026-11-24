@@ -281,7 +281,7 @@ function paymentsOf(appointments: Appointment[]): Payment[] {
     .flatMap((item): Payment[] => {
       const method = item.paymentMethod ?? 'local'
       const online = item.onlinePayment?.status
-      if (online === 'expired') return []
+      if (online === 'expired' || online === 'refunded') return []
       if (item.status === 'cancelled' && !item.paid) return []
       return [
         {

@@ -13,6 +13,8 @@ import { inventoryRoutes } from '../inventory/routes.js'
 import { insightsRoutes } from '../insights/routes.js'
 import { workspaceRoutes } from '../workspace/routes.js'
 import { billingRoutes } from '../billing/routes.js'
+import { onlinePaymentsOf } from '../payments/online-checkout.js'
+import { refundDue } from '../payments/refunds.js'
 import { formatClinicGeocodeAddress, pickGeocodedPoint } from './geocode.js'
 export type { AuthDependencies } from '../../shared/auth/staff-session.js'
 
@@ -26,11 +28,22 @@ export async function authRoutes(app: FastifyInstance, dependencies: AuthDepende
       reply.header('Cache-Control', 'no-store')
     return payload
   })
+  // After any successful change by the team, refund canceled visits paid in the app (ADR-040).
+  // Cancellations come from many places (agenda, schedule changes, packages, team); one sweep
+  // after the response covers them all without holding the request.
+  app.addHook('onResponse', async (request, reply) => {
+    const url = request.routeOptions.url ?? ''
+    if (!url.startsWith('/clinics/:clinicId/') || request.method === 'GET') return
+    if (reply.statusCode >= 400) return
+    const ref = (request.params as { clinicId?: string } | undefined)?.clinicId
+    if (!ref) return
+    void refundDue(dependencies.database, onlinePaymentsOf(dependencies), ref, request.log)
+  })
   const authenticate = createStaffAuthenticator(dependencies)
   // Welcome e-mails (space after onboarding, client on registration) go out after commit.
   const mail = { mailer: dependencies.mailer, adminOrigin: dependencies.adminOrigin }
   await clinicRoutes(app, authenticate, dependencies.tenantPool, dependencies.connectProvider, mail)
-  await operationRoutes(app, authenticate, dependencies.tenantPool, mail)
+  await operationRoutes(app, authenticate, dependencies.tenantPool, mail, dependencies)
   await paymentRoutes(app, authenticate, dependencies.tenantPool, dependencies.connectProvider)
   await teamRoutes(app, authenticate, dependencies)
   await mediaRoutes(app, authenticate, dependencies.tenantPool)

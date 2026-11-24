@@ -69,7 +69,10 @@ export type Appointment = {
   onlinePayment?: OnlinePayment | null
 }
 
-export type OnlinePayment = { status: 'awaiting' | 'paid' | 'expired'; dueAt: string | null }
+export type OnlinePayment = {
+  status: 'awaiting' | 'paid' | 'expired' | 'refunded'
+  dueAt: string | null
+}
 
 export type Deposit = {
   cents: number

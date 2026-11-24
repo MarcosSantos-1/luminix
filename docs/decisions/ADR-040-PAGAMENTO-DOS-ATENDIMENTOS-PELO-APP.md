@@ -52,3 +52,22 @@ preenche o nome do espaço e repete uma vez quando a Stripe recusa por isso.
 - Migration 0068: `online_payments`, `connect_events` (RLS + FORCE; inventário 56) e colunas de
   pagamento no agendamento; `expire_deposit_holds` também expira pagamentos.
 - Pendências em [TD-018](../technical-debt/TD-018-PAGAMENTO-PELO-APP.md).
+
+## Etapa 2 — Estornos (migration 0069, 2026-11-24)
+
+- **Regra:** todo pagamento pelo app de um atendimento **cancelado** volta inteiro (a cliente só
+  cancela dentro do prazo; a clínica cancelar sempre devolve). Pagamento que chegou depois de o
+  horário ser liberado (`paid_late`) também volta. Falta ou atendimento concluído não devolvem
+  sozinhos: a equipe usa **"Estornar"** (`finance:manage`), que também repete um estorno que falhou.
+- **Fila:** `claim_due_refunds` marca `pending` (SKIP LOCKED, no máximo 20 por vez, e retoma
+  `pending` parado há 10 min) → `refunds.create` na conta da clínica com chave de idempotência
+  por pagamento → `finish_refund`. Estornado: a receita no Financeiro vira `void` e o atendimento
+  fica `online_payment_status = refunded`. A taxa da Stripe fica com a clínica.
+- **Quando roda:** depois de **qualquer escrita bem-sucedida da equipe** em `/clinics/:id/*`
+  (`onResponse`, fora da resposta), cobrindo cancelamentos da agenda, mudanças de expediente,
+  pacotes e equipe; no cancelamento pela cliente (a resposta diz `refunded`); e no webhook quando o
+  pagamento chega atrasado. "Estornar" continua aberto no modo só leitura (ADR-039).
+- **Telas:** site com "valor devolvido" e o aviso de que cancelar no prazo devolve; admin com o
+  bloco "Pago pelo app" (Estornar, estorno em andamento, estornado ou "tentar de novo").
+- **Validado na Stripe de teste:** pagamento de R$ 10 e estorno na conta Connect da clínica
+  (`acct_1UV3LdCz54IQYanW`) com sucesso.

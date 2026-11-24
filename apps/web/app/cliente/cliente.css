@@ -2968,3 +2968,11 @@
   color: #0b5a34;
   font-weight: 700;
 }
+
+.ca-pay-done small {
+  display: block;
+  margin-top: 2px;
+  color: inherit;
+  font-weight: 500;
+  opacity: 0.85;
+}

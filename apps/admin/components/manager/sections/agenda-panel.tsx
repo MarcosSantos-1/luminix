@@ -74,7 +74,8 @@ type Row = {
   link_answer?: 'confirmed' | 'reschedule' | 'not_me' | 'canceled' | null
   link_answered_at?: string | null
   link_opened_at?: string | null
-  online_payment_status?: 'awaiting' | 'paid' | 'expired' | null
+  online_payment_status?: 'awaiting' | 'paid' | 'expired' | 'refunded' | null
+  online_refund_status?: 'pending' | 'refunded' | 'failed' | null
   online_payment_due_at?: string | null
   status_note?: string | null
   client_photo_large_url?: string | null
@@ -166,7 +167,11 @@ function toView(row: Row): AppointmentView {
           }
         : null,
     onlinePayment: row.online_payment_status
-      ? { status: row.online_payment_status, dueAt: row.online_payment_due_at ?? null }
+      ? {
+          status: row.online_payment_status,
+          dueAt: row.online_payment_due_at ?? null,
+          refundStatus: row.online_refund_status ?? null,
+        }
       : null,
     statusNote: row.status_note ?? null,
     paid: row.paid === true,

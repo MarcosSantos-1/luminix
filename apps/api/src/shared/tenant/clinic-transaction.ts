@@ -19,9 +19,10 @@ export function subscriptionRequired(): Error {
   return Object.assign(new Error('Subscription required'), { statusCode: 402 })
 }
 
-// Paying, finishing the first setup and marking notices as read stay open in read-only mode.
+// Paying, finishing the first setup, marking notices as read and giving money back to a client
+// stay open in read-only mode.
 const openWhenReadOnly =
-  /^\/clinics\/:clinicId\/(?:billing(?:\/|$)|onboarding(?:\/|$)|activity\/state$)/
+  /^\/clinics\/:clinicId\/(?:billing(?:\/|$)|onboarding(?:\/|$)|activity\/state$|appointments\/:appointmentId\/refund$)/
 
 /**
  * Whether this request changes clinic data and so needs a valid plan (ADR-039). Reads (GET)

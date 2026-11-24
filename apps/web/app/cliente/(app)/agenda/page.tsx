@@ -234,6 +234,7 @@ export default function AgendaPage() {
                         ? ` · pague até ${new Date(item.onlinePayment.dueAt).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`
                         : ''}
                       {item.onlinePayment?.status === 'paid' ? ' · pago pelo app' : ''}
+                      {item.onlinePayment?.status === 'refunded' ? ' · valor devolvido' : ''}
                     </small>
                   </span>
                   <StatusBadge appointment={item} />
@@ -310,7 +311,17 @@ export default function AgendaPage() {
               </div>
             ) : null}
             {open.onlinePayment?.status === 'paid' ? (
-              <p className="ca-pay-done">Pago pelo app ✓</p>
+              <p className="ca-pay-done">
+                Pago pelo app ✓
+                {canChange ? (
+                  <small> Se cancelar dentro do prazo, o valor volta inteiro para você.</small>
+                ) : null}
+              </p>
+            ) : null}
+            {open.onlinePayment?.status === 'refunded' ? (
+              <p className="ca-pay-done">
+                Valor devolvido ✓<small> No Pix volta na hora; no cartão, em alguns dias.</small>
+              </p>
             ) : null}
             {space.policy?.instructions && <p>{space.policy.instructions}</p>}
             <p className="ca-error" role="alert">

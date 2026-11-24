@@ -46,7 +46,12 @@ export type AppointmentView = {
   /** Confirmation link (ADR-038): opened and/or answered by whoever received it. */
   link?: AppointmentLinkState | null
   /** Client paying in the app (ADR-040): awaiting holds the slot until dueAt. */
-  onlinePayment?: { status: 'awaiting' | 'paid' | 'expired'; dueAt: string | null } | null
+  onlinePayment?: {
+    status: 'awaiting' | 'paid' | 'expired' | 'refunded'
+    dueAt: string | null
+    /** Refund of the app payment: pending, refunded or failed (retry with "Estornar"). */
+    refundStatus?: 'pending' | 'refunded' | 'failed' | null
+  } | null
 }
 
 export type AppointmentLinkState = {

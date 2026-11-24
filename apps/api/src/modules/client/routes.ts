@@ -8,6 +8,7 @@ import { isPaid } from '../../shared/tenant/route-helpers.js'
 import { localDateTime, zonedLocalToUtc } from '../operations/routes.js'
 import { pixCopyPaste, type PixKeyType } from '../../shared/pix.js'
 import { connectReady, createConnectProvider } from '../payments/stripe-connect.js'
+import { refundDue } from '../payments/refunds.js'
 import {
   createOnlinePaymentsProvider,
   PixUnavailableError,
@@ -1184,23 +1185,30 @@ export async function clientRoutes(app: FastifyInstance, dependencies: AuthDepen
   app.post<{ Params: { slug: string; appointmentId: string } }>(
     '/client/spaces/:slug/appointments/:appointmentId/cancel',
     { schema: { params: appointmentParams } },
-    async (request, reply) =>
-      asClient(request, reply, request.params.slug, async (connection, scope) => {
-        // Paid in the app: the refund comes with the next stage (ADR-040), so the space cancels.
-        const paid = await connection.query(
-          `SELECT 1 FROM luminix.appointments
-            WHERE clinic_id = $1 AND id = $2 AND clinic_client_id = $3
-              AND online_payment_status = 'paid'`,
-          [scope!.clinicId, request.params.appointmentId, scope!.clientId],
-        )
-        if (paid.rows.length) return reply.code(409).send({ error: 'Contact the space' })
-        await connection.query('SELECT luminix.client_cancel_appointment($1, $2, $3)', [
-          scope!.clinicId,
-          scope!.clientId,
-          request.params.appointmentId,
-        ])
-        return { ok: true }
-      }),
+    async (request, reply) => {
+      const canceled = (await asClient(
+        request,
+        reply,
+        request.params.slug,
+        async (connection, scope) => {
+          await connection.query('SELECT luminix.client_cancel_appointment($1, $2, $3)', [
+            scope!.clinicId,
+            scope!.clientId,
+            request.params.appointmentId,
+          ])
+          return { clinicId: scope!.clinicId }
+        },
+      )) as { clinicId: string } | undefined
+      if (reply.sent || !canceled) return canceled
+      // Paid in the app (ADR-040): canceling within the deadline gives the full amount back.
+      const refunded = await refundDue(
+        dependencies.database,
+        payments(),
+        canceled.clinicId,
+        request.log,
+      )
+      return { ok: true, refunded: refunded > 0 }
+    },
   )
 
   app.post<{ Params: { slug: string; appointmentId: string }; Body: { localStartsAt: string } }>(

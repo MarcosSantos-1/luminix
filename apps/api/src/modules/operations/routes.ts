@@ -7,8 +7,11 @@ import {
   clientWelcomeEmail,
 } from '../../shared/integrations/email/client-emails.js'
 import { appointmentLinkUrl, newLinkToken } from '../client/appointment-links.js'
+import { onlinePaymentsOf } from '../payments/online-checkout.js'
+import { settleRefunds, type RefundRow } from '../payments/refunds.js'
 import { loadClinicContact, sendLater, type ClinicMail } from '../notifications/clinic-mail.js'
 import type { SqlConnection } from '../../shared/database/migrations.js'
+import type { AuthDependencies } from '../../shared/auth/staff-session.js'
 import {
   guardsWrites,
   withClinicTransaction,
@@ -426,7 +429,11 @@ export async function operationRoutes(
   authenticate: (request: FastifyRequest, reply: FastifyReply) => Promise<string | null>,
   pool: TenantPool | undefined,
   mail?: ClinicMail,
+  /** Database and providers for refunds of payments made in the app (ADR-040). */
+  dependencies?: AuthDependencies,
 ) {
+  const dependenciesForRefund = dependencies ?? { onlinePayments: null }
+  const refundDatabase = dependencies?.database as SqlConnection
   const clinicParams = {
     type: 'object',
     additionalProperties: false,
@@ -1090,6 +1097,10 @@ export async function operationRoutes(
                           AND cp.kind = 'combo') AS combo_name,
                       ${appointmentPackage} AS package,
                       a.online_payment_status, a.online_payment_due_at,
+                      (SELECT op.refund_status FROM luminix.online_payments op
+                        WHERE op.clinic_id = a.clinic_id AND op.appointment_id = a.id
+                          AND op.status IN ('paid', 'paid_late')
+                        ORDER BY op.created_at DESC LIMIT 1) AS online_refund_status,
                       link.answer AS link_answer, link.answered_at AS link_answered_at,
                       link.opened_at AS link_opened_at
                  FROM luminix.appointments a
@@ -1602,6 +1613,51 @@ export async function operationRoutes(
       } & Record<string, unknown>
       sendLater(mail, email, request.log)
       return { ...body, emailed: Boolean(email && mail?.mailer) }
+    },
+  )
+
+  // "Estornar" (ADR-040): full refund of what the client paid in the app, on the clinic's
+  // Stripe account. Also retries a refund that failed. Canceling a paid visit refunds by itself.
+  app.post<{ Params: { clinicId: string; appointmentId: string } }>(
+    '/clinics/:clinicId/appointments/:appointmentId/refund',
+    {
+      bodyLimit: 64,
+      schema: {
+        params: {
+          type: 'object',
+          additionalProperties: false,
+          required: ['clinicId', 'appointmentId'],
+          properties: {
+            ...clinicParams.properties,
+            appointmentId: { type: 'string', pattern: uuid },
+          },
+        },
+      },
+    },
+    async (request, reply) => {
+      const provider = onlinePaymentsOf(dependenciesForRefund)
+      if (!provider) return reply.code(503).send({ error: 'Payments unavailable' })
+      const rows = await authorized(
+        request,
+        reply,
+        'finance:manage',
+        async (connection, tenant) =>
+          (
+            await connection.query(
+              'SELECT * FROM luminix.staff_request_refund($1::uuid, $2::uuid)',
+              [tenant.clinicId, request.params.appointmentId],
+            )
+          ).rows,
+      )
+      if (reply.sent || !Array.isArray(rows)) return rows
+      const refunded = await settleRefunds(
+        refundDatabase,
+        provider,
+        rows as RefundRow[],
+        request.log,
+      )
+      if (!refunded) return reply.code(502).send({ error: 'Refund failed' })
+      return { refunded: true }
     },
   )
 

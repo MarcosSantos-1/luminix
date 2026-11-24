@@ -178,6 +178,7 @@ describe('versioned core migration', () => {
       { name: '0066_appointment_link_cancel_and_logo.sql' },
       { name: '0067_clinic_subscriptions.sql' },
       { name: '0068_online_payments.sql' },
+      { name: '0069_online_refunds.sql' },
     ])
   })
 

@@ -3,6 +3,7 @@
 import { Button, Popover, Spinner } from '@heroui/react'
 import {
   AlertTriangle,
+  CreditCard,
   ArrowLeft,
   BellRing,
   CalendarClock,
@@ -672,6 +673,62 @@ function SheetBody({
               }
             >
               <Check size={16} aria-hidden /> Confirmar sinal recebido
+            </Button>
+          ) : null}
+        </section>
+      ) : null}
+
+      {view === 'main' &&
+      item.onlinePayment &&
+      item.onlinePayment.status !== 'awaiting' &&
+      item.onlinePayment.status !== 'expired' ? (
+        <section
+          className={`sh-online is-${item.onlinePayment.refundStatus ?? item.onlinePayment.status}`}
+          aria-label="Pagamento pelo app"
+        >
+          <CreditCard size={18} aria-hidden />
+          <div>
+            <strong>
+              {item.onlinePayment.status === 'refunded' ||
+              item.onlinePayment.refundStatus === 'refunded'
+                ? 'Pagamento pelo app estornado'
+                : item.onlinePayment.refundStatus === 'failed'
+                  ? 'O estorno falhou'
+                  : item.onlinePayment.refundStatus === 'pending'
+                    ? 'Estorno em andamento'
+                    : 'Pago pelo app'}
+            </strong>
+            <small>
+              {item.onlinePayment.status === 'refunded' ||
+              item.onlinePayment.refundStatus === 'refunded'
+                ? 'O valor voltou para a cliente. A taxa da Stripe fica com o espaço.'
+                : item.onlinePayment.refundStatus === 'failed'
+                  ? 'Tente de novo. Se continuar, estorne pelo painel da Stripe.'
+                  : 'Cancelar o horário devolve o valor inteiro automaticamente.'}
+            </small>
+          </div>
+          {access.charge &&
+          item.onlinePayment.status === 'paid' &&
+          item.onlinePayment.refundStatus !== 'pending' &&
+          item.onlinePayment.refundStatus !== 'refunded' ? (
+            <Button
+              size="sm"
+              variant="secondary"
+              isDisabled={busy}
+              onPress={() => {
+                if (
+                  !window.confirm(
+                    `Estornar o pagamento de ${item.client}? O valor inteiro volta para ela.`,
+                  )
+                )
+                  return
+                void run(
+                  () => api.post(`appointments/${item.id}/refund`, {}),
+                  `Pagamento de ${item.client} estornado.`,
+                )
+              }}
+            >
+              {item.onlinePayment.refundStatus === 'failed' ? 'Tentar de novo' : 'Estornar'}
             </Button>
           ) : null}
         </section>

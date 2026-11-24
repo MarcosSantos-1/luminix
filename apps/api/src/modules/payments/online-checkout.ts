@@ -39,10 +39,25 @@ export interface OnlinePaymentsProvider {
   /** URL of a still open session (the client closed the payment page and comes back). */
   openUrl(account: string, session: string): Promise<string | null>
   readEvent(rawBody: Buffer, signature: string): ConnectPaymentEvent | null
+  /** Full refund on the clinic's account; idempotent per payment. Returns the refund id. */
+  refund(input: {
+    account: string
+    paymentId: string
+    intent: string | null
+    session: string
+  }): Promise<string>
 }
 
 const intentId = (value: string | { id: string } | null | undefined) =>
   value ? (typeof value === 'string' ? value : value.id) : null
+
+const shared = new WeakMap<object, OnlinePaymentsProvider | null>()
+/** One provider per app: the injected one (tests), or Stripe from the environment. */
+export function onlinePaymentsOf(dependencies: { onlinePayments?: OnlinePaymentsProvider | null }) {
+  if (dependencies.onlinePayments !== undefined) return dependencies.onlinePayments
+  if (!shared.has(dependencies)) shared.set(dependencies, createOnlinePaymentsProvider())
+  return shared.get(dependencies) ?? null
+}
 
 /** Stripe in test mode for Connect, or null while the Connect webhook secret is missing. */
 export function createOnlinePaymentsProvider(
@@ -86,6 +101,23 @@ export function createOnlinePaymentsProvider(
       return session.status === 'open' ? session.url : null
     },
     readEvent: (rawBody, signature) => readEvent(rawBody, signature),
+    async refund({ account, paymentId, intent, session }) {
+      let paymentIntent = intent
+      if (!paymentIntent) {
+        const found = await stripe.checkout.sessions.retrieve(
+          session,
+          {},
+          { stripeAccount: account },
+        )
+        paymentIntent = intentId(found.payment_intent)
+      }
+      if (!paymentIntent) throw new Error('Payment without intent')
+      const refund = await stripe.refunds.create(
+        { payment_intent: paymentIntent, metadata: { luminix_payment_id: paymentId } },
+        { stripeAccount: account, idempotencyKey: `luminix-refund-${paymentId}` },
+      )
+      return refund.id
+    },
   }
 
   async function open(input: CheckoutInput) {
