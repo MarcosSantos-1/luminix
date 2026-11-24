@@ -188,6 +188,44 @@ export function appointmentConfirmedEmail(input: Appointment) {
   } satisfies OutgoingEmail
 }
 
+/** The team asks the client to confirm (ADR-038): one button to the link page, no login. */
+export function appointmentLinkEmail(input: Appointment & { linkUrl: string }) {
+  const first = firstName(input.clientName)
+  const clinic = escapeHtml(input.clinicName)
+  return {
+    to: input.to,
+    tag: 'appointment_link',
+    subject: `Confirme seu horário: ${input.serviceName}, ${input.dateLabel} às ${input.timeLabel}`,
+    ...fromClinic(input),
+    ...renderEmail({
+      preheader: `Um toque para confirmar seu horário no ${input.clinicName}.`,
+      eyebrow: 'Confirme seu horário',
+      title: `Oi, ${escapeHtml(first)}! Tudo certo para o seu horário?`,
+      blocks: [
+        {
+          kind: 'paragraphs',
+          html: [
+            `O <strong>${clinic}</strong> reservou este horário para você. Confirme ou avise se precisar mudar.`,
+          ],
+        },
+        { kind: 'details', rows: appointmentRows(input) },
+      ],
+      button: { label: 'Confirmar ou remarcar', href: input.linkUrl },
+      footnote: `Não marcou nada no ${clinic}? Abra o link e toque em "Não sou eu".`,
+      signature: footer,
+    }),
+    text: [
+      `Oi, ${first}! Tudo certo para o seu horário?`,
+      '',
+      ...appointmentRows(input).map((row) => `${row.label}: ${row.value}`),
+      '',
+      `Confirme ou remarque: ${input.linkUrl}`,
+      '',
+      ...contactText(input),
+    ].join('\n'),
+  } satisfies OutgoingEmail
+}
+
 /** The day before. Needs a scheduled job to send it; the template is ready. */
 export function appointmentReminderEmail(input: Appointment) {
   const first = firstName(input.clientName)

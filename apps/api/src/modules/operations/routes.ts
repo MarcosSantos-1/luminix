@@ -2,9 +2,11 @@ import { appointmentRentalDates } from './rental-calendar.js'
 import { appointmentPackage, packageView } from '../catalog/package-money.js'
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify'
 import {
+  appointmentLinkEmail,
   clientVoucherEmail,
   clientWelcomeEmail,
 } from '../../shared/integrations/email/client-emails.js'
+import { appointmentLinkUrl, newLinkToken } from '../client/appointment-links.js'
 import { loadClinicContact, sendLater, type ClinicMail } from '../notifications/clinic-mail.js'
 import type { SqlConnection } from '../../shared/database/migrations.js'
 import { withClinicTransaction, type TenantPool } from '../../shared/tenant/clinic-transaction.js'
@@ -15,6 +17,7 @@ import { isValidBrazilianTaxId } from '../clinics/tax-id.js'
 import { missingKeys } from '../client/routes.js'
 import {
   confirmCancellationsSchema,
+  dateLabel,
   fittingAppointments,
   settleScheduleImpact,
   withCancellationMail,
@@ -1078,11 +1081,15 @@ export async function operationRoutes(
                       (SELECT cp.name FROM luminix.client_packages cp
                         WHERE cp.clinic_id = a.clinic_id AND cp.id = a.client_package_id
                           AND cp.kind = 'combo') AS combo_name,
-                      ${appointmentPackage} AS package
+                      ${appointmentPackage} AS package,
+                      link.answer AS link_answer, link.answered_at AS link_answered_at,
+                      link.opened_at AS link_opened_at
                  FROM luminix.appointments a
                  JOIN luminix.clinic_clients c ON c.clinic_id = a.clinic_id AND c.id = a.clinic_client_id
                  JOIN luminix.services s ON s.clinic_id = a.clinic_id AND s.id = a.service_id
                  LEFT JOIN luminix.professionals p ON p.clinic_id = a.clinic_id AND p.id = a.professional_id
+                 LEFT JOIN luminix.appointment_links link
+                   ON link.clinic_id = a.clinic_id AND link.appointment_id = a.id
                 WHERE a.clinic_id = $1
                   AND ((a.starts_at < $3 AND a.ends_at > $2)
                     OR (a.previous_starts_at >= $2 AND a.previous_starts_at < $3))
@@ -1498,6 +1505,96 @@ export async function operationRoutes(
         ])
         return { confirmed: true }
       }),
+  )
+
+  // Confirmation link (ADR-038): a new link for an upcoming visit, replacing the previous one.
+  // The team copies it to WhatsApp and/or sends it by e-mail (only when the client has one).
+  app.post<{
+    Params: { clinicId: string; appointmentId: string }
+    Body: { sendEmail?: boolean }
+  }>(
+    '/clinics/:clinicId/appointments/:appointmentId/confirmation-link',
+    {
+      bodyLimit: 512,
+      schema: {
+        params: {
+          type: 'object',
+          additionalProperties: false,
+          required: ['clinicId', 'appointmentId'],
+          properties: {
+            ...clinicParams.properties,
+            appointmentId: { type: 'string', pattern: uuid },
+          },
+        },
+        body: {
+          type: 'object',
+          additionalProperties: false,
+          properties: { sendEmail: { type: 'boolean' } },
+        },
+      },
+    },
+    async (request, reply) => {
+      const { token, hash } = newLinkToken()
+      const url = appointmentLinkUrl(token)
+      const result = await authorized(
+        request,
+        reply,
+        'agenda:manage',
+        async (connection, tenant) => {
+          if (!url) {
+            reply.code(503)
+            return { error: 'Link unavailable' }
+          }
+          const expiresAt = (
+            await connection.query(
+              'SELECT luminix.staff_issue_appointment_link($1::uuid, $2::uuid, $3) AS expires_at',
+              [tenant.clinicId, request.params.appointmentId, hash],
+            )
+          ).rows[0]?.expires_at
+          const row = (
+            await connection.query(
+              `SELECT cc.display_name, cc.contact_email, s.name AS service_name,
+                    p.display_name AS professional_name,
+                    to_char(a.starts_at AT TIME ZONE 'America/Sao_Paulo', 'YYYY-MM-DD') AS local_date,
+                    to_char(a.starts_at AT TIME ZONE 'America/Sao_Paulo', 'HH24:MI') AS local_time
+               FROM luminix.appointments a
+               JOIN luminix.clinic_clients cc ON cc.clinic_id = a.clinic_id AND cc.id = a.clinic_client_id
+               JOIN luminix.services s ON s.clinic_id = a.clinic_id AND s.id = a.service_id
+               LEFT JOIN luminix.professionals p ON p.clinic_id = a.clinic_id AND p.id = a.professional_id
+              WHERE a.clinic_id = $1 AND a.id = $2`,
+              [tenant.clinicId, request.params.appointmentId],
+            )
+          ).rows[0]
+          const to = row?.contact_email ? String(row.contact_email) : null
+          const email =
+            request.body?.sendEmail && to && row
+              ? appointmentLinkEmail({
+                  ...(await loadClinicContact(connection, tenant.clinicId)),
+                  to,
+                  linkUrl: url,
+                  clientName: String(row.display_name),
+                  serviceName: String(row.service_name),
+                  professionalName: row.professional_name ? String(row.professional_name) : null,
+                  dateLabel: dateLabel(String(row.local_date)),
+                  timeLabel: String(row.local_time),
+                  priceLabel: null,
+                })
+              : null
+          return {
+            url,
+            expiresAt: expiresAt ? new Date(String(expiresAt)).toISOString() : null,
+            hasEmail: Boolean(to),
+            email,
+          }
+        },
+      )
+      if (reply.sent || !result || typeof result !== 'object' || !('url' in result)) return result
+      const { email, ...body } = result as unknown as {
+        email: Parameters<typeof sendLater>[1]
+      } & Record<string, unknown>
+      sendLater(mail, email, request.log)
+      return { ...body, emailed: Boolean(email && mail?.mailer) }
+    },
   )
 
   // Money at the desk without changing the visit: the agreed amount of "a combinar"/"a partir

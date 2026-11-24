@@ -43,6 +43,14 @@ export type AppointmentView = {
   package?: AppointmentPackage | null
   /** Sinal por Pix do espaço (ADR-037), when the client booked a service with deposit. */
   deposit?: AppointmentDeposit | null
+  /** Confirmation link (ADR-038): opened and/or answered by whoever received it. */
+  link?: AppointmentLinkState | null
+}
+
+export type AppointmentLinkState = {
+  answer: 'confirmed' | 'reschedule' | 'not_me' | null
+  answeredAt: string | null
+  openedAt: string | null
 }
 
 export type AppointmentDeposit = {

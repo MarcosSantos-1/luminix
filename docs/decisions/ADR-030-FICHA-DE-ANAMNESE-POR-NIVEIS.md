@@ -39,3 +39,10 @@ cada espaço, e fichas de saúde envelhecem.
 ## Quando revisar
 
 Ao criar perguntas por espaço (adicionais escolhidas pelo gestor) ou a tela da ficha no admin.
+
+## Revisão 2026-11-24 — perguntas opcionais e alertas (ADR-038)
+
+Perguntas novas, todas opcionais (sem mudar `requiredKeys`): pressão baixa, sangramento,
+queloide, herpes, trombose/varizes, doença de pele, alteração hormonal, sol recente, ácidos e os
+objetivos rugas, olheiras e estrias. `anamnesisAlerts`/`anamnesisGoals` no mesmo roteiro alimentam
+os alertas do admin.

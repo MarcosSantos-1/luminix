@@ -1,7 +1,16 @@
 'use client'
 
-import { Check, ClipboardCheck, ShieldCheck } from 'lucide-react'
 import {
+  Check,
+  ClipboardCheck,
+  OctagonAlert,
+  ShieldCheck,
+  Target,
+  TriangleAlert,
+} from 'lucide-react'
+import {
+  anamnesisAlerts,
+  anamnesisGoals,
   expiresAt,
   levelNames,
   questionVisible,
@@ -321,6 +330,52 @@ function answerText(question: Question, answers: Answers): { label: string; valu
   }
 }
 
+/**
+ * Contraindications and points of care, the strongest first, plus what the client wants.
+ * `compact` drops the hints (appointment sheet); returns nothing when there is nothing to flag.
+ */
+export function AnamnesisAlerts({ answers, compact }: { answers: Answers; compact?: boolean }) {
+  const alerts = anamnesisAlerts(answers)
+  const { goals, regions } = anamnesisGoals(answers)
+  if (!alerts.length && !goals.length) return null
+  return (
+    <div className={`anm-alerts${compact ? ' is-compact' : ''}`}>
+      {alerts.length ? (
+        <ul aria-label="Alertas da anamnese">
+          {alerts.map((alert) => (
+            <li key={alert.key} className={`is-${alert.tone}`} title={alert.hint}>
+              {alert.tone === 'stop' ? (
+                <OctagonAlert size={15} aria-hidden />
+              ) : (
+                <TriangleAlert size={15} aria-hidden />
+              )}
+              <span>
+                <strong>{alert.label}</strong>
+                {compact ? null : <small>{alert.hint}</small>}
+              </span>
+            </li>
+          ))}
+        </ul>
+      ) : null}
+      {goals.length ? (
+        <p className="anm-goals">
+          <Target size={15} aria-hidden />
+          <span>
+            <strong>Objetivos:</strong> {goals.join(', ')}
+            {regions.length ? <small> · {regions.join(', ')}</small> : null}
+          </span>
+        </p>
+      ) : null}
+      {alerts.length && !compact ? (
+        <p className="anm-alerts-note">
+          Apoio para a equipe. A avaliação da profissional e, na dúvida, a liberação médica vêm
+          primeiro.
+        </p>
+      ) : null}
+    </div>
+  )
+}
+
 /** The filled record as a short, scannable summary grouped by step. */
 export function AnamnesisView({ record }: { record: StaffAnamnesis }) {
   const groups = allSteps
@@ -332,6 +387,7 @@ export function AnamnesisView({ record }: { record: StaffAnamnesis }) {
     .filter((group) => group.rows.length)
   return (
     <div className="anm-view">
+      <AnamnesisAlerts answers={record.answers} />
       {groups.map(({ step, rows }) => (
         <section key={step.id}>
           <h4>{step.title}</h4>

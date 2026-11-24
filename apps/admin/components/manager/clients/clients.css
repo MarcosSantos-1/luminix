@@ -961,3 +961,79 @@
 #clinic-intake .anm-status {
   flex-wrap: wrap;
 }
+
+/* Anamnesis alerts (contraindications first) and goals: record view and appointment sheet. */
+.anm-alerts {
+  display: grid;
+  gap: 8px;
+}
+.anm-alerts ul {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.anm-alerts li {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  padding: 9px 12px;
+  border-radius: 14px;
+  font-size: 13.5px;
+  line-height: 1.35;
+}
+.anm-alerts li > svg {
+  flex: none;
+  margin-top: 1px;
+}
+.anm-alerts li span {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+.anm-alerts li small {
+  opacity: 0.85;
+  font-size: 12.5px;
+}
+.anm-alerts li.is-stop {
+  color: #ffd0d0;
+  background: color-mix(in srgb, #ff4d4d 22%, transparent);
+}
+.anm-alerts li.is-care {
+  color: #ffe0a1;
+  background: #66401499;
+}
+.anm-alerts.is-compact ul {
+  display: flex;
+  flex-wrap: wrap;
+}
+.anm-alerts.is-compact li {
+  align-items: center;
+  padding: 5px 10px;
+  border-radius: 99px;
+  font-size: 12.5px;
+}
+.anm-goals {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  margin: 0;
+  padding: 9px 12px;
+  border-radius: 14px;
+  background: #ffffff0a;
+  font-size: 13.5px;
+}
+.anm-goals > svg {
+  flex: none;
+  margin-top: 2px;
+  color: var(--space-highlight, #ffb5d3);
+}
+.anm-goals small {
+  color: var(--manager-muted);
+}
+.anm-alerts-note {
+  margin: 0;
+  color: var(--manager-muted);
+  font-size: 12px;
+}

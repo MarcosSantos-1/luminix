@@ -77,7 +77,7 @@ export async function fittingAppointments(
 }
 
 /** "sexta-feira, 27 de novembro" for a local YYYY-MM-DD. */
-const dateLabel = (date: string) =>
+export const dateLabel = (date: string) =>
   new Date(`${date}T12:00:00Z`).toLocaleDateString('pt-BR', {
     weekday: 'long',
     day: 'numeric',

@@ -190,7 +190,11 @@ export const steps: Step[] = [
         items: [
           { key: 'diabetes', label: 'Diabetes' },
           { key: 'hypertension', label: 'Pressão alta' },
-          { key: 'epilepsy', label: 'Epilepsia' },
+          { key: 'hypotension', label: 'Pressão baixa' },
+          { key: 'epilepsy', label: 'Epilepsia ou convulsões' },
+          { key: 'bleedingDisorder', label: 'Sangra com facilidade ou tem hemofilia' },
+          { key: 'keloid', label: 'Cicatriz que cresce (queloide)' },
+          { key: 'herpes', label: 'Herpes (labial ou outro)' },
         ],
       },
       {
@@ -223,6 +227,13 @@ export const steps: Step[] = [
             label: 'Histórico de câncer',
             details: { key: 'cancerHistoryDetails', placeholder: 'Qual e quando?' },
           },
+          { key: 'circulatory', label: 'Trombose ou varizes' },
+          {
+            key: 'skinDisease',
+            label: 'Doença de pele (psoríase, vitiligo, dermatite)',
+            details: { key: 'skinDiseaseDetails', placeholder: 'Qual?' },
+          },
+          { key: 'hormonal', label: 'Tireoide, SOP ou outra alteração hormonal' },
         ],
       },
       {
@@ -299,6 +310,12 @@ export const steps: Step[] = [
             label: 'Manchas',
             details: { key: 'spotsDetails', placeholder: 'Onde?' },
           },
+          { key: 'sunExposure', label: 'Tomei sol forte nos últimos 15 dias' },
+          {
+            key: 'skinAcids',
+            label: 'Uso ácidos ou retinoides na pele',
+            details: { key: 'skinAcidsDetails', placeholder: 'Quais?' },
+          },
         ],
       },
     ],
@@ -340,9 +357,12 @@ export const steps: Step[] = [
         label: 'Objetivos',
         options: [
           { value: 'rejuvenation', label: 'Rejuvenescimento' },
+          { value: 'wrinkles', label: 'Rugas e linhas de expressão' },
+          { value: 'dark_circles', label: 'Olheiras' },
           { value: 'weight_loss', label: 'Emagrecimento' },
           { value: 'localized_fat', label: 'Gordura localizada' },
           { value: 'cellulite', label: 'Celulite' },
+          { value: 'stretch_marks', label: 'Estrias' },
           { value: 'sagging', label: 'Flacidez' },
           { value: 'acne', label: 'Acne' },
           { value: 'spots', label: 'Manchas' },
@@ -480,4 +500,256 @@ export function levelFromServices(texts: string[]): Level {
       level = 2
   }
   return level
+}
+
+// ---------------------------------------------------------------------------------------------
+// Alerts and goals: what the team must see before touching the client. Support copy only; the
+// professional's own assessment (and a medical release when in doubt) always prevails.
+
+export type AlertTone = 'stop' | 'care'
+export type AnamnesisAlert = { key: string; tone: AlertTone; label: string; hint: string }
+
+type AlertRule = {
+  key: string
+  tone: AlertTone
+  label: string
+  hint: string
+  /** Answer key with free text that completes the label ("Alergia: dipirona"). */
+  details?: string
+  on: (answers: Answers) => boolean
+}
+
+const isYes = (key: string) => (answers: Answers) => answers[key] === 'yes'
+const isOn = (key: string) => (answers: Answers) => answers[key] === true
+
+const alertRules: AlertRule[] = [
+  {
+    key: 'pregnant',
+    tone: 'stop',
+    label: 'Gestante',
+    hint: 'Sem aparelhos, ácidos, laser ou drenagem sem liberação médica.',
+    on: (answers) => answers.pregnant === 'yes',
+  },
+  {
+    key: 'pregnantSuspect',
+    tone: 'stop',
+    label: 'Suspeita de gestação',
+    hint: 'Trate como gestante até confirmar.',
+    on: (answers) => answers.pregnant === 'suspect',
+  },
+  {
+    key: 'pacemaker',
+    tone: 'stop',
+    label: 'Marcapasso',
+    hint: 'Nada de correntes, radiofrequência ou eletroestimulação.',
+    on: isOn('pacemaker'),
+  },
+  {
+    key: 'roacutan',
+    tone: 'stop',
+    label: 'Isotretinoína (Roacutan)',
+    hint: 'Evite peeling, laser, cera e microagulhamento até 6 meses após o fim.',
+    on: isOn('roacutan'),
+  },
+  {
+    key: 'anticoagulants',
+    tone: 'stop',
+    label: 'Anticoagulante',
+    hint: 'Risco de sangramento e hematoma: cuidado com agulhas, cutícula e tatuagem.',
+    on: isOn('anticoagulants'),
+  },
+  {
+    key: 'bleedingDisorder',
+    tone: 'stop',
+    label: 'Sangra com facilidade',
+    hint: 'Evite cortes e perfurações sem liberação médica.',
+    on: isOn('bleedingDisorder'),
+  },
+  {
+    key: 'cancerHistory',
+    tone: 'stop',
+    label: 'Histórico de câncer',
+    hint: 'Peça liberação médica antes de aparelhos e drenagem.',
+    details: 'cancerHistoryDetails',
+    on: isOn('cancerHistory'),
+  },
+  {
+    key: 'epilepsy',
+    tone: 'stop',
+    label: 'Epilepsia',
+    hint: 'Evite luz pulsada e estímulos luminosos fortes.',
+    on: isOn('epilepsy'),
+  },
+  {
+    key: 'allergies',
+    tone: 'care',
+    label: 'Alergia',
+    hint: 'Confira produtos e materiais antes de começar.',
+    details: 'allergiesDetails',
+    on: isYes('allergies'),
+  },
+  {
+    key: 'cosmeticAllergy',
+    tone: 'care',
+    label: 'Alergia a cosméticos',
+    hint: 'Faça teste de toque antes de produtos novos.',
+    on: isYes('cosmeticAllergy'),
+  },
+  {
+    key: 'aestheticReaction',
+    tone: 'care',
+    label: 'Já reagiu a procedimento',
+    hint: 'Pergunte o que aconteceu antes de repetir algo parecido.',
+    details: 'aestheticReactionDetails',
+    on: isYes('aestheticReaction'),
+  },
+  {
+    key: 'breastfeeding',
+    tone: 'care',
+    label: 'Amamentando',
+    hint: 'Evite ácidos e ativos que passam para o leite.',
+    on: isOn('breastfeeding'),
+  },
+  {
+    key: 'diabetes',
+    tone: 'care',
+    label: 'Diabetes',
+    hint: 'Cicatrização mais lenta: cuidado com cortes e cutícula.',
+    on: isOn('diabetes'),
+  },
+  {
+    key: 'hypertension',
+    tone: 'care',
+    label: 'Pressão alta',
+    hint: 'Evite calor intenso e procedimentos longos sem pausa.',
+    on: isOn('hypertension'),
+  },
+  {
+    key: 'hypotension',
+    tone: 'care',
+    label: 'Pressão baixa',
+    hint: 'Ao terminar, levante devagar da maca.',
+    on: isOn('hypotension'),
+  },
+  {
+    key: 'keloid',
+    tone: 'care',
+    label: 'Tende a queloide',
+    hint: 'Cuidado com perfurações, tatuagem e procedimentos que cortam a pele.',
+    on: isOn('keloid'),
+  },
+  {
+    key: 'herpes',
+    tone: 'care',
+    label: 'Herpes',
+    hint: 'Pode reativar com procedimentos nos lábios ou no rosto.',
+    on: isOn('herpes'),
+  },
+  {
+    key: 'metalImplants',
+    tone: 'care',
+    label: 'Implante metálico',
+    hint: 'Não use corrente elétrica sobre a região.',
+    details: 'metalImplantsDetails',
+    on: isOn('metalImplants'),
+  },
+  {
+    key: 'circulatory',
+    tone: 'care',
+    label: 'Trombose ou varizes',
+    hint: 'Pouca pressão nas pernas; drenagem só com liberação.',
+    on: isOn('circulatory'),
+  },
+  {
+    key: 'corticosteroids',
+    tone: 'care',
+    label: 'Corticoide',
+    hint: 'Pele mais fina e sensível.',
+    on: isOn('corticosteroids'),
+  },
+  {
+    key: 'skinDisease',
+    tone: 'care',
+    label: 'Doença de pele',
+    hint: 'Não trate sobre lesões ativas.',
+    details: 'skinDiseaseDetails',
+    on: isOn('skinDisease'),
+  },
+  {
+    key: 'sunExposure',
+    tone: 'care',
+    label: 'Sol recente',
+    hint: 'Adie laser, luz pulsada e ácidos.',
+    on: isOn('sunExposure'),
+  },
+  {
+    key: 'skinAcids',
+    tone: 'care',
+    label: 'Usa ácidos na pele',
+    hint: 'Pele sensibilizada: evite esfoliação e cera na região.',
+    details: 'skinAcidsDetails',
+    on: isOn('skinAcids'),
+  },
+  {
+    key: 'medicalTreatment',
+    tone: 'care',
+    label: 'Em tratamento médico',
+    hint: 'Confirme se o tratamento combina com o procedimento.',
+    details: 'medicalTreatmentDetails',
+    on: isYes('medicalTreatment'),
+  },
+  {
+    key: 'diagnosedDisease',
+    tone: 'care',
+    label: 'Doença diagnosticada',
+    hint: 'Leia a resposta antes de começar.',
+    details: 'diagnosedDiseaseDetails',
+    on: isYes('diagnosedDisease'),
+  },
+  {
+    key: 'continuousMedications',
+    tone: 'care',
+    label: 'Remédio contínuo',
+    hint: 'Alguns remédios mudam cicatrização e sensibilidade.',
+    details: 'continuousMedicationsDetails',
+    on: isYes('continuousMedications'),
+  },
+  {
+    key: 'physicalLimitation',
+    tone: 'care',
+    label: 'Limitação física',
+    hint: 'Ajuste a posição e a maca.',
+    details: 'physicalLimitationDetails',
+    on: isYes('physicalLimitation'),
+  },
+]
+
+/** Alerts from a record, the strongest first ("stop" = needs release or avoids procedures). */
+export function anamnesisAlerts(answers: Answers): AnamnesisAlert[] {
+  return alertRules
+    .filter((rule) => rule.on(answers))
+    .map(({ key, tone, label, hint, details }) => {
+      const extra = details ? String(answers[details] ?? '').trim() : ''
+      return { key, tone, label: extra ? `${label}: ${extra}` : label, hint }
+    })
+    .sort((a, b) => (a.tone === b.tone ? 0 : a.tone === 'stop' ? -1 : 1))
+}
+
+function optionLabels(stepId: string, key: string, values: AnswerValue | undefined) {
+  if (!Array.isArray(values) || !values.length) return []
+  const question = steps
+    .find((step) => step.id === stepId)
+    ?.questions.find((item) => item.kind === 'multi' && item.key === key)
+  if (!question || question.kind !== 'multi') return []
+  return question.options
+    .filter((option) => values.includes(option.value))
+    .map((option) => option.label)
+}
+
+/** What the client wants and where, for the top of the record and the appointment. */
+export function anamnesisGoals(answers: Answers) {
+  return {
+    goals: optionLabels('goals', 'goals', answers.goals),
+    regions: optionLabels('goals', 'regions', answers.regions),
+  }
 }

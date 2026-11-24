@@ -174,6 +174,7 @@ describe('versioned core migration', () => {
       { name: '0062_space_kind_and_evaluations.sql' },
       { name: '0063_pix_deposit.sql' },
       { name: '0064_onboarding_pix.sql' },
+      { name: '0065_appointment_links.sql' },
     ])
   })
 
@@ -381,7 +382,7 @@ describe('authorized database scope', () => {
     }>(
       "SELECT relname, relrowsecurity, relforcerowsecurity FROM pg_class WHERE relnamespace = 'luminix'::regnamespace AND relkind = 'r' AND relname NOT IN ('identities', 'client_profiles', 'permissions')",
     )
-    expect(tables.rows).toHaveLength(51)
+    expect(tables.rows).toHaveLength(52)
     expect(tables.rows.every((row) => row.relrowsecurity && row.relforcerowsecurity)).toBe(true)
   })
 

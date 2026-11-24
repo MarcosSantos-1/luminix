@@ -22,7 +22,10 @@ import {
   type LucideIcon,
 } from 'lucide-react'
 import { useEffect, useState, type ReactNode } from 'react'
+import type { Answers } from '@luminix/contracts/anamnesis'
 import { ClientAvatar } from '../client-photo'
+import { AnamnesisAlerts } from '../clients/anamnesis'
+import { ConfirmationLink } from './confirmation-link'
 import { DateInputField, SelectField, TextAreaField, TimeInputField } from '@/components/ui/fields'
 import { formatBrPhone } from '@/lib/phone'
 import { appointmentStatus, dateBr, money } from '../business/format'
@@ -55,6 +58,8 @@ type ClientDetail = {
     notes: string | null
   }
   history: { id: string; starts_at: string; status: string; service_name?: string }[]
+  /** Present for who can read the record (`client:manage`); null when there is none yet. */
+  anamnesis?: { record: { answers?: Answers } | null }
 }
 
 function age(birth: string) {
@@ -544,6 +549,9 @@ function SheetBody({
           </span>
         </p>
       ) : null}
+      {detail?.anamnesis?.record?.answers ? (
+        <AnamnesisAlerts answers={detail.anamnesis.record.answers} compact />
+      ) : null}
 
       <div className="sh-folds">
         <Fold icon={UserRound} title="Ver dados do cliente">
@@ -665,6 +673,16 @@ function SheetBody({
             </Button>
           ) : null}
         </section>
+      ) : null}
+
+      {view === 'main' && (open || item.link) ? (
+        <ConfirmationLink
+          item={item}
+          api={api}
+          today={today}
+          canSend={access.manage && open}
+          hasEmail={Boolean(detail?.client.contact_email)}
+        />
       ) : null}
 
       {view === 'main' && access.manage ? (

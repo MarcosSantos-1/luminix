@@ -3966,3 +3966,86 @@ button.sh-client-link:focus-visible {
   color: #ffb4b4;
   background: #ffb4b424;
 }
+
+/* Confirmation link (ADR-038): state of the link and how to share it. */
+.sh-link {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  margin: 4px 0 10px;
+  padding: 14px 16px;
+  border: 1px solid var(--manager-border, #ffffff24);
+  border-radius: 18px;
+  background: #ffffff0a;
+}
+.sh-link.is-ok {
+  border-color: #39e58c55;
+  background: color-mix(in srgb, #39e58c 10%, transparent);
+}
+.sh-link.is-wait {
+  border-color: #ffe08a66;
+  background: #ffe08a14;
+}
+.sh-link.is-bad {
+  border-color: #ffb4b466;
+  background: #ffb4b412;
+}
+.sh-link > div:first-of-type {
+  display: grid;
+  flex: 1 1 220px;
+  gap: 2px;
+  min-width: 0;
+}
+.sh-link small {
+  color: var(--manager-muted);
+  font-size: 13px;
+  line-height: 1.4;
+}
+.sh-link-icon {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 13px;
+  background: #ffffff14;
+}
+.sh-link.is-ok .sh-link-icon {
+  color: #b7ffd6;
+}
+.sh-link.is-wait .sh-link-icon {
+  color: #ffe08a;
+}
+.sh-link.is-bad .sh-link-icon {
+  color: #ffb4b4;
+}
+.sh-link-url {
+  overflow: hidden;
+  margin-top: 4px;
+  padding: 6px 9px;
+  border-radius: 10px;
+  background: #00000033;
+  font-size: 12px;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  user-select: all;
+}
+.sh-link-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.sh-link-wa {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 12px;
+  min-height: 32px;
+  border-radius: 12px;
+  color: #fff;
+  background: #1faa59;
+  font-size: 13px;
+  font-weight: 600;
+  text-decoration: none;
+}

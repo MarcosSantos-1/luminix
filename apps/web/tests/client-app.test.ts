@@ -151,3 +151,33 @@ test('ficha: nível do espaço vem dos serviços e a ficha básica é reaproveit
   const legacy = normalizeRecord({ sex: 'female', birthDate: '1992-04-10', allergies: '' }, 'x')
   assert.equal(recordState(legacy, 1), 'ok')
 })
+
+test('ficha: alertas saem das respostas, contraindicações primeiro, e objetivos ganham nome', async () => {
+  const { anamnesisAlerts, anamnesisGoals } = await import('@luminix/contracts/anamnesis')
+  assert.deepEqual(anamnesisAlerts({ sex: 'female', allergies: 'no', pregnant: 'no' }), [])
+
+  const alerts = anamnesisAlerts({
+    allergies: 'yes',
+    allergiesDetails: ' látex ',
+    diabetes: true,
+    pacemaker: true,
+    pregnant: 'suspect',
+    keloid: false,
+  })
+  assert.deepEqual(
+    alerts.map((alert) => [alert.tone, alert.label]),
+    [
+      ['stop', 'Suspeita de gestação'],
+      ['stop', 'Marcapasso'],
+      ['care', 'Alergia: látex'],
+      ['care', 'Diabetes'],
+    ],
+  )
+  assert.ok(alerts.every((alert) => alert.hint.length > 0))
+
+  assert.deepEqual(anamnesisGoals({ goals: ['wrinkles', 'cellulite'], regions: ['face'] }), {
+    goals: ['Rugas e linhas de expressão', 'Celulite'],
+    regions: ['Rosto'],
+  })
+  assert.deepEqual(anamnesisGoals({}), { goals: [], regions: [] })
+})

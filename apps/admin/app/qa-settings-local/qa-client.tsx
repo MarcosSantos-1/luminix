@@ -1257,7 +1257,9 @@ export default function QASettings({
         if (path.startsWith('clients/'))
           return {
             anamnesis: {
-              record: path.includes('qa-client-0') ? qaAnamnesis : null,
+              // qa-client-0 in Clientes; the agenda fixture books everyone as client …0101.
+              record:
+                path.includes('qa-client-0') || path.endsWith('-000000000101') ? qaAnamnesis : null,
               shared: false,
               requiredLevel: 2,
             },

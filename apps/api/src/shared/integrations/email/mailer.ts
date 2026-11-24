@@ -12,6 +12,7 @@ export type EmailTag =
   | 'client_birthday'
   | 'client_voucher'
   | 'appointment_canceled_by_space'
+  | 'appointment_link'
 
 export type OutgoingEmail = {
   to: string

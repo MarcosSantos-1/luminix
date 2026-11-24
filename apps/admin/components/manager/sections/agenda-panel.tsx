@@ -71,6 +71,9 @@ type Row = {
   paid_cents?: number | null
   booking_source?: string
   checked_in_at?: string | null
+  link_answer?: 'confirmed' | 'reschedule' | 'not_me' | null
+  link_answered_at?: string | null
+  link_opened_at?: string | null
   status_note?: string | null
   client_photo_large_url?: string | null
   account_photo?: boolean
@@ -152,6 +155,14 @@ function toView(row: Row): AppointmentView {
     paidCents: row.paid_cents ?? null,
     bookingSource: row.booking_source,
     checkedInAt: row.checked_in_at ?? null,
+    link:
+      row.link_answer || row.link_opened_at
+        ? {
+            answer: row.link_answer ?? null,
+            answeredAt: row.link_answered_at ?? null,
+            openedAt: row.link_opened_at ?? null,
+          }
+        : null,
     statusNote: row.status_note ?? null,
     paid: row.paid === true,
     photoUrl: row.client_photo_url,

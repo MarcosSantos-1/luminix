@@ -51,6 +51,7 @@ Anamnese pela equipe, pacotes de sessões e aparelhos alugados: [ADR-032](decisi
 Cancelamentos por mudança de agenda (prévia dos afetados, aviso à cliente) e dia exclusivo de locação: [ADR-035](decisions/ADR-035-CANCELAMENTOS-POR-MUDANCA-DE-AGENDA.md).
 Tipo do espaço (Studio, Clínica, Salão, SPA, Espaço), avaliação de primeira visita e proposta do fluxo pelo site: [ADR-036](decisions/ADR-036-TIPO-DO-ESPACO-E-PRIMEIRA-VISITA.md).
 Sinal por Pix do espaço (reserva, copia-e-cola, confirmação pela equipe, expiração) e regras de cancelar/remarcar aplicadas: [ADR-037](decisions/ADR-037-SINAL-POR-PIX-DO-ESPACO.md).
+Link de confirmação por agendamento sem login (`/confirmar`), alertas e objetivos da anamnese: [ADR-038](decisions/ADR-038-LINK-DE-CONFIRMACAO-E-ALERTAS-DA-ANAMNESE.md).
 
 ## Diretórios
 
