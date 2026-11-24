@@ -382,6 +382,10 @@
   margin-bottom: 6px;
 }
 
+/* Text follows the card width: no forced short lines on this page. */
+.manager-receipts-page .connect-panel :is(.connect-lead, .connect-plain, .connect-timing-head p) {
+  max-width: none;
+}
 .manager-receipts-page .connect-panel {
   color: inherit;
   background: color-mix(in srgb, var(--space-deep, #350c20) 58%, transparent);
@@ -397,7 +401,7 @@
 
 .manager-receipts-page .manager-receipts-intro {
   margin-bottom: 18px;
-  max-width: 65ch;
+  max-width: none;
   color: var(--manager-muted);
   line-height: 1.5;
 }

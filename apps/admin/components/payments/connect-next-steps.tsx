@@ -5,6 +5,9 @@ import {
   Banknote,
   CalendarCheck2,
   Check,
+  ChevronRight,
+  CreditCard,
+  Landmark,
   ListChecks,
   RotateCcw,
   Smartphone,
@@ -20,10 +23,64 @@ type Step = {
   action?: { label: string; href?: string; onPress?: () => void }
 }
 
+/** Saves the switch; resolves false when it could not be saved. */
+type SaveToggle = (next: boolean) => Promise<boolean>
+
+/** "Clientes pagam pelo app" on/off, shared by the guide and the hub. */
+function InAppSwitch({
+  enabled,
+  onToggle,
+  label,
+}: {
+  enabled: boolean
+  onToggle: SaveToggle
+  label: string
+}) {
+  const [on, setOn] = useState(enabled)
+  const [busy, setBusy] = useState(false)
+  async function toggle(next: boolean) {
+    setBusy(true)
+    setOn(next)
+    const saved = await onToggle(next)
+    if (!saved) setOn(!next)
+    else
+      toast.success(
+        next
+          ? 'Pronto! Suas clientes já podem pagar pelo app.'
+          : 'Pagamento pelo app desligado. As clientes pagam no espaço.',
+      )
+    setBusy(false)
+  }
+  return (
+    <div className={`connect-next-switch${on ? ' is-on' : ''}`}>
+      <div>
+        <strong>{label}</strong>
+        <span>
+          {on
+            ? 'Ligado: Pix e cartão já aparecem para as clientes ao agendar.'
+            : 'Desligado: as clientes continuam pagando no espaço.'}
+        </span>
+      </div>
+      <Switch
+        isSelected={on}
+        isDisabled={busy}
+        onChange={(next) => void toggle(next)}
+        aria-label="Clientes pagam pelo app"
+      >
+        <Switch.Content>
+          <Switch.Control>
+            <Switch.Thumb />
+          </Switch.Control>
+        </Switch.Content>
+      </Switch>
+    </div>
+  )
+}
+
 /**
  * "E agora?" (ADR-041): after Stripe approves, takes the owner by the hand: switch on the
  * payment in the app, what the client sees, which services take part, cancellations and
- * where the money shows up.
+ * where the money shows up. Once finished it can be reopened from the hub.
  */
 export function ConnectNextSteps({
   clinicRef,
@@ -31,17 +88,18 @@ export function ConnectNextSteps({
   guideDone,
   onToggle,
   onDone,
+  onClose,
   onOpenPayouts,
 }: {
   clinicRef: string
   enabled: boolean
   guideDone: boolean
-  /** Saves the switch; resolves false when it could not be saved. */
-  onToggle: (next: boolean) => Promise<boolean>
+  onToggle: SaveToggle
   onDone: () => Promise<void>
+  /** Reopened from the hub: closes it again. */
+  onClose?: () => void
   onOpenPayouts: () => void
 }) {
-  const [on, setOn] = useState(enabled)
   const [busy, setBusy] = useState(false)
   const base = `/c/${clinicRef}`
   const steps: Step[] = [
@@ -75,17 +133,9 @@ export function ConnectNextSteps({
     },
   ]
 
-  async function toggle(next: boolean) {
+  async function done() {
     setBusy(true)
-    setOn(next)
-    const saved = await onToggle(next)
-    if (!saved) setOn(!next)
-    else
-      toast.success(
-        next
-          ? 'Pronto! Suas clientes já podem pagar pelo app.'
-          : 'Pagamento pelo app desligado. As clientes pagam no espaço.',
-      )
+    await onDone()
     setBusy(false)
   }
 
@@ -101,28 +151,9 @@ export function ConnectNextSteps({
         </div>
       </header>
 
-      <div className={`connect-next-switch${on ? ' is-on' : ''}`}>
-        <div>
-          <strong>1. Ligue o pagamento pelo app</strong>
-          <span>
-            {on
-              ? 'Ligado: Pix e cartão já aparecem para as clientes ao agendar.'
-              : 'Desligado: as clientes continuam pagando no espaço.'}
-          </span>
-        </div>
-        <Switch
-          isSelected={on}
-          isDisabled={busy}
-          onChange={(next) => void toggle(next)}
-          aria-label="Clientes pagam pelo app"
-        >
-          <Switch.Content>
-            <Switch.Control>
-              <Switch.Thumb />
-            </Switch.Control>
-          </Switch.Content>
-        </Switch>
-      </div>
+      {guideDone ? null : (
+        <InAppSwitch enabled={enabled} onToggle={onToggle} label="1. Ligue o pagamento pelo app" />
+      )}
 
       <ol className="connect-next-list">
         {steps.map(({ icon: Icon, title, text, action }, index) => (
@@ -132,7 +163,8 @@ export function ConnectNextSteps({
             </span>
             <div>
               <strong>
-                {index + 2}. {title}
+                {guideDone ? '' : `${index + 2}. `}
+                {title}
               </strong>
               <p>{text}</p>
               {action ? (
@@ -152,14 +184,78 @@ export function ConnectNextSteps({
       </ol>
 
       {guideDone ? (
-        <p className="connect-next-done">
-          <Check size={16} aria-hidden /> Você já concluiu este guia.
-        </p>
+        onClose ? (
+          <Button variant="secondary" onPress={onClose}>
+            Fechar guia
+          </Button>
+        ) : null
       ) : (
-        <Button className="connect-primary" isDisabled={busy} onPress={() => void onDone()}>
+        <Button className="connect-primary" isDisabled={busy} onPress={() => void done()}>
           <Check size={18} aria-hidden /> Entendi, concluir
         </Button>
       )}
+    </section>
+  )
+}
+
+/**
+ * The page once everything is set up: no sign-up talk, just the switch and the doors to
+ * what the owner checks day to day (bank details, payments and refunds, payouts).
+ */
+export function ConnectHub({
+  enabled,
+  onToggle,
+  onOpen,
+  disabled,
+}: {
+  enabled: boolean
+  onToggle: SaveToggle
+  onOpen: (purpose: 'management' | 'payments' | 'payouts') => void
+  disabled: boolean
+}) {
+  const doors = [
+    {
+      purpose: 'payments' as const,
+      icon: CreditCard,
+      title: 'Pagamentos e reembolsos',
+      text: 'Cada pagamento recebido, devoluções e contestações.',
+    },
+    {
+      purpose: 'payouts' as const,
+      icon: Banknote,
+      title: 'Repasses',
+      text: 'Quanto e quando a Stripe depositou na sua conta.',
+    },
+    {
+      purpose: 'management' as const,
+      icon: Landmark,
+      title: 'Dados e conta bancária',
+      text: 'Confira ou altere a conta que recebe e os dados do espaço.',
+    },
+  ]
+  return (
+    <section className="connect-hub" aria-label="Pagamento pelo app">
+      <InAppSwitch enabled={enabled} onToggle={onToggle} label="Clientes pagam pelo app" />
+      <div className="connect-hub-doors">
+        {doors.map(({ purpose, icon: Icon, title, text }) => (
+          <button
+            key={purpose}
+            type="button"
+            className="connect-hub-door"
+            disabled={disabled}
+            onClick={() => onOpen(purpose)}
+          >
+            <span className="connect-next-icon" aria-hidden>
+              <Icon size={20} />
+            </span>
+            <span className="connect-hub-door-copy">
+              <strong>{title}</strong>
+              <span>{text}</span>
+            </span>
+            <ChevronRight size={18} aria-hidden className="connect-hub-door-arrow" />
+          </button>
+        ))}
+      </div>
     </section>
   )
 }

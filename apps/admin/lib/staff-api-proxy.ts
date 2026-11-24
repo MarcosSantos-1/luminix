@@ -191,8 +191,9 @@ export async function staffApiWrite(
       return Response.json({ error: 'Payload too large' }, { status: 413, headers })
     const response = await fetch(url, {
       method: request.method,
+      // Fastify refuses an empty body labelled JSON, so a bodyless write goes as "{}".
       headers: { authorization, 'Content-Type': 'application/json' },
-      body,
+      body: body || '{}',
       cache: 'no-store',
       redirect: 'error',
       signal: AbortSignal.timeout(path.endsWith('/payments/connect/session') ? 45_000 : 15_000),

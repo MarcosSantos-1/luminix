@@ -37,7 +37,7 @@ import { onAuthStateChanged } from 'firebase/auth'
 import { useStaff } from '@/components/staff-provider'
 import { useClinic } from '@/components/clinic-workspace'
 import { getFirebaseAuth } from '@/lib/firebase'
-import { ConnectNextSteps } from './connect-next-steps'
+import { ConnectHub, ConnectNextSteps } from './connect-next-steps'
 import './connect-panel.css'
 
 type Purpose = 'onboarding' | 'management' | 'payments' | 'payouts'
@@ -324,6 +324,7 @@ function ConnectContent({
   const [prepOpen, setPrepOpen] = useState(Boolean(dashboard))
   const [timingOpen, setTimingOpen] = useState(false)
   const [feesOpen, setFeesOpen] = useState(false)
+  const [guideOpen, setGuideOpen] = useState(false)
   const openedKey = `luminix-stripe-form:${clinicId}`
   const [openedInVisit, setOpenedInVisit] = useState(false)
   const storedFormOpened = useSyncExternalStore(
@@ -402,7 +403,12 @@ function ConnectContent({
     try {
       const response = await fetch(`/api/clinics/${clinicId}/payments/guide-done`, {
         method: 'POST',
-        headers: { authorization: `Bearer ${await user!.getIdToken()}` },
+        // The proxy sends JSON; the API refuses an empty JSON body with 400.
+        headers: {
+          authorization: `Bearer ${await user!.getIdToken()}`,
+          'Content-Type': 'application/json',
+        },
+        body: '{}',
       })
       if (!response.ok) throw new Error('save failed')
       setInApp((current) => ({ enabled: current?.enabled ?? false, guideDone: true }))
@@ -574,6 +580,11 @@ function ConnectContent({
     status?.state === 'not_started' || status?.state === 'pending' || status?.state === 'restricted'
 
   const flow = !dashboard
+  // Approved on the Financeiro page: the guide first, then a hub to check things day to day.
+  const hub = dashboard && notice === 'approved' && !!inApp
+  const hubLead = inApp?.guideDone
+    ? 'Ligue ou desligue o pagamento pelo app e consulte pagamentos, reembolsos, repasses e a conta bancária.'
+    : leads.approved
   return (
     <Card
       className={
@@ -623,6 +634,8 @@ function ConnectContent({
               </Card.Title>
               {flow && status ? (
                 <p className="connect-lead">{notice ? leads[notice] : null}</p>
+              ) : hub ? (
+                <p className="connect-lead">{hubLead}</p>
               ) : null}
             </div>
           </Card.Header>
@@ -785,7 +798,7 @@ function ConnectContent({
                 </FlowDisclosure>
               </>
             )}
-            {!flow && (
+            {!flow && !hub && (
               <>
                 <section className="connect-timing" aria-label="Quando o dinheiro chega na conta">
                   <div className="connect-timing-head">
@@ -1001,7 +1014,7 @@ function ConnectContent({
                 Consultando a situação da sua conta…
               </div>
             )}
-            {status && notice && status.state !== 'not_started' && (!loading || flow) && (
+            {status && notice && !hub && status.state !== 'not_started' && (!loading || flow) && (
               <div aria-live="polite" className={`connect-state is-${notice}`}>
                 <span className="connect-state-icon" aria-hidden="true">
                   {notice === 'approved' ? (
@@ -1041,81 +1054,110 @@ function ConnectContent({
                 </div>
               </div>
             )}
-            {dashboard && status && notice === 'approved' && inApp ? (
+            {hub && inApp?.guideDone ? (
+              <ConnectHub
+                enabled={inApp.enabled}
+                onToggle={saveInApp}
+                onOpen={(purpose) => void open(purpose)}
+                disabled={opening}
+              />
+            ) : null}
+            {hub && inApp && (!inApp.guideDone || guideOpen) ? (
               <ConnectNextSteps
                 clinicRef={clinicId}
                 enabled={inApp.enabled}
                 guideDone={inApp.guideDone}
                 onToggle={saveInApp}
                 onDone={finishGuide}
+                onClose={() => setGuideOpen(false)}
                 onOpenPayouts={() => void open('payouts')}
               />
+            ) : null}
+            {hub && inApp?.guideDone ? (
+              <FlowDisclosure
+                id="connect-hub-help"
+                title="Dúvidas: prazos e taxas"
+                hint="Quando o dinheiro chega na conta e quanto a Stripe cobra."
+                icon={CircleHelp}
+                open={timingOpen}
+                onToggle={() => setTimingOpen((value) => !value)}
+              >
+                <ul className="connect-faq-list">
+                  <li>
+                    <strong>Pix e boleto · cerca de 2 dias úteis</strong>
+                    <span>Taxa da Stripe: Pix 1,19%; boleto R$ 3,45 por boleto pago.</span>
+                  </li>
+                  <li>
+                    <strong>Cartão nacional · cerca de 30 dias</strong>
+                    <span>
+                      Taxa da Stripe: 3,99% + R$ 0,39. O prazo é da Stripe no Brasil, por causa de
+                      contestação e parcelamento; o Luminix não segura o dinheiro.
+                    </span>
+                  </li>
+                  <li>
+                    <strong>Depósito · em dia útil</strong>
+                    <span>
+                      Quando o valor libera, a Stripe envia sozinha para a conta cadastrada.
+                    </span>
+                  </li>
+                  <li>
+                    <strong>Reembolso ou contestação</strong>
+                    <span>O valor sai do saldo do espaço na Stripe.</span>
+                  </li>
+                </ul>
+                {guideOpen ? null : (
+                  <button
+                    type="button"
+                    className="connect-next-link"
+                    onClick={() => setGuideOpen(true)}
+                  >
+                    Rever o guia &quot;E agora?&quot; →
+                  </button>
+                )}
+              </FlowDisclosure>
             ) : null}
             {error && (
               <p role="alert" className="connect-note is-warn">
                 {error}
               </p>
             )}
-            <div className="connect-actions">
-              <Button
-                variant={flow ? 'primary' : undefined}
-                className={flow ? 'connect-primary' : undefined}
-                isDisabled={opening || loading}
-                onPress={() => void open('onboarding')}
-              >
-                {opening ? (
-                  <Spinner size="sm" />
-                ) : (
-                  flow && <SquarePen aria-hidden="true" size={18} />
-                )}
-                {opening
-                  ? 'Abrindo…'
-                  : status?.state === 'active'
-                    ? 'Revisar cadastro Stripe'
-                    : 'Abrir cadastro Stripe'}
-              </Button>
-              {showRefresh && (
+            {hub ? null : (
+              <div className="connect-actions">
                 <Button
-                  variant={flow ? 'secondary' : 'primary'}
-                  className={
-                    flow
-                      ? 'connect-secondary connect-refresh'
-                      : '!bg-blue-600 !text-white hover:!bg-blue-700'
-                  }
+                  variant={flow ? 'primary' : undefined}
+                  className={flow ? 'connect-primary' : undefined}
                   isDisabled={opening || loading}
-                  onPress={() => void refresh()}
+                  onPress={() => void open('onboarding')}
                 >
-                  <RefreshCw
-                    aria-hidden="true"
-                    className={`size-4 ${loading ? 'motion-safe:animate-spin' : ''}`}
-                  />
-                  Atualizar situação
+                  {opening ? (
+                    <Spinner size="sm" />
+                  ) : (
+                    flow && <SquarePen aria-hidden="true" size={18} />
+                  )}
+                  {opening
+                    ? 'Abrindo…'
+                    : status?.state === 'active'
+                      ? 'Revisar cadastro Stripe'
+                      : 'Abrir cadastro Stripe'}
                 </Button>
-              )}
-            </div>
-            {dashboard && status && status.state !== 'not_started' && (
-              <div className="flex flex-wrap gap-2">
-                <Button
-                  variant="secondary"
-                  isDisabled={opening}
-                  onPress={() => void open('management')}
-                >
-                  Dados e conta bancária
-                </Button>
-                <Button
-                  variant="secondary"
-                  isDisabled={opening}
-                  onPress={() => void open('payments')}
-                >
-                  Pagamentos, reembolsos e disputas
-                </Button>
-                <Button
-                  variant="secondary"
-                  isDisabled={opening}
-                  onPress={() => void open('payouts')}
-                >
-                  Repasses
-                </Button>
+                {showRefresh && (
+                  <Button
+                    variant={flow ? 'secondary' : 'primary'}
+                    className={
+                      flow
+                        ? 'connect-secondary connect-refresh'
+                        : '!bg-blue-600 !text-white hover:!bg-blue-700'
+                    }
+                    isDisabled={opening || loading}
+                    onPress={() => void refresh()}
+                  >
+                    <RefreshCw
+                      aria-hidden="true"
+                      className={`size-4 ${loading ? 'motion-safe:animate-spin' : ''}`}
+                    />
+                    Atualizar situação
+                  </Button>
+                )}
               </div>
             )}
           </Card.Content>
