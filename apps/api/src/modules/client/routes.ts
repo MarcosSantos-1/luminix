@@ -842,6 +842,13 @@ export async function clientRoutes(app: FastifyInstance, dependencies: AuthDepen
     },
     async (request, reply) =>
       asClient(request, reply, request.params.slug, async (connection, scope) => {
+        // Space without a valid plan (ADR-039): its page stays up, new bookings pause.
+        const access = await connection.query(
+          "SELECT luminix.clinic_access_state($1::uuid)->>'state' AS state",
+          [scope!.clinicId],
+        )
+        if (access.rows[0]?.state === 'read_only')
+          return reply.code(409).send({ error: 'Booking paused' })
         if (scope!.recordProblem) return reply.code(409).send({ error: scope!.recordProblem })
         if (request.body.paymentMethod !== 'local' && !(await acceptsInApp(connection, scope!)))
           return reply.code(400).send({ error: 'Payment unavailable' })

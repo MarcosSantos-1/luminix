@@ -9,7 +9,11 @@ import {
 import { appointmentLinkUrl, newLinkToken } from '../client/appointment-links.js'
 import { loadClinicContact, sendLater, type ClinicMail } from '../notifications/clinic-mail.js'
 import type { SqlConnection } from '../../shared/database/migrations.js'
-import { withClinicTransaction, type TenantPool } from '../../shared/tenant/clinic-transaction.js'
+import {
+  guardsWrites,
+  withClinicTransaction,
+  type TenantPool,
+} from '../../shared/tenant/clinic-transaction.js'
 import { isoDate, isPaid, rolePermissions, toNumber } from '../../shared/tenant/route-helpers.js'
 import type { TenantContext } from '../../shared/tenant/tenant-context.js'
 import { clientPhotoUrl, publicMediaUrl } from '../clinics/media-storage.js'
@@ -458,9 +462,12 @@ export async function operationRoutes(
             request.tenantContext = null
           }
         },
+        { guardWrites: guardsWrites(request) },
       )
     } catch (error) {
       const code = (error as { code?: string }).code
+      if ((error as { statusCode?: number }).statusCode === 402)
+        return reply.code(402).send({ error: 'Subscription required' })
       const responseBody = (error as { responseBody?: unknown }).responseBody
       if ((error as { statusCode?: number }).statusCode === 409 && responseBody)
         return reply.code(409).send(responseBody)

@@ -35,7 +35,7 @@ export function ClinicHome({
   initialSettingsTab?: string
   welcome: boolean
 }) {
-  const { clinic, permissions } = useClinic()
+  const { clinic, permissions, access } = useClinic()
   const staff = useStaff()
   const router = useRouter()
   const [logoutError, setLogoutError] = useState('')
@@ -79,6 +79,8 @@ export function ClinicHome({
       key={`${staff.user?.uid}/${clinic.id}`}
       clinicName={clinic.name}
       trialEndsAt={clinic.trial_ends_at}
+      access={access}
+      canPay={permissions.includes('settings:manage')}
       userName={staff.user?.displayName || 'Gestor'}
       userEmail={staff.user?.email || undefined}
       onAccountSaved={async (name) => {

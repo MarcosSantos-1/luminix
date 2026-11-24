@@ -1032,6 +1032,20 @@ const qaClients = [
         : null,
 }))
 
+// Plan in grace (ADR-039): trial ended 3 days ago, 4 days left before read-only.
+const qaAccess = {
+  state: 'grace' as const,
+  trialEndsAt: qaAgo(3),
+  paidUntil: null,
+  graceEndsAt: qaAgo(-4),
+  plan: null,
+  paymentMethod: null,
+  cardStatus: null,
+  cancelAtPeriodEnd: false,
+  complimentary: false,
+  hasCustomer: false,
+}
+
 const qaAnamnesis = {
   version: 2,
   level: 2,
@@ -1196,6 +1210,16 @@ export default function QASettings({
           } as T
         }
         if (path === 'agenda') return qaAgenda() as T
+        if (path === 'billing')
+          return {
+            access: qaAccess,
+            plans: [
+              { id: 'monthly', label: 'Mensal', cents: 9990, months: 1 },
+              { id: 'annual', label: 'Anual', cents: 90000, months: 12 },
+            ],
+            methods: ['card', 'pix'],
+            available: false,
+          } as T
         if (path === 'closures') return { closures: qaAgenda().closures } as T
         if (path === 'account')
           return {
@@ -1463,6 +1487,8 @@ export default function QASettings({
           <ManagerHome
             clinicName={clinic.name}
             trialEndsAt={qaAgo(-8)}
+            access={qaAccess}
+            canPay
             userName="Maria"
             canManageSettings
             initialSection={section ?? 'configuracoes'}

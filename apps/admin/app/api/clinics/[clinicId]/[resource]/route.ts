@@ -28,6 +28,7 @@ const readable = [
   'account',
   'closures',
   'access-levels',
+  'billing',
 ] as const
 const writable = [
   'onboarding',

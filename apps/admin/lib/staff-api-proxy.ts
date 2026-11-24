@@ -13,6 +13,7 @@ export async function staffApiGet(
     | `/clinics/${string}/team`
     | `/clinics/${string}/staff`
     | `/clinics/${string}/access-levels`
+    | `/clinics/${string}/billing`
     | `/clinics/${string}/library`
     | `/clinics/${string}/library/items`
     | `/clinics/${string}/catalog`
@@ -197,7 +198,9 @@ export async function staffApiWrite(
     if (!response.ok) {
       const responseBody = await response.json().catch(() => ({ error: 'Request failed' }))
       return Response.json(responseBody, {
-        status: [400, 401, 403, 409, 413, 429].includes(response.status) ? response.status : 503,
+        status: [400, 401, 402, 403, 409, 413, 429].includes(response.status)
+          ? response.status
+          : 503,
         headers,
       })
     }
@@ -241,7 +244,7 @@ export async function staffApiImageWrite(
     return Response.json(responseBody, {
       status: response.ok
         ? response.status
-        : [400, 401, 403, 409, 413, 429].includes(response.status)
+        : [400, 401, 402, 403, 409, 413, 429].includes(response.status)
           ? response.status
           : 503,
       headers,

@@ -170,6 +170,8 @@ const messages: Record<string, string> = {
   'Service unavailable':
     'Este serviço está sem disponibilidade nessa data. Consulte os dias de locação.',
   'Slot taken': 'Esse horário acabou de ser ocupado. Escolha outro.',
+  'Booking paused':
+    'O agendamento online deste espaço está pausado no momento. Fale direto com o espaço para marcar.',
   'Cancellation closed': 'O prazo para cancelar pelo app já passou. Fale com o espaço.',
   'Rescheduling closed': 'O prazo para remarcar pelo app já passou. Fale com o espaço.',
   'Too many requests': 'Muitas tentativas seguidas. Aguarde um minuto.',

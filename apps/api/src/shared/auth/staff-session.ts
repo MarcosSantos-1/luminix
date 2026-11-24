@@ -1,3 +1,4 @@
+import type { BillingProvider } from '../../modules/billing/provider.js'
 import type { FastifyReply, FastifyRequest } from 'fastify'
 
 import type { SqlConnection } from '../database/migrations.js'
@@ -9,6 +10,8 @@ import type { Mailer } from '../integrations/email/mailer.js'
 
 export type AuthDependencies = {
   connectProvider?: ConnectProvider
+  /** Stripe Billing for the Luminix subscription; null disables it (tests), absent reads env. */
+  billingProvider?: BillingProvider | null
   /** Firebase accounts for staff invitations; created lazily in production. */
   staffDirectory?: StaffDirectory
   /** Access e-mails (invite, sign-in link). Absent: the admin uses Firebase's own e-mail. */

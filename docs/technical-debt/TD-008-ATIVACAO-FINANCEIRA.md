@@ -17,8 +17,7 @@ Antes de receber pagamentos reais:
 - Rate limit é local à Machine; distribuir antes de escalar horizontalmente.
 - Automatizar reconciliação de reservas sem account ID após falha incerta, mantendo o bloqueio seguro
   depois de 23h. A recuperação atual exige suporte com metadata e logs Stripe.
-- Implementar billing clínica → Luminix somente após esclarecer vencimentos e alcance do bloqueio;
-  preços/carência/promessa estão registrados na ADR-016, sem cobrança ou bloqueio automáticos.
+- Billing clínica → Luminix: decidido e implementado na ADR-039 (pendências em TD-017).
 
 Verificação do cadastro com documentos/dados bancários de teste no navegador e de todos os
 componentes incorporados deve preceder uso por clínicas. Criação de Account Session não comprova

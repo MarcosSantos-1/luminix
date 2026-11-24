@@ -35,7 +35,14 @@ import { createActions } from './create-actions'
 import { ManagerAppearanceShell, ManagerDesignButton } from './manager-appearance'
 import { ManagerMobileNav } from './manager-mobile-nav'
 import { QuickModal } from './quick-modal'
-import { PlanModal, planStatus, previewPlans, type PlanPreview } from './manager-plan'
+import {
+  PlanBanner,
+  PlanModal,
+  planStatus,
+  previewPlans,
+  type PlanAccess,
+  type PlanPreview,
+} from './manager-plan'
 import { ManagerSidebar } from './manager-sidebar'
 import { firstManagerTourStep, ManagerTour, type ManagerTourStep } from './manager-tour'
 import {
@@ -91,6 +98,8 @@ export function ManagerHome({
   signingOut = false,
   logoutError,
   trialEndsAt,
+  access,
+  canPay = false,
 }: {
   clinicName?: string
   userName?: string
@@ -138,6 +147,10 @@ export function ManagerHome({
   signingOut?: boolean
   logoutError?: string
   trialEndsAt?: string | null
+  /** Luminix plan state (ADR-039), from the clinic context. */
+  access?: PlanAccess | null
+  /** Who may subscribe and manage the card (settings:manage). */
+  canPay?: boolean
 } = {}) {
   const navigation = useMemo(
     () =>
@@ -216,11 +229,22 @@ export function ManagerHome({
   const [simulation, setSimulation] = useState<{ scope: string; plan: PlanPreview } | null>(null)
   const planScope = workspace?.clinicId ?? messages?.scope ?? clinicName
   const preview = simulation?.scope === planScope ? simulation.plan : undefined
-  const currentPlanStatus = preview ? previewPlans[preview].title : planStatus(trialEndsAt, planNow)
+  const currentPlanStatus = preview
+    ? previewPlans[preview].title
+    : planStatus(trialEndsAt, planNow, access)
   const openPlan = () => {
     setPlanNow(Date.now())
     setPlanOpen(true)
   }
+  // A write refused for the plan (402) opens "Meu plano" instead of a generic error.
+  useEffect(() => {
+    const open = () => {
+      setPlanNow(Date.now())
+      setPlanOpen(true)
+    }
+    window.addEventListener('luminix:subscription-required', open)
+    return () => window.removeEventListener('luminix:subscription-required', open)
+  }, [])
   const [notice, setNotice] = useState<string | null>(null)
   const [announcement, setAnnouncement] = useState(true)
   const [focus, setFocus] = useState<SearchFocus | null>(null)
@@ -380,6 +404,7 @@ export function ManagerHome({
         onNavigate={navigate}
       />
       <main className="manager-main" id="manager-content">
+        {preview ? null : <PlanBanner access={access} onOpen={openPlan} />}
         <header className="manager-header">
           <div className="manager-greeting">
             {isHome ? (
@@ -692,6 +717,9 @@ export function ManagerHome({
         endsAt={trialEndsAt}
         now={planNow}
         clinicName={clinicName}
+        access={access}
+        api={workspace?.api}
+        canPay={canPay}
       />
       {tourOpen && (
         <ManagerTour

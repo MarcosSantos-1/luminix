@@ -52,6 +52,7 @@ Cancelamentos por mudança de agenda (prévia dos afetados, aviso à cliente) e 
 Tipo do espaço (Studio, Clínica, Salão, SPA, Espaço), avaliação de primeira visita e proposta do fluxo pelo site: [ADR-036](decisions/ADR-036-TIPO-DO-ESPACO-E-PRIMEIRA-VISITA.md).
 Sinal por Pix do espaço (reserva, copia-e-cola, confirmação pela equipe, expiração) e regras de cancelar/remarcar aplicadas: [ADR-037](decisions/ADR-037-SINAL-POR-PIX-DO-ESPACO.md).
 Link de confirmação por agendamento sem login (`/confirmar`), alertas e objetivos da anamnese: [ADR-038](decisions/ADR-038-LINK-DE-CONFIRMACAO-E-ALERTAS-DA-ANAMNESE.md).
+Assinatura do Luminix (R$ 99,90/mês ou R$ 900/ano, cartão ou Pix, 12 dias grátis, carência e só leitura): [ADR-039](decisions/ADR-039-ASSINATURA-DO-LUMINIX.md).
 
 ## Diretórios
 

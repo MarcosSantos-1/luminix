@@ -79,7 +79,12 @@ export function useClinicApi(clinicId: string): ClinicApi {
         signal: AbortSignal.timeout(20_000),
       })
       const data = await response.json().catch(() => null)
-      if (!response.ok) throw new ClinicApiError(response.status, data)
+      if (!response.ok) {
+        // Plan in read-only mode (ADR-039): the panel shows the plan instead of a generic error.
+        if (response.status === 402 && typeof window !== 'undefined')
+          window.dispatchEvent(new CustomEvent('luminix:subscription-required'))
+        throw new ClinicApiError(response.status, data)
+      }
       return data as T
     }
     return {

@@ -579,7 +579,18 @@ export async function clinicRoutes(
           )
         ).rows
         if (!clinic) throw new Error('Clinic unavailable')
-        return { clinic, permissions: grants.map((grant) => String(grant.permission_code)) }
+        // Plan state (ADR-039): trial, active, grace or read_only, computed by the database.
+        const access = (
+          await connection.query('SELECT luminix.clinic_access_state($1::uuid) AS access', [
+            tenant.clinicId,
+          ])
+        ).rows[0]?.access as { trialEndsAt?: string | null } | undefined
+        if (access?.trialEndsAt) clinic.trial_ends_at = access.trialEndsAt
+        return {
+          clinic,
+          permissions: grants.map((grant) => String(grant.permission_code)),
+          access: access ?? null,
+        }
       }),
   )
 

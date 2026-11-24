@@ -1,7 +1,7 @@
 import type { FastifyReply, FastifyRequest } from 'fastify'
 import type { SqlConnection } from '../database/migrations.js'
 import { invalidatePublicClinic } from '../../modules/clinics/public-cache.js'
-import { withClinicTransaction, type TenantPool } from './clinic-transaction.js'
+import { guardsWrites, withClinicTransaction, type TenantPool } from './clinic-transaction.js'
 import type { TenantContext } from './tenant-context.js'
 
 /** Route params for `/clinics/:clinicId/...`: UUID or space code (AB-1234). */
@@ -73,6 +73,7 @@ export function createAuthorizedRoute(
             request.tenantContext = null
           }
         },
+        { guardWrites: guardsWrites(request) },
       )
       if (publicSlug) await invalidatePublicClinic(publicSlug, request.log)
       return result
@@ -81,6 +82,7 @@ export function createAuthorizedRoute(
       // A structured answer (e.g. the clients a schedule change would cancel).
       const responseBody = (error as { responseBody?: unknown })?.responseBody
       if (statusCode === 409 && responseBody) return reply.code(409).send(responseBody)
+      if (statusCode === 402) return reply.code(402).send({ error: 'Subscription required' })
       if (statusCode && [400, 409, 413].includes(statusCode))
         return reply.code(statusCode).send({ error: (error as Error).message })
       if (statusCode === 503 && (error as Error).message === 'Stripe verification unavailable')

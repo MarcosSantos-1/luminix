@@ -118,8 +118,9 @@ describe('first owner clinic', () => {
         [a],
       )
     ).rows
-    // 3 roles (0053: owner, manager, team) + 18 owner + 17 manager + 9 team grants + 3 rows.
-    expect(audit).toHaveLength(50)
+    // 3 roles (0053: owner, manager, team) + 18 owner + 17 manager + 9 team grants + 3 rows
+    // + the subscription row that starts the 12-day trial (0067).
+    expect(audit).toHaveLength(51)
     expect(audit.every((row) => row.actor_identity_id === identityA)).toBe(true)
     expect((await create('a', { name: 'Other name' })).statusCode).toBe(409)
     expect((await database.query('SELECT id FROM luminix.clinics')).rows).toHaveLength(1)

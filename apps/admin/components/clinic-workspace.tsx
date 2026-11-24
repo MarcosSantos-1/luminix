@@ -1,4 +1,6 @@
 'use client'
+
+import type { PlanAccess } from './manager/manager-plan'
 import {
   createContext,
   useContext,
@@ -28,6 +30,8 @@ type ClinicContext = {
     trial_ends_at?: string | null
   }
   permissions: string[]
+  /** Luminix plan state (ADR-039), computed by the API. */
+  access?: PlanAccess | null
 }
 const Context = createContext<ClinicContext | null>(null)
 
