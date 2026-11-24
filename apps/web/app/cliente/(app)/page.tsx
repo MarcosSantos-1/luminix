@@ -47,8 +47,42 @@ function Slider({ slides }: { slides: Slide[] }) {
     element.addEventListener('scroll', onScroll, { passive: true })
     return () => element.removeEventListener('scroll', onScroll)
   }, [])
+
+  // Moves on by itself every few seconds (promotions and the space's cards live here). Pauses
+  // while the person points at it, focuses it or prefers reduced motion; loops at the end.
+  const paused = useRef(false)
+  useEffect(() => {
+    const element = track.current
+    if (!element || slides.length < 2) return
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return
+    const timer = setInterval(() => {
+      if (paused.current || document.hidden) return
+      const current = Math.round(element.scrollLeft / Math.max(1, element.clientWidth * 0.9))
+      const target = element.children[(current + 1) % slides.length] as HTMLElement | undefined
+      if (!target) return
+      // Horizontal only: never pulls the page up or down.
+      const left =
+        target.getBoundingClientRect().left -
+        element.getBoundingClientRect().left +
+        element.scrollLeft -
+        parseFloat(getComputedStyle(element).paddingLeft || '0')
+      element.scrollTo({ left, behavior: 'smooth' })
+    }, 5000)
+    return () => clearInterval(timer)
+  }, [slides.length])
+
   return (
-    <section className="ca-slider" aria-label="Destaques">
+    <section
+      className="ca-slider"
+      aria-label="Destaques"
+      aria-roledescription="carrossel"
+      onPointerEnter={() => (paused.current = true)}
+      onPointerLeave={() => (paused.current = false)}
+      onFocus={() => (paused.current = true)}
+      onBlur={() => (paused.current = false)}
+      onTouchStart={() => (paused.current = true)}
+      onTouchEnd={() => setTimeout(() => (paused.current = false), 4000)}
+    >
       <div className="ca-slider-track" ref={track}>
         {slides.map((slide) => (
           <article key={slide.key} className="ca-slide" data-kind={slide.kind}>

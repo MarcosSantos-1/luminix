@@ -63,6 +63,8 @@ export type Appointment = {
   rescheduledAt: string | null
   paymentMethod: Payment['method'] | null
   paid: boolean
+  /** Already paid for this visit (deposit, app or at the space). */
+  paidCents: number
   /** Sinal por Pix do espaço (ADR-037). */
   deposit?: Deposit | null
   /** Paid in the app through Stripe (ADR-040). */
@@ -72,6 +74,9 @@ export type Appointment = {
 export type OnlinePayment = {
   status: 'awaiting' | 'paid' | 'expired' | 'refunded'
   dueAt: string | null
+  /** Only the deposit, or the whole visit (ADR-042). */
+  kind: 'full' | 'deposit'
+  amountCents: number | null
 }
 
 export type Deposit = {
@@ -90,6 +95,8 @@ export type Payment = {
   method: 'pix' | 'card' | 'local'
   status: 'paid' | 'pending' | 'refunded'
   at: string
+  /** Paid in the app: Stripe has a receipt for it. */
+  receipt?: boolean
 }
 
 export type NoticeKind = 'booking' | 'promo' | 'space' | 'app'
@@ -109,6 +116,8 @@ export type BookingPolicy = {
   cancellationNoticeMinutes: number
   reschedulingNoticeMinutes: number | null
   instructions: string
+  /** Services that ask for a deposit to hold the time (ADR-042). */
+  deposit?: { percent: number; serviceIds: string[] } | null
 }
 
 export type SpaceLink = {
@@ -143,6 +152,8 @@ export type Availability = {
   choose: boolean
   /** Pix/card are offered only when the space accepts payments in the app. */
   inAppPayments: boolean
+  /** The service asks for a deposit: paid in the app (online) or by the space's Pix. */
+  deposit?: { percent: number; online: boolean; pix: boolean } | null
   professionals: Professional[]
   /** Free start times per professional id; "" is the single agenda of a space without team. */
   slots: Record<string, string[]>

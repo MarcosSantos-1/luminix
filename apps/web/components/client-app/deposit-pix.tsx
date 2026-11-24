@@ -2,6 +2,7 @@
 
 import { Check, Clock3, Copy, QrCode } from 'lucide-react'
 import { useState } from 'react'
+import { toast } from './toast'
 import { reportDeposit } from '../../lib/client-app/store'
 import type { Deposit } from '../../lib/client-app/types'
 
@@ -86,6 +87,7 @@ export function DepositPix({
               try {
                 await navigator.clipboard.writeText(deposit.pix!.code)
                 setCopied(true)
+                toast.success('Código Pix copiado', 'Cole no app do seu banco para pagar.')
                 setTimeout(() => setCopied(false), 2500)
               } catch {
                 setProblem('Não deu para copiar. Selecione o código e copie manualmente.')
@@ -109,6 +111,8 @@ export function DepositPix({
             const failure = await reportDeposit(slug, appointmentId)
             setBusy(false)
             setProblem(failure ?? '')
+            if (!failure)
+              toast.success('Aviso enviado', 'O espaço confere o Pix e confirma o seu horário.')
           }}
         >
           {busy ? 'Enviando…' : 'Já paguei'}

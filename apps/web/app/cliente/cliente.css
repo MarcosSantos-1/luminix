@@ -936,7 +936,7 @@
 /* ── Home ───────────────────────────────────────────────────── */
 .ca-home {
   display: grid;
-  gap: 22px;
+  gap: 30px;
   max-width: 1040px;
   margin: 0 auto;
 }
@@ -1028,7 +1028,7 @@
 }
 .ca-home-grid {
   display: grid;
-  gap: 22px;
+  gap: 30px;
 }
 
 .ca-slider {
@@ -1054,7 +1054,9 @@
   align-content: space-between;
   gap: 10px;
   flex: 0 0 90%;
-  min-height: 188px;
+  /* 2:1, the shape of the space's promotion and marketing cards. */
+  aspect-ratio: 2 / 1;
+  min-height: 176px;
   padding: 20px;
   border-radius: 28px;
   background: var(--deep);
@@ -1147,7 +1149,7 @@
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(72px, 1fr));
   gap: 10px;
-  margin-top: 18px;
+  margin-top: 24px;
 }
 .ca-actions a {
   display: grid;
@@ -2747,7 +2749,7 @@
     font-size: 38px;
   }
   .ca-home {
-    gap: 28px;
+    gap: 40px;
   }
   .ca-hero {
     border-radius: 34px;
@@ -2778,7 +2780,7 @@
   .ca-home-grid {
     grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
     align-items: start;
-    gap: 28px;
+    gap: 36px;
   }
   .ca-slider,
   .ca-rail,
@@ -2796,7 +2798,7 @@
   .ca-slide {
     flex-basis: 100%;
     scroll-margin-left: 0;
-    min-height: 210px;
+    min-height: 0;
   }
   .ca-rail {
     flex-wrap: wrap;
@@ -2811,8 +2813,8 @@
     flex-wrap: wrap;
   }
   .ca-booking {
-    max-width: 720px;
-    margin: 0;
+    max-width: 760px;
+    margin: 0 auto;
     padding-bottom: 0;
   }
   .ca-confirm {
@@ -2820,8 +2822,12 @@
     transform: none;
     width: 100%;
   }
+  /* Header, calendar, then the day's list on the left; "Próximos" on the right. The last row
+     takes the extra height, so a long list never stretches the calendar. */
   .ca-agenda {
     grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    grid-template-rows: auto auto 1fr;
+    align-items: start;
     column-gap: 28px;
   }
   .ca-agenda > .ca-page-header {
@@ -2839,25 +2845,14 @@
   .ca-profile > .ca-button {
     max-width: 260px;
   }
-  /* Wide screens show the whole booking at once; the phone wizard parts step aside. */
+  /* Booking is the same step by step on every screen, just roomier. */
   .ca-team {
     margin: 0;
     padding: 4px 0 10px;
     flex-wrap: wrap;
   }
-  .ca-step[data-hidden] {
-    display: grid;
-  }
-  .ca-wizard-progress,
-  .ca-wizard-nav {
-    display: none;
-  }
-  .ca-booking .ca-confirm {
-    display: flex;
-  }
-  .ca-review-step,
-  .ca-review-step[data-hidden] {
-    display: none;
+  .ca-card-step {
+    padding: 26px;
   }
   .aw {
     min-height: 0;
@@ -2975,4 +2970,338 @@
   color: inherit;
   font-weight: 500;
   opacity: 0.85;
+}
+
+/* ── Booking steps (ADR-042) ───────────────────────────────── */
+.ca-stepper {
+  display: flex;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.ca-stepper li {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+}
+/* The line that joins one step to the next. */
+.ca-stepper li + li::before {
+  content: '';
+  position: absolute;
+  top: 15px;
+  right: calc(50% + 20px);
+  left: calc(-50% + 20px);
+  height: 2px;
+  border-radius: 2px;
+  background: var(--line);
+}
+.ca-stepper li[data-state='done'] + li::before,
+.ca-stepper li[data-state='current']::before {
+  background: var(--deep);
+}
+.ca-stepper button {
+  display: grid;
+  justify-items: center;
+  gap: 6px;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--muted);
+  font: inherit;
+  cursor: pointer;
+}
+.ca-stepper button:disabled {
+  cursor: default;
+}
+.ca-stepper button > span {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--card);
+  box-shadow: inset 0 0 0 1.5px var(--line);
+  font-size: 13px;
+  font-weight: 700;
+}
+.ca-stepper small {
+  overflow: hidden;
+  max-width: 100%;
+  font-size: 12px;
+  font-weight: 650;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ca-stepper [data-state='done'] button > span {
+  background: var(--light);
+  color: var(--deep);
+  box-shadow: none;
+}
+.ca-stepper [data-state='current'] button {
+  color: var(--ink);
+}
+.ca-stepper [data-state='current'] button > span {
+  background: var(--deep);
+  color: #fff;
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--deep) 16%, transparent);
+}
+.ca-card-step {
+  gap: 16px;
+  padding: 18px;
+  border-radius: 26px;
+  background: var(--card);
+  box-shadow: var(--shadow);
+  animation: ca-window-in 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+.ca-step-head {
+  display: grid;
+  gap: 2px;
+}
+.ca-step-head h2 {
+  font-size: 22px;
+}
+.ca-step-head p {
+  color: var(--muted);
+  font-size: 14px;
+}
+.ca-search-soft {
+  background: var(--bg);
+  box-shadow: none;
+}
+.ca-booking .ca-pick-list button {
+  align-items: flex-start;
+  padding: 16px 18px;
+  transition:
+    box-shadow 0.15s ease,
+    transform 0.15s ease;
+}
+.ca-booking .ca-pick-list button:hover {
+  box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--deep) 45%, transparent);
+}
+.ca-booking .ca-pick-list button[aria-pressed='true'] {
+  box-shadow: inset 0 0 0 2px var(--deep);
+}
+.ca-pick-list small,
+.ca-picked small {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 650;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+.ca-pick-list strong {
+  font-size: 16px;
+}
+.ca-pick-list em,
+.ca-picked em {
+  color: var(--muted);
+  font-size: 13.5px;
+  font-style: normal;
+}
+.ca-pick-skeleton {
+  height: 78px;
+  border-radius: 18px;
+}
+.ca-booking .ca-picked {
+  background: var(--light);
+  box-shadow: none;
+}
+.ca-review-total dt,
+.ca-review-total dd {
+  color: var(--ink);
+  font-size: 17px;
+  font-weight: 750;
+}
+.ca-back {
+  justify-self: start;
+}
+.ca-wizard-nav .ca-button,
+.ca-back {
+  gap: 8px;
+}
+
+/* "Agenda especial" and "Sinal" on a service. */
+.ca-flags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 4px;
+}
+.ca-flag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 9px;
+  border-radius: 999px;
+  font-size: 11.5px;
+  font-weight: 700;
+  line-height: 1.4;
+}
+.ca-flag[data-kind='special'] {
+  background: #fff1d6;
+  color: #7a4b00;
+}
+.ca-flag[data-kind='deposit'] {
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  color: var(--deep);
+}
+.ca-flag-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin: 0;
+  padding: 12px 14px;
+  border-radius: 16px;
+  background: #fff6e3;
+  color: #6b4806;
+  font-size: 14px;
+  line-height: 1.45;
+}
+.ca-flag-note svg {
+  flex: none;
+  margin-top: 2px;
+}
+.ca-flag-note.is-strong {
+  background: color-mix(in srgb, var(--accent) 9%, transparent);
+  color: var(--ink);
+}
+
+/* Only the deposit, or everything now. */
+.ca-amounts {
+  display: grid;
+  gap: 8px;
+}
+.ca-amounts button {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px;
+  border-radius: 18px;
+  background: var(--card);
+  box-shadow: inset 0 0 0 1.5px var(--line);
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.ca-amounts button span {
+  display: grid;
+  gap: 2px;
+}
+.ca-amounts button small {
+  color: var(--muted);
+  font-size: 13.5px;
+}
+.ca-amounts button[aria-checked='true'] {
+  background: var(--light);
+  box-shadow: inset 0 0 0 2px var(--deep);
+}
+
+/* Payment history: Stripe receipt. */
+.ca-receipt {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--light);
+  color: var(--deep);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.ca-receipt:disabled {
+  opacity: 0.6;
+}
+
+/* ── Toasts ─────────────────────────────────────────────────── */
+.ca-toaster {
+  position: fixed;
+  z-index: 80;
+  left: 50%;
+  bottom: calc(96px + env(safe-area-inset-bottom));
+  display: grid;
+  gap: 8px;
+  width: min(calc(100% - 28px), 400px);
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+.ca-toast {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 13px 12px 13px 14px;
+  border-radius: 18px;
+  background: var(--ink);
+  color: #fff;
+  box-shadow: 0 18px 44px rgba(23, 23, 28, 0.28);
+  pointer-events: auto;
+  animation: ca-toast-in 0.28s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+.ca-toast > svg {
+  flex: none;
+  margin-top: 1px;
+}
+.ca-toast[data-tone='success'] > svg {
+  color: #7ee2a8;
+}
+.ca-toast[data-tone='info'] > svg {
+  color: #9cc3ff;
+}
+.ca-toast[data-tone='error'] > svg {
+  color: #ff9b94;
+}
+.ca-toast > div {
+  display: grid;
+  flex: 1;
+  gap: 2px;
+  min-width: 0;
+}
+.ca-toast strong {
+  font-size: 14.5px;
+}
+.ca-toast p {
+  margin: 0;
+  font-size: 13.5px;
+  line-height: 1.4;
+  opacity: 0.85;
+}
+.ca-toast button {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border: 0;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.12);
+  color: inherit;
+  cursor: pointer;
+}
+@keyframes ca-toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(12px) scale(0.98);
+  }
+}
+@media (min-width: 960px) {
+  .ca-toaster {
+    left: auto;
+    right: 28px;
+    bottom: 28px;
+    transform: none;
+  }
+}
+/* Lists style their inner spans as grids; the tags stay a row of pills. */
+.ca .ca-flags {
+  display: flex;
+  gap: 6px;
+}
+.ca .ca-flag {
+  display: inline-flex;
+  gap: 4px;
 }

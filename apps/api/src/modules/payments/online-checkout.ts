@@ -38,6 +38,12 @@ export interface OnlinePaymentsProvider {
   }): Promise<{ id: string; url: string }>
   /** URL of a still open session (the client closed the payment page and comes back). */
   openUrl(account: string, session: string): Promise<string | null>
+  /** Stripe's own receipt page of a paid session (payment history), or null. */
+  receiptUrl(input: {
+    account: string
+    session: string
+    intent: string | null
+  }): Promise<string | null>
   readEvent(rawBody: Buffer, signature: string): ConnectPaymentEvent | null
   /** Full refund on the clinic's account; idempotent per payment. Returns the refund id. */
   refund(input: {
@@ -99,6 +105,25 @@ export function createOnlinePaymentsProvider(
         { stripeAccount: account },
       )
       return session.status === 'open' ? session.url : null
+    },
+    async receiptUrl({ account, session, intent }) {
+      let paymentIntent = intent
+      if (!paymentIntent) {
+        const found = await stripe.checkout.sessions.retrieve(
+          session,
+          {},
+          { stripeAccount: account },
+        )
+        paymentIntent = intentId(found.payment_intent)
+      }
+      if (!paymentIntent) return null
+      const retrieved = await stripe.paymentIntents.retrieve(
+        paymentIntent,
+        { expand: ['latest_charge'] },
+        { stripeAccount: account },
+      )
+      const charge = retrieved.latest_charge
+      return charge && typeof charge !== 'string' ? (charge.receipt_url ?? null) : null
     },
     readEvent: (rawBody, signature) => readEvent(rawBody, signature),
     async refund({ account, paymentId, intent, session }) {

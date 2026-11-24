@@ -3,7 +3,16 @@
 import Image from 'next/image'
 import Link from 'next/link'
 import { useEffect, useMemo, useState } from 'react'
-import { ArrowRight, Clock, Search, SlidersHorizontal, Tag, X } from 'lucide-react'
+import {
+  ArrowRight,
+  CalendarClock,
+  Clock,
+  Search,
+  ShieldCheck,
+  SlidersHorizontal,
+  Tag,
+  X,
+} from 'lucide-react'
 import { useClient } from '../../../../lib/client-app/store'
 import {
   durationLabel,
@@ -14,7 +23,13 @@ import {
 import { clinicServicePhotos, type PublicService } from '../../../../lib/public-clinic'
 import { serviceCategoryArt } from '../../../../lib/clinic-categories'
 import { useClinic } from '../../../../components/client-app/use-clinic'
-import { Empty, PageHeader, Sheet } from '../../../../components/client-app/ui'
+import {
+  Empty,
+  PageHeader,
+  ServiceFlags,
+  Sheet,
+  depositOf,
+} from '../../../../components/client-app/ui'
 
 const fold = (text: string) =>
   text
@@ -166,6 +181,7 @@ export default function ServicesPage() {
                           </em>
                         ) : null}
                       </span>
+                      <ServiceFlags service={service} policy={space?.policy ?? null} />
                       <b>{priceLabel(service)}</b>
                     </span>
                   </button>
@@ -228,10 +244,41 @@ export default function ServicesPage() {
               <div>
                 <dt>Reserva</dt>
                 <dd>
-                  {detail.bookingMode === 'instant' ? 'Confirmação na hora' : 'O espaço confirma'}
+                  {detail.bookingMode === 'manual_release'
+                    ? 'Agenda especial'
+                    : detail.bookingMode === 'instant'
+                      ? 'Confirmação na hora'
+                      : 'O espaço confirma'}
                 </dd>
               </div>
+              {depositOf(detail, space?.policy ?? null) ? (
+                <div>
+                  <dt>Sinal</dt>
+                  <dd>{formatMoney(depositOf(detail, space?.policy ?? null)!)}</dd>
+                </div>
+              ) : null}
             </dl>
+            {detail.bookingMode === 'manual_release' ? (
+              <p className="ca-flag-note">
+                <CalendarClock size={16} aria-hidden />
+                Serviço com agenda específica: só pode ser marcado nos dias em que o espaço abre
+                essa agenda
+                {detail.rentalDates?.length
+                  ? ` (${detail.rentalDates
+                      .slice(0, 4)
+                      .map((date) => date.slice(8, 10) + '/' + date.slice(5, 7))
+                      .join(', ')}${detail.rentalDates.length > 4 ? '…' : ''})`
+                  : ''}
+                .
+              </p>
+            ) : null}
+            {depositOf(detail, space?.policy ?? null) ? (
+              <p className="ca-flag-note">
+                <ShieldCheck size={16} aria-hidden />
+                Para reservar, este serviço pede um sinal. O restante você paga no espaço, ou paga
+                tudo de uma vez se preferir.
+              </p>
+            ) : null}
           </div>
           <Link className="ca-button" href={`/cliente/agendar?servico=${detail.id}`}>
             Escolher horário <ArrowRight size={18} aria-hidden />

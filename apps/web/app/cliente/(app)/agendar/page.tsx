@@ -4,7 +4,20 @@ import { DepositPix } from '../../../../components/client-app/deposit-pix'
 
 import Link from 'next/link'
 import { useEffect, useMemo, useState } from 'react'
-import { ArrowRight, Check, CreditCard, QrCode, Store, Users } from 'lucide-react'
+import {
+  ArrowLeft,
+  ArrowRight,
+  CalendarClock,
+  Check,
+  CreditCard,
+  QrCode,
+  Search,
+  ShieldCheck,
+  Store,
+  Users,
+  Wallet,
+  X,
+} from 'lucide-react'
 import { book, loadAvailability, reschedule, useClient } from '../../../../lib/client-app/store'
 import {
   addDays,
@@ -17,7 +30,14 @@ import {
 } from '../../../../lib/client-app/format'
 import type { Availability, Payment, Deposit } from '../../../../lib/client-app/types'
 import { useClinic } from '../../../../components/client-app/use-clinic'
-import { Avatar, Empty, PageHeader } from '../../../../components/client-app/ui'
+import {
+  Avatar,
+  Empty,
+  PageHeader,
+  ServiceFlags,
+  depositOf,
+} from '../../../../components/client-app/ui'
+import { toast } from '../../../../components/client-app/toast'
 
 const methods = [
   { value: 'local', label: 'Pagar no espaço', hint: 'No dia do atendimento', icon: Store },
@@ -27,14 +47,22 @@ const methods = [
 
 /** "" = no preference: the space gives the time to the first professional free. */
 const ANY = ''
+/** Stripe does not charge less than R$ 0,50. */
+const MIN_ONLINE = 50
+
+const fold = (text: string) =>
+  text
+    .normalize('NFD')
+    .replace(/\p{Diacritic}/gu, '')
+    .toLowerCase()
 
 type Stage = 'service' | 'pro' | 'time' | 'pay' | 'review'
 const stageTitles: Record<Stage, string> = {
   service: 'Serviço',
   pro: 'Profissional',
-  time: 'Dia e horário',
+  time: 'Horário',
   pay: 'Pagamento',
-  review: 'Revisão',
+  review: 'Confirmar',
 }
 
 export default function BookingPage() {
@@ -46,14 +74,14 @@ export default function BookingPage() {
   const [chosenDay, setDay] = useState(() => dayKey(new Date()))
   const [time, setTime] = useState<string | null>(null)
   const [method, setMethod] = useState<Payment['method']>('local')
+  const [amount, setAmount] = useState<'deposit' | 'full'>('deposit')
+  const [query, setQuery] = useState('')
   const [availability, setAvailability] = useState<{
     key: string
     data: Availability | null
   } | null>(null)
   const [busy, setBusy] = useState(false)
-  // Phones see one window at a time; wide screens show every section (CSS).
   const [at, setAt] = useState<Stage>('service')
-  const [error, setError] = useState('')
   const [done, setDone] = useState<{
     start: string
     confirmed: boolean
@@ -71,10 +99,22 @@ export default function BookingPage() {
   const slug = space?.summary.slug ?? null
   const moving = space?.appointments.find((item) => item.id === params?.move) ?? null
   const chosenId = serviceId ?? moving?.serviceId ?? params?.service ?? null
-  const allServices = clinic?.services ?? []
-  const bookableServices = allServices.filter(
-    (item) => !item.rentalDates || item.rentalDates.some((date) => date >= dayKey(new Date())),
+  const allServices = useMemo(() => clinic?.services ?? [], [clinic])
+  const bookableServices = useMemo(
+    () =>
+      allServices.filter(
+        (item) => !item.rentalDates || item.rentalDates.some((date) => date >= dayKey(new Date())),
+      ),
+    [allServices],
   )
+  const found = useMemo(() => {
+    const term = fold(query.trim())
+    return term
+      ? bookableServices.filter((item) =>
+          fold(`${item.name} ${item.category} ${item.description ?? ''}`).includes(term),
+        )
+      : bookableServices
+  }, [bookableServices, query])
   const service =
     (moving ? allServices : bookableServices).find((item) => item.id === chosenId) ?? null
   const dates = (moving?.rentalDates ?? service?.rentalDates)?.filter(
@@ -154,15 +194,35 @@ export default function BookingPage() {
       </div>
     )
 
-  const priced = service && service.priceType !== 'quote' && effectivePrice(service) > 0
+  const priced = Boolean(service && service.priceType !== 'quote' && effectivePrice(service) > 0)
+  const price = service && priced ? effectivePrice(service) : 0
   const start = time ? `${day}T${time}` : null
+  // Deposit of this service (ADR-042), in the app (Stripe) or by the space's own Pix.
+  const depositRule = !moving && priced ? (current?.deposit ?? null) : null
+  const depositCents = service && depositRule ? depositOf(service, null, depositRule.percent) : null
+  const depositOnline = Boolean(depositRule?.online)
+  const depositPix = Boolean(depositRule && !depositRule.online && depositRule.pix)
+  // Paying only the deposit online needs at least R$ 0,50; below that it is the full price.
+  const payAmount: 'deposit' | 'full' =
+    depositOnline && (depositCents ?? 0) >= MIN_ONLINE && amount === 'deposit' ? 'deposit' : 'full'
   // Pix/card only when the space accepts payments in the app; otherwise it is paid there.
   const payInApp = Boolean(priced && current?.inAppPayments && !moving)
+  // A service with a deposit in the app cannot be left for the day: Pix or card now.
+  const payMethod: Payment['method'] = depositOnline && method === 'local' ? 'pix' : method
+  const payNow =
+    payMethod === 'local'
+      ? depositPix
+        ? (depositCents ?? 0)
+        : 0
+      : payAmount === 'deposit'
+        ? (depositCents ?? 0)
+        : price
+  const showPay = Boolean(start && (payInApp || depositPix))
   const flow: Stage[] = [
     ...(moving ? [] : (['service'] as Stage[])),
     ...(current?.choose && !moving ? (['pro'] as Stage[]) : []),
     'time',
-    ...(payInApp ? (['pay'] as Stage[]) : []),
+    ...(payInApp || depositPix ? (['pay'] as Stage[]) : []),
     'review',
   ]
   // A step the client cannot be on yet falls back to the first one still open.
@@ -179,7 +239,6 @@ export default function BookingPage() {
               ? at
               : 'time'
   const position = flow.indexOf(view)
-  const number = (stage: Stage) => flow.indexOf(stage) + 1
   const ready =
     view === 'service'
       ? Boolean(service)
@@ -188,17 +247,31 @@ export default function BookingPage() {
         : view === 'time'
           ? Boolean(start)
           : true
-  const hidden = (stage: Stage) => (view !== stage ? true : undefined)
-  const shown = (stage: Stage) => (view === stage ? true : undefined)
+  const reachable = (stage: Stage) =>
+    stage === 'service'
+      ? !moving
+      : stage === 'pro'
+        ? Boolean(service)
+        : stage === 'time'
+          ? agenda !== null
+          : Boolean(start)
+
+  function pickService(id: string) {
+    setServiceId(id)
+    setProfessional(null)
+    setTime(null)
+    setAmount('deposit')
+    setAt('time')
+  }
 
   async function confirm() {
     if (!start || !space) return
     setBusy(true)
-    setError('')
     if (moving) {
       const failure = await reschedule(space.summary.slug, moving.id, start)
       setBusy(false)
-      if (failure) return setError(failure)
+      if (failure) return toast.error('Não foi possível remarcar', failure)
+      toast.success('Horário remarcado')
       return setDone({
         start,
         confirmed: moving.status === 'confirmed',
@@ -209,14 +282,16 @@ export default function BookingPage() {
     const result = await book(
       space.summary.slug,
       { serviceId: service.id, professionalId: agenda || null, start },
-      method,
+      payInApp ? payMethod : 'local',
+      payAmount,
     )
     setBusy(false)
     if (result.error) {
-      setError(result.error)
+      toast.error('Não foi possível agendar', result.error)
       // The slot list is stale: fetch it again.
       setAvailability(null)
       setTime(null)
+      setAt('time')
       return
     }
     // Pix/card in the app: straight to the Stripe page; the agenda shows the result.
@@ -225,6 +300,10 @@ export default function BookingPage() {
       return
     }
     const who = team.find((item) => item.id === agenda)?.name ?? null
+    toast.success(
+      result.status === 'confirmed' ? 'Horário confirmado' : 'Pedido enviado',
+      `${service.name} · ${dateLabel(start)} às ${time}`,
+    )
     setDone({
       start,
       confirmed: result.status === 'confirmed',
@@ -236,85 +315,121 @@ export default function BookingPage() {
 
   return (
     <div className="ca-page ca-booking">
-      <PageHeader
-        title={moving ? 'Remarcar horário' : 'Agendar'}
-        kicker={`${space.summary.name} · ${position + 1} de ${flow.length}: ${stageTitles[view]}`}
-      />
-      <div className="ca-wizard-progress" aria-hidden>
-        <span style={{ transform: `scaleX(${(position + 1) / flow.length})` }} />
-      </div>
+      <PageHeader title={moving ? 'Remarcar horário' : 'Agendar'} kicker={space.summary.name} />
 
-      <section className="ca-step" data-hidden={hidden('service')} data-current={shown('service')}>
-        <h2>
-          <span>{number('service') || 1}</span> Serviço
-        </h2>
-        {moving ? (
-          <div className="ca-picked">
-            <span>
-              <strong>{moving.serviceName}</strong>
-              <small>
-                {durationLabel(moving.durationMinutes)}
-                {moving.professionalName ? ` · com ${moving.professionalName}` : ''}
-              </small>
-            </span>
-          </div>
-        ) : service ? (
-          <div className="ca-picked">
-            <span>
-              <strong>{service.name}</strong>
-              <small>
-                {priceLabel(service)} · {durationLabel(service.durationMinutes)}
-              </small>
-            </span>
-            <button
-              type="button"
-              className="ca-link"
-              onClick={() => {
-                setServiceId('')
-                setProfessional(null)
-                setTime(null)
-                setAt('service')
-              }}
-            >
+      <ol className="ca-stepper" aria-label="Etapas do agendamento">
+        {flow.map((stage, index) => {
+          const state = index < position ? 'done' : index === position ? 'current' : 'next'
+          return (
+            <li key={stage} data-state={state}>
+              <button
+                type="button"
+                disabled={state === 'next' || !reachable(stage)}
+                aria-current={state === 'current' ? 'step' : undefined}
+                onClick={() => setAt(stage)}
+              >
+                <span>{state === 'done' ? <Check size={14} aria-hidden /> : index + 1}</span>
+                <small>{stageTitles[stage]}</small>
+              </button>
+            </li>
+          )
+        })}
+      </ol>
+
+      {view === 'service' && (
+        <section className="ca-step ca-card-step" aria-label="Serviço">
+          <header className="ca-step-head">
+            <h2>Qual serviço?</h2>
+            <p>Escolha o que você quer fazer.</p>
+          </header>
+          {status === 'error' ? (
+            <Empty title="Não foi possível carregar os serviços" />
+          ) : clinic && !bookableServices.length ? (
+            <Empty title="Nenhum serviço com datas disponíveis para agendar" />
+          ) : (
+            <>
+              <label className="ca-search ca-search-soft">
+                <Search size={18} aria-hidden />
+                <input
+                  value={query}
+                  onChange={(event) => setQuery(event.target.value)}
+                  placeholder="Buscar serviço"
+                  aria-label="Buscar serviço"
+                />
+                {query && (
+                  <button type="button" aria-label="Limpar busca" onClick={() => setQuery('')}>
+                    <X size={16} aria-hidden />
+                  </button>
+                )}
+              </label>
+              {!clinic ? (
+                <div className="ca-pick-list" aria-hidden>
+                  {[0, 1, 2].map((item) => (
+                    <span key={item} className="ca-skeleton ca-pick-skeleton" />
+                  ))}
+                </div>
+              ) : found.length ? (
+                <ul className="ca-pick-list">
+                  {found.map((item) => (
+                    <li key={item.id}>
+                      <button
+                        type="button"
+                        aria-pressed={item.id === chosenId}
+                        onClick={() => pickService(item.id)}
+                      >
+                        <span>
+                          <small>{item.category}</small>
+                          <strong>{item.name}</strong>
+                          <em>{durationLabel(item.durationMinutes)}</em>
+                          <ServiceFlags service={item} policy={space.policy} />
+                        </span>
+                        <b>{priceLabel(item)}</b>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <Empty title="Nenhum serviço encontrado">
+                  <p>Tente outro nome.</p>
+                </Empty>
+              )}
+            </>
+          )}
+        </section>
+      )}
+
+      {view !== 'service' && (service || moving) && (
+        <div className="ca-picked">
+          <span>
+            <small>{moving ? 'Remarcando' : 'Serviço'}</small>
+            <strong>{service?.name ?? moving?.serviceName}</strong>
+            <em>
+              {service ? `${priceLabel(service)} · ` : ''}
+              {durationLabel(service?.durationMinutes ?? moving?.durationMinutes ?? 0)}
+              {moving?.professionalName ? ` · com ${moving.professionalName}` : ''}
+            </em>
+          </span>
+          {!moving && (
+            <button type="button" className="ca-link" onClick={() => setAt('service')}>
               Trocar
             </button>
-          </div>
-        ) : status === 'error' ? (
-          <Empty title="Não foi possível carregar os serviços" />
-        ) : clinic && !bookableServices.length ? (
-          <Empty title="Nenhum serviço com datas disponíveis para agendar" />
-        ) : (
-          <ul className="ca-pick-list">
-            {bookableServices.map((item) => (
-              <li key={item.id}>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setServiceId(item.id)
-                    setProfessional(null)
-                    setTime(null)
-                    setAt('time')
-                  }}
-                >
-                  <span>
-                    <strong>{item.name}</strong>
-                    <small>
-                      {item.category} · {durationLabel(item.durationMinutes)}
-                    </small>
-                  </span>
-                  <b>{priceLabel(item)}</b>
-                </button>
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
+          )}
+        </div>
+      )}
 
-      {(service || moving) && current?.choose && !moving && (
-        <section className="ca-step" data-hidden={hidden('pro')} data-current={shown('pro')}>
-          <h2>
-            <span>{number('pro')}</span> Profissional
-          </h2>
+      {view !== 'service' && service?.bookingMode === 'manual_release' && (
+        <p className="ca-flag-note">
+          <CalendarClock size={16} aria-hidden />
+          Serviço com agenda específica: só aparecem os dias em que o espaço abre essa agenda.
+        </p>
+      )}
+
+      {view === 'pro' && current?.choose && !moving && (
+        <section className="ca-step ca-card-step" aria-label="Profissional">
+          <header className="ca-step-head">
+            <h2>Com quem?</h2>
+            <p>Escolha uma profissional ou deixe o espaço decidir.</p>
+          </header>
           <div className="ca-team" role="radiogroup" aria-label="Profissional">
             <button
               type="button"
@@ -353,11 +468,12 @@ export default function BookingPage() {
         </section>
       )}
 
-      {(service || moving) && agenda !== null && (
-        <section className="ca-step" data-hidden={hidden('time')} data-current={shown('time')}>
-          <h2>
-            <span>{number('time')}</span> Dia e horário
-          </h2>
+      {view === 'time' && agenda !== null && (
+        <section className="ca-step ca-card-step" aria-label="Dia e horário">
+          <header className="ca-step-head">
+            <h2>Quando?</h2>
+            <p>Escolha o dia e um horário livre.</p>
+          </header>
           {current && !current.choose && team[0] && !moving && (
             <p className="ca-with">
               <Avatar name={team[0].name} photo={team[0].photoUrl} size={30} /> Com{' '}
@@ -418,44 +534,96 @@ export default function BookingPage() {
         </section>
       )}
 
-      {start && payInApp && (
-        <section className="ca-step" data-hidden={hidden('pay')} data-current={shown('pay')}>
-          <h2>
-            <span>{number('pay')}</span> Pagamento
-          </h2>
-          <div className="ca-methods" role="radiogroup" aria-label="Forma de pagamento">
-            {methods.map(({ value, label, hint, icon: Icon }) => (
+      {view === 'pay' && showPay && (
+        <section className="ca-step ca-card-step" aria-label="Pagamento">
+          <header className="ca-step-head">
+            <h2>Pagamento</h2>
+            <p>
+              {depositRule
+                ? 'Este serviço pede um sinal para reservar o horário.'
+                : 'Escolha como prefere pagar.'}
+            </p>
+          </header>
+
+          {depositOnline && depositCents ? (
+            <div className="ca-amounts" role="radiogroup" aria-label="Quanto pagar agora">
+              {depositCents >= MIN_ONLINE && (
+                <button
+                  type="button"
+                  role="radio"
+                  aria-checked={payAmount === 'deposit'}
+                  onClick={() => setAmount('deposit')}
+                >
+                  <ShieldCheck size={20} aria-hidden />
+                  <span>
+                    <strong>Pagar só o sinal · {formatMoney(depositCents)}</strong>
+                    <small>
+                      O restante, {formatMoney(price - depositCents)}, você paga no espaço no dia.
+                    </small>
+                  </span>
+                </button>
+              )}
               <button
-                key={value}
                 type="button"
                 role="radio"
-                aria-checked={method === value}
-                onClick={() => setMethod(value)}
+                aria-checked={payAmount === 'full'}
+                onClick={() => setAmount('full')}
               >
-                <Icon size={20} aria-hidden />
+                <Wallet size={20} aria-hidden />
                 <span>
-                  <strong>{label}</strong>
-                  <small>{hint}</small>
+                  <strong>Pagar tudo agora · {formatMoney(price)}</strong>
+                  <small>Nada a pagar no dia.</small>
                 </span>
               </button>
-            ))}
-          </div>
-          <p className="ca-note">
-            Pix e cartão abrem a página segura da Stripe. O horário fica guardado por 30 minutos até
-            o pagamento.
-          </p>
+            </div>
+          ) : null}
+
+          {depositPix && depositCents ? (
+            <div className="ca-flag-note is-strong">
+              <QrCode size={18} aria-hidden />
+              <span>
+                Sinal de <strong>{formatMoney(depositCents)}</strong> por Pix, direto para o espaço.
+                Depois de confirmar, você recebe o código Pix copia e cola. O restante,{' '}
+                {formatMoney(price - depositCents)}, é pago no dia.
+              </span>
+            </div>
+          ) : null}
+
+          {payInApp && (
+            <div className="ca-methods" role="radiogroup" aria-label="Forma de pagamento">
+              {methods
+                .filter(({ value }) => !(depositOnline && value === 'local'))
+                .map(({ value, label, hint, icon: Icon }) => (
+                  <button
+                    key={value}
+                    type="button"
+                    role="radio"
+                    aria-checked={payMethod === value}
+                    onClick={() => setMethod(value)}
+                  >
+                    <Icon size={20} aria-hidden />
+                    <span>
+                      <strong>{label}</strong>
+                      <small>{hint}</small>
+                    </span>
+                  </button>
+                ))}
+            </div>
+          )}
+          {payInApp && payMethod !== 'local' && (
+            <p className="ca-note">
+              Pix e cartão abrem a página segura da Stripe. O horário fica guardado por 30 minutos
+              até o pagamento.
+            </p>
+          )}
         </section>
       )}
 
-      {start && (
-        <section
-          className="ca-step ca-review-step"
-          data-hidden={hidden('review')}
-          data-current={shown('review')}
-        >
-          <h2>
-            <span>{number('review')}</span> Confira e confirme
-          </h2>
+      {view === 'review' && start && (
+        <section className="ca-step ca-card-step ca-review-step" aria-label="Confirmar">
+          <header className="ca-step-head">
+            <h2>Confira e confirme</h2>
+          </header>
           <dl className="ca-review">
             <div>
               <dt>Serviço</dt>
@@ -482,17 +650,31 @@ export default function BookingPage() {
             {priced && !moving && (
               <div>
                 <dt>Valor</dt>
-                <dd>{formatMoney(effectivePrice(service))}</dd>
+                <dd>{formatMoney(price)}</dd>
               </div>
             )}
             {priced && !moving && (
               <div>
                 <dt>Pagamento</dt>
                 <dd>
-                  {payInApp
-                    ? (methods.find((item) => item.value === method)?.label ?? 'No espaço')
-                    : 'No espaço, no dia'}
+                  {payInApp && payMethod !== 'local'
+                    ? `${methods.find((item) => item.value === payMethod)?.label}${payAmount === 'deposit' ? ' · só o sinal' : ''}`
+                    : depositPix
+                      ? 'Sinal por Pix'
+                      : 'No espaço, no dia'}
                 </dd>
+              </div>
+            )}
+            {priced && !moving && payNow > 0 && (
+              <div className="ca-review-total">
+                <dt>Agora</dt>
+                <dd>{formatMoney(payNow)}</dd>
+              </div>
+            )}
+            {priced && !moving && payNow > 0 && price > payNow && (
+              <div>
+                <dt>No dia</dt>
+                <dd>{formatMoney(price - payNow)}</dd>
               </div>
             )}
           </dl>
@@ -502,15 +684,17 @@ export default function BookingPage() {
             disabled={busy}
             onClick={() => void confirm()}
           >
-            {busy ? 'Enviando…' : moving ? 'Remarcar' : 'Confirmar agendamento'}{' '}
+            {busy
+              ? 'Enviando…'
+              : moving
+                ? 'Remarcar'
+                : payInApp && payMethod !== 'local'
+                  ? `Ir para o pagamento · ${formatMoney(payNow)}`
+                  : 'Confirmar agendamento'}{' '}
             <Check size={18} aria-hidden />
           </button>
         </section>
       )}
-
-      <p className="ca-error" role="alert">
-        {error}
-      </p>
 
       {view !== 'review' && (
         <nav className="ca-wizard-nav" aria-label="Etapas">
@@ -520,7 +704,7 @@ export default function BookingPage() {
               className="ca-button ghost"
               onClick={() => setAt(flow[position - 1])}
             >
-              Voltar
+              <ArrowLeft size={18} aria-hidden /> Voltar
             </button>
           )}
           <button
@@ -533,26 +717,14 @@ export default function BookingPage() {
           </button>
         </nav>
       )}
-
-      {start && (
-        <footer className="ca-confirm">
-          <span>
-            <small>{dateLabel(start)}</small>
-            <strong>
-              {time}
-              {priced && !moving ? ` · ${formatMoney(effectivePrice(service))}` : ''}
-            </strong>
-          </span>
-          <button
-            type="button"
-            className="ca-button"
-            disabled={busy}
-            onClick={() => void confirm()}
-          >
-            {busy ? 'Enviando…' : moving ? 'Remarcar' : 'Confirmar'}{' '}
-            <ArrowRight size={18} aria-hidden />
-          </button>
-        </footer>
+      {view === 'review' && position > 0 && (
+        <button
+          type="button"
+          className="ca-button ghost ca-back"
+          onClick={() => setAt(flow[position - 1])}
+        >
+          <ArrowLeft size={18} aria-hidden /> Voltar
+        </button>
       )}
     </div>
   )

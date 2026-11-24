@@ -16,6 +16,7 @@ import {
 import { rememberPendingSpace, useClient } from '../../lib/client-app/store'
 import { recordState } from '@luminix/contracts/anamnesis'
 import { Avatar, SpaceLogo } from './ui'
+import { Toaster } from './toast'
 
 /**
  * Remembers `?espaco=<slug>` (button on the clinic site). Nothing is linked silently: the space
@@ -119,6 +120,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       <main className="ca-main" id="conteudo">
         {children}
       </main>
+      <Toaster />
       <nav className="ca-tabs" aria-label="Navegação principal">
         {tabs.map(({ href, label, icon: Icon, primary }) => (
           <Link

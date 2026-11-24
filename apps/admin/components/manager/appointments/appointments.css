@@ -4091,3 +4091,12 @@ button.sh-client-link:focus-visible {
 .sh-online.is-failed > svg {
   color: #ffb4b4;
 }
+/* Deposit paid (Pix confirmed or in the app, ADR-042): the rest is charged at the visit. */
+.sh-deposit.is-paid {
+  border-color: #39e58c55;
+  background: color-mix(in srgb, #39e58c 10%, transparent);
+}
+.sh-deposit.is-paid .sh-deposit-icon {
+  color: #8ff0bd;
+  background: #39e58c24;
+}

@@ -49,6 +49,8 @@ export type AppointmentView = {
   onlinePayment?: {
     status: 'awaiting' | 'paid' | 'expired' | 'refunded'
     dueAt: string | null
+    /** Only the deposit of the visit, or all of it (ADR-042). */
+    kind?: 'full' | 'deposit'
     /** Refund of the app payment: pending, refunded or failed (retry with "Estornar"). */
     refundStatus?: 'pending' | 'refunded' | 'failed' | null
   } | null

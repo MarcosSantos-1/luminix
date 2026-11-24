@@ -679,6 +679,29 @@ function SheetBody({
       ) : null}
 
       {view === 'main' &&
+      item.deposit?.status === 'confirmed' &&
+      !item.paid &&
+      item.status !== 'canceled' &&
+      item.onlinePayment?.status !== 'refunded' ? (
+        <section className="sh-deposit is-paid" aria-label="Sinal pago">
+          <span className="sh-deposit-icon" aria-hidden>
+            <Check size={20} />
+          </span>
+          <div>
+            <strong>
+              Sinal de {money(item.deposit.cents)} pago
+              {item.onlinePayment?.kind === 'deposit' ? ' pelo app' : ''}
+            </strong>
+            <small>
+              {item.priceCents != null && item.paidCents != null
+                ? `Falta receber ${money(Math.max(0, item.priceCents - item.paidCents))} no atendimento.`
+                : 'O restante é pago no atendimento.'}
+            </small>
+          </div>
+        </section>
+      ) : null}
+
+      {view === 'main' &&
       item.onlinePayment &&
       item.onlinePayment.status !== 'awaiting' &&
       item.onlinePayment.status !== 'expired' ? (
@@ -696,7 +719,9 @@ function SheetBody({
                   ? 'O estorno falhou'
                   : item.onlinePayment.refundStatus === 'pending'
                     ? 'Estorno em andamento'
-                    : 'Pago pelo app'}
+                    : item.onlinePayment.kind === 'deposit'
+                      ? 'Sinal pago pelo app'
+                      : 'Pago pelo app'}
             </strong>
             <small>
               {item.onlinePayment.status === 'refunded' ||
@@ -704,7 +729,9 @@ function SheetBody({
                 ? 'O valor voltou para a cliente. A taxa da Stripe fica com o espaço.'
                 : item.onlinePayment.refundStatus === 'failed'
                   ? 'Tente de novo. Se continuar, estorne pelo painel da Stripe.'
-                  : 'Cancelar o horário devolve o valor inteiro automaticamente.'}
+                  : item.onlinePayment.kind === 'deposit'
+                    ? 'Cancelar o horário devolve o sinal automaticamente.'
+                    : 'Cancelar o horário devolve o valor inteiro automaticamente.'}
             </small>
           </div>
           {access.charge &&
@@ -718,7 +745,9 @@ function SheetBody({
               onPress={() => {
                 if (
                   !window.confirm(
-                    `Estornar o pagamento de ${item.client}? O valor inteiro volta para ela.`,
+                    item.onlinePayment?.kind === 'deposit'
+                      ? `Estornar o sinal de ${item.client}? O valor do sinal volta para ela.`
+                      : `Estornar o pagamento de ${item.client}? O valor inteiro volta para ela.`,
                   )
                 )
                   return

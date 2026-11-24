@@ -10,11 +10,13 @@ import {
   useClient,
 } from '../../../../lib/client-app/store'
 import { DepositPix } from '../../../../components/client-app/deposit-pix'
+import { toast } from '../../../../components/client-app/toast'
 import {
   addDays,
   dateLabel,
   dayKey,
   durationLabel,
+  formatMoney,
   timeLabel,
 } from '../../../../lib/client-app/format'
 import type { Appointment } from '../../../../lib/client-app/types'
@@ -38,26 +40,28 @@ export default function AgendaPage() {
   )
   const [open, setOpenState] = useState<Appointment | null>(null)
   const [busy, setBusy] = useState(false)
-  const [problem, setProblem] = useState('')
-  const setOpen = (value: Appointment | null) => {
-    setProblem('')
-    setOpenState(value)
-  }
+  const setOpen = (value: Appointment | null) => setOpenState(value)
 
   // Back from the Stripe page (ADR-040): say what happens next and fetch the confirmation.
-  const [returned, setReturned] = useState<'ok' | 'cancelado' | null>(null)
   const slug = space?.summary.slug
   useEffect(() => {
     const value = new URLSearchParams(window.location.search).get('pagamento')
     if (value !== 'ok' && value !== 'cancelado') return
     window.history.replaceState(null, '', window.location.pathname)
+    if (value === 'ok')
+      toast.success(
+        'Pagamento enviado',
+        'Assim que a confirmação chegar, o horário aparece como confirmado.',
+      )
+    else
+      toast.info(
+        'Pagamento não concluído',
+        'Você pode tentar de novo enquanto o horário estiver guardado.',
+      )
     // The webhook usually lands within seconds; look again a couple of times.
-    const timers = [
-      setTimeout(() => setReturned(value), 0),
-      ...(slug
-        ? [3_000, 9_000].map((delay) => setTimeout(() => void refreshSpace(slug), delay))
-        : []),
-    ]
+    const timers = slug
+      ? [3_000, 9_000].map((delay) => setTimeout(() => void refreshSpace(slug), delay))
+      : []
     return () => timers.forEach(clearTimeout)
   }, [slug])
 
@@ -100,13 +104,6 @@ export default function AgendaPage() {
 
   return (
     <div className="ca-page ca-agenda">
-      {returned ? (
-        <p className={`ca-pay-return${returned === 'ok' ? ' is-ok' : ''}`} role="status">
-          {returned === 'ok'
-            ? 'Pagamento enviado! Assim que for confirmado, seu horário aparece como confirmado.'
-            : 'Pagamento não concluído. Você pode tentar de novo enquanto o horário estiver guardado.'}
-        </p>
-      ) : null}
       <PageHeader
         title={selected === dayKey(today) ? 'Hoje' : dateLabel(selected, 'short')}
         kicker={dateLabel(selected)}
@@ -233,7 +230,11 @@ export default function AgendaPage() {
                       {item.onlinePayment?.status === 'awaiting' && item.onlinePayment.dueAt
                         ? ` · pague até ${new Date(item.onlinePayment.dueAt).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`
                         : ''}
-                      {item.onlinePayment?.status === 'paid' ? ' · pago pelo app' : ''}
+                      {item.onlinePayment?.status === 'paid'
+                        ? item.onlinePayment.kind === 'deposit'
+                          ? ' · sinal pago'
+                          : ' · pago pelo app'
+                        : ''}
                       {item.onlinePayment?.status === 'refunded' ? ' · valor devolvido' : ''}
                     </small>
                   </span>
@@ -303,7 +304,8 @@ export default function AgendaPage() {
                     const result = await resumePayment(space.summary.slug, open.id)
                     if (result.url) return window.location.assign(result.url)
                     setBusy(false)
-                    setProblem(result.error ?? '')
+                    if (result.error)
+                      toast.error('Não foi possível abrir o pagamento', result.error)
                   }}
                 >
                   Pagar agora
@@ -312,9 +314,17 @@ export default function AgendaPage() {
             ) : null}
             {open.onlinePayment?.status === 'paid' ? (
               <p className="ca-pay-done">
-                Pago pelo app ✓
+                {open.onlinePayment.kind === 'deposit'
+                  ? `Sinal de ${formatMoney(open.onlinePayment.amountCents ?? 0)} pago pelo app ✓`
+                  : 'Pago pelo app ✓'}
+                {open.onlinePayment.kind === 'deposit' && open.priceCents > open.paidCents ? (
+                  <small>
+                    {' '}
+                    Falta {formatMoney(open.priceCents - open.paidCents)}, pago no espaço no dia.
+                  </small>
+                ) : null}
                 {canChange ? (
-                  <small> Se cancelar dentro do prazo, o valor volta inteiro para você.</small>
+                  <small> Se cancelar dentro do prazo, o valor pago volta para você.</small>
                 ) : null}
               </p>
             ) : null}
@@ -324,9 +334,6 @@ export default function AgendaPage() {
               </p>
             ) : null}
             {space.policy?.instructions && <p>{space.policy.instructions}</p>}
-            <p className="ca-error" role="alert">
-              {problem}
-            </p>
           </div>
           {canChange ? (
             <>
@@ -341,7 +348,8 @@ export default function AgendaPage() {
                   setBusy(true)
                   const failure = await cancelAppointment(space.summary.slug, open.id)
                   setBusy(false)
-                  if (failure) return setProblem(failure)
+                  if (failure) return toast.error('Não foi possível cancelar', failure)
+                  toast.success('Horário cancelado', open.serviceName)
                   setOpen(null)
                 }}
               >

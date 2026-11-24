@@ -429,6 +429,7 @@ export async function clientRoutes(app: FastifyInstance, dependencies: AuthDepen
                   a.list_price_cents, a.previous_starts_at, a.rescheduled_at, a.updated_at,
                   a.created_at, a.client_payment_method, ${appointmentRentalDates} AS rental_dates,
                   a.cancellation_origin, a.canceled_at, a.online_payment_status, a.online_payment_due_at,
+                  a.online_payment_kind, a.online_payment_cents,
                   CASE WHEN a.cancellation_origin IS NOT NULL THEN a.status_note END AS cancel_reason,
                   s.id AS service_id, s.name AS service_name, s.category AS service_category,
                   p.id AS professional_id, p.display_name AS professional_name,
@@ -448,6 +449,18 @@ export async function clientRoutes(app: FastifyInstance, dependencies: AuthDepen
             [scope!.clinicId],
           )
         ).rows[0]
+        // Services that ask for a deposit now (ADR-042): marked in the list and at booking.
+        const { rows: depositServices } = await connection.query(
+          `SELECT id FROM luminix.services
+            WHERE clinic_id = $1 AND status = 'active' AND luminix.service_requires_deposit($1, id)`,
+          [scope!.clinicId],
+        )
+        const depositPercent = (
+          await connection.query(
+            'SELECT deposit_percent FROM luminix.booking_policies WHERE clinic_id = $1',
+            [scope!.clinicId],
+          )
+        ).rows[0]?.deposit_percent
         const { rows: vouchers } = await connection.query(
           `SELECT id, discount_type, discount_value, expires_on::text, created_at, service_name
              FROM luminix.client_voucher_notices($1, $2)`,
@@ -481,6 +494,12 @@ export async function clientRoutes(app: FastifyInstance, dependencies: AuthDepen
             cancellationNoticeMinutes: policy?.cancellation_notice_minutes ?? 0,
             reschedulingNoticeMinutes: policy?.rescheduling_notice_minutes ?? null,
             instructions: policy?.client_instructions ?? '',
+            deposit: depositServices.length
+              ? {
+                  percent: Number(depositPercent ?? 0),
+                  serviceIds: depositServices.map((row) => String(row.id)),
+                }
+              : null,
           },
           appointments: rows.map((row) => ({
             id: row.id,
@@ -498,8 +517,16 @@ export async function clientRoutes(app: FastifyInstance, dependencies: AuthDepen
             paymentMethod: row.client_payment_method,
             paid: isPaid(row),
             // Paid in the app (ADR-040): awaiting until the due time, then paid or expired.
+            paidCents: Number(row.paid_cents ?? 0),
             onlinePayment: row.online_payment_status
-              ? { status: row.online_payment_status, dueAt: row.online_payment_due_at ?? null }
+              ? {
+                  status: row.online_payment_status,
+                  dueAt: row.online_payment_due_at ?? null,
+                  // Only the deposit, or the whole visit (ADR-042).
+                  kind: row.online_payment_kind ?? 'full',
+                  amountCents:
+                    row.online_payment_cents == null ? null : Number(row.online_payment_cents),
+                }
               : null,
             rentalDates: row.rental_dates,
             // The space canceled it because its agenda changed (ADR-035).
@@ -751,6 +778,28 @@ export async function clientRoutes(app: FastifyInstance, dependencies: AuthDepen
     return row?.accept_in_app === true
   }
 
+  /**
+   * The deposit a booking of this service asks for right now (ADR-042): the share of the
+   * current price (promotion included, same rule as the frozen price) and how it can be paid.
+   */
+  async function depositOffer(connection: SqlConnection, scope: Scope, serviceId: string) {
+    const row = (
+      await connection.query(
+        `SELECT luminix.service_requires_deposit($1, $2) AS needed,
+                luminix.clinic_online_ready($1) AS online,
+                b.pix_key IS NOT NULL AS pix, b.deposit_percent
+           FROM luminix.booking_policies b WHERE b.clinic_id = $1`,
+        [scope.clinicId, serviceId],
+      )
+    ).rows[0]
+    if (row?.needed !== true) return null
+    return {
+      percent: Number(row.deposit_percent),
+      online: row.online === true,
+      pix: row.pix === true,
+    }
+  }
+
   /** A rented device linked to the service (its rental days open the client agenda). */
   async function hasDevice(connection: SqlConnection, scope: Scope, serviceId: string) {
     const result = await connection.query(
@@ -824,6 +873,14 @@ export async function clientRoutes(app: FastifyInstance, dependencies: AuthDepen
           request.query.ignore ?? null,
           String(service.id),
         )
+        // Pix/card only when the space turned on payments in the app.
+        // Switch on AND account approved (ADR-041), so the client never picks a dead option.
+        const inAppPayments =
+          (
+            await connection.query('SELECT luminix.clinic_online_ready($1) AS ready', [
+              scope!.clinicId,
+            ])
+          ).rows[0]?.ready === true
         return {
           date: request.query.date,
           lastDate,
@@ -831,14 +888,9 @@ export async function clientRoutes(app: FastifyInstance, dependencies: AuthDepen
           bookingMode: service.booking_mode,
           // 0 or 1 professional: the agenda is chosen for the client, no picker.
           choose: professionals.length > 1,
-          // Pix/card only when the space turned on payments in the app.
-          // Switch on AND account approved (ADR-041), so the client never picks a dead option.
-          inAppPayments:
-            (
-              await connection.query('SELECT luminix.clinic_online_ready($1) AS ready', [
-                scope!.clinicId,
-              ])
-            ).rows[0]?.ready === true,
+          inAppPayments,
+          // Service with a deposit (ADR-042): paid in the app or by the space's own Pix.
+          deposit: moving ? null : await depositOffer(connection, scope!, String(service.id)),
           professionals,
           slots,
         }
@@ -854,6 +906,8 @@ export async function clientRoutes(app: FastifyInstance, dependencies: AuthDepen
       paymentMethod: 'local' | 'pix' | 'card'
       /** The app shows the space's Pix code for the deposit (ADR-037). */
       deposit?: 'pix'
+      /** In the app (Pix/card): the whole visit, or only the deposit of a service with one. */
+      payAmount?: 'full' | 'deposit'
     }
   }>(
     '/client/spaces/:slug/appointments',
@@ -871,12 +925,16 @@ export async function clientRoutes(app: FastifyInstance, dependencies: AuthDepen
             localStartsAt: { type: 'string', pattern: localStart },
             paymentMethod: { type: 'string', enum: ['local', 'pix', 'card'] },
             deposit: { type: 'string', enum: ['pix'] },
+            payAmount: { type: 'string', enum: ['full', 'deposit'] },
           },
         },
       },
     },
     async (request, reply) => {
       const online = request.body.paymentMethod !== 'local'
+      const onlineDeposit = online && request.body.payAmount === 'deposit'
+      if (!online && request.body.payAmount === 'deposit')
+        return reply.code(400).send({ error: 'Payment unavailable' })
       let account: string | null = null
       const provider = online ? payments() : null
       if (online) {
@@ -938,9 +996,13 @@ export async function clientRoutes(app: FastifyInstance, dependencies: AuthDepen
               ])
             ).rows[0]?.needed === true
           // An app that cannot show the Pix code must not hold a slot the client cannot pay.
-          // Paying the full price in the app covers the deposit.
-          if (needsDeposit && !online && request.body.deposit !== 'pix')
+          // Paying in the app (the deposit or the full price) covers it (ADR-042); the space's
+          // own Pix only works when it has a key.
+          const pix = needsDeposit && !online ? await spacePix(connection, scope!.clinicId) : null
+          if (needsDeposit && !online && (request.body.deposit !== 'pix' || !pix))
             return reply.code(409).send({ error: 'Deposit required' })
+          if (onlineDeposit && !needsDeposit)
+            return reply.code(400).send({ error: 'Payment unavailable' })
           // "A combinar" and "a partir de": the clinic sets the amount at the visit, so these are
           // paid only at the clinic (no in-app charge of an amount that is not known yet).
           if (request.body.paymentMethod !== 'local' && service.price_type !== 'fixed')
@@ -988,13 +1050,14 @@ export async function clientRoutes(app: FastifyInstance, dependencies: AuthDepen
           if (online) {
             const hold = (
               await connection.query(
-                'SELECT * FROM luminix.client_hold_for_online_payment($1, $2, $3, 35)',
-                [scope!.clinicId, scope!.clientId, id],
+                'SELECT * FROM luminix.client_hold_for_online_payment($1, $2, $3, 35, $4)',
+                [scope!.clinicId, scope!.clientId, id, onlineDeposit],
               )
             ).rows[0]
             return {
               online: {
                 id: String(id),
+                kind: onlineDeposit ? ('deposit' as const) : ('full' as const),
                 clinicId: scope!.clinicId,
                 clientId: scope!.clientId,
                 amount: Number(hold.amount_cents),
@@ -1019,7 +1082,6 @@ export async function clientRoutes(app: FastifyInstance, dependencies: AuthDepen
               ])
             ).rows[0]
             if (hold) {
-              const pix = await spacePix(connection, scope!.clinicId)
               return reply.code(201).send({
                 id,
                 status: 'scheduled',
@@ -1045,6 +1107,7 @@ export async function clientRoutes(app: FastifyInstance, dependencies: AuthDepen
         | {
             online?: {
               id: string
+              kind: 'full' | 'deposit'
               clinicId: string
               clientId: string
               amount: number
@@ -1083,7 +1146,7 @@ export async function clientRoutes(app: FastifyInstance, dependencies: AuthDepen
           clinicId: hold.clinicId,
           method: request.body.paymentMethod as 'pix' | 'card',
           amountCents: hold.amount,
-          description: hold.service,
+          description: hold.kind === 'deposit' ? `Sinal · ${hold.service}` : hold.service,
           businessName: hold.clinicName,
           email: null,
           expiresAt: hold.dueAt,
@@ -1125,6 +1188,7 @@ export async function clientRoutes(app: FastifyInstance, dependencies: AuthDepen
         deposit: null,
         payment: {
           method: request.body.paymentMethod,
+          kind: hold.kind,
           amountCents: hold.amount,
           dueAt: hold.dueAt.toISOString(),
           url: checkout.url,
@@ -1166,6 +1230,46 @@ export async function clientRoutes(app: FastifyInstance, dependencies: AuthDepen
       try {
         const url = await provider.openUrl(String(open.account_id), String(open.session_id))
         if (!url) return reply.code(409).send({ error: 'Payment closed' })
+        return { url }
+      } catch {
+        return reply.code(503).send({ error: 'Payment unavailable' })
+      }
+    },
+  )
+
+  // Stripe's receipt of a payment made in the app (payment history). Only the client's own visit.
+  app.get<{ Params: { slug: string; appointmentId: string } }>(
+    '/client/spaces/:slug/appointments/:appointmentId/receipt',
+    { schema: { params: appointmentParams } },
+    async (request, reply) => {
+      const provider = payments()
+      if (!provider) return reply.code(503).send({ error: 'Payment unavailable' })
+      const paid = (await asClient(
+        request,
+        reply,
+        request.params.slug,
+        async (connection, scope) =>
+          (
+            await connection.query(
+              `SELECT p.account_id, p.session_id, p.payment_intent_id
+                 FROM luminix.online_payments p
+                 JOIN luminix.appointments a ON a.clinic_id = p.clinic_id AND a.id = p.appointment_id
+                WHERE p.clinic_id = $1 AND p.appointment_id = $2 AND a.clinic_client_id = $3
+                  AND p.status IN ('paid', 'paid_late')
+                ORDER BY p.paid_at DESC NULLS LAST LIMIT 1`,
+              [scope!.clinicId, request.params.appointmentId, scope!.clientId],
+            )
+          ).rows[0] ?? null,
+      )) as { account_id: string; session_id: string; payment_intent_id: string | null } | null
+      if (reply.sent) return paid
+      if (!paid) return reply.code(404).send({ error: 'Receipt unavailable' })
+      try {
+        const url = await provider.receiptUrl({
+          account: String(paid.account_id),
+          session: String(paid.session_id),
+          intent: paid.payment_intent_id ? String(paid.payment_intent_id) : null,
+        })
+        if (!url) return reply.code(404).send({ error: 'Receipt unavailable' })
         return { url }
       } catch {
         return reply.code(503).send({ error: 'Payment unavailable' })

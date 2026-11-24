@@ -64,11 +64,12 @@ type ApiAppointment = {
   createdAt: string
   paymentMethod: Payment['method'] | null
   paid: boolean
+  paidCents?: number
   rentalDates?: string[] | null
   canceledBySpace?: boolean
   cancelReason?: string | null
   deposit?: Deposit | null
-  onlinePayment?: OnlinePayment | null
+  onlinePayment?: (Omit<OnlinePayment, 'kind' | 'amountCents'> & Partial<OnlinePayment>) | null
   service: { id: string; name: string; category: string | null }
   professional: { id: string; name: string } | null
 }
@@ -187,6 +188,7 @@ const messages: Record<string, string> = {
   'Payment closed': 'O prazo para pagar este horário acabou. Agende de novo.',
   'Contact the space': 'Este horário já foi pago pelo app. Para cancelar, fale com o espaço.',
   'Deposit unavailable': 'O prazo do sinal acabou. Agende de novo ou fale com o espaço.',
+  'Deposit required': 'Este serviço pede um sinal para reservar o horário. Escolha como pagar.',
 }
 
 function friendly(error: unknown) {
@@ -268,8 +270,15 @@ function toAppointment(row: ApiAppointment): Appointment {
     rescheduledAt: row.rescheduledAt,
     paymentMethod: row.paymentMethod,
     paid: row.paid,
+    paidCents: row.paidCents ?? 0,
     deposit: row.deposit ?? null,
-    onlinePayment: row.onlinePayment ?? null,
+    onlinePayment: row.onlinePayment
+      ? {
+          ...row.onlinePayment,
+          kind: row.onlinePayment.kind ?? 'full',
+          amountCents: row.onlinePayment.amountCents ?? null,
+        }
+      : null,
   }
 }
 
@@ -283,6 +292,35 @@ function paymentsOf(appointments: Appointment[]): Payment[] {
       const online = item.onlinePayment?.status
       if (online === 'expired' || online === 'refunded') return []
       if (item.status === 'cancelled' && !item.paid) return []
+      // Deposit paid in the app (ADR-042): the deposit, then the rest owed at the space.
+      if (online === 'paid' && item.onlinePayment?.kind === 'deposit') {
+        const deposit = item.onlinePayment.amountCents ?? item.deposit?.cents ?? 0
+        return [
+          {
+            id: `deposit-${item.id}`,
+            appointmentId: item.id,
+            label: `Sinal · ${item.serviceName}`,
+            amountCents: deposit,
+            method,
+            status: 'paid',
+            at: item.createdAt,
+            receipt: true,
+          },
+          ...(item.priceCents > deposit
+            ? [
+                {
+                  id: `rest-${item.id}`,
+                  appointmentId: item.id,
+                  label: `Restante · ${item.serviceName}`,
+                  amountCents: item.priceCents - deposit,
+                  method: 'local' as const,
+                  status: item.paid ? ('paid' as const) : ('pending' as const),
+                  at: item.createdAt,
+                },
+              ]
+            : []),
+        ]
+      }
       return [
         {
           id: `pay-${item.id}`,
@@ -292,6 +330,7 @@ function paymentsOf(appointments: Appointment[]): Payment[] {
           method,
           status: item.paid || online === 'paid' ? 'paid' : 'pending',
           at: item.createdAt,
+          receipt: online === 'paid',
         },
       ]
     })
@@ -694,6 +733,8 @@ export async function book(
   slug: string,
   input: { serviceId: string; professionalId: string | null; start: string },
   method: Payment['method'],
+  /** In the app: the whole visit or only the deposit (ADR-042). */
+  payAmount: 'full' | 'deposit' = 'full',
 ): Promise<{
   error: string | null
   status?: 'confirmed' | 'scheduled'
@@ -716,7 +757,7 @@ export async function book(
         localStartsAt: input.start,
         paymentMethod: method,
         // This app shows the space's Pix code when the service asks for a deposit.
-        deposit: 'pix',
+        ...(method === 'local' ? { deposit: 'pix' } : { payAmount }),
       },
     })
     await refreshSpace(slug)
@@ -759,6 +800,24 @@ export async function resumePayment(slug: string, appointmentId: string) {
   } catch (error) {
     await refreshSpace(slug)
     return { url: null, error: friendly(error) }
+  }
+}
+
+/** Stripe's receipt of a payment made in the app. */
+export async function paymentReceipt(slug: string, appointmentId: string) {
+  try {
+    const result = await api<{ url: string }>(
+      `/client/spaces/${encodeURIComponent(slug)}/appointments/${appointmentId}/receipt`,
+    )
+    return { url: result.url, error: null }
+  } catch (error) {
+    return {
+      url: null,
+      error:
+        error instanceof ApiError && error.code === 'Receipt unavailable'
+          ? 'O comprovante ainda não está disponível. Tente de novo em instantes.'
+          : friendly(error),
+    }
   }
 }
 

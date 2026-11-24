@@ -46,6 +46,7 @@ const online: OnlinePaymentsProvider = {
     return { id: `cs_test_${sessions}`, url: `https://checkout.stripe.test/${account}/${sessions}` }
   },
   openUrl: async (_account, session) => `https://checkout.stripe.test/again/${session}`,
+  receiptUrl: async ({ session }) => `https://pay.stripe.test/receipts/${session}`,
   readEvent: (raw, signature) => {
     if (signature !== 'ok') throw new Error('bad signature')
     return JSON.parse(raw.toString('utf8')) as ConnectPaymentEvent
@@ -435,5 +436,82 @@ describe('pagamento do atendimento pelo app', () => {
       (await call('dona-online', 'POST', `/clinics/${clinic}/appointments/${booked.id}/refund`))
         .statusCode,
     ).toBe(409)
+  })
+
+  it('a service with a deposit can be paid in part in the app; the rest stays open (ADR-042)', async () => {
+    const special = await asOwner(async () => {
+      await sql(
+        "UPDATE luminix.booking_policies SET deposit_scope = 'selected', deposit_percent = 30 WHERE clinic_id = $1",
+        [clinic],
+      )
+      await sql('UPDATE luminix.stripe_connect_accounts SET ready = true WHERE clinic_id = $1', [
+        clinic,
+      ])
+      const [row] = await sql(
+        `INSERT INTO luminix.services (clinic_id, name, price_cents, duration_minutes, booking_mode, deposit_required)
+         VALUES ($1, 'Progressiva', 40000, 60, 'instant', true) RETURNING id`,
+        [clinic],
+      )
+      return String(row.id)
+    })
+    const day = nextWeekday()
+    const offer = await call(
+      'ana-online',
+      'GET',
+      `/client/spaces/${slug}/availability?serviceId=${special}&date=${day}`,
+    )
+    expect(offer.json().deposit).toEqual({ percent: 30, online: true, pix: false })
+    // No Pix key: paying at the space without a deposit is refused.
+    const local = await call('ana-online', 'POST', `/client/spaces/${slug}/appointments`, {
+      serviceId: special,
+      localStartsAt: `${day}T09:00`,
+      paymentMethod: 'local',
+    })
+    expect(local.statusCode).toBe(409)
+    const booked = await call('ana-online', 'POST', `/client/spaces/${slug}/appointments`, {
+      serviceId: special,
+      localStartsAt: `${day}T09:00`,
+      paymentMethod: 'pix',
+      payAmount: 'deposit',
+    })
+    expect(booked.statusCode).toBe(201)
+    expect(booked.json().payment).toMatchObject({ kind: 'deposit', amountCents: 12000 })
+    const id = booked.json().id
+    await hook({ id: 'evt_deposit_1', session: `cs_test_${sessions}` })
+    expect(await visit(id)).toMatchObject({
+      status: 'confirmed',
+      online_payment_status: 'paid',
+      paid: 12000,
+    })
+    const [row] = await asOwner(() =>
+      sql(
+        `SELECT a.deposit_status, a.deposit_cents, e.description FROM luminix.appointments a
+           JOIN luminix.finance_entries e ON e.clinic_id = a.clinic_id AND e.appointment_id = a.id
+          WHERE a.clinic_id = $1 AND a.id = $2`,
+        [clinic, id],
+      ),
+    )
+    expect(row).toMatchObject({ deposit_status: 'confirmed', deposit_cents: 12000 })
+    expect(String(row.description)).toContain('Sinal pelo app')
+    const list = (await call('ana-online', 'GET', `/client/spaces/${slug}/appointments`)).json()
+    expect(list.policy.deposit).toMatchObject({ percent: 30, serviceIds: [special] })
+    expect(list.appointments.find((item: { id: string }) => item.id === id)).toMatchObject({
+      paidCents: 12000,
+      onlinePayment: { status: 'paid', kind: 'deposit', amountCents: 12000 },
+    })
+    const receipt = await call(
+      'ana-online',
+      'GET',
+      `/client/spaces/${slug}/appointments/${id}/receipt`,
+    )
+    expect(receipt.json().url).toContain('receipts/cs_test_')
+    // A service without a deposit cannot be paid "only the deposit".
+    const wrong = await call('ana-online', 'POST', `/client/spaces/${slug}/appointments`, {
+      serviceId: service,
+      localStartsAt: `${nextWeekday()}T10:00`,
+      paymentMethod: 'card',
+      payAmount: 'deposit',
+    })
+    expect(wrong.statusCode).toBe(400)
   })
 })

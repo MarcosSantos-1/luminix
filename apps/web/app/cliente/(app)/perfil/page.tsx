@@ -18,6 +18,7 @@ import {
   UserRound,
 } from 'lucide-react'
 import { changePassword, signOut, updateAccount, useClient } from '../../../../lib/client-app/store'
+import { toast } from '../../../../components/client-app/toast'
 import { Avatar, Lines, Sheet, SpaceLogo } from '../../../../components/client-app/ui'
 
 type Panel = 'data' | 'notify' | 'language' | 'password' | 'help' | 'about' | null
@@ -102,6 +103,7 @@ export default function ProfilePage() {
     const failure = await updateAccount({ name, phone: String(data.get('phone') ?? '').trim() })
     if (failure) return setMessage(failure)
     close()
+    toast.success('Dados salvos')
   }
 
   async function savePassword(event: FormEvent<HTMLFormElement>) {
@@ -112,6 +114,7 @@ export default function ProfilePage() {
     if (problem) return setMessage(problem)
     form.reset()
     close()
+    toast.success('Senha alterada')
   }
 
   const expiry = expiresAt(anamnesis)

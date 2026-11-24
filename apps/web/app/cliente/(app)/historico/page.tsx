@@ -2,8 +2,9 @@
 
 import Link from 'next/link'
 import { useState } from 'react'
-import { CalendarCheck, CreditCard, QrCode, Store } from 'lucide-react'
-import { useClient } from '../../../../lib/client-app/store'
+import { CalendarCheck, CreditCard, QrCode, ReceiptText, Store } from 'lucide-react'
+import { paymentReceipt, useClient } from '../../../../lib/client-app/store'
+import { toast } from '../../../../components/client-app/toast'
 import { dateLabel, formatMoney, timeLabel } from '../../../../lib/client-app/format'
 import { Empty, PageHeader, StatusBadge, displayStatus } from '../../../../components/client-app/ui'
 
@@ -14,7 +15,24 @@ const paymentLabel = { paid: 'Pago', pending: 'A pagar no espaço', refunded: 'E
 export default function HistoryPage() {
   const { space } = useClient()
   const [tab, setTab] = useState<'visits' | 'payments'>('visits')
+  const [opening, setOpening] = useState<string | null>(null)
   if (!space) return null
+
+  /** Stripe's receipt in a new tab (opened right away so the browser does not block it). */
+  async function openReceipt(appointmentId: string, paymentId: string) {
+    if (!space) return
+    const tab = window.open('', '_blank')
+    setOpening(paymentId)
+    const result = await paymentReceipt(space.summary.slug, appointmentId)
+    setOpening(null)
+    if (result.url) {
+      if (tab) tab.location.href = result.url
+      else window.location.assign(result.url)
+      return
+    }
+    tab?.close()
+    toast.error('Comprovante indisponível', result.error ?? undefined)
+  }
 
   const visits = space.appointments
     .filter((item) => ['done', 'cancelled'].includes(displayStatus(item)))
@@ -113,6 +131,17 @@ export default function HistoryPage() {
                     <span className="ca-badge" data-status={item.status}>
                       {paymentLabel[item.status]}
                     </span>
+                    {item.receipt && item.appointmentId ? (
+                      <button
+                        type="button"
+                        className="ca-receipt"
+                        disabled={opening === item.id}
+                        onClick={() => void openReceipt(item.appointmentId!, item.id)}
+                      >
+                        <ReceiptText size={14} aria-hidden />
+                        {opening === item.id ? 'Abrindo…' : 'Comprovante'}
+                      </button>
+                    ) : null}
                   </span>
                 </li>
               )

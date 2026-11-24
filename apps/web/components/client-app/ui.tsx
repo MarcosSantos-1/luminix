@@ -1,9 +1,10 @@
 'use client'
 
 import { useEffect, useState, type ReactNode } from 'react'
-import { MapPin, X } from 'lucide-react'
-import { initials } from '../../lib/client-app/format'
-import type { Appointment, SpaceSummary } from '../../lib/client-app/types'
+import { CalendarClock, MapPin, ShieldCheck, X } from 'lucide-react'
+import { effectivePrice, formatMoney, initials } from '../../lib/client-app/format'
+import type { Appointment, BookingPolicy, SpaceSummary } from '../../lib/client-app/types'
+import type { PublicService } from '../../lib/public-clinic'
 
 /* eslint-disable @next/next/no-img-element -- logos and photos are remote or data URLs of unknown size */
 
@@ -188,5 +189,45 @@ export function Preparing({ space, onDone }: { space: SpaceSummary; onDone: () =
       <p>Preparando o seu acesso…</p>
       <span className="ca-preparing-bar" aria-hidden />
     </div>
+  )
+}
+
+/** Deposit of a service right now (ADR-042): same share the API freezes at booking, or null. */
+export function depositOf(
+  service: Pick<PublicService, 'id' | 'priceType' | 'priceCents' | 'promoPriceCents'>,
+  policy: BookingPolicy | null,
+  percent = policy?.deposit?.percent,
+) {
+  if (!percent || service.priceType !== 'fixed') return null
+  if (policy && !policy.deposit?.serviceIds.includes(service.id)) return null
+  const price = effectivePrice(service as PublicService)
+  if (price <= 0) return null
+  return Math.min(price, Math.max(1, Math.round((price * percent) / 100)))
+}
+
+/** "Agenda especial" and "Sinal" tags on a service, shown wherever the client picks one. */
+export function ServiceFlags({
+  service,
+  policy,
+}: {
+  service: PublicService
+  policy: BookingPolicy | null
+}) {
+  const deposit = depositOf(service, policy)
+  const special = service.bookingMode === 'manual_release'
+  if (!deposit && !special) return null
+  return (
+    <span className="ca-flags">
+      {special ? (
+        <span className="ca-flag" data-kind="special" title="Só nos dias em que essa agenda abre">
+          <CalendarClock size={12} aria-hidden /> Agenda especial
+        </span>
+      ) : null}
+      {deposit ? (
+        <span className="ca-flag" data-kind="deposit" title="Pede sinal para reservar">
+          <ShieldCheck size={12} aria-hidden /> Sinal {formatMoney(deposit)}
+        </span>
+      ) : null}
+    </span>
   )
 }

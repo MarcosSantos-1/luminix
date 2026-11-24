@@ -77,6 +77,7 @@ type Row = {
   online_payment_status?: 'awaiting' | 'paid' | 'expired' | 'refunded' | null
   online_refund_status?: 'pending' | 'refunded' | 'failed' | null
   online_payment_due_at?: string | null
+  online_payment_kind?: 'full' | 'deposit' | null
   status_note?: string | null
   client_photo_large_url?: string | null
   account_photo?: boolean
@@ -170,6 +171,7 @@ function toView(row: Row): AppointmentView {
       ? {
           status: row.online_payment_status,
           dueAt: row.online_payment_due_at ?? null,
+          kind: row.online_payment_kind ?? 'full',
           refundStatus: row.online_refund_status ?? null,
         }
       : null,
@@ -237,7 +239,7 @@ function AppointmentCard({
       ) : (
         <small className={`ag-card-note is-${visitBadge(item).tone}`}>
           {visitBadge(item).label}
-          {item.paid ? ' · Pago' : ''}
+          {item.paid ? ' · Pago' : item.deposit?.status === 'confirmed' ? ' · Sinal pago' : ''}
         </small>
       )}
     </button>
