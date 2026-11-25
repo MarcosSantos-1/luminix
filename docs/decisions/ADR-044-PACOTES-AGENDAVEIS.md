@@ -27,6 +27,18 @@ agendar a partir deles. Parcelar pelo app não é viável agora: as parcelas sã
   cliente com todas as sessões (`claim_due_refunds` ignora `kind = 'package'`). Dinheiro que chega
   depois de o horário ser liberado (`paid_late`) continua voltando sozinho.
 
+## Combo longo: pausa no intervalo (2026-11-25)
+
+- Um combo pode durar mais que qualquer período livre do dia (ex.: 5h30 numa agenda 08–13 e
+  14–18). Na área da cliente, a visita de um combo pode começar em qualquer horário livre e **pausar
+  no intervalo**, seguindo no período seguinte: 08:00 + 5h30 termina às 14:30. A soma do trabalho é
+  a duração do combo; o intervalo fica dentro do atendimento (`ends_at` depois da pausa), então a
+  agenda mostra o bloco inteiro ocupado.
+- A disponibilidade devolve `ends` (fim de cada horário que pausa) e o agendamento grava esse fim.
+  Remarcar um combo refaz a conta com a duração do combo, não com o bloco antigo.
+- Serviços avulsos não pausam. Ultrapassar o fechamento não é permitido; se o espaço quiser outro
+  arranjo, agenda pelo painel.
+
 ## Área da cliente (mesma entrega)
 
 - Pagamento: "Só o sinal" e "Tudo agora" lado a lado, com marcador de seleção, separados das formas

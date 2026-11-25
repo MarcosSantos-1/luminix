@@ -159,7 +159,12 @@ export type Availability = {
   professionals: Professional[]
   /** Free start times per professional id; "" is the single agenda of a space without team. */
   slots: Record<string, string[]>
+  /** Combo times that pause over the break: where each one ends, per professional. */
+  ends?: Record<string, Record<string, string>>
 }
+
+/** Days the agenda opens inside the space's booking window (a listed day may still be full). */
+export type OpenDays = { today: string; lastDate: string; days: string[] }
 
 /** Where a package can be paid right now (ADR-044). */
 export type PackagePayment = { clinic: boolean; app: boolean }

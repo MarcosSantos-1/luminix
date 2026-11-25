@@ -19,6 +19,7 @@ import { Avatar, Preparing, SpaceLogo } from './ui'
 import { useClinic } from './use-clinic'
 import { loadPackages } from '../../lib/client-app/store'
 import { Toaster } from './toast'
+import { PendingPayment } from './pending-payment'
 
 /**
  * Remembers `?espaco=<slug>` (button on the clinic site). Nothing is linked silently: the space
@@ -135,6 +136,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         </Link>
       </aside>
       <main className="ca-main" id="conteudo">
+        <PendingPayment />
         {children}
       </main>
       <Toaster />

@@ -657,4 +657,62 @@ describe('pagamento do atendimento pelo app', () => {
     )
     expect(cancel.json()).toMatchObject({ ok: true, refunded: false })
   })
+  it('a combo longer than any period pauses over the break and ends after it', async () => {
+    const date = nextWeekday()
+    const combo = await asOwner(async () => {
+      // That day the space works 09:00–12:00 and 13:00–18:00; the combo takes 5h of work.
+      await sql(
+        `INSERT INTO luminix.schedule_overrides (clinic_id, local_date, is_available, periods)
+         VALUES ($1, $2, true, '[{"start":"09:00","end":"12:00"},{"start":"13:00","end":"18:00"}]')`,
+        [clinic, date],
+      )
+      const [other] = await sql(
+        `INSERT INTO luminix.services (clinic_id, name, price_cents, duration_minutes, booking_mode)
+         VALUES ($1, 'Massagem', 20000, 120, 'instant') RETURNING id`,
+        [clinic],
+      )
+      const [row] = await sql(
+        `INSERT INTO luminix.service_packages
+           (clinic_id, service_id, name, sessions, price_cents, kind, duration_minutes)
+         VALUES ($1, $2, 'Dia de spa', 1, 60000, 'combo', 300) RETURNING id`,
+        [clinic, service],
+      )
+      await sql(
+        `INSERT INTO luminix.service_package_items (clinic_id, package_id, service_id, sessions, position)
+         VALUES ($1, $2, $3, 1, 0), ($1, $2, $4, 1, 1)`,
+        [clinic, row.id, service, other.id],
+      )
+      return String(row.id)
+    })
+    const free = (
+      await call(
+        'ana-online',
+        'GET',
+        `/client/spaces/${slug}/availability?serviceId=${service}&date=${date}&packageId=${combo}`,
+      )
+    ).json()
+    const agenda = Object.keys(free.slots)[0]
+    // Morning starts pause at lunch; 13:00 fits 13:00–18:00 in one go.
+    expect(free.slots[agenda]).toContain('09:00')
+    expect(free.ends[agenda]['09:00']).toBe('15:00')
+    expect(free.slots[agenda]).toContain('13:00')
+    expect(free.ends[agenda]['13:00']).toBeUndefined()
+    expect(free.slots[agenda]).not.toContain('13:30')
+    const booked = await call('ana-online', 'POST', `/client/spaces/${slug}/appointments`, {
+      serviceId: service,
+      localStartsAt: `${date}T09:00`,
+      paymentMethod: 'local',
+      packageId: combo,
+    })
+    expect(booked.statusCode).toBe(201)
+    const [row] = await asOwner(() =>
+      sql(
+        `SELECT to_char(starts_at AT TIME ZONE 'America/Sao_Paulo', 'HH24:MI') AS starts,
+                to_char(ends_at AT TIME ZONE 'America/Sao_Paulo', 'HH24:MI') AS ends
+           FROM luminix.appointments WHERE id = $1`,
+        [booked.json().id],
+      ),
+    )
+    expect(row).toEqual({ starts: '09:00', ends: '15:00' })
+  })
 })

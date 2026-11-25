@@ -20,6 +20,14 @@
   line-height: 1.45;
   -webkit-tap-highlight-color: transparent;
 }
+/* Phones: the page never shows a different color past its edges. The root takes the page's own
+   background (Safari paints it in the rubber band and behind its bars) and does not bounce
+   (iOS Safari 16+); inner scrolling rows keep their own momentum. */
+html:has(body .ca),
+html:has(body .ca) body {
+  background: #f3f3f6;
+  overscroll-behavior-y: none;
+}
 .ca[data-theme='rosa'],
 .ca [data-theme='rosa'] {
   --deep: #780033;

@@ -191,6 +191,26 @@ function intersect(left: Period[], right: Period[]): Period[] {
   return result
 }
 
+/**
+ * Where a visit that may pause across the agenda's breaks ends (a combo longer than any single
+ * period): the work minutes run inside the periods, in order, and the break is skipped. Returns
+ * the end in minutes of the day, or null when the day has not enough work time left.
+ */
+export function spannedVisitEnd(periods: Period[], start: number, durationMinutes: number) {
+  const sorted = periods
+    .map((item) => ({ start: minutes(item.start), end: minutes(item.end) }))
+    .filter((item) => item.end > start)
+    .sort((a, b) => a.start - b.start)
+  let left = durationMinutes
+  for (const period of sorted) {
+    const from = Math.max(start, period.start)
+    if (from >= period.end) continue
+    if (left <= period.end - from) return from + left
+    left -= period.end - from
+  }
+  return null
+}
+
 /** Database errors raised on purpose by the client functions, mapped to safe answers. */
 function sqlFailure(error: unknown) {
   const message = error instanceof Error ? error.message : ''
@@ -653,6 +673,8 @@ export async function clientRoutes(app: FastifyInstance, dependencies: AuthDepen
     professionalIds: string[],
     ignoreAppointmentId: string | null,
     serviceId: string,
+    /** A combo visit may pause over the agenda's breaks (lunch) and go on after them. */
+    span = false,
   ) {
     const weekday = new Date(`${date}T12:00:00Z`).getUTCDay()
     // Unpaid deposit holds whose time ran out free their slot first (ADR-037).
@@ -723,6 +745,8 @@ export async function clientRoutes(app: FastifyInstance, dependencies: AuthDepen
       .toISOString()
       .slice(0, 10)
     const result: Record<string, string[]> = {}
+    // Spanned visits only: where each start ends ("HH:MM"), past the break.
+    const ends: Record<string, Record<string, string>> = {}
     for (const professionalId of professionalIds) {
       result[professionalId] = []
       if (
@@ -756,24 +780,38 @@ export async function clientRoutes(app: FastifyInstance, dependencies: AuthDepen
       const taken = busy.rows.filter(
         (row) => !professionalId || String(row.professional_id) === professionalId,
       )
-      for (const period of rentalPeriods ? intersect(periods, rentalPeriods) : periods)
+      const open = rentalPeriods ? intersect(periods, rentalPeriods) : periods
+      // A combo may start at any time and pause over the break when it does not fit before it.
+      const spanning = span
+      const seen = new Set<number>()
+      for (const period of open)
         for (
           let start = minutes(period.start);
-          start + durationMinutes <= minutes(period.end);
+          spanning ? start < minutes(period.end) : start + durationMinutes <= minutes(period.end);
           start += slotStepMinutes
         ) {
+          if (seen.has(start)) continue
+          seen.add(start)
+          const finish = spanning
+            ? spannedVisitEnd(open, start, durationMinutes)
+            : start + durationMinutes
+          if (finish === null) break
           const startsAt = zonedLocalToUtc(`${date}T${clock(start)}`, timezone)
           if (Number.isNaN(startsAt.getTime()) || startsAt.getTime() < earliest) continue
-          const endsAt = startsAt.getTime() + durationMinutes * 60_000
+          const endsAt = startsAt.getTime() + (finish - start) * 60_000
           const clash = taken.some(
             (row) =>
               new Date(String(row.starts_at)).getTime() < endsAt &&
               new Date(String(row.ends_at)).getTime() > startsAt.getTime(),
           )
-          if (!clash) result[professionalId].push(clock(start))
+          if (clash) continue
+          result[professionalId].push(clock(start))
+          if (finish - start !== durationMinutes)
+            (ends[professionalId] ??= {})[clock(start)] = clock(finish)
         }
+      result[professionalId].sort()
     }
-    return { slots: result, lastDate: last, deviceMissing }
+    return { slots: result, ends, lastDate: last, deviceMissing }
   }
 
   async function acceptsInApp(connection: SqlConnection, scope: Scope) {
@@ -815,6 +853,26 @@ export async function clientRoutes(app: FastifyInstance, dependencies: AuthDepen
         `SELECT duration_minutes FROM luminix.service_packages
           WHERE clinic_id = $1 AND id = $2 AND status = 'active' AND kind = 'combo'`,
         [scope.clinicId, packageId],
+      )
+    ).rows[0]
+    return row?.duration_minutes == null ? null : Number(row.duration_minutes)
+  }
+
+  /** Work minutes of a combo visit already booked (null: not a combo, its own length stays). */
+  async function appointmentComboMinutes(
+    connection: SqlConnection,
+    scope: Scope,
+    appointmentId: string,
+  ) {
+    const row = (
+      await connection.query(
+        `SELECT p.duration_minutes FROM luminix.appointments a
+           JOIN luminix.service_packages p ON p.clinic_id = a.clinic_id AND p.id = coalesce(
+             a.requested_package_id,
+             (SELECT cp.package_id FROM luminix.client_packages cp
+               WHERE cp.clinic_id = a.clinic_id AND cp.id = a.client_package_id))
+          WHERE a.clinic_id = $1 AND a.id = $2 AND a.clinic_client_id = $3 AND p.kind = 'combo'`,
+        [scope.clinicId, appointmentId, scope.clientId],
       )
     ).rows[0]
     return row?.duration_minutes == null ? null : Number(row.duration_minutes)
@@ -907,6 +965,111 @@ export async function clientRoutes(app: FastifyInstance, dependencies: AuthDepen
       }),
   )
 
+  // Days the agenda opens inside the space's booking window (7 to 365 days ahead), for the
+  // client's calendar. Same day rules as `freeSlots`, without the per-slot work: a listed day
+  // may still be full; an unlisted one never has a time.
+  app.get<{ Params: { slug: string }; Querystring: { serviceId: string } }>(
+    '/client/spaces/:slug/open-days',
+    {
+      schema: {
+        params: slugParams,
+        querystring: {
+          type: 'object',
+          additionalProperties: false,
+          required: ['serviceId'],
+          properties: { serviceId: { type: 'string', pattern: uuid } },
+        },
+      },
+    },
+    async (request, reply) =>
+      asClient(request, reply, request.params.slug, async (connection, scope) => {
+        const service = await serviceFor(connection, scope!, request.query.serviceId)
+        if (!service) return reply.code(404).send({ error: 'Service unavailable' })
+        const professionals = (await professionalsFor(connection, scope!, String(service.id))).map(
+          (item) => item.id,
+        )
+        const today = localDateTime(new Date(), timezone).date
+        const policy = await connection.query(
+          'SELECT booking_window_days FROM luminix.booking_policies WHERE clinic_id = $1',
+          [scope!.clinicId],
+        )
+        const windowDays = Number(policy.rows[0]?.booking_window_days ?? 60)
+        const last = new Date(Date.parse(`${today}T12:00:00Z`) + windowDays * 86_400_000)
+          .toISOString()
+          .slice(0, 10)
+        const [overrides, weekly, professionalWeeks, closures, professionalDates] =
+          await Promise.all([
+            connection.query(
+              `SELECT to_char(local_date, 'YYYY-MM-DD') AS day, is_available, periods
+                 FROM luminix.schedule_overrides
+                WHERE clinic_id = $1 AND local_date BETWEEN $2::date AND $3::date`,
+              [scope!.clinicId, today, last],
+            ),
+            connection.query(
+              'SELECT weekday, is_available, periods FROM luminix.weekly_availability WHERE clinic_id = $1',
+              [scope!.clinicId],
+            ),
+            connection.query(
+              `SELECT professional_id, weekday, is_available, periods
+                 FROM luminix.professional_weekly_availability WHERE clinic_id = $1`,
+              [scope!.clinicId],
+            ),
+            connection.query(
+              `SELECT professional_id, to_char(starts_on, 'YYYY-MM-DD') AS starts_on,
+                      to_char(ends_on, 'YYYY-MM-DD') AS ends_on
+                 FROM luminix.schedule_closures
+                WHERE clinic_id = $1 AND ends_on >= $2::date AND starts_on <= $3::date`,
+              [scope!.clinicId, today, last],
+            ),
+            connection.query(
+              `SELECT professional_id, to_char(local_date, 'YYYY-MM-DD') AS day, is_available, periods
+                 FROM luminix.professional_schedule_overrides
+                WHERE clinic_id = $1 AND local_date BETWEEN $2::date AND $3::date`,
+              [scope!.clinicId, today, last],
+            ),
+          ])
+        const open = (row: { is_available?: unknown; periods?: unknown } | undefined) =>
+          (row?.is_available ? row.periods : []) as Period[]
+        const days: string[] = []
+        for (let cursor = Date.parse(`${today}T12:00:00Z`); ; cursor += 86_400_000) {
+          const day = new Date(cursor).toISOString().slice(0, 10)
+          if (day > last) break
+          const weekday = new Date(cursor).getUTCDay()
+          const closed = closures.rows.filter(
+            (row) => String(row.starts_on) <= day && String(row.ends_on) >= day,
+          )
+          if (closed.some((row) => row.professional_id == null)) continue
+          const override = overrides.rows.find((row) => row.day === day)
+          const clinicPeriods = open(
+            override ?? weekly.rows.find((row) => Number(row.weekday) === weekday),
+          )
+          const works = (professionalId: string) => {
+            if (closed.some((row) => String(row.professional_id) === professionalId)) return false
+            const ownDate = professionalDates.rows.find(
+              (row) => row.day === day && String(row.professional_id) === professionalId,
+            )
+            const own = professionalWeeks.rows.find(
+              (row) =>
+                Number(row.weekday) === weekday && String(row.professional_id) === professionalId,
+            )
+            const periods = ownDate
+              ? intersect(clinicPeriods, open(ownDate))
+              : override
+                ? own
+                  ? intersect(clinicPeriods, open(own))
+                  : clinicPeriods
+                : own
+                  ? open(own)
+                  : clinicPeriods
+            return periods.length > 0
+          }
+          if (professionals.length ? professionals.some(works) : clinicPeriods.length > 0)
+            days.push(day)
+        }
+        return { today, lastDate: last, days }
+      }),
+  )
+
   app.get<{
     Params: { slug: string }
     Querystring: { serviceId: string; date: string; ignore?: string; packageId?: string }
@@ -949,12 +1112,14 @@ export async function clientRoutes(app: FastifyInstance, dependencies: AuthDepen
         if (request.query.ignore && !moving)
           return reply.code(404).send({ error: 'Appointment not found' })
         // A combo visit lasts what the package says (all its services in one visit, ADR-044).
-        const comboMinutes = request.query.packageId
-          ? await packageVisitMinutes(connection, scope!, request.query.packageId)
-          : null
-        const durationMinutes = Number(moving?.duration ?? comboMinutes ?? service.duration_minutes)
+        const comboMinutes = request.query.ignore
+          ? await appointmentComboMinutes(connection, scope!, request.query.ignore)
+          : request.query.packageId
+            ? await packageVisitMinutes(connection, scope!, request.query.packageId)
+            : null
+        const durationMinutes = Number(comboMinutes ?? moving?.duration ?? service.duration_minutes)
         const professionals = await professionalsFor(connection, scope!, String(service.id))
-        const { slots, lastDate } = await freeSlots(
+        const { slots, ends, lastDate } = await freeSlots(
           connection,
           scope!,
           request.query.date,
@@ -962,6 +1127,7 @@ export async function clientRoutes(app: FastifyInstance, dependencies: AuthDepen
           professionals.length ? professionals.map((item) => item.id) : [''],
           request.query.ignore ?? null,
           String(service.id),
+          comboMinutes !== null,
         )
         // Pix/card only when the space turned on payments in the app.
         // Switch on AND account approved (ADR-041), so the client never picks a dead option.
@@ -983,6 +1149,8 @@ export async function clientRoutes(app: FastifyInstance, dependencies: AuthDepen
           deposit: moving ? null : await depositOffer(connection, scope!, String(service.id)),
           professionals,
           slots,
+          // Combo times that pause over the break: when each one ends.
+          ends,
         }
       }),
   )
@@ -1112,10 +1280,10 @@ export async function clientRoutes(app: FastifyInstance, dependencies: AuthDepen
           // paid only at the clinic (no in-app charge of an amount that is not known yet).
           if (request.body.paymentMethod !== 'local' && service.price_type !== 'fixed')
             return reply.code(400).send({ error: 'Pay at the clinic' })
-          const visitMinutes = Number(
-            (packageId ? await packageVisitMinutes(connection, scope!, packageId) : null) ??
-              service.duration_minutes,
-          )
+          const comboMinutes = packageId
+            ? await packageVisitMinutes(connection, scope!, packageId)
+            : null
+          const visitMinutes = Number(comboMinutes ?? service.duration_minutes)
           const professionals = await professionalsFor(connection, scope!, String(service.id))
           const date = request.body.localStartsAt.slice(0, 10)
           const time = request.body.localStartsAt.slice(11)
@@ -1128,7 +1296,7 @@ export async function clientRoutes(app: FastifyInstance, dependencies: AuthDepen
                 : []
               : professionals.map((item) => item.id)
           if (!candidates.length) return reply.code(400).send({ error: 'Professional unavailable' })
-          const { slots, deviceMissing } = await freeSlots(
+          const { slots, ends, deviceMissing } = await freeSlots(
             connection,
             scope!,
             date,
@@ -1136,12 +1304,17 @@ export async function clientRoutes(app: FastifyInstance, dependencies: AuthDepen
             candidates,
             null,
             String(service.id),
+            comboMinutes !== null,
           )
           if (deviceMissing) return reply.code(409).send({ error: 'Service unavailable' })
           const professionalId = candidates.find((id) => slots[id]?.includes(time))
           if (professionalId === undefined) return reply.code(409).send({ error: 'Slot taken' })
           const startsAt = zonedLocalToUtc(request.body.localStartsAt, timezone)
-          const endsAt = new Date(startsAt.getTime() + visitMinutes * 60_000)
+          // A combo that pauses over the break ends after it (the break stays in the visit).
+          const pausedEnd = ends[professionalId]?.[time]
+          const endsAt = pausedEnd
+            ? zonedLocalToUtc(`${date}T${pausedEnd}`, timezone)
+            : new Date(startsAt.getTime() + visitMinutes * 60_000)
           const id = (
             await connection.query(
               'SELECT luminix.client_book_appointment($1, $2, $3, $4, $5, $6, $7) AS id',
@@ -1504,20 +1677,31 @@ export async function clientRoutes(app: FastifyInstance, dependencies: AuthDepen
         if (!current) return reply.code(404).send({ error: 'Appointment not found' })
         const date = request.body.localStartsAt.slice(0, 10)
         const agenda = current.professional_id ? String(current.professional_id) : ''
-        const { slots, deviceMissing } = await freeSlots(
+        // A combo keeps its work time and may pause over the break again (not the old length).
+        const comboMinutes = await appointmentComboMinutes(
+          connection,
+          scope!,
+          request.params.appointmentId,
+        )
+        const visitMinutes = comboMinutes ?? Number(current.duration_minutes)
+        const time = request.body.localStartsAt.slice(11)
+        const { slots, ends, deviceMissing } = await freeSlots(
           connection,
           scope!,
           date,
-          Number(current.duration_minutes),
+          visitMinutes,
           [agenda],
           request.params.appointmentId,
           String(current.service_id),
+          comboMinutes !== null,
         )
         if (deviceMissing) return reply.code(409).send({ error: 'Service unavailable' })
-        if (!slots[agenda]?.includes(request.body.localStartsAt.slice(11)))
-          return reply.code(409).send({ error: 'Slot taken' })
+        if (!slots[agenda]?.includes(time)) return reply.code(409).send({ error: 'Slot taken' })
         const startsAt = zonedLocalToUtc(request.body.localStartsAt, timezone)
-        const endsAt = new Date(startsAt.getTime() + Number(current.duration_minutes) * 60_000)
+        const pausedEnd = ends[agenda]?.[time]
+        const endsAt = pausedEnd
+          ? zonedLocalToUtc(`${date}T${pausedEnd}`, timezone)
+          : new Date(startsAt.getTime() + visitMinutes * 60_000)
         await connection.query('SELECT luminix.client_reschedule_appointment($1, $2, $3, $4, $5)', [
           scope!.clinicId,
           scope!.clientId,

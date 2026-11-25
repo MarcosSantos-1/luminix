@@ -8,16 +8,22 @@ import {
   ArrowLeft,
   ArrowRight,
   CalendarClock,
+  CalendarDays,
   Check,
+  ChevronLeft,
+  ChevronRight,
   Clock,
   CreditCard,
   Gift,
   Layers,
+  Moon,
   QrCode,
   Search,
   ShieldCheck,
   Tag,
   Store,
+  Sun,
+  Sunrise,
   Users,
   Wallet,
   X,
@@ -25,6 +31,7 @@ import {
 import {
   book,
   loadAvailability,
+  loadOpenDays,
   loadPackages,
   reschedule,
   useClient,
@@ -40,6 +47,7 @@ import {
 } from '../../../../lib/client-app/format'
 import type {
   Availability,
+  OpenDays,
   Payment,
   Deposit,
   SpacePackage,
@@ -65,6 +73,15 @@ const methods = [
 const ANY = ''
 /** Stripe does not charge less than R$ 0,50. */
 const MIN_ONLINE = 50
+
+/** Times grouped by part of the day, like the space's own day: manhã, tarde, noite. */
+const periods = [
+  { label: 'Manhã', icon: Sunrise, has: (slot: string) => slot < '12:00' },
+  { label: 'Tarde', icon: Sun, has: (slot: string) => slot >= '12:00' && slot < '18:00' },
+  { label: 'Noite', icon: Moon, has: (slot: string) => slot >= '18:00' },
+]
+const weekdays = ['dom', 'seg', 'ter', 'qua', 'qui', 'sex', 'sáb']
+const monthOf = (value: string) => value.slice(0, 7)
 
 const fold = (text: string) =>
   text
@@ -95,7 +112,10 @@ export default function BookingPage() {
   const [filter, setFilter] = useState<'all' | 'packages' | 'promo' | string>('all')
   const [serviceId, setServiceId] = useState<string | null>(null)
   const [professional, setProfessional] = useState<string | null>(null)
-  const [chosenDay, setDay] = useState(() => dayKey(new Date()))
+  // The day the client picked on the calendar; its times show only after the pick.
+  const [chosenDay, setDay] = useState<string | null>(null)
+  const [month, setMonth] = useState<string | null>(null)
+  const [openDays, setOpenDays] = useState<{ key: string; data: OpenDays | null } | null>(null)
   const [time, setTime] = useState<string | null>(null)
   const [method, setMethod] = useState<Payment['method']>('local')
   const [amount, setAmount] = useState<'deposit' | 'full'>('deposit')
@@ -122,8 +142,9 @@ export default function BookingPage() {
       move: search.get('remarcar'),
       pack: search.get('pacote'),
     })
-    // Coming from a chosen service ("Escolher horário"): the next step is the time.
-    if (search.get('servico')) setAt('time')
+    // Coming from a chosen service or package ("Agendar"): the next step is the time, with
+    // the whole package already picked.
+    if (search.get('servico') || search.get('pacote')) setAt('time')
   }, [])
 
   const slug = space?.summary.slug ?? null
@@ -190,10 +211,34 @@ export default function BookingPage() {
   const dates = (moving?.rentalDates ?? service?.rentalDates)?.filter(
     (value) => value >= dayKey(new Date()),
   )
-  const day = dates?.length && !dates.includes(chosenDay) ? dates[0] : chosenDay
+  // Days the calendar offers: the service's own dates (rental agenda) or the days the space
+  // opens inside its booking window.
+  const openKey = slug && chosenId ? `${slug}|${chosenId}` : null
+  const openData = openDays && openDays.key === openKey ? openDays.data : undefined
+  // [] while they load; if they cannot be loaded, the next 60 days (each day says if it is full).
+  const offered: string[] =
+    dates ??
+    (openData === undefined
+      ? []
+      : (openData?.days ??
+        Array.from({ length: 60 }, (_, index) => dayKey(addDays(new Date(), index)))))
+  const picked = chosenDay && offered.includes(chosenDay) ? chosenDay : null
+  // Before a pick, the first open day still tells who works and how it is paid.
+  const day = picked ?? offered[0] ?? dayKey(new Date())
   const visitPack = moving ? null : (pack?.id ?? null)
   const key =
     slug && chosenId ? `${slug}|${chosenId}|${day}|${moving?.id ?? ''}|${visitPack ?? ''}` : null
+
+  useEffect(() => {
+    if (!slug || !chosenId || !openKey) return
+    let active = true
+    void loadOpenDays(slug, chosenId).then((data) => {
+      if (active) setOpenDays({ key: openKey, data })
+    })
+    return () => {
+      active = false
+    }
+  }, [slug, chosenId, openKey])
 
   useEffect(() => {
     if (!slug || !chosenId || !key) return
@@ -205,11 +250,6 @@ export default function BookingPage() {
       active = false
     }
   }, [slug, chosenId, day, moving?.id, key, visitPack])
-
-  const days = useMemo(
-    () => Array.from({ length: 28 }, (_, index) => addDays(new Date(), index)),
-    [],
-  )
 
   if (!space || !params) return null
 
@@ -228,7 +268,31 @@ export default function BookingPage() {
       : agenda === ANY && team.length
         ? [...new Set(team.flatMap((item) => current.slots[item.id] ?? []))].sort()
         : (current.slots[agenda] ?? [])
-  const freeDays = current ? current.lastDate : null
+  // Where a combo that pauses over the break ends, for this time.
+  const endOf = (slot: string) =>
+    (agenda === ANY && team.length ? team.map((item) => item.id) : [agenda ?? ''])
+      .map((id) => current?.ends?.[id]?.[slot])
+      .find(Boolean) ?? null
+  // Calendar month: the picked day's, else the first open day's.
+  const today = dayKey(new Date())
+  const shownMonth = month ?? monthOf(picked ?? offered[0] ?? today)
+  const firstMonth = monthOf(offered[0] ?? today)
+  const lastMonth = monthOf(offered[offered.length - 1] ?? today)
+  const monthStart = new Date(`${shownMonth}-01T12:00:00`)
+  const calendar = (() => {
+    const lead = monthStart.getDay()
+    const length = new Date(monthStart.getFullYear(), monthStart.getMonth() + 1, 0).getDate()
+    return Array.from({ length: Math.ceil((lead + length) / 7) * 7 }, (_, index) =>
+      index < lead || index >= lead + length ? null : addDays(monthStart, index - lead),
+    )
+  })()
+  const moveMonth = (direction: 1 | -1) =>
+    setMonth(
+      dayKey(new Date(monthStart.getFullYear(), monthStart.getMonth() + direction, 1, 12)).slice(
+        0,
+        7,
+      ),
+    )
 
   if (done)
     return (
@@ -282,7 +346,7 @@ export default function BookingPage() {
   const price = pack ? pack.priceCents : service && priced ? effectivePrice(service) : 0
   const packApp = Boolean(pack && packages?.payment.app)
   const packClinic = Boolean(pack && (packages?.payment.clinic ?? true))
-  const start = time ? `${day}T${time}` : null
+  const start = picked && time ? `${picked}T${time}` : null
   // Deposit of this service (ADR-042), in the app (Stripe) or by the space's own Pix.
   const depositRule = !moving && priced && !pack ? (current?.deposit ?? null) : null
   const depositCents = service && depositRule ? depositOf(service, null, depositRule.percent) : null
@@ -348,6 +412,8 @@ export default function BookingPage() {
     setPackChoice(null)
     setServiceId(id)
     setProfessional(null)
+    setDay(null)
+    setMonth(null)
     setTime(null)
     setAmount('deposit')
     setAt('time')
@@ -358,6 +424,8 @@ export default function BookingPage() {
     setPackChoice(item.id)
     setServiceId(item.items[0]?.serviceId ?? null)
     setProfessional(null)
+    setDay(null)
+    setMonth(null)
     setTime(null)
     setAt('time')
   }
@@ -672,8 +740,10 @@ export default function BookingPage() {
       {view === 'time' && agenda !== null && (
         <section className="ca-step ca-card-step" aria-label="Dia e horário">
           <header className="ca-step-head">
-            <h2>Quando?</h2>
-            <p>Escolha o dia e um horário livre.</p>
+            <h2>{picked ? 'Que horas?' : 'Que dia?'}</h2>
+            <p>
+              {picked ? 'Escolha um horário livre.' : 'Só aparecem os dias em que o espaço atende.'}
+            </p>
           </header>
           {current && !current.choose && team[0] && !moving && (
             <p className="ca-with">
@@ -681,70 +751,158 @@ export default function BookingPage() {
               <strong>{team[0].name}</strong>
             </p>
           )}
-          <div className="ca-days" role="group" aria-label="Dia">
-            {(dates ? dates.map((value) => new Date(value + 'T12:00:00')) : days)
-              .filter((date) => !freeDays || dayKey(date) <= freeDays)
-              .map((date) => {
-                const value = dayKey(date)
-                return (
-                  <button
-                    key={value}
-                    type="button"
-                    aria-pressed={value === day}
-                    onClick={() => {
-                      setDay(value)
-                      setTime(null)
-                    }}
-                  >
-                    <small>
-                      {date.toLocaleDateString('pt-BR', { weekday: 'short' }).replace('.', '')}
-                    </small>
-                    <b>
-                      {dates
-                        ? date.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })
-                        : date.getDate()}
-                    </b>
-                  </button>
-                )
-              })}
-          </div>
-          {current === undefined ? (
-            <div className="ca-slots-loading" role="status">
-              <p>
-                <span className="ca-dots" aria-hidden>
-                  <i />
-                  <i />
-                  <i />
-                </span>
-                Buscando horários livres de {dateLabel(day, 'short')}…
-              </p>
-              <div className="ca-times" aria-hidden>
-                {Array.from({ length: 8 }, (_, index) => (
-                  <span
-                    key={index}
-                    className="ca-skeleton ca-time-skeleton"
-                    style={{ animationDelay: `${index * 70}ms` }}
-                  />
-                ))}
-              </div>
-            </div>
-          ) : current === null ? (
-            <p className="ca-muted">Não foi possível buscar os horários. Tente de novo.</p>
-          ) : slots.length ? (
-            <div className="ca-times" role="group" aria-label="Horário">
-              {slots.map((slot) => (
+          {!picked ? (
+            <div className="ca-calendar ca-book-calendar">
+              <header>
                 <button
-                  key={slot}
                   type="button"
-                  aria-pressed={slot === time}
-                  onClick={() => setTime(slot)}
+                  className="ca-icon-button"
+                  aria-label="Mês anterior"
+                  disabled={shownMonth <= firstMonth}
+                  onClick={() => moveMonth(-1)}
                 >
-                  {slot}
+                  <ChevronLeft size={18} aria-hidden />
                 </button>
-              ))}
+                <strong>
+                  {monthStart.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })}
+                </strong>
+                <button
+                  type="button"
+                  className="ca-icon-button"
+                  aria-label="Próximo mês"
+                  disabled={shownMonth >= lastMonth}
+                  onClick={() => moveMonth(1)}
+                >
+                  <ChevronRight size={18} aria-hidden />
+                </button>
+              </header>
+              <div
+                className="ca-cal-grid"
+                role="group"
+                aria-label="Dia"
+                aria-busy={openData === undefined && !dates}
+              >
+                {weekdays.map((label) => (
+                  <span key={label} className="ca-cal-head">
+                    {label}
+                  </span>
+                ))}
+                {calendar.map((date, index) => {
+                  if (!date) return <span key={`blank-${index}`} aria-hidden />
+                  const value = dayKey(date)
+                  const free = offered.includes(value)
+                  return (
+                    <button
+                      key={value}
+                      type="button"
+                      disabled={!free}
+                      data-out={!free || undefined}
+                      data-today={value === today || undefined}
+                      aria-label={`${dateLabel(value)}${free ? '' : ', sem atendimento'}`}
+                      onClick={() => {
+                        setDay(value)
+                        setTime(null)
+                      }}
+                    >
+                      {date.getDate()}
+                      {free && <i />}
+                    </button>
+                  )
+                })}
+              </div>
+              {openData === undefined && !dates ? (
+                <p className="ca-cal-note" role="status">
+                  Buscando os dias livres…
+                </p>
+              ) : !offered.length ? (
+                <p className="ca-cal-note">O espaço não tem dias livres para agendar agora.</p>
+              ) : (
+                <p className="ca-cal-note">
+                  <i aria-hidden /> Dias com atendimento
+                  {openData ? ` · até ${dateLabel(openData.lastDate, 'short')}` : ''}
+                </p>
+              )}
             </div>
           ) : (
-            <p className="ca-muted">Sem horários livres neste dia. Escolha outra data.</p>
+            <>
+              <div className="ca-day-picked">
+                <CalendarDays size={18} aria-hidden />
+                <strong>{dateLabel(picked)}</strong>
+                <button
+                  type="button"
+                  className="ca-link"
+                  onClick={() => {
+                    setMonth(monthOf(picked))
+                    setDay(null)
+                    setTime(null)
+                  }}
+                >
+                  Trocar dia
+                </button>
+              </div>
+              {current === undefined ? (
+                <div className="ca-slots-loading" role="status">
+                  <p>
+                    <span className="ca-dots" aria-hidden>
+                      <i />
+                      <i />
+                      <i />
+                    </span>
+                    Buscando horários livres de {dateLabel(picked, 'short')}…
+                  </p>
+                  <div className="ca-times" aria-hidden>
+                    {Array.from({ length: 8 }, (_, index) => (
+                      <span
+                        key={index}
+                        className="ca-skeleton ca-time-skeleton"
+                        style={{ animationDelay: `${index * 70}ms` }}
+                      />
+                    ))}
+                  </div>
+                </div>
+              ) : current === null ? (
+                <p className="ca-muted">Não foi possível buscar os horários. Tente de novo.</p>
+              ) : slots.length ? (
+                <>
+                  {periods
+                    .map((period) => ({
+                      ...period,
+                      items: slots.filter((slot) => period.has(slot)),
+                    }))
+                    .filter((period) => period.items.length)
+                    .map(({ label, icon: Icon, items }) => (
+                      <div key={label} className="ca-period">
+                        <p className="ca-period-head">
+                          <Icon size={16} aria-hidden /> {label}
+                          <small>
+                            {items.length} {items.length === 1 ? 'horário' : 'horários'}
+                          </small>
+                        </p>
+                        <div className="ca-times" role="group" aria-label={`Horários da ${label}`}>
+                          {items.map((slot) => (
+                            <button
+                              key={slot}
+                              type="button"
+                              aria-pressed={slot === time}
+                              onClick={() => setTime(slot)}
+                            >
+                              {slot}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                  {time && endOf(time) ? (
+                    <p className="ca-flag-note">
+                      <Clock size={16} aria-hidden />
+                      Das {time} às {endOf(time)}, com pausa no intervalo do espaço.
+                    </p>
+                  ) : null}
+                </>
+              ) : (
+                <p className="ca-muted">Sem horários livres neste dia. Escolha outro dia.</p>
+              )}
+            </>
           )}
         </section>
       )}
@@ -895,6 +1053,7 @@ export default function BookingPage() {
               <dt>Quando</dt>
               <dd>
                 {dateLabel(start)} às {time}
+                {time && endOf(time) ? ` · até ${endOf(time)}, com pausa no intervalo` : ''}
               </dd>
             </div>
             {priced && !moving && (

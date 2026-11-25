@@ -22,6 +22,7 @@ import type {
   Anamnesis,
   Appointment,
   Availability,
+  OpenDays,
   Deposit,
   BookingPolicy,
   Notice,
@@ -747,6 +748,16 @@ export async function loadAvailability(
     })
     return await api<Availability>(
       `/client/spaces/${encodeURIComponent(slug)}/availability?${query}`,
+    )
+  } catch {
+    return null
+  }
+}
+
+export async function loadOpenDays(slug: string, serviceId: string): Promise<OpenDays | null> {
+  try {
+    return await api<OpenDays>(
+      `/client/spaces/${encodeURIComponent(slug)}/open-days?${new URLSearchParams({ serviceId })}`,
     )
   } catch {
     return null

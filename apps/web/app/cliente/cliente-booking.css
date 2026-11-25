@@ -350,3 +350,200 @@
     scroll-padding-inline: 16px;
   }
 }
+
+/* ── Booking calendar: only the days the space opens, the whole month at a glance ── */
+.ca .ca-book-calendar {
+  padding: 4px 0 0;
+  background: transparent !important;
+  box-shadow: none !important;
+  border-radius: 0;
+}
+.ca .ca-book-calendar header .ca-icon-button:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+.ca .ca-book-calendar .ca-cal-grid {
+  gap: 6px 4px;
+}
+.ca .ca-book-calendar .ca-cal-grid button {
+  max-width: 48px;
+  font-size: 15px;
+}
+.ca .ca-book-calendar .ca-cal-grid button:not(:disabled) {
+  background: var(--tint);
+  color: var(--deep);
+}
+.ca .ca-book-calendar .ca-cal-grid button:disabled {
+  background: transparent;
+  color: #c4c4cc;
+  text-decoration: line-through;
+  text-decoration-color: color-mix(in srgb, #c4c4cc 70%, transparent);
+  cursor: default;
+  transform: none;
+}
+.ca .ca-book-calendar .ca-cal-grid button:not(:disabled):hover {
+  background: var(--tint-strong);
+}
+.ca .ca-book-calendar .ca-cal-grid button[data-today]:not(:disabled) {
+  box-shadow: inset 0 0 0 1.5px var(--accent);
+}
+.ca .ca-book-calendar .ca-cal-grid button i {
+  bottom: 5px;
+}
+.ca .ca-book-calendar[aria-busy='true'] .ca-cal-grid,
+.ca .ca-book-calendar .ca-cal-grid[aria-busy='true'] {
+  opacity: 0.55;
+}
+.ca .ca-cal-note {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin: 2px 0 0;
+  font-size: 12.5px;
+  color: var(--muted);
+}
+.ca .ca-cal-note i {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--accent);
+}
+.ca .ca-day-picked {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+  border-radius: 18px;
+  background: var(--tint);
+  color: var(--deep);
+}
+.ca .ca-day-picked strong {
+  flex: 1;
+  font-size: 15px;
+}
+.ca .ca-day-picked strong::first-letter {
+  text-transform: uppercase;
+}
+
+/* ── Times by part of the day ─────────────────────────────── */
+.ca .ca-period {
+  display: grid;
+  gap: 10px;
+}
+.ca .ca-period + .ca-period {
+  margin-top: 6px;
+}
+.ca .ca-period-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  font-size: 13.5px;
+  font-weight: 700;
+  color: var(--deep);
+}
+.ca .ca-period-head svg {
+  color: var(--accent);
+}
+.ca .ca-period-head small {
+  margin-left: auto;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+/* ── Slot held while paying in the app: on every screen, with the time left ── */
+.ca .ca-held {
+  position: sticky;
+  top: calc(10px + env(safe-area-inset-top));
+  z-index: 30;
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 10px 12px;
+  max-width: 760px;
+  margin: 12px auto 4px;
+  padding: 12px 14px;
+  border-radius: 22px;
+  background: linear-gradient(120deg, #fff6e2 0%, #fffdf8 100%);
+  box-shadow:
+    var(--edge),
+    0 10px 26px rgba(156, 106, 0, 0.14);
+  color: #6b4806;
+  animation: ca-up 0.35s var(--ease);
+}
+.ca .ca-held[data-urgent] {
+  background: linear-gradient(120deg, #ffe7e3 0%, #fffaf9 100%);
+  color: #8a1f14;
+}
+.ca .ca-held-icon {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 14px;
+  background: #fff;
+  box-shadow: var(--shadow-sm);
+}
+.ca .ca-held-text {
+  display: grid;
+  min-width: 0;
+}
+.ca .ca-held-text strong {
+  font-size: 14.5px;
+}
+.ca .ca-held-text small {
+  overflow: hidden;
+  font-size: 12.5px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  opacity: 0.85;
+}
+.ca .ca-held-timer {
+  padding: 6px 10px;
+  border-radius: 12px;
+  background: #fff;
+  font-family: var(--font-display), sans-serif;
+  font-size: 18px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  box-shadow: var(--shadow-sm);
+}
+.ca .ca-held-actions {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+.ca .ca-held-actions .ca-button {
+  flex: 1;
+  min-height: 44px;
+}
+.ca .ca-held-actions .ca-link {
+  color: inherit;
+  font-weight: 700;
+}
+.ca .ca-spin {
+  animation: ca-held-spin 1s linear infinite;
+}
+@keyframes ca-held-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@media (max-width: 959px) {
+  .ca .ca-held {
+    margin: 10px 16px 0;
+  }
+}
+@media (min-width: 960px) {
+  .ca .ca-held {
+    grid-template-columns: auto 1fr auto auto;
+  }
+  .ca .ca-held-actions {
+    grid-column: auto;
+  }
+  .ca .ca-held-actions .ca-button {
+    flex: none;
+  }
+}

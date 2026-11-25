@@ -272,6 +272,29 @@ describe('área do cliente', () => {
     expect(both.slots[bia]).toEqual(['09:00', '09:30', '10:00'])
   })
 
+  it('dias abertos: só dias úteis dentro da janela do espaço, e nada de outro espaço', async () => {
+    const open = await call(
+      'cliente-1',
+      'GET',
+      `/client/spaces/${slugA}/open-days?serviceId=${solo}`,
+    )
+    expect(open.statusCode).toBe(200)
+    const body = open.json() as { today: string; lastDate: string; days: string[] }
+    expect(body.days.length).toBeGreaterThan(0)
+    for (const day of body.days) {
+      const weekday = new Date(`${day}T12:00:00Z`).getUTCDay()
+      expect(weekday).toBeGreaterThanOrEqual(1)
+      expect(weekday).toBeLessThanOrEqual(5)
+      expect(day >= body.today && day <= body.lastDate).toBe(true)
+    }
+    const other = await call(
+      'cliente-1',
+      'GET',
+      `/client/spaces/${slugB}/open-days?serviceId=${solo}`,
+    )
+    expect(other.statusCode).toBe(404)
+  })
+
   it('semana planejada: horário da profissional no dia, sempre dentro do espaço', async () => {
     const date = new Date(Date.parse(`${nextWeekday()}T12:00:00Z`) + 7 * 86_400_000)
       .toISOString()
