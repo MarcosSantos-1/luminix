@@ -12,7 +12,6 @@ import {
   EyeOff,
   LockKeyhole,
   Mail,
-  Phone,
   ShieldCheck,
   UserRound,
 } from 'lucide-react'
@@ -36,6 +35,9 @@ export function AuthScreen({ mode }: { mode: 'entrar' | 'cadastro' }) {
   const [busy, setBusy] = useState(false)
   const [visible, setVisible] = useState(false)
   const [notice, setNotice] = useState('')
+  const [password, setPassword] = useState('')
+  const [confirmation, setConfirmation] = useState('')
+  const mismatch = confirmation.length > 0 && confirmation !== password
   const signingUp = mode === 'cadastro'
   // Google and Apple first; e-mail opens its form on demand.
   const [withEmail, setWithEmail] = useState(false)
@@ -65,14 +67,17 @@ export function AuthScreen({ mode }: { mode: 'entrar' | 'cadastro' }) {
     setBusy(true)
     setError('')
     const problem = signingUp
-      ? !data.get('terms')
-        ? 'Aceite os termos para criar a conta.'
-        : await signUp({
-            name: value('name'),
-            email: value('email'),
-            phone: value('phone'),
-            password: value('password'),
-          })
+      ? value('password') !== value('passwordConfirmation')
+        ? 'As senhas não coincidem.'
+        : !data.get('terms')
+          ? 'Aceite os termos para criar a conta.'
+          : await signUp({
+              name: value('name'),
+              email: value('email'),
+              // The phone is asked later, by the space, when it is needed.
+              phone: '',
+              password: value('password'),
+            })
       : await signIn(value('email'), value('password'))
     setBusy(false)
     if (problem) setError(problem)
@@ -229,21 +234,6 @@ export function AuthScreen({ mode }: { mode: 'entrar' | 'cadastro' }) {
                   />
                 </span>
               </label>
-              {signingUp && (
-                <label>
-                  Celular <small>opcional</small>
-                  <span className="ca-field">
-                    <Phone size={18} aria-hidden />
-                    <input
-                      name="phone"
-                      type="tel"
-                      inputMode="tel"
-                      autoComplete="tel"
-                      placeholder="(11) 90000-0000"
-                    />
-                  </span>
-                </label>
-              )}
               <label>
                 Senha
                 <span className="ca-field ca-password">
@@ -255,6 +245,8 @@ export function AuthScreen({ mode }: { mode: 'entrar' | 'cadastro' }) {
                     autoComplete={signingUp ? 'new-password' : 'current-password'}
                     minLength={8}
                     required
+                    value={password}
+                    onChange={(event) => setPassword(event.target.value)}
                   />
                   <button
                     type="button"
@@ -266,6 +258,33 @@ export function AuthScreen({ mode }: { mode: 'entrar' | 'cadastro' }) {
                 </span>
                 {signingUp && <small>Pelo menos 8 caracteres.</small>}
               </label>
+              {signingUp && (
+                <label>
+                  Confirmar senha
+                  <span className="ca-field ca-password" data-invalid={mismatch || undefined}>
+                    <LockKeyhole size={18} aria-hidden />
+                    <input
+                      placeholder="Repita a senha"
+                      name="passwordConfirmation"
+                      type={visible ? 'text' : 'password'}
+                      autoComplete="new-password"
+                      minLength={8}
+                      required
+                      aria-invalid={mismatch || undefined}
+                      value={confirmation}
+                      onChange={(event) => setConfirmation(event.target.value)}
+                    />
+                  </span>
+                  {confirmation ? (
+                    <small
+                      className={mismatch ? 'ca-match is-wrong' : 'ca-match is-right'}
+                      role="status"
+                    >
+                      {mismatch ? 'As senhas não coincidem.' : 'Senhas iguais.'}
+                    </small>
+                  ) : null}
+                </label>
+              )}
               {signingUp && (
                 <label className="ca-check">
                   <input type="checkbox" name="terms" />

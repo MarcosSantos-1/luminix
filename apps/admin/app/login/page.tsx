@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import { AppStatus } from '@/components/app-status'
 import { SignInPage } from '@/components/auth/sign-in'
 import { useStaff } from '@/components/staff-provider'
-import { useStaffAuth } from '@/hooks/use-staff-auth'
+import { useStaffAuth, type SocialProvider } from '@/hooks/use-staff-auth'
 import {
   awaitsOnboarding,
   firstAccessKey,
@@ -18,6 +18,7 @@ export default function LoginPage() {
   const router = useRouter()
   const auth = useStaffAuth()
   const [linkEmail, setLinkEmail] = useState('')
+  const [entering, setEntering] = useState(false)
 
   useEffect(() => {
     if (!staff.user || staff.loading || staff.error) return
@@ -40,12 +41,18 @@ export default function LoginPage() {
   if (staff.user && !staff.error)
     return <AppStatus scene={loadingScene(staff.clinics, staff.loading)} />
 
-  function signIn(event: FormEvent<HTMLFormElement>) {
+  async function signIn(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     const data = new FormData(event.currentTarget)
     const email = String(data.get('email') ?? '')
     const password = String(data.get('password') ?? '')
-    void auth.signIn(email, password, data.get('rememberMe') === 'on')
+    setEntering(true)
+    const ok = await auth.signIn(email, password, data.get('rememberMe') === 'on')
+    if (!ok) setEntering(false)
+  }
+
+  async function social(kind: SocialProvider) {
+    if (await auth.social(kind)) setEntering(true)
   }
 
   function resetPassword(email: string) {
@@ -89,14 +96,18 @@ export default function LoginPage() {
   }
 
   return (
-    <SignInPage
-      heroImageSrc="/brand/login.png"
-      busy={auth.busy}
-      error={auth.error || staff.error}
-      message={auth.message}
-      onSignIn={signIn}
-      onResetPassword={resetPassword}
-      onSocial={auth.social}
-    />
+    <>
+      <SignInPage
+        heroImageSrc="/brand/login.png"
+        busy={auth.busy}
+        error={auth.error || staff.error}
+        message={auth.message}
+        onSignIn={signIn}
+        onResetPassword={resetPassword}
+        onSocial={social}
+      />
+      {/* From "Entrar" until the session exists; then the screen above takes over. */}
+      {entering && !staff.error ? <AppStatus scene="entry" /> : null}
+    </>
   )
 }

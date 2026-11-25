@@ -1969,3 +1969,17 @@
   justify-self: center;
   font-size: 14px;
 }
+
+/* Sign-up: password confirmation, checked as she types. */
+.ca-form .ca-field[data-invalid] input:not([type='checkbox']) {
+  box-shadow: 0 0 0 1.5px #e5484d;
+}
+.ca-match {
+  font-weight: 600;
+}
+.ca-match.is-wrong {
+  color: #c62a2f;
+}
+.ca-match.is-right {
+  color: #1a8f5c;
+}

@@ -7,7 +7,7 @@ import { AuthCheckbox } from './auth-checkbox'
 import './auth.css'
 import { Eye, EyeOff } from 'lucide-react'
 import type { SocialProvider } from '@/hooks/use-staff-auth'
-import { SocialButtons } from './social-buttons'
+import { OtherWays, SocialButtons, useRoomyScreen } from './social-buttons'
 
 interface SignInPageProps {
   title?: React.ReactNode
@@ -39,6 +39,11 @@ export const SignInPage: React.FC<SignInPageProps> = ({
   onSocial,
 }) => {
   const [showPassword, setShowPassword] = useState(false)
+  const roomy = useRoomyScreen()
+  const [emailOpen, setEmailOpen] = useState(false)
+  // Big desktop: Google/Apple and the e-mail form together. Otherwise one or the other.
+  const showSocial = Boolean(onSocial) && (roomy || !emailOpen)
+  const showForm = !onSocial || roomy || emailOpen
 
   return (
     <main className="auth-shell grid min-h-dvh w-full grid-cols-1 bg-[#fffafa] font-sans text-[#34101f] lg:grid-cols-[0.9fr_1.1fr]">
@@ -63,99 +68,110 @@ export const SignInPage: React.FC<SignInPageProps> = ({
             </h1>
             <p className="animate-element animate-delay-200 text-[#6d4d5c]">{description}</p>
 
-            {onSocial ? (
+            {showSocial && onSocial ? (
               <div className="animate-element animate-delay-300">
-                <SocialButtons busy={busy} onSelect={onSocial} />
+                <SocialButtons
+                  busy={busy}
+                  onSelect={onSocial}
+                  onEmail={roomy ? undefined : () => setEmailOpen(true)}
+                  error={showForm ? undefined : error}
+                />
               </div>
             ) : null}
 
-            <form className="space-y-3.5 sm:space-y-5" onSubmit={onSignIn}>
-              <div className="animate-element animate-delay-300">
-                <label htmlFor="login-email" className="text-sm font-medium text-[#573746]">
-                  E-mail
-                </label>
-                <LightInputWrapper>
-                  <input
-                    id="login-email"
-                    name="email"
-                    type="email"
-                    required
-                    autoComplete="username"
-                    placeholder="Digite seu e-mail"
-                    className="w-full rounded-2xl bg-transparent p-3.5 text-sm text-[#34101f] placeholder:text-[#a88898] outline-none sm:p-4"
-                  />
-                </LightInputWrapper>
-              </div>
-
-              <div className="animate-element animate-delay-400">
-                <label htmlFor="login-password" className="text-sm font-medium text-[#573746]">
-                  Senha
-                </label>
-                <LightInputWrapper>
-                  <div className="relative">
+            {showForm ? (
+              <form className="space-y-3.5 sm:space-y-5" onSubmit={onSignIn}>
+                <div className="animate-element animate-delay-300">
+                  <label htmlFor="login-email" className="text-sm font-medium text-[#573746]">
+                    E-mail
+                  </label>
+                  <LightInputWrapper>
                     <input
-                      id="login-password"
-                      name="password"
-                      type={showPassword ? 'text' : 'password'}
+                      id="login-email"
+                      name="email"
+                      type="email"
                       required
-                      minLength={6}
-                      autoComplete="current-password"
-                      placeholder="Digite sua senha"
-                      className="auth-password-input w-full rounded-2xl bg-transparent p-3.5 pr-12 text-sm text-[#34101f] placeholder:text-[#a88898] outline-none sm:p-4"
+                      autoComplete="username"
+                      placeholder="Digite seu e-mail"
+                      className="w-full rounded-2xl bg-transparent p-3.5 text-sm text-[#34101f] placeholder:text-[#a88898] outline-none sm:p-4"
                     />
-                    <button
-                      type="button"
-                      onClick={() => setShowPassword(!showPassword)}
-                      className="auth-password-toggle absolute inset-y-0 right-3 flex items-center justify-center"
-                      aria-label={showPassword ? 'Ocultar senha' : 'Mostrar senha'}
-                    >
-                      {showPassword ? (
-                        <EyeOff className="h-5 w-5 text-[#8a6a79] transition-colors hover:text-[#34101f]" />
-                      ) : (
-                        <Eye className="h-5 w-5 text-[#8a6a79] transition-colors hover:text-[#34101f]" />
-                      )}
-                    </button>
-                  </div>
-                </LightInputWrapper>
-              </div>
+                  </LightInputWrapper>
+                </div>
 
-              <div className="animate-element animate-delay-500 flex items-center justify-between text-sm">
-                <AuthCheckbox name="rememberMe">Manter conectada</AuthCheckbox>
-                <a
-                  href="#"
-                  onClick={(event) => {
-                    event.preventDefault()
-                    const form = event.currentTarget.closest('form')
-                    const email =
-                      form?.querySelector<HTMLInputElement>('input[name="email"]')?.value.trim() ??
-                      ''
-                    onResetPassword?.(email)
-                  }}
-                  className="font-medium text-[#c70e59] transition-colors hover:text-[#34101f] hover:underline"
+                <div className="animate-element animate-delay-400">
+                  <label htmlFor="login-password" className="text-sm font-medium text-[#573746]">
+                    Senha
+                  </label>
+                  <LightInputWrapper>
+                    <div className="relative">
+                      <input
+                        id="login-password"
+                        name="password"
+                        type={showPassword ? 'text' : 'password'}
+                        required
+                        minLength={6}
+                        autoComplete="current-password"
+                        placeholder="Digite sua senha"
+                        className="auth-password-input w-full rounded-2xl bg-transparent p-3.5 pr-12 text-sm text-[#34101f] placeholder:text-[#a88898] outline-none sm:p-4"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword(!showPassword)}
+                        className="auth-password-toggle absolute inset-y-0 right-3 flex items-center justify-center"
+                        aria-label={showPassword ? 'Ocultar senha' : 'Mostrar senha'}
+                      >
+                        {showPassword ? (
+                          <EyeOff className="h-5 w-5 text-[#8a6a79] transition-colors hover:text-[#34101f]" />
+                        ) : (
+                          <Eye className="h-5 w-5 text-[#8a6a79] transition-colors hover:text-[#34101f]" />
+                        )}
+                      </button>
+                    </div>
+                  </LightInputWrapper>
+                </div>
+
+                <div className="animate-element animate-delay-500 flex items-center justify-between text-sm">
+                  <AuthCheckbox name="rememberMe">Manter conectada</AuthCheckbox>
+                  <a
+                    href="#"
+                    onClick={(event) => {
+                      event.preventDefault()
+                      const form = event.currentTarget.closest('form')
+                      const email =
+                        form
+                          ?.querySelector<HTMLInputElement>('input[name="email"]')
+                          ?.value.trim() ?? ''
+                      onResetPassword?.(email)
+                    }}
+                    className="font-medium text-[#c70e59] transition-colors hover:text-[#34101f] hover:underline"
+                  >
+                    Esqueci a senha
+                  </a>
+                </div>
+
+                {message ? (
+                  <p className="text-sm text-[#6d4d5c]" role="status">
+                    {message}
+                  </p>
+                ) : null}
+                {error ? (
+                  <p className="text-sm text-red-600" role="alert">
+                    {error}
+                  </p>
+                ) : null}
+
+                <button
+                  type="submit"
+                  disabled={busy}
+                  className="animate-element animate-delay-600 w-full rounded-2xl bg-gradient-to-r from-[#c70e59] to-[#f23b80] py-3.5 font-semibold text-white shadow-[0_12px_28px_rgba(199,14,89,0.22)] transition hover:brightness-105 disabled:opacity-60 sm:py-4"
                 >
-                  Esqueci a senha
-                </a>
-              </div>
-
-              {message ? (
-                <p className="text-sm text-[#6d4d5c]" role="status">
-                  {message}
-                </p>
-              ) : null}
-              {error ? (
-                <p className="text-sm text-red-600" role="alert">
-                  {error}
-                </p>
-              ) : null}
-
-              <button
-                type="submit"
-                disabled={busy}
-                className="animate-element animate-delay-600 w-full rounded-2xl bg-gradient-to-r from-[#c70e59] to-[#f23b80] py-3.5 font-semibold text-white shadow-[0_12px_28px_rgba(199,14,89,0.22)] transition hover:brightness-105 disabled:opacity-60 sm:py-4"
-              >
-                {busy ? 'Aguarde…' : 'Entrar'}
-              </button>
-            </form>
+                  {busy ? 'Aguarde…' : 'Entrar'}
+                </button>
+                {onSocial && emailOpen && !roomy ? (
+                  <OtherWays onClick={() => setEmailOpen(false)} />
+                ) : null}
+              </form>
+            ) : null}
 
             <p className="animate-element animate-delay-700 mt-4 text-center text-sm text-[#6d4d5c] sm:mt-6">
               Nova por aqui?{' '}

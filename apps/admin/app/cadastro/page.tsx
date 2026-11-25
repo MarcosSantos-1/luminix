@@ -12,7 +12,7 @@ import {
 } from '@/components/auth/contact-steps'
 import SignUpPage from '@/components/auth/sign-up'
 import { useStaff, type StaffClinic } from '@/components/staff-provider'
-import { useStaffAuth } from '@/hooks/use-staff-auth'
+import { useStaffAuth, type SocialProvider } from '@/hooks/use-staff-auth'
 import { bootstrapOwnerClinic } from '@/lib/owner-clinic'
 import { awaitsOnboarding, clinicRef, staffHomePath } from '@/lib/staff-destination'
 
@@ -54,6 +54,7 @@ export default function CadastroPage() {
   const [initial, setInitial] = useState<ContactDetails | null>(null)
   const [saving, setSaving] = useState(false)
   const [problem, setProblem] = useState('')
+  const [entering, setEntering] = useState(false)
   const started = useRef<string | null>(null)
 
   // Signed in: make sure her draft space exists, then ask only what is still missing.
@@ -152,16 +153,28 @@ export default function CadastroPage() {
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     const data = new FormData(event.currentTarget)
-    await auth.signUp(String(data.get('email') ?? ''), String(data.get('password') ?? ''))
+    setEntering(true)
+    const uid = await auth.signUp(
+      String(data.get('email') ?? ''),
+      String(data.get('password') ?? ''),
+    )
+    if (!uid) setEntering(false)
+  }
+
+  async function social(kind: SocialProvider) {
+    if (await auth.social(kind)) setEntering(true)
   }
 
   return (
-    <SignUpPage
-      busy={auth.busy}
-      error={auth.error || staff.error}
-      message={auth.message}
-      onSubmit={submit}
-      onSocial={auth.social}
-    />
+    <>
+      <SignUpPage
+        busy={auth.busy}
+        error={auth.error || staff.error}
+        message={auth.message}
+        onSubmit={submit}
+        onSocial={social}
+      />
+      {entering && !staff.error ? <AppStatus scene="entry" /> : null}
+    </>
   )
 }

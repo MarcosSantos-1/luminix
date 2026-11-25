@@ -1,18 +1,24 @@
 'use client'
 
-import { useState, type ReactNode } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
+import { Mail } from 'lucide-react'
 import type { SocialProvider } from '@/hooks/use-staff-auth'
 
 /** Google and Apple, same order and marks as the client app; the e-mail form follows the divider. */
 export function SocialButtons({
   busy = false,
   onSelect,
+  onEmail,
   note,
+  error,
 }: {
   busy?: boolean
   onSelect: (kind: SocialProvider) => Promise<unknown> | void
-  /** Shown under the buttons, before the e-mail divider (e.g. the terms on sign-up). */
+  /** Given: e-mail is one more button that opens its form; absent, the form follows inline. */
+  onEmail?: () => void
+  /** Shown under the buttons (e.g. the terms on sign-up). */
   note?: ReactNode
+  error?: string
 }) {
   const [opening, setOpening] = useState<SocialProvider | null>(null)
 
@@ -46,11 +52,59 @@ export function SocialButtons({
         <AppleMark />
         {opening === 'apple' ? 'Abrindo a Apple…' : 'Continuar com Apple'}
       </button>
+      {onEmail ? (
+        <>
+          <p className="auth-social-or">
+            <span>ou</span>
+          </p>
+          <button
+            type="button"
+            className="auth-social-button is-email"
+            disabled={disabled}
+            onClick={onEmail}
+          >
+            <Mail size={20} aria-hidden />
+            Continuar com e-mail
+          </button>
+        </>
+      ) : null}
+      {error ? (
+        <p className="auth-social-error" role="alert">
+          {error}
+        </p>
+      ) : null}
       {note ? <p className="auth-social-note">{note}</p> : null}
-      <p className="auth-social-or">
-        <span>ou com e-mail</span>
-      </p>
+      {onEmail ? null : (
+        <p className="auth-social-or">
+          <span>ou com e-mail</span>
+        </p>
+      )}
     </div>
+  )
+}
+
+/**
+ * Big desktop screens (1080p and up) have room for the e-mail form next to Google/Apple; smaller
+ * ones keep it behind "Continuar com e-mail", like the client app. False until mounted.
+ */
+export function useRoomyScreen() {
+  const [roomy, setRoomy] = useState(false)
+  useEffect(() => {
+    const query = window.matchMedia('(min-width: 1280px) and (min-height: 800px)')
+    const update = () => setRoomy(query.matches)
+    update()
+    query.addEventListener('change', update)
+    return () => query.removeEventListener('change', update)
+  }, [])
+  return roomy
+}
+
+/** Back from the e-mail form to Google/Apple. */
+export function OtherWays({ onClick }: { onClick: () => void }) {
+  return (
+    <button type="button" className="auth-other-ways" onClick={onClick}>
+      Outras formas de entrar
+    </button>
   )
 }
 

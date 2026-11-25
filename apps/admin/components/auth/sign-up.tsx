@@ -7,7 +7,7 @@ import Link from 'next/link'
 import { Eye, EyeOff, Lock, Mail } from 'lucide-react'
 import { useState, type FormEvent, type ReactNode } from 'react'
 import type { SocialProvider } from '@/hooks/use-staff-auth'
-import { SocialButtons } from './social-buttons'
+import { OtherWays, SocialButtons } from './social-buttons'
 
 type SignUpPageProps = {
   busy?: boolean
@@ -57,6 +57,8 @@ export default function SignUpPage({
   const [localError, setLocalError] = useState('')
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
+  // Google and Apple first; e-mail opens its form on demand (same as the client app).
+  const [emailOpen, setEmailOpen] = useState(false)
 
   const confirmTouched = confirmPassword.length > 0
   const passwordsMatch = password === confirmPassword
@@ -95,86 +97,98 @@ export default function SignUpPage({
             </p>
           </div>
 
-          {onSocial ? (
+          {onSocial && !emailOpen ? (
             <div className="mt-5 sm:mt-7 xl:mt-9">
               <SocialButtons
                 busy={busy}
                 onSelect={onSocial}
-                note={termsWith('Ao continuar com Google ou Apple, você concorda com os')}
+                onEmail={() => setEmailOpen(true)}
+                error={error}
+                note={termsWith('Ao continuar, você concorda com os')}
               />
             </div>
           ) : null}
 
-          <form
-            className={`${onSocial ? 'mt-3 sm:mt-4' : 'mt-5 sm:mt-7 xl:mt-9'} space-y-3 sm:space-y-4 xl:space-y-5`}
-            onSubmit={handleSubmit}
-          >
-            <FieldBox
-              label="E-mail"
-              name="email"
-              type="email"
-              autoComplete="email"
-              icon={<Mail size={17} aria-hidden />}
-            />
-            <PasswordField
-              label="Senha"
-              name="password"
-              autoComplete="new-password"
-              minLength={6}
-              value={password}
-              onChange={setPassword}
-            />
-            <p className="auth-password-hint">Use pelo menos 6 caracteres.</p>
-            <div className="space-y-1.5">
+          {!onSocial || emailOpen ? (
+            <form
+              className="mt-5 space-y-3 sm:mt-7 sm:space-y-4 xl:mt-9 xl:space-y-5"
+              onSubmit={handleSubmit}
+            >
+              <FieldBox
+                label="E-mail"
+                name="email"
+                type="email"
+                autoComplete="email"
+                icon={<Mail size={17} aria-hidden />}
+              />
               <PasswordField
-                label="Confirmar senha"
-                name="confirmPassword"
+                label="Senha"
+                name="password"
                 autoComplete="new-password"
                 minLength={6}
-                value={confirmPassword}
-                onChange={setConfirmPassword}
-                invalid={confirmMismatch}
+                value={password}
+                onChange={setPassword}
               />
-              {confirmMismatch ? (
-                <p className="px-1 text-xs text-red-600" role="status">
-                  As senhas não coincidem.
+              <p className="auth-password-hint">Use pelo menos 6 caracteres.</p>
+              <div className="space-y-1.5">
+                <PasswordField
+                  label="Confirmar senha"
+                  name="confirmPassword"
+                  autoComplete="new-password"
+                  minLength={6}
+                  value={confirmPassword}
+                  onChange={setConfirmPassword}
+                  invalid={confirmMismatch}
+                />
+                {confirmMismatch ? (
+                  <p className="px-1 text-xs text-red-600" role="status">
+                    As senhas não coincidem.
+                  </p>
+                ) : null}
+                {confirmTouched && passwordsMatch ? (
+                  <p className="px-1 text-xs text-[#1a8f5c]" role="status">
+                    Senhas iguais.
+                  </p>
+                ) : null}
+              </div>
+
+              <div className="space-y-3 pt-1 text-sm leading-5 text-[#6d4d5c] sm:space-y-3.5 sm:pt-2">
+                <AuthCheckbox name="updates">
+                  Não quero receber e-mails sobre novidades do Luminix
+                </AuthCheckbox>
+                <AuthCheckbox name="terms" required>
+                  {termsText}
+                </AuthCheckbox>
+              </div>
+
+              {message ? (
+                <p className="text-sm text-[#6d4d5c]" role="status">
+                  {message}
                 </p>
               ) : null}
-              {confirmTouched && passwordsMatch ? (
-                <p className="px-1 text-xs text-[#1a8f5c]" role="status">
-                  Senhas iguais.
+              {localError || error ? (
+                <p className="text-sm text-red-600" role="alert">
+                  {localError || error}
                 </p>
               ) : null}
-            </div>
 
-            <div className="space-y-3 pt-1 text-sm leading-5 text-[#6d4d5c] sm:space-y-3.5 sm:pt-2">
-              <AuthCheckbox name="updates">
-                Não quero receber e-mails sobre novidades do Luminix
-              </AuthCheckbox>
-              <AuthCheckbox name="terms" required>
-                {termsText}
-              </AuthCheckbox>
-            </div>
-
-            {message ? (
-              <p className="text-sm text-[#6d4d5c]" role="status">
-                {message}
-              </p>
-            ) : null}
-            {localError || error ? (
-              <p className="text-sm text-red-600" role="alert">
-                {localError || error}
-              </p>
-            ) : null}
-
-            <button
-              type="submit"
-              disabled={busy || confirmMismatch}
-              className="mt-3 flex h-11 w-full items-center justify-center rounded-xl bg-gradient-to-r from-[#c70e59] to-[#f23b80] text-base font-semibold text-white shadow-[0_12px_28px_rgba(199,14,89,0.22)] transition hover:brightness-105 disabled:opacity-60 sm:mt-4 sm:h-12 sm:text-lg"
-            >
-              {busy ? 'Aguarde…' : 'Criar conta'}
-            </button>
-          </form>
+              <button
+                type="submit"
+                disabled={busy || confirmMismatch}
+                className="mt-3 flex h-11 w-full items-center justify-center rounded-xl bg-gradient-to-r from-[#c70e59] to-[#f23b80] text-base font-semibold text-white shadow-[0_12px_28px_rgba(199,14,89,0.22)] transition hover:brightness-105 disabled:opacity-60 sm:mt-4 sm:h-12 sm:text-lg"
+              >
+                {busy ? 'Aguarde…' : 'Criar conta'}
+              </button>
+              {onSocial ? (
+                <OtherWays
+                  onClick={() => {
+                    setLocalError('')
+                    setEmailOpen(false)
+                  }}
+                />
+              ) : null}
+            </form>
+          ) : null}
 
           <p className="mt-6 text-center text-sm text-[#6d4d5c] sm:mt-12">
             Já tem uma conta?{' '}

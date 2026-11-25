@@ -109,6 +109,7 @@ export function useStaffAuth() {
         if (code !== 'auth/popup-blocked') throw error
         await signInWithRedirect(auth, provider)
       }
+      return true
     })
   }
 
@@ -121,6 +122,7 @@ export function useStaffAuth() {
       const auth = getFirebaseAuth()
       await setPersistence(auth, remember ? browserLocalPersistence : browserSessionPersistence)
       await signInWithEmailAndPassword(auth, email.trim(), password)
+      return true
     })
   }
 
