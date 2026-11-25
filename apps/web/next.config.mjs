@@ -9,6 +9,8 @@ const adminOrigins = [
 const nextConfig = {
   // Shared TypeScript sources (packages/contracts) are compiled by each app.
   transpilePackages: ['@luminix/contracts'],
+  // Dev only: 127.0.0.1 opens the site with its own storage, signed out, beside a localhost session.
+  allowedDevOrigins: ['127.0.0.1'],
   async headers() {
     return [
       {

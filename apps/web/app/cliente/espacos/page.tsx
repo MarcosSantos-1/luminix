@@ -5,6 +5,7 @@ import { useCallback, useEffect, useState } from 'react'
 import {
   ArrowLeft,
   ArrowRight,
+  Bell,
   ClipboardCheck,
   ExternalLink,
   FilePlus2,
@@ -18,6 +19,7 @@ import {
 import { levelNames, missingSteps, recordState } from '@luminix/contracts/anamnesis'
 import {
   linkSpace,
+  refreshSpace,
   setActiveSpace,
   signOut,
   takePendingSpace,
@@ -83,6 +85,18 @@ export default function SpacesPage() {
     if (!account) router.replace('/cliente/entrar')
     else if (!hasRecord) router.replace('/cliente/anamnese')
   }, [ready, account, hasRecord, router])
+
+  // Each card says how many unread notices its space has: fetch the spaces not loaded yet.
+  const unloaded = account
+    ? Object.values(account.spaces)
+        .filter((link) => !link.loaded)
+        .map((link) => link.summary.slug)
+        .join(',')
+    : ''
+  useEffect(() => {
+    if (!unloaded) return
+    for (const slug of unloaded.split(',')) void refreshSpace(slug)
+  }, [unloaded])
 
   // Arrived from a clinic site: open that space's confirmation instead of linking silently.
   useEffect(() => {
@@ -198,41 +212,62 @@ export default function SpacesPage() {
                       Number(b.summary.slug === account.activeSlug) -
                       Number(a.summary.slug === account.activeSlug),
                   )
-                  .map(({ summary }, index) => (
-                    <li
-                      key={summary.slug}
-                      data-theme={summary.theme}
-                      style={{ '--i': index } as React.CSSProperties}
-                    >
-                      <button
-                        type="button"
-                        className="ca-space-card"
-                        onClick={() => open(summary.slug)}
+                  .map(({ summary, notices }, index) => {
+                    const unread = notices.filter((item) => !item.read).length
+                    return (
+                      <li
+                        key={summary.slug}
+                        data-theme={summary.theme}
+                        style={{ '--i': index } as React.CSSProperties}
                       >
-                        <Lines />
-                        <SpaceLogo space={summary} size={linked.length === 1 ? 84 : 60} />
-                        <span className="ca-space-card-text">
-                          <strong>{summary.name}</strong>
-                          {summary.city || summary.category ? (
-                            <small>
-                              {[summary.category, summary.city].filter(Boolean).join(' · ')}
-                            </small>
-                          ) : null}
-                        </span>
-                        <span className="ca-space-card-go">
-                          Entrar <ArrowRight size={17} aria-hidden />
-                        </span>
-                      </button>
-                      <button
-                        type="button"
-                        className="ca-space-card-remove"
-                        aria-label={`Remover ${summary.name}`}
-                        onClick={() => setRemoving(summary)}
-                      >
-                        <Trash2 size={15} aria-hidden />
-                      </button>
-                    </li>
-                  ))}
+                        <button
+                          type="button"
+                          className="ca-space-card"
+                          onClick={() => open(summary.slug)}
+                        >
+                          <Lines />
+                          <span className="ca-space-card-logo">
+                            <SpaceLogo space={summary} size={linked.length === 1 ? 84 : 60} />
+                            {unread > 0 && (
+                              <b
+                                className="ca-space-card-badge"
+                                aria-label={`${unread} ${unread === 1 ? 'aviso novo' : 'avisos novos'}`}
+                              >
+                                {unread > 9 ? '9+' : unread}
+                              </b>
+                            )}
+                          </span>
+                          <span className="ca-space-card-text">
+                            <strong>{summary.name}</strong>
+                            {summary.city || summary.category ? (
+                              <small>
+                                {[summary.category, summary.city].filter(Boolean).join(' · ')}
+                              </small>
+                            ) : null}
+                          </span>
+                          <span className="ca-space-card-foot">
+                            <span className="ca-space-card-go">
+                              Entrar <ArrowRight size={17} aria-hidden />
+                            </span>
+                            {unread > 0 && (
+                              <span className="ca-space-card-news" aria-hidden>
+                                <Bell size={15} /> {unread}{' '}
+                                {unread === 1 ? 'aviso novo' : 'avisos novos'}
+                              </span>
+                            )}
+                          </span>
+                        </button>
+                        <button
+                          type="button"
+                          className="ca-space-card-remove"
+                          aria-label={`Remover ${summary.name}`}
+                          onClick={() => setRemoving(summary)}
+                        >
+                          <Trash2 size={15} aria-hidden />
+                        </button>
+                      </li>
+                    )
+                  })}
               </ul>
               <button type="button" className="ca-add-space" onClick={() => setView('how')}>
                 <span>

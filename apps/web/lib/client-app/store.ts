@@ -6,11 +6,15 @@
 import { useSyncExternalStore } from 'react'
 import {
   EmailAuthProvider,
+  GoogleAuthProvider,
+  OAuthProvider,
   createUserWithEmailAndPassword,
   onAuthStateChanged,
   reauthenticateWithCredential,
   sendPasswordResetEmail,
   signInWithEmailAndPassword,
+  signInWithPopup,
+  signInWithRedirect,
   signOut as firebaseSignOut,
   updatePassword,
   type User,
@@ -222,6 +226,12 @@ function firebaseMessage(error: unknown) {
     return 'Escolha uma senha mais forte (pelo menos 8 caracteres).'
   if (code.includes('too-many-requests')) return 'Muitas tentativas. Aguarde alguns minutos.'
   if (code.includes('network')) return 'Sem conexão. Verifique a internet.'
+  if (code.includes('account-exists-with-different-credential'))
+    return 'Este e-mail já tem conta no Luminix. Entre com o mesmo jeito que você usou antes.'
+  if (code.includes('unauthorized-domain'))
+    return 'Entrar com Google ou Apple não funciona neste endereço. Use o e-mail.'
+  if (code.includes('operation-not-allowed'))
+    return 'Esta forma de entrar ainda está sendo ativada. Use outra por enquanto.'
   return 'Não foi possível entrar agora. Tente de novo.'
 }
 
@@ -628,6 +638,37 @@ export async function signIn(emailInput: string, password: string): Promise<stri
     await signInWithEmailAndPassword(clientAuth(), emailInput.trim().toLowerCase(), password)
     return null
   } catch (error) {
+    return firebaseMessage(error)
+  }
+}
+
+/**
+ * Google or Apple. The first time, the client profile is created from the account's name and
+ * e-mail (see `onUser`); the anamnesis comes next, as with e-mail sign-up.
+ */
+export async function signInWith(kind: 'google' | 'apple'): Promise<string | null> {
+  const provider = kind === 'google' ? new GoogleAuthProvider() : new OAuthProvider('apple.com')
+  if (provider instanceof OAuthProvider) {
+    provider.addScope('email')
+    provider.addScope('name')
+    provider.setCustomParameters({ locale: 'pt_BR' })
+  } else provider.setCustomParameters({ prompt: 'select_account' })
+  try {
+    await signInWithPopup(clientAuth(), provider)
+    return null
+  } catch (error) {
+    const code = (error as { code?: string })?.code ?? ''
+    // Closing the window is not an error.
+    if (/popup-closed-by-user|cancelled-popup-request|user-cancelled/.test(code)) return null
+    // Some phones block the window: the same page then goes to Google/Apple and comes back.
+    if (code.includes('popup-blocked')) {
+      try {
+        await signInWithRedirect(clientAuth(), provider)
+        return null
+      } catch (fallback) {
+        return firebaseMessage(fallback)
+      }
+    }
     return firebaseMessage(error)
   }
 }
