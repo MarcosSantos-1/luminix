@@ -47,10 +47,14 @@ export type Appointment = {
   canceledBySpace?: boolean
   cancelReason?: string | null
   serviceName: string
+  /** The package this visit belongs to (a combo's name is also its serviceName). */
+  packageName?: string | null
   category: string
   /** Clinic local time: 2026-11-20T14:30 */
   start: string
   durationMinutes: number
+  /** "HH:MM" when a combo pauses at the break and ends later than its work time. */
+  endsAt?: string | null
   priceCents: number
   status: AppointmentStatus
   createdAt: string

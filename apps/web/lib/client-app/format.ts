@@ -42,6 +42,11 @@ export function addDays(date: Date, amount: number) {
   return next
 }
 
+/** How long a visit takes: a combo that pauses at lunch says until when, not 6h30. */
+export function visitLength(visit: { durationMinutes: number; endsAt?: string | null }) {
+  return visit.endsAt ? `até ${visit.endsAt}` : durationLabel(visit.durationMinutes)
+}
+
 export function timeLabel(value: string) {
   return value.slice(11, 16)
 }

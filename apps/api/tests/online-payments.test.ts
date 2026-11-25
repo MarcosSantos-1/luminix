@@ -714,5 +714,10 @@ describe('pagamento do atendimento pelo app', () => {
       ),
     )
     expect(row).toEqual({ starts: '09:00', ends: '15:00' })
+    // The client's agenda shows the combo, with its own work time.
+    const listed = (await call('ana-online', 'GET', `/client/spaces/${slug}/appointments`))
+      .json()
+      .appointments.find((item: { id: string }) => item.id === booked.json().id)
+    expect(listed.package).toEqual({ name: 'Dia de spa', kind: 'combo', workMinutes: 300 })
   })
 })

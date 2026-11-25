@@ -19,6 +19,7 @@ import {
 import { useClient } from '../../../lib/client-app/store'
 import {
   durationLabel,
+  visitLength,
   firstName,
   priceLabel,
   relativeDay,
@@ -145,8 +146,7 @@ export default function HomePage() {
               <CalendarDays size={15} aria-hidden /> {relativeDay(next.start)}
             </span>
             <span>
-              <Clock size={15} aria-hidden /> {timeLabel(next.start)} ·{' '}
-              {durationLabel(next.durationMinutes)}
+              <Clock size={15} aria-hidden /> {timeLabel(next.start)} · {visitLength(next)}
             </span>
           </p>
           <div className="ca-slide-foot">
@@ -292,7 +292,7 @@ export default function HomePage() {
                     <span className="ca-list-text">
                       <strong>{item.serviceName}</strong>
                       <small>
-                        {timeLabel(item.start)} · {durationLabel(item.durationMinutes)}
+                        {timeLabel(item.start)} · {visitLength(item)}
                         {item.presenceConfirmed ? '' : ' · confirme sua presença'}
                       </small>
                     </span>

@@ -75,6 +75,7 @@ type ApiAppointment = {
   deposit?: Deposit | null
   onlinePayment?: (Omit<OnlinePayment, 'kind' | 'amountCents'> & Partial<OnlinePayment>) | null
   service: { id: string; name: string; category: string | null }
+  package?: { name: string; kind: 'sessions' | 'combo'; workMinutes: number | null } | null
   professional: { id: string; name: string } | null
 }
 type Prefs = Pick<Account, 'language' | 'notify'> & {
@@ -267,12 +268,21 @@ function toAppointment(row: ApiAppointment): Appointment {
     canceledBySpace: row.canceledBySpace === true,
     cancelReason: row.cancelReason ?? null,
     serviceId: row.service.id,
-    serviceName: row.service.name,
+    // A combo visit is the combo, not its first service.
+    serviceName: row.package?.kind === 'combo' ? row.package.name : row.service.name,
+    packageName: row.package?.name ?? null,
     category: row.service.category ?? '',
     start: `${row.start.date}T${row.start.clock}`,
     durationMinutes: Math.round(
       (new Date(row.endsAt).getTime() - new Date(row.startsAt).getTime()) / 60_000,
     ),
+    // A combo that pauses at lunch: it ends later than its work time.
+    endsAt:
+      row.package?.workMinutes &&
+      row.package.workMinutes <
+        Math.round((new Date(row.endsAt).getTime() - new Date(row.startsAt).getTime()) / 60_000)
+        ? toLocal(row.endsAt).slice(11, 16)
+        : null,
     priceCents: row.priceCents ?? 0,
     status: statusMap[row.status],
     createdAt: row.createdAt,

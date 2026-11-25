@@ -16,7 +16,7 @@ import {
   addDays,
   dateLabel,
   dayKey,
-  durationLabel,
+  visitLength,
   formatMoney,
   timeLabel,
 } from '../../../../lib/client-app/format'
@@ -271,7 +271,7 @@ export default function AgendaPage() {
                   <time>{timeLabel(item.start)}</time>
                 </span>
                 <small>
-                  {item.category} · {durationLabel(item.durationMinutes)}
+                  {item.category} · {visitLength(item)}
                 </small>
                 <span className="ca-event-tags">
                   <StatusBadge appointment={item} />
@@ -303,7 +303,7 @@ export default function AgendaPage() {
                   <span className="ca-list-text">
                     <strong>{item.serviceName}</strong>
                     <small>
-                      {timeLabel(item.start)} · {durationLabel(item.durationMinutes)}
+                      {timeLabel(item.start)} · {visitLength(item)}
                       {item.deposit?.status === 'awaiting' ? ' · falta o sinal' : ''}
                       {item.deposit?.status === 'reported' ? ' · sinal em conferência' : ''}
                       {item.onlinePayment?.status === 'awaiting' && item.onlinePayment.dueAt
@@ -339,8 +339,10 @@ export default function AgendaPage() {
                 </dd>
               </div>
               <div>
-                <dt>Duração</dt>
-                <dd>{durationLabel(open.durationMinutes)}</dd>
+                <dt>{open.endsAt ? 'Termina' : 'Duração'}</dt>
+                <dd>
+                  {open.endsAt ? `às ${open.endsAt}, com pausa no intervalo` : visitLength(open)}
+                </dd>
               </div>
               <div>
                 <dt>Onde</dt>

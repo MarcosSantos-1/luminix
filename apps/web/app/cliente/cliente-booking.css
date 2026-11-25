@@ -547,3 +547,7 @@
     flex: none;
   }
 }
+/* A sheet or a confirmation open on the page takes the screen; the notice steps aside. */
+.ca .ca-main:has(.ca-sheet-wrap, .ca-confirm) .ca-held {
+  display: none;
+}

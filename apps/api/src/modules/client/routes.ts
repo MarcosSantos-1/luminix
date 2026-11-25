@@ -459,10 +459,18 @@ export async function clientRoutes(app: FastifyInstance, dependencies: AuthDepen
                   CASE WHEN a.cancellation_origin IS NOT NULL THEN a.status_note END AS cancel_reason,
                   s.id AS service_id, s.name AS service_name, s.category AS service_category,
                   p.id AS professional_id, p.display_name AS professional_name,
-                  luminix.appointment_paid_cents(a.clinic_id, a.id) AS paid_cents
+                  luminix.appointment_paid_cents(a.clinic_id, a.id) AS paid_cents,
+                  coalesce(cp.name, sp.name) AS package_name,
+                  coalesce(cp.kind, sp.kind) AS package_kind,
+                  coalesce(cp.duration_minutes, sp.duration_minutes) AS package_minutes
              FROM luminix.appointments a
              JOIN luminix.services s ON s.clinic_id = a.clinic_id AND s.id = a.service_id
              LEFT JOIN luminix.professionals p ON p.clinic_id = a.clinic_id AND p.id = a.professional_id
+             -- The package of the visit: the client's own, or the one asked for at booking.
+             LEFT JOIN luminix.client_packages cp
+               ON cp.clinic_id = a.clinic_id AND cp.id = a.client_package_id
+             LEFT JOIN luminix.service_packages sp
+               ON sp.clinic_id = a.clinic_id AND sp.id = a.requested_package_id
             WHERE a.clinic_id = $1 AND a.clinic_client_id = $2
             ORDER BY a.starts_at DESC LIMIT 200`,
           [scope!.clinicId, scope!.clientId],
@@ -563,6 +571,14 @@ export async function clientRoutes(app: FastifyInstance, dependencies: AuthDepen
             cancelReason: row.cancel_reason ?? null,
             canceledAt: row.canceled_at ?? null,
             service: { id: row.service_id, name: row.service_name, category: row.service_category },
+            // A visit of a package: a combo shows its name; its work time may pause at lunch.
+            package: row.package_name
+              ? {
+                  name: String(row.package_name),
+                  kind: row.package_kind === 'combo' ? 'combo' : 'sessions',
+                  workMinutes: row.package_minutes == null ? null : Number(row.package_minutes),
+                }
+              : null,
             professional: row.professional_id
               ? { id: row.professional_id, name: row.professional_name }
               : null,
