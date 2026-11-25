@@ -6,6 +6,7 @@ import { appointmentLinkRoutes } from './modules/client/appointment-links.js'
 import { onlinePaymentRoutes } from './modules/payments/online-routes.js'
 import { healthRoutes } from './modules/health/routes.js'
 import { authRoutes, type AuthDependencies } from './modules/auth/routes.js'
+import { passwordResetRoutes } from './modules/auth/password-reset.js'
 import { registerTenantContext } from './shared/tenant/tenant-context.js'
 
 export async function buildApp(options: FastifyServerOptions = {}, auth?: AuthDependencies) {
@@ -25,6 +26,7 @@ export async function buildApp(options: FastifyServerOptions = {}, auth?: AuthDe
     await clientRoutes(app, auth)
     // After clientRoutes: reuses its /client/ CORS hook and preflight.
     await appointmentLinkRoutes(app, auth.database)
+    await passwordResetRoutes(app, auth)
     await onlinePaymentRoutes(app, auth)
   }
 

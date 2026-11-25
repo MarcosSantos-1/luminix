@@ -638,6 +638,14 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       async resetPassword(rawEmail) {
         const email = rawEmail.trim().toLowerCase()
         if (!isEmail(email)) return 'Digite seu e-mail para receber o link.'
+        // Luminix's own e-mail (logo, sender, the site's page); Firebase's only as fallback.
+        const response = await fetch(`${API_URL}/client/password-reset`, {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ email, area: 'cliente' }),
+        }).catch(() => null)
+        if (response?.status === 429) return 'Muitas tentativas. Aguarde um minuto.'
+        if (response?.ok) return null
         try {
           await sendPasswordResetEmail(clientAuth(), email)
         } catch (error) {

@@ -5,6 +5,7 @@
  */
 export type EmailTag =
   | 'staff_invite'
+  | 'password_reset'
   | 'clinic_welcome'
   | 'client_welcome'
   | 'appointment_confirmed'

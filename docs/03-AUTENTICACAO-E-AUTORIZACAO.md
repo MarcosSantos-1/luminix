@@ -42,6 +42,26 @@ tem opções liga/desliga por clínica em Configurações → Acessos. Lista fec
 
 Sem os passos 1–4, o convite continua funcionando pelo e-mail padrão do Firebase.
 
+### "Esqueci a senha" com e-mail próprio (2026-11-25)
+
+Admin, site e app chamam `POST /client/password-reset` (`{ email, area: 'gestao' | 'cliente' }`,
+público, 10/min por IP e 3/min por endereço). A API gera o `oobCode` com o Firebase Admin e envia
+pelo Resend o e-mail `password_reset` (logo, remetente `acesso@luminix.beauty`). O link abre as
+páginas próprias `app.luminix.beauty/nova-senha` e `luminix.beauty/cliente/nova-senha`, que
+validam o código, salvam a senha e já entram. A resposta é sempre 202 (não revela contas); sem
+Resend a API responde 503 e o cliente cai no `sendPasswordResetEmail` do Firebase, cujos modelos
+usam remetente "Luminix" e resposta para `suporte@luminix.beauty`.
+
+### Entrar com Apple (2026-11-25)
+
+Apple Developer (Team `9HR5B4F69K`): App ID `app.luminix.client` com Sign in with Apple; Services
+ID `app.luminix.web` (domínio `luminix-316aa.firebaseapp.com`, retorno
+`https://luminix-316aa.firebaseapp.com/__/auth/handler`); chave "Luminix Sign in with Apple"
+(Key ID `BY7P3SDQ26`, `.p8` guardado fora do Git). Firebase → Apple com esses dados. Em Services →
+Sign in with Apple for Email Communication estão `luminix.beauty` e `acesso@luminix.beauty`, para
+o relay `@privaterelay.appleid.com` aceitar nossos e-mails; exige SPF no domínio raiz
+(`TXT @ v=spf1 include:send.luminix.beauty ~all` na Hostinger).
+
 ### Convite e primeiro acesso (2026-11-19)
 
 - O login da equipe é por e-mail e senha. O link do e-mail só existe no convite (e em "Reenviar

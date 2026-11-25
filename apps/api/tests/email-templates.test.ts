@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest'
-import { staffInviteEmail } from '../src/shared/integrations/email/access-email.js'
+import {
+  passwordResetEmail,
+  staffInviteEmail,
+} from '../src/shared/integrations/email/access-email.js'
 import {
   appointmentConfirmedEmail,
   appointmentReminderEmail,
@@ -57,6 +60,15 @@ const all: [string, OutgoingEmail][] = [
   [
     'birthday',
     clientBirthdayEmail({ to: 'ana@example.com', clientName: 'Ana', offer: '15% off', ...contact }),
+  ],
+  [
+    'password reset',
+    passwordResetEmail({
+      to: 'carla@example.com',
+      name: 'Carla <Lumière>',
+      link: 'https://app.luminix.beauty/nova-senha?oobCode=abc',
+      area: 'gestao',
+    }),
   ],
 ]
 

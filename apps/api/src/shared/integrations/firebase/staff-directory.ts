@@ -17,6 +17,11 @@ export type StaffDirectory = {
     continueUrl: string,
     options?: { existingOnly?: boolean },
   ): Promise<string | null>
+  /**
+   * One-time password reset code (Firebase `oobCode`) for an existing, enabled account that has
+   * a password. Null otherwise, so the caller answers the same way for everybody.
+   */
+  passwordReset?(email: string): Promise<{ code: string; name: string } | null>
 }
 
 export function createFirebaseStaffDirectory(
@@ -63,6 +68,22 @@ export function createFirebaseStaffDirectory(
         }
       }
       return auth.generateSignInWithEmailLink(email, { url: continueUrl, handleCodeInApp: true })
+    },
+    async passwordReset(email) {
+      const auth = getAuth()
+      let user
+      try {
+        user = await auth.getUserByEmail(email)
+      } catch (error) {
+        if ((error as { code?: string }).code === 'auth/user-not-found') return null
+        throw error
+      }
+      if (user.disabled) return null
+      // Google/Apple-only accounts have no password to reset; Firebase would add one, which
+      // also works as a way back in, so it is allowed.
+      const link = await auth.generatePasswordResetLink(email)
+      const code = new URL(link).searchParams.get('oobCode')
+      return code ? { code, name: user.displayName ?? '' } : null
     },
   }
 }

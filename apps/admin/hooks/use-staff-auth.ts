@@ -159,12 +159,26 @@ export function useStaffAuth() {
     setMessage('')
     setError('')
     try {
-      try {
-        await sendPasswordResetEmail(getFirebaseAuth(), email.trim())
-      } catch {
-        /* Avoid account enumeration. */
+      // Luminix's own e-mail (logo, sender, our page); Firebase's generic one only as fallback.
+      const response = await fetch('/api/auth/password-reset', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: email.trim() }),
+        cache: 'no-store',
+        signal: AbortSignal.timeout(20_000),
+      }).catch(() => null)
+      if (response?.status === 429) {
+        setError(authMessage('auth/too-many-requests'))
+        return
       }
-      setMessage('Se houver uma conta elegível, você receberá as instruções por e-mail.')
+      if (!response?.ok) {
+        try {
+          await sendPasswordResetEmail(getFirebaseAuth(), email.trim())
+        } catch {
+          /* Avoid account enumeration. */
+        }
+      }
+      setMessage('Se houver uma conta com este e-mail, enviamos o link para criar uma nova senha.')
     } finally {
       setBusy(false)
     }

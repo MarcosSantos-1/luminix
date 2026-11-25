@@ -51,3 +51,50 @@ export function staffInviteEmail(input: {
     ].join('\n'),
   }
 }
+
+/**
+ * "Esqueci a senha": our own e-mail (logo, sender, wording) instead of Firebase's generic one.
+ * The button opens Luminix's own page, which sets the new password with the one-time code.
+ */
+export function passwordResetEmail(input: {
+  to: string
+  name: string
+  link: string
+  area: 'gestao' | 'cliente'
+}): OutgoingEmail {
+  const first = firstName(input.name, '')
+  const greeting = first ? `${escapeHtml(first)}, vamos` : 'Vamos'
+  const where = input.area === 'gestao' ? 'o painel de gestão do Luminix' : 'a sua conta Luminix'
+  return {
+    to: input.to,
+    tag: 'password_reset',
+    subject: 'Crie uma nova senha no Luminix',
+    ...renderEmail({
+      preheader: 'Recebemos um pedido para trocar a sua senha. O link vale por 1 hora.',
+      eyebrow: 'Segurança da conta',
+      title: `${greeting} criar uma nova senha`,
+      blocks: [
+        {
+          kind: 'paragraphs',
+          html: [
+            `Recebemos um pedido para trocar a senha de acesso a ${where} com este e-mail.`,
+            'Toque no botão abaixo e escolha a nova senha. Depois é só entrar normalmente.',
+          ],
+        },
+      ],
+      button: { label: 'Criar nova senha', href: input.link },
+      linkFallback: true,
+      footnote:
+        'O link vale por 1 hora e só funciona uma vez. Se não foi você que pediu, ignore este e-mail: a sua senha atual continua valendo e ninguém entra na sua conta sem ela.',
+    }),
+    text: [
+      first ? `${first}, vamos criar uma nova senha.` : 'Vamos criar uma nova senha.',
+      '',
+      `Recebemos um pedido para trocar a senha de acesso a ${where} com este e-mail.`,
+      'Crie a nova senha pelo link abaixo:',
+      input.link,
+      '',
+      'O link vale por 1 hora e só funciona uma vez. Se não foi você que pediu, ignore este e-mail.',
+    ].join('\n'),
+  }
+}
