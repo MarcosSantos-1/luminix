@@ -11,6 +11,19 @@ const nextConfig = {
   transpilePackages: ['@luminix/contracts'],
   // Dev only: 127.0.0.1 opens the site with its own storage, signed out, beside a localhost session.
   allowedDevOrigins: ['127.0.0.1'],
+  // Google/Apple sign-in served from our own domain (see lib/client-app/firebase.ts, authDomain).
+  async rewrites() {
+    return [
+      {
+        source: '/__/auth/:path*',
+        destination: 'https://luminix-316aa.firebaseapp.com/__/auth/:path*',
+      },
+      {
+        source: '/__/firebase/:path*',
+        destination: 'https://luminix-316aa.firebaseapp.com/__/firebase/:path*',
+      },
+    ]
+  },
   async headers() {
     return [
       {

@@ -5,6 +5,19 @@ const nextConfig = {
   images: {
     unoptimized: true,
   },
+  // Google/Apple sign-in served from our own domain (see lib/firebase.ts, authDomain).
+  async rewrites() {
+    return [
+      {
+        source: '/__/auth/:path*',
+        destination: 'https://luminix-316aa.firebaseapp.com/__/auth/:path*',
+      },
+      {
+        source: '/__/firebase/:path*',
+        destination: 'https://luminix-316aa.firebaseapp.com/__/firebase/:path*',
+      },
+    ]
+  },
   async redirects() {
     return [
       { source: '/clinics', destination: '/c', permanent: false },
