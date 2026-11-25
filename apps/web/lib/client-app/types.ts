@@ -173,6 +173,8 @@ export type SpacePackage = {
   sessions: number
   priceCents: number
   validityDays: number | null
+  /** One visit of a combo (all its services together); null: each service's own. */
+  durationMinutes?: number | null
   /** The same sessions one by one, when cheaper in the package. */
   singleCents: number | null
   items: { serviceId: string; name: string; sessions: number }[]

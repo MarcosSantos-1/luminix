@@ -9,10 +9,14 @@ import {
   ArrowRight,
   CalendarClock,
   Check,
+  Clock,
   CreditCard,
+  Gift,
+  Layers,
   QrCode,
   Search,
   ShieldCheck,
+  Tag,
   Store,
   Users,
   Wallet,
@@ -38,6 +42,7 @@ import type {
   Availability,
   Payment,
   Deposit,
+  SpacePackage,
   SpacePackages,
 } from '../../../../lib/client-app/types'
 import { useClinic } from '../../../../components/client-app/use-clinic'
@@ -85,6 +90,9 @@ export default function BookingPage() {
     pack: string | null
   } | null>(null)
   const [packages, setPackages] = useState<SpacePackages | null>(null)
+  // undefined: whatever the link says (?pacote=); null: a plain service was picked.
+  const [packChoice, setPackChoice] = useState<string | null | undefined>(undefined)
+  const [filter, setFilter] = useState<'all' | 'packages' | 'promo' | string>('all')
   const [serviceId, setServiceId] = useState<string | null>(null)
   const [professional, setProfessional] = useState<string | null>(null)
   const [chosenDay, setDay] = useState(() => dayKey(new Date()))
@@ -119,9 +127,9 @@ export default function BookingPage() {
   }, [])
 
   const slug = space?.summary.slug ?? null
-  // Booking the first session of a package (ADR-044).
+  // Packages are booked as a whole: one choice, every session and service in it (ADR-044).
   useEffect(() => {
-    if (!slug || !params?.pack) return
+    if (!slug) return
     let active = true
     void loadPackages(slug).then((data) => {
       if (active) setPackages(data)
@@ -129,12 +137,13 @@ export default function BookingPage() {
     return () => {
       active = false
     }
-  }, [slug, params?.pack])
-  const pack = params?.pack
-    ? (packages?.packages.find((item) => item.id === params.pack) ?? null)
-    : null
+  }, [slug])
+  const packId = packChoice === undefined ? (params?.pack ?? null) : packChoice
+  const pack = packId ? (packages?.packages.find((item) => item.id === packId) ?? null) : null
   const moving = space?.appointments.find((item) => item.id === params?.move) ?? null
-  const chosenId = serviceId ?? moving?.serviceId ?? params?.service ?? null
+  // A package opens its visit with its first service.
+  const chosenId =
+    serviceId ?? moving?.serviceId ?? pack?.items[0]?.serviceId ?? params?.service ?? null
   const allServices = useMemo(() => clinic?.services ?? [], [clinic])
   const bookableServices = useMemo(
     () =>
@@ -143,36 +152,59 @@ export default function BookingPage() {
       ),
     [allServices],
   )
-  const found = useMemo(() => {
-    const term = fold(query.trim())
-    // With a package, only its services open a session.
-    const pool = pack
-      ? bookableServices.filter((item) => pack.items.some((part) => part.serviceId === item.id))
-      : bookableServices
-    return term
-      ? pool.filter((item) =>
-          fold(`${item.name} ${item.category} ${item.description ?? ''}`).includes(term),
-        )
-      : pool
-  }, [bookableServices, query, pack])
+  const term = fold(query.trim())
+  const found = useMemo(
+    () =>
+      filter === 'packages'
+        ? []
+        : bookableServices.filter(
+            (item) =>
+              (filter === 'all' ||
+                (filter === 'promo' ? Boolean(item.promoPercent) : item.category === filter)) &&
+              (!term ||
+                fold(`${item.name} ${item.category} ${item.description ?? ''}`).includes(term)),
+          ),
+    [bookableServices, term, filter],
+  )
+  const foundPackages = useMemo(
+    () =>
+      filter === 'all' || filter === 'packages'
+        ? (packages?.packages ?? []).filter(
+            (item) =>
+              // Every service of the package must still be bookable.
+              item.items.every((part) => bookableServices.some((s) => s.id === part.serviceId)) &&
+              (!term ||
+                fold(`${item.name} ${item.items.map((part) => part.name).join(' ')}`).includes(
+                  term,
+                )),
+          )
+        : [],
+    [packages, filter, term, bookableServices],
+  )
+  const categories = useMemo(
+    () => [...new Set(bookableServices.map((item) => item.category))],
+    [bookableServices],
+  )
   const service =
     (moving ? allServices : bookableServices).find((item) => item.id === chosenId) ?? null
   const dates = (moving?.rentalDates ?? service?.rentalDates)?.filter(
     (value) => value >= dayKey(new Date()),
   )
   const day = dates?.length && !dates.includes(chosenDay) ? dates[0] : chosenDay
-  const key = slug && chosenId ? `${slug}|${chosenId}|${day}|${moving?.id ?? ''}` : null
+  const visitPack = moving ? null : (pack?.id ?? null)
+  const key =
+    slug && chosenId ? `${slug}|${chosenId}|${day}|${moving?.id ?? ''}|${visitPack ?? ''}` : null
 
   useEffect(() => {
     if (!slug || !chosenId || !key) return
     let active = true
-    void loadAvailability(slug, chosenId, day, moving?.id).then((data) => {
+    void loadAvailability(slug, chosenId, day, moving?.id, visitPack ?? undefined).then((data) => {
       if (active) setAvailability({ key, data })
     })
     return () => {
       active = false
     }
-  }, [slug, chosenId, day, moving?.id, key])
+  }, [slug, chosenId, day, moving?.id, key, visitPack])
 
   const days = useMemo(
     () => Array.from({ length: 28 }, (_, index) => addDays(new Date(), index)),
@@ -313,10 +345,20 @@ export default function BookingPage() {
           : Boolean(start)
 
   function pickService(id: string) {
+    setPackChoice(null)
     setServiceId(id)
     setProfessional(null)
     setTime(null)
     setAmount('deposit')
+    setAt('time')
+  }
+
+  /** The whole package: its first service opens the visit; the rest are the next sessions. */
+  function pickPackage(item: SpacePackage) {
+    setPackChoice(item.id)
+    setServiceId(item.items[0]?.serviceId ?? null)
+    setProfessional(null)
+    setTime(null)
     setAt('time')
   }
 
@@ -405,13 +447,13 @@ export default function BookingPage() {
             <Empty title="Nenhum serviço com datas disponíveis para agendar" />
           ) : (
             <>
-              <label className="ca-search ca-search-soft">
+              <label className="ca-search ca-search-field">
                 <Search size={18} aria-hidden />
                 <input
                   value={query}
                   onChange={(event) => setQuery(event.target.value)}
-                  placeholder="Buscar serviço"
-                  aria-label="Buscar serviço"
+                  placeholder="Buscar serviço ou pacote"
+                  aria-label="Buscar serviço ou pacote"
                 />
                 {query && (
                   <button type="button" aria-label="Limpar busca" onClick={() => setQuery('')}>
@@ -419,35 +461,120 @@ export default function BookingPage() {
                   </button>
                 )}
               </label>
+              <div className="ca-chips" role="group" aria-label="Filtrar">
+                <button
+                  type="button"
+                  aria-pressed={filter === 'all'}
+                  onClick={() => setFilter('all')}
+                >
+                  Todos
+                </button>
+                {(packages?.packages.length ?? 0) > 0 && (
+                  <button
+                    type="button"
+                    className="ca-chip-special"
+                    aria-pressed={filter === 'packages'}
+                    onClick={() => setFilter(filter === 'packages' ? 'all' : 'packages')}
+                  >
+                    <Gift size={14} aria-hidden /> Pacotes
+                  </button>
+                )}
+                {bookableServices.some((item) => item.promoPercent) && (
+                  <button
+                    type="button"
+                    className="ca-chip-promo"
+                    aria-pressed={filter === 'promo'}
+                    onClick={() => setFilter(filter === 'promo' ? 'all' : 'promo')}
+                  >
+                    <Tag size={14} aria-hidden /> Em promoção
+                  </button>
+                )}
+                {categories.length > 1 &&
+                  categories.map((name) => (
+                    <button
+                      key={name}
+                      type="button"
+                      aria-pressed={filter === name}
+                      onClick={() => setFilter(filter === name ? 'all' : name)}
+                    >
+                      {name}
+                    </button>
+                  ))}
+              </div>
               {!clinic ? (
                 <div className="ca-pick-list" aria-hidden>
                   {[0, 1, 2].map((item) => (
                     <span key={item} className="ca-skeleton ca-pick-skeleton" />
                   ))}
                 </div>
-              ) : found.length ? (
-                <ul className="ca-pick-list">
+              ) : found.length || foundPackages.length ? (
+                <ul className="ca-pick-list ca-book-list">
+                  {foundPackages.map((item) => (
+                    <li key={`pack-${item.id}`}>
+                      <button
+                        type="button"
+                        className="ca-book-pack"
+                        aria-pressed={pack?.id === item.id}
+                        onClick={() => pickPackage(item)}
+                      >
+                        <span className="ca-book-icon" aria-hidden>
+                          {item.kind === 'combo' ? <Layers size={20} /> : <Gift size={20} />}
+                        </span>
+                        <span className="ca-book-text">
+                          <small>
+                            {item.kind === 'combo' ? 'Combo' : 'Pacote'} · {item.sessions}{' '}
+                            {item.sessions === 1 ? 'sessão' : 'sessões'}
+                          </small>
+                          <strong>{item.name}</strong>
+                          <em>
+                            {item.items
+                              .map((part) =>
+                                item.kind === 'combo'
+                                  ? `${part.sessions}× ${part.name}`
+                                  : part.name,
+                              )
+                              .join(' · ')}
+                          </em>
+                        </span>
+                        <span className="ca-book-price">
+                          {item.singleCents ? <s>{formatMoney(item.singleCents)}</s> : null}
+                          <b>{formatMoney(item.priceCents)}</b>
+                          <small>
+                            {formatMoney(Math.round(item.priceCents / item.sessions))}/sessão
+                          </small>
+                        </span>
+                      </button>
+                    </li>
+                  ))}
                   {found.map((item) => (
                     <li key={item.id}>
                       <button
                         type="button"
-                        aria-pressed={item.id === chosenId}
+                        aria-pressed={!pack && item.id === chosenId}
                         onClick={() => pickService(item.id)}
                       >
-                        <span>
+                        <span className="ca-book-text">
                           <small>{item.category}</small>
                           <strong>{item.name}</strong>
-                          <em>{durationLabel(item.durationMinutes)}</em>
+                          <em>
+                            <Clock size={13} aria-hidden /> {durationLabel(item.durationMinutes)}
+                          </em>
                           <ServiceFlags service={item} policy={space.policy} />
                         </span>
-                        <b>{priceLabel(item)}</b>
+                        <span className="ca-book-price">
+                          {item.promoPriceCents != null && item.priceType !== 'quote' ? (
+                            <s>{formatMoney(item.priceCents)}</s>
+                          ) : null}
+                          <b>{priceLabel(item)}</b>
+                          {item.promoPercent ? <small>-{item.promoPercent}%</small> : null}
+                        </span>
                       </button>
                     </li>
                   ))}
                 </ul>
               ) : (
-                <Empty title="Nenhum serviço encontrado">
-                  <p>Tente outro nome.</p>
+                <Empty title="Nada encontrado">
+                  <p>Tente outro nome ou filtro.</p>
                 </Empty>
               )}
             </>
@@ -458,15 +585,28 @@ export default function BookingPage() {
       {view !== 'service' && (service || moving) && (
         <div className="ca-picked">
           <span>
-            <small>{moving ? 'Remarcando' : pack ? `Pacote · ${pack.name}` : 'Serviço'}</small>
-            <strong>{service?.name ?? moving?.serviceName}</strong>
+            <small>
+              {moving
+                ? 'Remarcando'
+                : pack
+                  ? pack.kind === 'combo'
+                    ? 'Combo'
+                    : 'Pacote'
+                  : 'Serviço'}
+            </small>
+            <strong>{pack ? pack.name : (service?.name ?? moving?.serviceName)}</strong>
             <em>
               {pack
-                ? `1ª sessão de ${pack.sessions} · `
+                ? `${pack.sessions} sessões · ${formatMoney(pack.priceCents)} · 1ª sessão agora · `
                 : service
                   ? `${priceLabel(service)} · `
                   : ''}
-              {durationLabel(service?.durationMinutes ?? moving?.durationMinutes ?? 0)}
+              {durationLabel(
+                (pack ? (pack.durationMinutes ?? current?.durationMinutes) : null) ??
+                  service?.durationMinutes ??
+                  moving?.durationMinutes ??
+                  0,
+              )}
               {moving?.professionalName ? ` · com ${moving.professionalName}` : ''}
             </em>
           </span>
@@ -736,8 +876,8 @@ export default function BookingPage() {
           </header>
           <dl className="ca-review">
             <div>
-              <dt>Serviço</dt>
-              <dd>{service?.name ?? moving?.serviceName}</dd>
+              <dt>{pack ? 'Pacote' : 'Serviço'}</dt>
+              <dd>{pack ? pack.name : (service?.name ?? moving?.serviceName)}</dd>
             </div>
             {(moving?.professionalName ?? team.find((item) => item.id === agenda)?.name) && (
               <div>
@@ -759,10 +899,10 @@ export default function BookingPage() {
             </div>
             {priced && !moving && (
               <div>
-                <dt>{pack ? 'Pacote' : 'Valor'}</dt>
+                <dt>Valor</dt>
                 <dd>
-                  {pack ? `${pack.name} · ` : ''}
                   {formatMoney(price)}
+                  {pack ? ` · ${pack.sessions} sessões` : ''}
                 </dd>
               </div>
             )}
@@ -809,7 +949,8 @@ export default function BookingPage() {
         </section>
       )}
 
-      {view !== 'review' && (
+      {/* Choosing a service already moves on; the buttons appear once there is a choice. */}
+      {view !== 'review' && (view !== 'service' || ready) && (
         <nav className="ca-wizard-nav" aria-label="Etapas">
           {position > 0 && (
             <button

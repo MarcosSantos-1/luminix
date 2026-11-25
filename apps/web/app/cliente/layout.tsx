@@ -4,6 +4,7 @@ import { ClientRoot } from '../../components/client-app/shell'
 import './cliente.css'
 import './cliente-polish.css'
 import './cliente-pages.css'
+import './cliente-booking.css'
 
 export const metadata: Metadata = {
   title: { default: 'Área do cliente', template: '%s | Luminix' },

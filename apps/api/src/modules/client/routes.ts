@@ -808,6 +808,18 @@ export async function clientRoutes(app: FastifyInstance, dependencies: AuthDepen
     }
   }
 
+  /** Length of one visit of a combo package, when it has one (null: the service's own). */
+  async function packageVisitMinutes(connection: SqlConnection, scope: Scope, packageId: string) {
+    const row = (
+      await connection.query(
+        `SELECT duration_minutes FROM luminix.service_packages
+          WHERE clinic_id = $1 AND id = $2 AND status = 'active' AND kind = 'combo'`,
+        [scope.clinicId, packageId],
+      )
+    ).rows[0]
+    return row?.duration_minutes == null ? null : Number(row.duration_minutes)
+  }
+
   /** A rented device linked to the service (its rental days open the client agenda). */
   async function hasDevice(connection: SqlConnection, scope: Scope, serviceId: string) {
     const result = await connection.query(
@@ -839,7 +851,7 @@ export async function clientRoutes(app: FastifyInstance, dependencies: AuthDepen
       asClient(request, reply, request.params.slug, async (connection, scope) => {
         const [packages, items] = await Promise.all([
           connection.query(
-            `SELECT p.id, p.name, p.kind, p.sessions, p.price_cents, p.validity_days
+            `SELECT p.id, p.name, p.kind, p.sessions, p.price_cents, p.validity_days, p.duration_minutes
                FROM luminix.service_packages p
               WHERE p.clinic_id = $1 AND p.status = 'active'
                 AND NOT EXISTS (
@@ -878,6 +890,11 @@ export async function clientRoutes(app: FastifyInstance, dependencies: AuthDepen
               sessions: Number(row.sessions),
               priceCents: Number(row.price_cents),
               validityDays: row.validity_days == null ? null : Number(row.validity_days),
+              // One visit of a combo (all its services together); null: each service's own.
+              durationMinutes:
+                row.kind === 'combo' && row.duration_minutes != null
+                  ? Number(row.duration_minutes)
+                  : null,
               singleCents: single && single > Number(row.price_cents) ? single : null,
               items: own.map((item) => ({
                 serviceId: String(item.service_id),
@@ -892,7 +909,7 @@ export async function clientRoutes(app: FastifyInstance, dependencies: AuthDepen
 
   app.get<{
     Params: { slug: string }
-    Querystring: { serviceId: string; date: string; ignore?: string }
+    Querystring: { serviceId: string; date: string; ignore?: string; packageId?: string }
   }>(
     '/client/spaces/:slug/availability',
     {
@@ -906,6 +923,7 @@ export async function clientRoutes(app: FastifyInstance, dependencies: AuthDepen
             serviceId: { type: 'string', pattern: uuid },
             date: { type: 'string', pattern: ymd },
             ignore: { type: 'string', pattern: uuid },
+            packageId: { type: 'string', pattern: uuid },
           },
         },
       },
@@ -930,7 +948,11 @@ export async function clientRoutes(app: FastifyInstance, dependencies: AuthDepen
           : null
         if (request.query.ignore && !moving)
           return reply.code(404).send({ error: 'Appointment not found' })
-        const durationMinutes = Number(moving?.duration ?? service.duration_minutes)
+        // A combo visit lasts what the package says (all its services in one visit, ADR-044).
+        const comboMinutes = request.query.packageId
+          ? await packageVisitMinutes(connection, scope!, request.query.packageId)
+          : null
+        const durationMinutes = Number(moving?.duration ?? comboMinutes ?? service.duration_minutes)
         const professionals = await professionalsFor(connection, scope!, String(service.id))
         const { slots, lastDate } = await freeSlots(
           connection,
@@ -1090,6 +1112,10 @@ export async function clientRoutes(app: FastifyInstance, dependencies: AuthDepen
           // paid only at the clinic (no in-app charge of an amount that is not known yet).
           if (request.body.paymentMethod !== 'local' && service.price_type !== 'fixed')
             return reply.code(400).send({ error: 'Pay at the clinic' })
+          const visitMinutes = Number(
+            (packageId ? await packageVisitMinutes(connection, scope!, packageId) : null) ??
+              service.duration_minutes,
+          )
           const professionals = await professionalsFor(connection, scope!, String(service.id))
           const date = request.body.localStartsAt.slice(0, 10)
           const time = request.body.localStartsAt.slice(11)
@@ -1106,7 +1132,7 @@ export async function clientRoutes(app: FastifyInstance, dependencies: AuthDepen
             connection,
             scope!,
             date,
-            Number(service.duration_minutes),
+            visitMinutes,
             candidates,
             null,
             String(service.id),
@@ -1115,7 +1141,7 @@ export async function clientRoutes(app: FastifyInstance, dependencies: AuthDepen
           const professionalId = candidates.find((id) => slots[id]?.includes(time))
           if (professionalId === undefined) return reply.code(409).send({ error: 'Slot taken' })
           const startsAt = zonedLocalToUtc(request.body.localStartsAt, timezone)
-          const endsAt = new Date(startsAt.getTime() + Number(service.duration_minutes) * 60_000)
+          const endsAt = new Date(startsAt.getTime() + visitMinutes * 60_000)
           const id = (
             await connection.query(
               'SELECT luminix.client_book_appointment($1, $2, $3, $4, $5, $6, $7) AS id',

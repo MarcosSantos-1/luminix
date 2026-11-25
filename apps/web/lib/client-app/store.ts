@@ -735,9 +735,16 @@ export async function loadAvailability(
   serviceId: string,
   date: string,
   ignore?: string,
+  /** A combo visit lasts what the package says (ADR-044). */
+  packageId?: string,
 ): Promise<Availability | null> {
   try {
-    const query = new URLSearchParams({ serviceId, date, ...(ignore ? { ignore } : {}) })
+    const query = new URLSearchParams({
+      serviceId,
+      date,
+      ...(ignore ? { ignore } : {}),
+      ...(packageId ? { packageId } : {}),
+    })
     return await api<Availability>(
       `/client/spaces/${encodeURIComponent(slug)}/availability?${query}`,
     )
