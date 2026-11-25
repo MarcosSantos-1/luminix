@@ -6,7 +6,12 @@ import { AppStatus } from '@/components/app-status'
 import { SignInPage } from '@/components/auth/sign-in'
 import { useStaff } from '@/components/staff-provider'
 import { useStaffAuth } from '@/hooks/use-staff-auth'
-import { firstAccessKey, loadingScene, staffHomePath } from '@/lib/staff-destination'
+import {
+  awaitsOnboarding,
+  firstAccessKey,
+  loadingScene,
+  staffHomePath,
+} from '@/lib/staff-destination'
 
 export default function LoginPage() {
   const staff = useStaff()
@@ -22,7 +27,14 @@ export default function LoginPage() {
     } catch {
       invited = false
     }
-    router.replace(invited ? '/primeiro-acesso' : (staffHomePath(staff.clinics) ?? '/'))
+    if (invited) {
+      router.replace('/primeiro-acesso')
+      return
+    }
+    // No space yet, or only her own draft: /cadastro asks for missing contact details first.
+    router.replace(
+      awaitsOnboarding(staff.clinics) ? '/cadastro' : (staffHomePath(staff.clinics) ?? '/'),
+    )
   }, [staff.user, staff.loading, staff.error, staff.clinics, router])
 
   if (staff.user && !staff.error)
@@ -84,6 +96,7 @@ export default function LoginPage() {
       message={auth.message}
       onSignIn={signIn}
       onResetPassword={resetPassword}
+      onSocial={auth.social}
     />
   )
 }

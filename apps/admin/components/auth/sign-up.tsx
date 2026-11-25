@@ -4,44 +4,56 @@ import Image from 'next/image'
 import { AuthCheckbox } from './auth-checkbox'
 import './auth.css'
 import Link from 'next/link'
-import { Eye, EyeOff, Lock, Mail, Phone, User } from 'lucide-react'
+import { Eye, EyeOff, Lock, Mail } from 'lucide-react'
 import { useState, type FormEvent, type ReactNode } from 'react'
-import { formatBrPhone, isCompletePhone, toE164Phone } from '@/lib/phone'
+import type { SocialProvider } from '@/hooks/use-staff-auth'
+import { SocialButtons } from './social-buttons'
 
 type SignUpPageProps = {
   busy?: boolean
   error?: string
   message?: string
   onSubmit?: (event: FormEvent<HTMLFormElement>) => void
+  onSocial?: (kind: SocialProvider) => Promise<unknown> | void
 }
 
 const fieldClass =
   'auth-field flex h-11 items-center gap-2.5 rounded-xl border border-[#f0cfdb] bg-white px-3 text-[15px] leading-none text-[#34101f] transition focus-within:border-[#ff8db7] xl:h-12 xl:gap-3 xl:px-4 xl:text-base'
 
-const termsText = (
-  <>
-    Ao criar uma conta, você concorda com os{' '}
-    <a
-      href="https://luminix.beauty/termos"
-      target="_blank"
-      rel="noopener noreferrer"
-      className="font-medium text-[#c70e59] underline underline-offset-2 hover:text-[#34101f]"
-    >
-      Termos de uso<span className="sr-only"> (abre em nova aba)</span>
-    </a>{' '}
-    e a{' '}
-    <a
-      href="https://luminix.beauty/privacidade"
-      target="_blank"
-      rel="noopener noreferrer"
-      className="font-medium text-[#c70e59] underline underline-offset-2 hover:text-[#34101f]"
-    >
-      Política de privacidade<span className="sr-only"> (abre em nova aba)</span>
-    </a>
-  </>
-)
+const termsText = termsWith('Ao criar uma conta, você concorda com os')
 
-export default function SignUpPage({ busy = false, error, message, onSubmit }: SignUpPageProps) {
+function termsWith(lead: string) {
+  return (
+    <>
+      {lead}{' '}
+      <a
+        href="https://luminix.beauty/termos"
+        target="_blank"
+        rel="noopener noreferrer"
+        className="font-medium text-[#c70e59] underline underline-offset-2 hover:text-[#34101f]"
+      >
+        Termos de uso<span className="sr-only"> (abre em nova aba)</span>
+      </a>{' '}
+      e a{' '}
+      <a
+        href="https://luminix.beauty/privacidade"
+        target="_blank"
+        rel="noopener noreferrer"
+        className="font-medium text-[#c70e59] underline underline-offset-2 hover:text-[#34101f]"
+      >
+        Política de privacidade<span className="sr-only"> (abre em nova aba)</span>
+      </a>
+    </>
+  )
+}
+
+export default function SignUpPage({
+  busy = false,
+  error,
+  message,
+  onSubmit,
+  onSocial,
+}: SignUpPageProps) {
   const [localError, setLocalError] = useState('')
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
@@ -53,12 +65,6 @@ export default function SignUpPage({ busy = false, error, message, onSubmit }: S
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     setLocalError('')
-    const data = new FormData(event.currentTarget)
-    const phone = toE164Phone(String(data.get('phone') ?? ''))
-    if (!isCompletePhone(phone)) {
-      setLocalError('Informe um celular válido com DDD.')
-      return
-    }
     if (!passwordsMatch) {
       setLocalError('As senhas não coincidem.')
       return
@@ -85,29 +91,24 @@ export default function SignUpPage({ busy = false, error, message, onSubmit }: S
               Crie uma conta
             </h1>
             <p className="mt-1.5 text-base leading-snug text-[#6d4d5c] sm:mt-2 sm:text-lg xl:text-xl">
-              Primeiro, seus dados. Depois, vamos preparar seu espaço juntas.
+              Leva menos de um minuto. Depois, vamos preparar seu espaço juntas.
             </p>
           </div>
 
+          {onSocial ? (
+            <div className="mt-5 sm:mt-7 xl:mt-9">
+              <SocialButtons
+                busy={busy}
+                onSelect={onSocial}
+                note={termsWith('Ao continuar com Google ou Apple, você concorda com os')}
+              />
+            </div>
+          ) : null}
+
           <form
-            className="mt-5 space-y-3 sm:mt-7 sm:space-y-4 xl:mt-9 xl:space-y-5"
+            className={`${onSocial ? 'mt-3 sm:mt-4' : 'mt-5 sm:mt-7 xl:mt-9'} space-y-3 sm:space-y-4 xl:space-y-5`}
             onSubmit={handleSubmit}
           >
-            <FieldBox
-              label="Nome"
-              name="firstName"
-              autoComplete="given-name"
-              icon={<User size={17} aria-hidden />}
-            />
-            <FieldBox
-              label="Celular"
-              name="phone"
-              type="tel"
-              inputMode="tel"
-              autoComplete="tel"
-              icon={<Phone size={17} aria-hidden />}
-              formatValue={(value) => formatBrPhone(value) || value}
-            />
             <FieldBox
               label="E-mail"
               name="email"

@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import {
   GoogleAuthProvider,
+  OAuthProvider,
   browserLocalPersistence,
   browserSessionPersistence,
   setPersistence,
@@ -12,15 +13,25 @@ import {
   signInWithEmailAndPassword,
   signInWithEmailLink,
   signInWithPopup,
+  signInWithRedirect,
   updateProfile,
 } from 'firebase/auth'
 import { getFirebaseAuth } from '@/lib/firebase'
 import { firstAccessKey } from '@/lib/staff-destination'
 
+export type SocialProvider = 'google' | 'apple'
+
 export function authMessage(code: string): string {
-  if (code === 'auth/popup-closed-by-user' || code === 'auth/cancelled-popup-request') return ''
+  if (
+    code === 'auth/popup-closed-by-user' ||
+    code === 'auth/cancelled-popup-request' ||
+    code === 'auth/user-cancelled'
+  )
+    return ''
   if (code === 'auth/popup-blocked')
-    return 'O navegador bloqueou a janela do Google. Permita pop-ups e tente de novo.'
+    return 'O navegador bloqueou a janela de acesso. Permita pop-ups e tente de novo.'
+  if (code === 'auth/account-exists-with-different-credential')
+    return 'Este e-mail já tem conta no Luminix. Entre do mesmo jeito que você usou antes.'
   if (code === 'auth/operation-not-allowed')
     return 'Este método de acesso ainda não está habilitado. Tente e-mail ou fale com o suporte.'
   if (code === 'auth/unauthorized-domain')
@@ -80,14 +91,29 @@ export function useStaffAuth() {
     }
   }
 
-  function google() {
+  /** Google or Apple: popup first; a blocked popup falls back to a full-page redirect. */
+  function social(kind: SocialProvider) {
     return run(async () => {
-      const provider = new GoogleAuthProvider()
-      provider.setCustomParameters({ prompt: 'select_account' })
+      const provider = kind === 'google' ? new GoogleAuthProvider() : new OAuthProvider('apple.com')
+      if (provider instanceof OAuthProvider) {
+        provider.addScope('email')
+        provider.addScope('name')
+        provider.setCustomParameters({ locale: 'pt_BR' })
+      } else provider.setCustomParameters({ prompt: 'select_account' })
       const auth = getFirebaseAuth()
       await setPersistence(auth, browserSessionPersistence)
-      await signInWithPopup(auth, provider)
+      try {
+        await signInWithPopup(auth, provider)
+      } catch (error) {
+        const code = typeof error === 'object' && error && 'code' in error ? String(error.code) : ''
+        if (code !== 'auth/popup-blocked') throw error
+        await signInWithRedirect(auth, provider)
+      }
     })
+  }
+
+  function google() {
+    return social('google')
   }
 
   function signIn(email: string, password: string, remember = false) {
@@ -148,6 +174,7 @@ export function useStaffAuth() {
     error,
     emailLink,
     google,
+    social,
     signIn,
     signUp,
     confirmEmailLink,

@@ -116,3 +116,179 @@ body:has(.auth-shell) {
 .auth-signup form + p {
   margin-top: 24px;
 }
+
+/* Google / Apple, same marks and order as the client app. */
+.auth-social {
+  display: grid;
+  gap: 10px;
+}
+.auth-social-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  width: 100%;
+  min-height: 52px;
+  padding: 0 18px;
+  border: 0;
+  border-radius: 16px;
+  font-size: 15.5px;
+  font-weight: 650;
+  cursor: pointer;
+  transition:
+    transform 0.18s ease,
+    box-shadow 0.18s ease,
+    opacity 0.18s ease;
+}
+.auth-social-button:hover:not(:disabled) {
+  transform: translateY(-1px);
+}
+.auth-social-button:disabled {
+  opacity: 0.65;
+  cursor: progress;
+}
+.auth-social-button:focus-visible {
+  outline: 3px solid #c70e59;
+  outline-offset: 2px;
+}
+.auth-social-button svg {
+  flex: none;
+}
+.auth-social-button.is-google {
+  background: #fff;
+  color: #1f1f1f;
+  box-shadow:
+    inset 0 0 0 1px #dadce0,
+    0 2px 6px rgba(23, 23, 28, 0.05);
+}
+.auth-social-button.is-apple {
+  background: #000;
+  color: #fff;
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.18);
+}
+.auth-social-or {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 4px 0 0;
+  font-size: 13px;
+  color: #8a6a79;
+}
+.auth-social-or::before,
+.auth-social-or::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: #ecd0dc;
+}
+
+/* Contact questions after the account: one question per screen, no progress marks. */
+.auth-ask {
+  display: grid;
+  gap: 18px;
+  animation: auth-ask-in 0.42s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+.auth-ask h1 {
+  margin: 0;
+  font-size: clamp(28px, 4.2vw, 42px);
+  line-height: 1.08;
+  letter-spacing: -0.04em;
+  font-weight: 600;
+  color: #34101f;
+  text-wrap: balance;
+}
+.auth-ask-hint {
+  margin: -6px 0 0;
+  font-size: 16px;
+  line-height: 1.45;
+  color: #6d4d5c;
+}
+.auth-ask-input {
+  width: 100%;
+  height: 60px;
+  padding: 0 18px;
+  border: 1px solid #d5a7b9;
+  border-radius: 16px;
+  background: #fff;
+  font-size: 19px;
+  color: #34101f;
+  outline: none;
+  transition:
+    border-color 0.18s ease,
+    box-shadow 0.18s ease;
+}
+.auth-ask-input::placeholder {
+  color: #b497a5;
+}
+.auth-ask-input:focus {
+  border-color: #ff8db7;
+  box-shadow: 0 0 0 3px #c70e591a;
+}
+.auth-ask-input[aria-invalid='true'] {
+  border-color: #f87171;
+}
+.auth-ask-actions {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+.auth-ask-next {
+  flex: 1;
+  height: 54px;
+  border: 0;
+  border-radius: 16px;
+  background: linear-gradient(90deg, #c70e59, #f23b80);
+  color: #fff;
+  font-size: 17px;
+  font-weight: 650;
+  cursor: pointer;
+  box-shadow: 0 12px 28px rgba(199, 14, 89, 0.22);
+  transition: filter 0.18s ease;
+}
+.auth-ask-next:hover:not(:disabled) {
+  filter: brightness(1.05);
+}
+.auth-ask-next:disabled {
+  opacity: 0.6;
+  cursor: progress;
+}
+.auth-ask-back {
+  min-height: 44px;
+  padding: 0 4px;
+  border: 0;
+  background: none;
+  font-size: 15px;
+  font-weight: 600;
+  color: #8a6a79;
+  cursor: pointer;
+}
+.auth-ask-back:hover {
+  color: #34101f;
+}
+.auth-ask-error {
+  margin: 0;
+  font-size: 14px;
+  color: #dc2626;
+}
+@keyframes auth-ask-in {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .auth-ask {
+    animation: none;
+  }
+}
+.auth-social-note {
+  margin: 2px 2px 0;
+  font-size: 12.5px;
+  line-height: 1.45;
+  color: #8a6a79;
+  text-align: center;
+}

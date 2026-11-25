@@ -6,6 +6,8 @@ import Link from 'next/link'
 import { AuthCheckbox } from './auth-checkbox'
 import './auth.css'
 import { Eye, EyeOff } from 'lucide-react'
+import type { SocialProvider } from '@/hooks/use-staff-auth'
+import { SocialButtons } from './social-buttons'
 
 interface SignInPageProps {
   title?: React.ReactNode
@@ -16,6 +18,7 @@ interface SignInPageProps {
   message?: string
   onSignIn?: (event: React.FormEvent<HTMLFormElement>) => void
   onResetPassword?: (email: string) => void
+  onSocial?: (kind: SocialProvider) => Promise<unknown> | void
 }
 
 const LightInputWrapper = ({ children }: { children: React.ReactNode }) => (
@@ -33,6 +36,7 @@ export const SignInPage: React.FC<SignInPageProps> = ({
   message,
   onSignIn,
   onResetPassword,
+  onSocial,
 }) => {
   const [showPassword, setShowPassword] = useState(false)
 
@@ -58,6 +62,12 @@ export const SignInPage: React.FC<SignInPageProps> = ({
               {title}
             </h1>
             <p className="animate-element animate-delay-200 text-[#6d4d5c]">{description}</p>
+
+            {onSocial ? (
+              <div className="animate-element animate-delay-300">
+                <SocialButtons busy={busy} onSelect={onSocial} />
+              </div>
+            ) : null}
 
             <form className="space-y-3.5 sm:space-y-5" onSubmit={onSignIn}>
               <div className="animate-element animate-delay-300">
