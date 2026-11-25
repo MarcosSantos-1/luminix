@@ -95,11 +95,15 @@ export async function paymentRoutes(
         const inApp = await transaction(async (connection, tenant) => {
           const row = (
             await connection.query(
-              'SELECT accept_in_app, guide_done_at FROM luminix.payment_preferences WHERE clinic_id = $1',
+              'SELECT accept_in_app, guide_done_at, package_payment_mode FROM luminix.payment_preferences WHERE clinic_id = $1',
               [tenant.clinicId],
             )
           ).rows[0]
-          return { enabled: row?.accept_in_app === true, guideDone: Boolean(row?.guide_done_at) }
+          return {
+            enabled: row?.accept_in_app === true,
+            guideDone: Boolean(row?.guide_done_at),
+            packageMode: (row?.package_payment_mode ?? 'clinic_only') as string,
+          }
         })
         return {
           status,
@@ -213,6 +217,48 @@ export async function paymentRoutes(
         if (code.statusCode === 403) return reply.code(403).send({ error: 'Clinic access denied' })
         if (code.code === '55000')
           return reply.code(409).send({ error: 'Connect account not submitted' })
+        return reply.code(503).send({ error: 'Recebimentos indisponíveis.' })
+      }
+    },
+  )
+
+  // How packages are paid (ADR-044): at the space, in the app (cash) or the client chooses.
+  app.put<{ Params: { clinicId: string }; Body: { mode: 'clinic_only' | 'in_app' | 'both' } }>(
+    '/clinics/:clinicId/payments/package-mode',
+    {
+      bodyLimit: 256,
+      schema: {
+        params,
+        body: {
+          type: 'object',
+          additionalProperties: false,
+          required: ['mode'],
+          properties: { mode: { type: 'string', enum: ['clinic_only', 'in_app', 'both'] } },
+        },
+      },
+    },
+    async (request, reply) => {
+      const identityId = await authenticate(request, reply)
+      if (!identityId) return
+      if (!pool) return reply.code(503).send({ error: 'Recebimentos indisponíveis.' })
+      try {
+        await withClinicTransaction(
+          pool,
+          identityId,
+          request.params.clinicId,
+          'settings:manage',
+          async (connection, tenant) => {
+            await connection.query('SELECT luminix.set_package_payment_mode($1::uuid, $2)', [
+              tenant.clinicId,
+              request.body.mode,
+            ])
+          },
+        )
+        return { mode: request.body.mode }
+      } catch (error) {
+        const code = error as { code?: string; statusCode?: number }
+        if (code.statusCode === 403) return reply.code(403).send({ error: 'Clinic access denied' })
+        if (code.code === '55000') return reply.code(409).send({ error: 'In-app payments off' })
         return reply.code(503).send({ error: 'Recebimentos indisponíveis.' })
       }
     },

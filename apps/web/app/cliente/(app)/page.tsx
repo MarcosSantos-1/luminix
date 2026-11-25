@@ -11,16 +11,15 @@ import {
   Clock,
   History,
   MapPin,
+  Megaphone,
   MessageCircle,
   Search,
-  Smartphone,
   Tag,
 } from 'lucide-react'
 import { useClient } from '../../../lib/client-app/store'
 import {
   durationLabel,
   firstName,
-  formatMoney,
   priceLabel,
   relativeDay,
   timeLabel,
@@ -173,45 +172,32 @@ export default function HomePage() {
         </>
       ),
     },
-    ...promos.slice(0, 3).map((service): Slide => ({
-      key: `promo-${service.id}`,
-      kind: 'promo',
-      node: (
-        <>
-          <p className="ca-slide-kicker">
-            <Tag size={14} aria-hidden /> {service.promoPercent}% de desconto
-          </p>
-          <h2>{service.name}</h2>
-          <p className="ca-slide-meta">
-            {service.promoPriceCents != null && (
-              <>
-                <s>{formatMoney(service.priceCents)}</s> {formatMoney(service.promoPriceCents)}
-              </>
-            )}
-          </p>
-          <div className="ca-slide-foot">
-            <Link href={`/cliente/agendar?servico=${service.id}`} className="ca-chip-button">
-              Aproveitar <ArrowRight size={16} aria-hidden />
-            </Link>
-          </div>
-        </>
-      ),
-    })),
-    ...(address
+    // One promotion card (ADR-044): opens the services filtered to the ones on sale.
+    ...(promos.length
       ? [
           {
-            key: 'notice',
-            kind: 'notice',
+            key: 'promo',
+            kind: 'promo',
             node: (
               <>
+                <span className="ca-promo-art" aria-hidden>
+                  <Megaphone size={64} strokeWidth={1.5} />
+                </span>
                 <p className="ca-slide-kicker">
-                  <MapPin size={14} aria-hidden /> Onde fica
+                  <Tag size={14} aria-hidden /> Promoções ativas
                 </p>
-                <h2>{space.summary.name}</h2>
-                <p className="ca-slide-meta">{address}</p>
+                <h2>
+                  {promos.length === 1
+                    ? `${promos[0].name} com ${promos[0].promoPercent}% off`
+                    : `${promos.length} serviços com desconto`}
+                </h2>
+                <p className="ca-slide-meta">
+                  Até {Math.max(...promos.map((item) => item.promoPercent ?? 0))}% de desconto por
+                  tempo limitado.
+                </p>
                 <div className="ca-slide-foot">
-                  <Link className="ca-chip-button" href="/cliente/localizacao">
-                    Ver localização <ArrowRight size={16} aria-hidden />
+                  <Link href="/cliente/servicos?promocao=1" className="ca-chip-button">
+                    Ver promoções <ArrowRight size={16} aria-hidden />
                   </Link>
                 </div>
               </>
@@ -219,22 +205,6 @@ export default function HomePage() {
           } satisfies Slide,
         ]
       : []),
-    {
-      key: 'app',
-      kind: 'app',
-      node: (
-        <>
-          <p className="ca-slide-kicker">
-            <Smartphone size={14} aria-hidden /> Luminix no celular
-          </p>
-          <h2>Deixe este espaço a um toque</h2>
-          <p className="ca-slide-meta">
-            No menu do navegador, escolha &ldquo;Adicionar à tela inicial&rdquo;. O app nas lojas
-            chega em breve.
-          </p>
-        </>
-      ),
-    },
   ]
 
   const actions = [
@@ -304,7 +274,9 @@ export default function HomePage() {
         <section className="ca-section">
           <header>
             <h2>Próximos horários</h2>
-            <Link href="/cliente/agenda">Ver agenda</Link>
+            <Link href="/cliente/agenda" className="ca-more">
+              Ver agenda <ArrowRight size={15} aria-hidden />
+            </Link>
           </header>
           {upcoming.length ? (
             <ul className="ca-list">
@@ -338,7 +310,9 @@ export default function HomePage() {
       <section className="ca-section">
         <header>
           <h2>Serviços</h2>
-          <Link href="/cliente/servicos">Ver todos</Link>
+          <Link href="/cliente/servicos" className="ca-more">
+            Ver todos <ArrowRight size={15} aria-hidden />
+          </Link>
         </header>
         <div className="ca-rail">
           {services.slice(0, 6).map((service, position) => {

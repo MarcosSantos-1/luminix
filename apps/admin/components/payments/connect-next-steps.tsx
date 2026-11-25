@@ -202,16 +202,75 @@ export function ConnectNextSteps({
  * The page once everything is set up: no sign-up talk, just the switch and the doors to
  * what the owner checks day to day (bank details, payments and refunds, payouts).
  */
+export type PackageMode = 'clinic_only' | 'in_app' | 'both'
+const packageModes: { value: PackageMode; label: string; hint: string }[] = [
+  { value: 'clinic_only', label: 'No espaço', hint: 'Combina e parcela com a equipe.' },
+  { value: 'in_app', label: 'Pelo app', hint: 'À vista, Pix ou cartão.' },
+  { value: 'both', label: 'A cliente escolhe', hint: 'App à vista ou no espaço.' },
+]
+
+/** How packages are paid when the client books one (ADR-044). */
+function PackageModePicker({
+  mode,
+  onChange,
+}: {
+  mode: PackageMode
+  onChange: (next: PackageMode) => Promise<boolean>
+}) {
+  const [current, setCurrent] = useState(mode)
+  const [busy, setBusy] = useState(false)
+  async function pick(next: PackageMode) {
+    if (next === current || busy) return
+    const previous = current
+    setBusy(true)
+    setCurrent(next)
+    if (!(await onChange(next))) setCurrent(previous)
+    else toast.success('Forma de pagamento dos pacotes salva.')
+    setBusy(false)
+  }
+  return (
+    <div className="connect-package-mode">
+      <div>
+        <strong>Pacotes agendados pelo app</strong>
+        <span>
+          Como a cliente paga um pacote ao agendar a primeira sessão. Parcelado fica sempre no
+          espaço.
+        </span>
+      </div>
+      <div className="connect-package-options" role="radiogroup" aria-label="Pagamento dos pacotes">
+        {packageModes.map(({ value, label, hint }) => (
+          <button
+            key={value}
+            type="button"
+            role="radio"
+            aria-checked={current === value}
+            disabled={busy}
+            onClick={() => void pick(value)}
+          >
+            <i aria-hidden />
+            <strong>{label}</strong>
+            <small>{hint}</small>
+          </button>
+        ))}
+      </div>
+    </div>
+  )
+}
+
 export function ConnectHub({
   enabled,
   onToggle,
   onOpen,
   disabled,
+  packageMode,
+  onPackageMode,
 }: {
   enabled: boolean
   onToggle: SaveToggle
   onOpen: (purpose: 'management' | 'payments' | 'payouts') => void
   disabled: boolean
+  packageMode: PackageMode
+  onPackageMode: (next: PackageMode) => Promise<boolean>
 }) {
   const doors = [
     {
@@ -236,6 +295,7 @@ export function ConnectHub({
   return (
     <section className="connect-hub" aria-label="Pagamento pelo app">
       <InAppSwitch enabled={enabled} onToggle={onToggle} label="Clientes pagam pelo app" />
+      <PackageModePicker mode={packageMode} onChange={onPackageMode} />
       <div className="connect-hub-doors">
         {doors.map(({ purpose, icon: Icon, title, text }) => (
           <button

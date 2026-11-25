@@ -1097,6 +1097,9 @@ export async function operationRoutes(
                           AND cp.kind = 'combo') AS combo_name,
                       ${appointmentPackage} AS package,
                       a.online_payment_status, a.online_payment_due_at, a.online_payment_kind,
+                      (SELECT sp.name FROM luminix.service_packages sp
+                        WHERE sp.clinic_id = a.clinic_id AND sp.id = a.requested_package_id
+                          AND a.client_package_id IS NULL) AS requested_package,
                       (SELECT op.refund_status FROM luminix.online_payments op
                         WHERE op.clinic_id = a.clinic_id AND op.appointment_id = a.id
                           AND op.status IN ('paid', 'paid_late')

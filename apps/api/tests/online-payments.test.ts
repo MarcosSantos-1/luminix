@@ -578,4 +578,83 @@ describe('pagamento do atendimento pelo app', () => {
       after.appointments.find((item: { id: string }) => item.id === id).presenceConfirmed,
     ).toBe(true)
   })
+
+  it('books a package: at the space by default, in the app when the space allows (ADR-044)', async () => {
+    const pkg = await asOwner(async () => {
+      const [row] = await sql(
+        `INSERT INTO luminix.service_packages (clinic_id, service_id, name, sessions, price_cents, validity_days)
+         VALUES ($1, $2, '3 limpezas', 3, 45000, 90) RETURNING id`,
+        [clinic, service],
+      )
+      await sql(
+        `INSERT INTO luminix.service_package_items (clinic_id, package_id, service_id, sessions)
+         VALUES ($1, $2, $3, 3)`,
+        [clinic, row.id, service],
+      )
+      return String(row.id)
+    })
+    const listed = (await call('ana-online', 'GET', `/client/spaces/${slug}/packages`)).json()
+    expect(listed.payment).toEqual({ clinic: true, app: false })
+    // Clinic only: paying in the app is refused, booking to pay there works.
+    const refused = await call('ana-online', 'POST', `/client/spaces/${slug}/appointments`, {
+      serviceId: service,
+      localStartsAt: `${nextWeekday()}T10:00`,
+      paymentMethod: 'pix',
+      packageId: pkg,
+    })
+    expect(refused.statusCode).toBe(409)
+    const atSpace = await call('ana-online', 'POST', `/client/spaces/${slug}/appointments`, {
+      serviceId: service,
+      localStartsAt: `${nextWeekday()}T10:00`,
+      paymentMethod: 'local',
+      packageId: pkg,
+    })
+    expect(atSpace.statusCode).toBe(201)
+    const [requested] = await asOwner(() =>
+      sql('SELECT requested_package_id FROM luminix.appointments WHERE id = $1', [
+        atSpace.json().id,
+      ]),
+    )
+    expect(String(requested.requested_package_id)).toBe(pkg)
+
+    await asOwner(() =>
+      sql(
+        "UPDATE luminix.payment_preferences SET package_payment_mode = 'both' WHERE clinic_id = $1",
+        [clinic],
+      ),
+    )
+    const paid = await call('ana-online', 'POST', `/client/spaces/${slug}/appointments`, {
+      serviceId: service,
+      localStartsAt: `${nextWeekday()}T10:00`,
+      paymentMethod: 'card',
+      packageId: pkg,
+    })
+    expect(paid.statusCode).toBe(201)
+    expect(paid.json().payment).toMatchObject({ kind: 'package', amountCents: 45000 })
+    const id = paid.json().id
+    await hook({ id: 'evt_package_1', session: `cs_test_${sessions}` })
+    const [owned] = await asOwner(() =>
+      sql(
+        `SELECT a.client_package_id, a.price_cents, cp.sessions_total, cp.price_cents AS package_price,
+                luminix.client_package_paid(a.clinic_id, cp.id) AS package_paid
+           FROM luminix.appointments a
+           JOIN luminix.client_packages cp ON cp.clinic_id = a.clinic_id AND cp.id = a.client_package_id
+          WHERE a.clinic_id = $1 AND a.id = $2`,
+        [clinic, id],
+      ),
+    )
+    expect(owned).toMatchObject({
+      price_cents: 0,
+      sessions_total: 3,
+      package_price: 45000,
+      package_paid: 45000,
+    })
+    // Canceling the first visit keeps the package: nothing is refunded.
+    const cancel = await call(
+      'ana-online',
+      'POST',
+      `/client/spaces/${slug}/appointments/${id}/cancel`,
+    )
+    expect(cancel.json()).toMatchObject({ ok: true, refunded: false })
+  })
 })

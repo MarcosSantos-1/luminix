@@ -4,6 +4,7 @@ import { Button, Popover, Spinner } from '@heroui/react'
 import {
   AlertTriangle,
   CreditCard,
+  Gift,
   ArrowLeft,
   BellRing,
   CalendarClock,
@@ -678,6 +679,21 @@ function SheetBody({
         </section>
       ) : null}
 
+      {view === 'main' && item.requestedPackage && !item.package ? (
+        <section className="sh-deposit" aria-label="Pacote pedido">
+          <span className="sh-deposit-icon" aria-hidden>
+            <Gift size={20} />
+          </span>
+          <div>
+            <strong>Primeira sessão do pacote {item.requestedPackage}</strong>
+            <small>
+              A cliente quer o pacote e vai pagar no espaço. Venda o pacote no atendimento e use
+              esta sessão nele.
+            </small>
+          </div>
+        </section>
+      ) : null}
+
       {view === 'main' &&
       item.deposit?.status === 'confirmed' &&
       !item.paid &&
@@ -721,7 +737,9 @@ function SheetBody({
                     ? 'Estorno em andamento'
                     : item.onlinePayment.kind === 'deposit'
                       ? 'Sinal pago pelo app'
-                      : 'Pago pelo app'}
+                      : item.onlinePayment.kind === 'package'
+                        ? 'Pacote pago pelo app'
+                        : 'Pago pelo app'}
             </strong>
             <small>
               {item.onlinePayment.status === 'refunded' ||

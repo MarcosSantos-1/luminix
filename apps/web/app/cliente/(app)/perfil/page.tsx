@@ -1,5 +1,6 @@
 'use client'
 
+import Image from 'next/image'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { expiresAt, levelNames } from '@luminix/contracts/anamnesis'
@@ -8,6 +9,7 @@ import {
   ArrowLeftRight,
   ExternalLink,
   MapPin,
+  Smartphone,
   Bell,
   ChevronRight,
   ClipboardList,
@@ -158,6 +160,32 @@ export default function ProfilePage() {
           <a href={`/c/${space.summary.slug}`} target="_blank" rel="noopener noreferrer">
             <ExternalLink size={16} aria-hidden /> Ver página
           </a>
+        </div>
+      </section>
+
+      <section className="ca-app-banner" aria-label="Aplicativo do Luminix">
+        <span className="ca-app-banner-icon" aria-hidden>
+          <Smartphone size={26} />
+        </span>
+        <div className="ca-app-banner-text">
+          <strong>Baixe o app do Luminix</strong>
+          <small>Seus horários, lembretes e o espaço a um toque no celular.</small>
+        </div>
+        <div className="ca-app-banner-stores">
+          <button type="button" className="ca-store" disabled>
+            <Image src="/clinic/app-store.webp" alt="" width={24} height={24} unoptimized />
+            <span>
+              <small>Em breve na</small>
+              <strong>App Store</strong>
+            </span>
+          </button>
+          <button type="button" className="ca-store" disabled>
+            <Image src="/clinic/google-play.webp" alt="" width={24} height={24} unoptimized />
+            <span>
+              <small>Em breve no</small>
+              <strong>Google Play</strong>
+            </span>
+          </button>
         </div>
       </section>
 

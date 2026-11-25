@@ -41,6 +41,8 @@ export type AppointmentView = {
   priceAgreed?: boolean
   /** Session of a client package (price 0 on the visit; the money lives in the package). */
   package?: AppointmentPackage | null
+  /** The client booked this as the first session of a package not sold yet (ADR-044). */
+  requestedPackage?: string | null
   /** Sinal por Pix do espaço (ADR-037), when the client booked a service with deposit. */
   deposit?: AppointmentDeposit | null
   /** Confirmation link (ADR-038): opened and/or answered by whoever received it. */
@@ -50,7 +52,7 @@ export type AppointmentView = {
     status: 'awaiting' | 'paid' | 'expired' | 'refunded'
     dueAt: string | null
     /** Only the deposit of the visit, or all of it (ADR-042). */
-    kind?: 'full' | 'deposit'
+    kind?: 'full' | 'deposit' | 'package'
     /** Refund of the app payment: pending, refunded or failed (retry with "Estornar"). */
     refundStatus?: 'pending' | 'refunded' | 'failed' | null
   } | null

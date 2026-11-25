@@ -18,7 +18,13 @@ import {
   Wallet,
   X,
 } from 'lucide-react'
-import { book, loadAvailability, reschedule, useClient } from '../../../../lib/client-app/store'
+import {
+  book,
+  loadAvailability,
+  loadPackages,
+  reschedule,
+  useClient,
+} from '../../../../lib/client-app/store'
 import {
   addDays,
   dateLabel,
@@ -28,7 +34,12 @@ import {
   formatMoney,
   priceLabel,
 } from '../../../../lib/client-app/format'
-import type { Availability, Payment, Deposit } from '../../../../lib/client-app/types'
+import type {
+  Availability,
+  Payment,
+  Deposit,
+  SpacePackages,
+} from '../../../../lib/client-app/types'
 import { useClinic } from '../../../../components/client-app/use-clinic'
 import {
   Avatar,
@@ -68,7 +79,12 @@ const stageTitles: Record<Stage, string> = {
 export default function BookingPage() {
   const { space } = useClient()
   const { clinic, status } = useClinic(space?.summary.slug ?? null)
-  const [params, setParams] = useState<{ service: string | null; move: string | null } | null>(null)
+  const [params, setParams] = useState<{
+    service: string | null
+    move: string | null
+    pack: string | null
+  } | null>(null)
+  const [packages, setPackages] = useState<SpacePackages | null>(null)
   const [serviceId, setServiceId] = useState<string | null>(null)
   const [professional, setProfessional] = useState<string | null>(null)
   const [chosenDay, setDay] = useState(() => dayKey(new Date()))
@@ -93,12 +109,30 @@ export default function BookingPage() {
   useEffect(() => {
     const search = new URLSearchParams(window.location.search)
     // eslint-disable-next-line react-hooks/set-state-in-effect -- one-time read of the URL after hydration
-    setParams({ service: search.get('servico'), move: search.get('remarcar') })
+    setParams({
+      service: search.get('servico'),
+      move: search.get('remarcar'),
+      pack: search.get('pacote'),
+    })
     // Coming from a chosen service ("Escolher horário"): the next step is the time.
     if (search.get('servico')) setAt('time')
   }, [])
 
   const slug = space?.summary.slug ?? null
+  // Booking the first session of a package (ADR-044).
+  useEffect(() => {
+    if (!slug || !params?.pack) return
+    let active = true
+    void loadPackages(slug).then((data) => {
+      if (active) setPackages(data)
+    })
+    return () => {
+      active = false
+    }
+  }, [slug, params?.pack])
+  const pack = params?.pack
+    ? (packages?.packages.find((item) => item.id === params.pack) ?? null)
+    : null
   const moving = space?.appointments.find((item) => item.id === params?.move) ?? null
   const chosenId = serviceId ?? moving?.serviceId ?? params?.service ?? null
   const allServices = useMemo(() => clinic?.services ?? [], [clinic])
@@ -111,12 +145,16 @@ export default function BookingPage() {
   )
   const found = useMemo(() => {
     const term = fold(query.trim())
+    // With a package, only its services open a session.
+    const pool = pack
+      ? bookableServices.filter((item) => pack.items.some((part) => part.serviceId === item.id))
+      : bookableServices
     return term
-      ? bookableServices.filter((item) =>
+      ? pool.filter((item) =>
           fold(`${item.name} ${item.category} ${item.description ?? ''}`).includes(term),
         )
-      : bookableServices
-  }, [bookableServices, query])
+      : pool
+  }, [bookableServices, query, pack])
   const service =
     (moving ? allServices : bookableServices).find((item) => item.id === chosenId) ?? null
   const dates = (moving?.rentalDates ?? service?.rentalDates)?.filter(
@@ -205,11 +243,16 @@ export default function BookingPage() {
       </div>
     )
 
-  const priced = Boolean(service && service.priceType !== 'quote' && effectivePrice(service) > 0)
-  const price = service && priced ? effectivePrice(service) : 0
+  const priced =
+    Boolean(pack) ||
+    Boolean(service && service.priceType !== 'quote' && effectivePrice(service) > 0)
+  // A package is paid as a whole: its price, not the session's.
+  const price = pack ? pack.priceCents : service && priced ? effectivePrice(service) : 0
+  const packApp = Boolean(pack && packages?.payment.app)
+  const packClinic = Boolean(pack && (packages?.payment.clinic ?? true))
   const start = time ? `${day}T${time}` : null
   // Deposit of this service (ADR-042), in the app (Stripe) or by the space's own Pix.
-  const depositRule = !moving && priced ? (current?.deposit ?? null) : null
+  const depositRule = !moving && priced && !pack ? (current?.deposit ?? null) : null
   const depositCents = service && depositRule ? depositOf(service, null, depositRule.percent) : null
   const depositOnline = Boolean(depositRule?.online)
   const depositPix = Boolean(depositRule && !depositRule.online && depositRule.pix)
@@ -217,9 +260,11 @@ export default function BookingPage() {
   const payAmount: 'deposit' | 'full' =
     depositOnline && (depositCents ?? 0) >= MIN_ONLINE && amount === 'deposit' ? 'deposit' : 'full'
   // Pix/card only when the space accepts payments in the app; otherwise it is paid there.
-  const payInApp = Boolean(priced && current?.inAppPayments && !moving)
-  // A service with a deposit in the app cannot be left for the day: Pix or card now.
-  const payMethod: Payment['method'] = depositOnline && method === 'local' ? 'pix' : method
+  const payInApp = pack ? packApp : Boolean(priced && current?.inAppPayments && !moving)
+  // A service with a deposit in the app (or a package only paid in the app) cannot be left for
+  // the day: Pix or card now.
+  const payMethod: Payment['method'] =
+    (depositOnline || (pack && !packClinic)) && method === 'local' ? 'pix' : method
   const payNow =
     payMethod === 'local'
       ? depositPix
@@ -228,12 +273,12 @@ export default function BookingPage() {
       : payAmount === 'deposit'
         ? (depositCents ?? 0)
         : price
-  const showPay = Boolean(start && (payInApp || depositPix))
+  const showPay = Boolean(start && (payInApp || depositPix || pack))
   const flow: Stage[] = [
     ...(moving ? [] : (['service'] as Stage[])),
     ...(current?.choose && !moving ? (['pro'] as Stage[]) : []),
     'time',
-    ...(payInApp || depositPix ? (['pay'] as Stage[]) : []),
+    ...(payInApp || depositPix || pack ? (['pay'] as Stage[]) : []),
     'review',
   ]
   // A step the client cannot be on yet falls back to the first one still open.
@@ -295,6 +340,7 @@ export default function BookingPage() {
       { serviceId: service.id, professionalId: agenda || null, start },
       payInApp ? payMethod : 'local',
       payAmount,
+      pack?.id ?? null,
     )
     setBusy(false)
     if (result.error) {
@@ -412,10 +458,14 @@ export default function BookingPage() {
       {view !== 'service' && (service || moving) && (
         <div className="ca-picked">
           <span>
-            <small>{moving ? 'Remarcando' : 'Serviço'}</small>
+            <small>{moving ? 'Remarcando' : pack ? `Pacote · ${pack.name}` : 'Serviço'}</small>
             <strong>{service?.name ?? moving?.serviceName}</strong>
             <em>
-              {service ? `${priceLabel(service)} · ` : ''}
+              {pack
+                ? `1ª sessão de ${pack.sessions} · `
+                : service
+                  ? `${priceLabel(service)} · `
+                  : ''}
               {durationLabel(service?.durationMinutes ?? moving?.durationMinutes ?? 0)}
               {moving?.professionalName ? ` · com ${moving.professionalName}` : ''}
             </em>
@@ -564,42 +614,63 @@ export default function BookingPage() {
           <header className="ca-step-head">
             <h2>Pagamento</h2>
             <p>
-              {depositRule
-                ? 'Este serviço pede um sinal para reservar o horário.'
-                : 'Escolha como prefere pagar.'}
+              {pack
+                ? `Pacote ${pack.name} · ${formatMoney(pack.priceCents)} por ${pack.sessions} sessões.`
+                : depositRule
+                  ? 'Este serviço pede um sinal para reservar o horário.'
+                  : 'Escolha como prefere pagar.'}
             </p>
           </header>
 
           {depositOnline && depositCents ? (
-            <div className="ca-amounts" role="radiogroup" aria-label="Quanto pagar agora">
-              {depositCents >= MIN_ONLINE && (
+            <>
+              <p className="ca-pay-divider">
+                <span>Quanto pagar agora</span>
+              </p>
+              <div className="ca-amounts" role="radiogroup" aria-label="Quanto pagar agora">
+                {depositCents >= MIN_ONLINE && (
+                  <button
+                    type="button"
+                    role="radio"
+                    aria-checked={payAmount === 'deposit'}
+                    onClick={() => setAmount('deposit')}
+                  >
+                    <i className="ca-radio" aria-hidden />
+                    <ShieldCheck size={20} aria-hidden />
+                    <span>
+                      <strong>Só o sinal</strong>
+                      <b>{formatMoney(depositCents)}</b>
+                      <small>
+                        Restante de {formatMoney(price - depositCents)} no espaço, no dia.
+                      </small>
+                    </span>
+                  </button>
+                )}
                 <button
                   type="button"
                   role="radio"
-                  aria-checked={payAmount === 'deposit'}
-                  onClick={() => setAmount('deposit')}
+                  aria-checked={payAmount === 'full'}
+                  onClick={() => setAmount('full')}
                 >
-                  <ShieldCheck size={20} aria-hidden />
+                  <i className="ca-radio" aria-hidden />
+                  <Wallet size={20} aria-hidden />
                   <span>
-                    <strong>Pagar só o sinal · {formatMoney(depositCents)}</strong>
-                    <small>
-                      O restante, {formatMoney(price - depositCents)}, você paga no espaço no dia.
-                    </small>
+                    <strong>Tudo agora</strong>
+                    <b>{formatMoney(price)}</b>
+                    <small>Nada a pagar no dia.</small>
                   </span>
                 </button>
-              )}
-              <button
-                type="button"
-                role="radio"
-                aria-checked={payAmount === 'full'}
-                onClick={() => setAmount('full')}
-              >
-                <Wallet size={20} aria-hidden />
-                <span>
-                  <strong>Pagar tudo agora · {formatMoney(price)}</strong>
-                  <small>Nada a pagar no dia.</small>
-                </span>
-              </button>
+              </div>
+            </>
+          ) : null}
+
+          {pack && !payInApp ? (
+            <div className="ca-flag-note is-strong">
+              <Store size={18} aria-hidden />
+              <span>
+                O pacote é pago no espaço, onde dá para combinar o parcelamento. Aqui você só
+                reserva a primeira sessão.
+              </span>
             </div>
           ) : null}
 
@@ -615,9 +686,16 @@ export default function BookingPage() {
           ) : null}
 
           {payInApp && (
+            <p className="ca-pay-divider">
+              <span>Forma de pagamento</span>
+            </p>
+          )}
+          {payInApp && (
             <div className="ca-methods" role="radiogroup" aria-label="Forma de pagamento">
               {methods
-                .filter(({ value }) => !(depositOnline && value === 'local'))
+                .filter(
+                  ({ value }) => !((depositOnline || (pack && !packClinic)) && value === 'local'),
+                )
                 .map(({ value, label, hint, icon: Icon }) => (
                   <button
                     key={value}
@@ -626,10 +704,17 @@ export default function BookingPage() {
                     aria-checked={payMethod === value}
                     onClick={() => setMethod(value)}
                   >
+                    <i className="ca-radio" aria-hidden />
                     <Icon size={20} aria-hidden />
                     <span>
                       <strong>{label}</strong>
-                      <small>{hint}</small>
+                      <small>
+                        {pack && value === 'local'
+                          ? 'Parcele com a equipe'
+                          : pack
+                            ? 'À vista, agora'
+                            : hint}
+                      </small>
                     </span>
                   </button>
                 ))}
@@ -674,8 +759,11 @@ export default function BookingPage() {
             </div>
             {priced && !moving && (
               <div>
-                <dt>Valor</dt>
-                <dd>{formatMoney(price)}</dd>
+                <dt>{pack ? 'Pacote' : 'Valor'}</dt>
+                <dd>
+                  {pack ? `${pack.name} · ` : ''}
+                  {formatMoney(price)}
+                </dd>
               </div>
             )}
             {priced && !moving && (

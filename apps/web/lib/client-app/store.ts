@@ -30,6 +30,7 @@ import type {
   SpaceLink,
   SpaceSummary,
   SpacePackage,
+  SpacePackages,
 } from './types'
 
 type ApiAnamnesis = unknown
@@ -196,6 +197,9 @@ const messages: Record<string, string> = {
   'Payment closed': 'O prazo para pagar este horário acabou. Agende de novo.',
   'Contact the space': 'Este horário já foi pago pelo app. Para cancelar, fale com o espaço.',
   'Deposit unavailable': 'O prazo do sinal acabou. Agende de novo ou fale com o espaço.',
+  'Package payment unavailable':
+    'Este espaço não recebe pacotes dessa forma. Escolha outra forma de pagamento.',
+  'Package unavailable': 'Este pacote não está mais disponível. Fale com o espaço.',
   'Appointment closed': 'Este horário já passou ou foi encerrado.',
   'Deposit required': 'Este serviço pede um sinal para reservar o horário. Escolha como pagar.',
 }
@@ -748,6 +752,8 @@ export async function book(
   method: Payment['method'],
   /** In the app: the whole visit or only the deposit (ADR-042). */
   payAmount: 'full' | 'deposit' = 'full',
+  /** First session of this package (ADR-044). */
+  packageId: string | null = null,
 ): Promise<{
   error: string | null
   status?: 'confirmed' | 'scheduled'
@@ -770,7 +776,7 @@ export async function book(
         localStartsAt: input.start,
         paymentMethod: method,
         // This app shows the space's Pix code when the service asks for a deposit.
-        ...(method === 'local' ? { deposit: 'pix' } : { payAmount }),
+        ...(packageId ? { packageId } : method === 'local' ? { deposit: 'pix' } : { payAmount }),
       },
     })
     await refreshSpace(slug)
@@ -816,15 +822,18 @@ export async function resumePayment(slug: string, appointmentId: string) {
   }
 }
 
-const packageCache = new Map<string, Promise<SpacePackage[] | null>>()
+const packageCache = new Map<string, Promise<SpacePackages | null>>()
 /** Packages of the space; remembered for the visit, a failure is tried again next time. */
 export function loadPackages(slug: string) {
   let pending = packageCache.get(slug)
   if (!pending) {
-    pending = api<{ packages: SpacePackage[] }>(
+    pending = api<{ packages: SpacePackage[]; payment?: SpacePackages['payment'] }>(
       `/client/spaces/${encodeURIComponent(slug)}/packages`,
     )
-      .then((data) => data.packages)
+      .then((data) => ({
+        packages: data.packages,
+        payment: data.payment ?? { clinic: true, app: false },
+      }))
       .catch(() => null)
     packageCache.set(slug, pending)
     void pending.then((value) => {

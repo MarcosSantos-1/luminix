@@ -77,7 +77,8 @@ type Row = {
   online_payment_status?: 'awaiting' | 'paid' | 'expired' | 'refunded' | null
   online_refund_status?: 'pending' | 'refunded' | 'failed' | null
   online_payment_due_at?: string | null
-  online_payment_kind?: 'full' | 'deposit' | null
+  online_payment_kind?: 'full' | 'deposit' | 'package' | null
+  requested_package?: string | null
   status_note?: string | null
   client_photo_large_url?: string | null
   account_photo?: boolean
@@ -181,6 +182,7 @@ function toView(row: Row): AppointmentView {
     photoLargeUrl: row.client_photo_large_url,
     accountPhoto: row.account_photo === true,
     package: row.package ?? null,
+    requestedPackage: row.requested_package ?? null,
     priceAgreed: Boolean(row.price_agreed_at),
     deposit:
       row.deposit_status && row.deposit_due_at

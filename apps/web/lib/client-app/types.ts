@@ -161,6 +161,10 @@ export type Availability = {
   slots: Record<string, string[]>
 }
 
+/** Where a package can be paid right now (ADR-044). */
+export type PackagePayment = { clinic: boolean; app: boolean }
+export type SpacePackages = { payment: PackagePayment; packages: SpacePackage[] }
+
 /** A package the space sells (sessions of one service, or a combo). Sold by the team. */
 export type SpacePackage = {
   id: string

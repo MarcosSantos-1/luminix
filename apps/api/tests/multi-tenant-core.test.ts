@@ -182,6 +182,7 @@ describe('versioned core migration', () => {
       { name: '0070_connect_status_and_guide.sql' },
       { name: '0071_online_deposit.sql' },
       { name: '0072_client_confirm_presence.sql' },
+      { name: '0073_book_packages.sql' },
     ])
   })
 

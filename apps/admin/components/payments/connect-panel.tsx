@@ -37,7 +37,7 @@ import { onAuthStateChanged } from 'firebase/auth'
 import { useStaff } from '@/components/staff-provider'
 import { useClinic } from '@/components/clinic-workspace'
 import { getFirebaseAuth } from '@/lib/firebase'
-import { ConnectHub, ConnectNextSteps } from './connect-next-steps'
+import { ConnectHub, ConnectNextSteps, type PackageMode } from './connect-next-steps'
 import './connect-panel.css'
 
 type Purpose = 'onboarding' | 'management' | 'payments' | 'payouts'
@@ -294,7 +294,11 @@ function ConnectContent({
   const [status, setStatus] = useState<Status | null>(null)
   const [canContinue, setCanContinue] = useState(false)
   const [notice, setNotice] = useState<Notice | null>(null)
-  const [inApp, setInApp] = useState<{ enabled: boolean; guideDone: boolean } | null>(null)
+  const [inApp, setInApp] = useState<{
+    enabled: boolean
+    guideDone: boolean
+    packageMode?: PackageMode
+  } | null>(null)
   // Test-only guidance disappears once the platform runs with real (live) keys.
   const testMode = status?.testMode !== false
   // Coming from the "Prosseguir" notice: the next steps render after the status loads.
@@ -374,7 +378,7 @@ function ConnectContent({
     ready?: boolean
     submitted?: boolean
     notice?: Notice | null
-    inApp?: { enabled: boolean; guideDone: boolean }
+    inApp?: { enabled: boolean; guideDone: boolean; packageMode?: PackageMode }
   }) {
     setStatus(body.status)
     setCanContinue(body.submitted ?? body.ready === true)
@@ -393,6 +397,24 @@ function ConnectContent({
       })
       if (!response.ok) throw new Error('save failed')
       setInApp((current) => ({ guideDone: current?.guideDone ?? false, enabled }))
+      return true
+    } catch {
+      toast.danger('Não foi possível salvar agora. Tente de novo.')
+      return false
+    }
+  }
+  async function savePackageMode(mode: PackageMode) {
+    try {
+      const response = await fetch(`/api/clinics/${clinicId}/payments/package-mode`, {
+        method: 'PUT',
+        headers: {
+          authorization: `Bearer ${await user!.getIdToken()}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ mode }),
+      })
+      if (!response.ok) throw new Error('save failed')
+      setInApp((current) => (current ? { ...current, packageMode: mode } : current))
       return true
     } catch {
       toast.danger('Não foi possível salvar agora. Tente de novo.')
@@ -1060,6 +1082,8 @@ function ConnectContent({
                 onToggle={saveInApp}
                 onOpen={(purpose) => void open(purpose)}
                 disabled={opening}
+                packageMode={inApp.packageMode ?? 'clinic_only'}
+                onPackageMode={savePackageMode}
               />
             ) : null}
             {hub && inApp && (!inApp.guideDone || guideOpen) ? (

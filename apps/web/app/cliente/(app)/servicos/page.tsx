@@ -23,7 +23,7 @@ import {
   formatMoney,
   priceLabel,
 } from '../../../../lib/client-app/format'
-import type { SpacePackage } from '../../../../lib/client-app/types'
+import type { PackagePayment, SpacePackage } from '../../../../lib/client-app/types'
 import {
   clinicServicePhotos,
   whatsappLink,
@@ -103,7 +103,11 @@ export default function ServicesPage() {
   const { space } = useClient()
   const slug = space?.summary.slug ?? null
   const { clinic, status } = useClinic(slug)
-  const [packages, setPackages] = useState<{ slug: string; list: SpacePackage[] } | null>(null)
+  const [packages, setPackages] = useState<{
+    slug: string
+    list: SpacePackage[]
+    payment: PackagePayment
+  } | null>(null)
   const [query, setQuery] = useState('')
   const [category, setCategory] = useState('')
   const [sort, setSort] = useState<Sort>('relevance')
@@ -119,13 +123,20 @@ export default function ServicesPage() {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- one-time read of the URL after hydration
     if (initial) setQuery(initial)
     if (search.has('pacotes')) setCategory(PACKAGES)
+    // The promotion card on the home lands here filtered.
+    if (search.has('promocao')) setOnlyPromo(true)
   }, [])
 
   useEffect(() => {
     if (!slug) return
     let active = true
     void loadPackages(slug).then((list) => {
-      if (active) setPackages({ slug, list: list ?? [] })
+      if (active)
+        setPackages({
+          slug,
+          list: list?.packages ?? [],
+          payment: list?.payment ?? { clinic: true, app: false },
+        })
     })
     return () => {
       active = false
@@ -215,11 +226,23 @@ export default function ServicesPage() {
         </button>
       </div>
 
-      {(categories.length > 1 || allPackages.length > 0) && (
+      {(categories.length > 1 ||
+        allPackages.length > 0 ||
+        services.some((item) => item.promoPercent)) && (
         <div className="ca-chips" role="group" aria-label="Categorias">
           <button type="button" aria-pressed={!category} onClick={() => setCategory('')}>
             Todos
           </button>
+          {services.some((item) => item.promoPercent) && (
+            <button
+              type="button"
+              className="ca-chip-promo"
+              aria-pressed={onlyPromo}
+              onClick={() => setOnlyPromo(!onlyPromo)}
+            >
+              <Tag size={14} aria-hidden /> Em promoção
+            </button>
+          )}
           {allPackages.length > 0 && (
             <button
               type="button"
@@ -481,31 +504,31 @@ export default function ServicesPage() {
             <p className="ca-flag-note is-strong">
               <Gift size={16} aria-hidden />
               <span>
-                O pacote é contratado com o espaço. Depois disso, cada sessão é agendada aqui pelo
-                app, sem pagar de novo.
+                {packages?.payment.app && packages.payment.clinic
+                  ? 'Agende a primeira sessão e pague o pacote à vista pelo app (Pix ou cartão) ou no espaço, onde dá para parcelar.'
+                  : packages?.payment.app
+                    ? 'Agende a primeira sessão e pague o pacote à vista pelo app, por Pix ou cartão.'
+                    : 'Agende a primeira sessão; o pacote é pago no espaço, onde dá para combinar o parcelamento.'}{' '}
+                As próximas sessões você agenda aqui, sem pagar de novo.
               </span>
             </p>
           </div>
+          <Link
+            className="ca-button"
+            href={`/cliente/agendar?pacote=${pack.id}${pack.items.length === 1 ? `&servico=${pack.items[0].serviceId}` : ''}`}
+          >
+            Agendar com este pacote <ArrowRight size={18} aria-hidden />
+          </Link>
           {contact ? (
             <a
-              className="ca-button"
+              className="ca-button ghost"
               href={`${contact}?text=${encodeURIComponent(`Olá! Tenho interesse no pacote "${pack.name}".`)}`}
               target="_blank"
               rel="noopener noreferrer"
             >
-              <MessageCircle size={18} aria-hidden /> Quero este pacote
+              <MessageCircle size={18} aria-hidden /> Tirar dúvidas no WhatsApp
             </a>
-          ) : (
-            <p className="ca-note">Peça este pacote à equipe no seu próximo atendimento.</p>
-          )}
-          {pack.items[0] && (
-            <Link
-              className="ca-button ghost"
-              href={`/cliente/agendar?servico=${pack.items[0].serviceId}`}
-            >
-              Agendar uma sessão avulsa
-            </Link>
-          )}
+          ) : null}
         </Sheet>
       )}
     </div>
