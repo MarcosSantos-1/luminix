@@ -310,8 +310,11 @@ export default function BookingPage() {
                 : 'Pedido enviado'}
         </h1>
         <p className="ca-lead">
-          {service?.name ?? moving?.serviceName} · {dateLabel(done.start)} às{' '}
-          {done.start.slice(11, 16)}
+          {pack && !moving ? pack.name : (service?.name ?? moving?.serviceName)} ·{' '}
+          {dateLabel(done.start)} às {done.start.slice(11, 16)}
+          {endOf(done.start.slice(11, 16))
+            ? ` até ${endOf(done.start.slice(11, 16))}, com pausa no intervalo`
+            : ''}
           {done.who ? ` com ${done.who}` : ''}.
           {!done.confirmed &&
             !moving &&

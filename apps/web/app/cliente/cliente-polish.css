@@ -200,6 +200,9 @@
 .ca-card-step {
   position: relative;
   overflow: hidden;
+  /* Clip, not a scroll box: focusing a day or time must never slide the card sideways to the
+     corner wash below. */
+  overflow: clip;
 }
 /* A faint wash of the space's color in the corner of each step. */
 .ca-card-step::before {
