@@ -33,7 +33,7 @@ export default function ReceiptsPage() {
           </Link>
           <ManagerDesignButton />
         </header>
-        <h1>Receber pelo app</h1>
+        <h1>Recebimentos pelo app</h1>
         {canManage && (
           <p className="manager-receipts-intro">
             Com o pagamento pelo app, sua cliente paga por Pix ou cartão na hora de agendar e o

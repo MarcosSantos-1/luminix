@@ -17,8 +17,12 @@ Problema:
    (ADR-042).
 5. O app nativo abre a página da Stripe no navegador; voltar ao app depende de recarregar a lista.
 6. Chaves live: rever o bloqueio `sk_test_` da ADR-016 e separar ambientes antes de dinheiro real.
+7. Conciliar o estado do estorno antes de usar dinheiro real. Hoje a resposta com ID é registrada
+   como devolvida mesmo quando a Stripe responde `pending`. Acompanhar o ciclo até `succeeded` ou
+   `failed` por eventos da conta Connect e refletir a situação no Financeiro e na área da cliente.
+   [Estados de devolução na Stripe](https://docs.stripe.com/refunds)
 
 Impacto atual: baixo (modo teste, sem clientes reais).
-Quando deve ser resolvido: 2 antes de ligar pagamento real; 1 e 3–5 depois do lançamento.
+Quando deve ser resolvido: 2, 6 e 7 antes de ligar pagamento real. Os demais seguem o roadmap.
 Prioridade: P1
 Status: aberto

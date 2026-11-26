@@ -26,6 +26,7 @@ export async function staffApiGet(
     | `/clinics/${string}/notices`
     | `/clinics/${string}/search`
     | `/clinics/${string}/payments/connect`
+    | `/clinics/${string}/payments/in-app`
     | '/auth/clinics'
     | '/address/geocode'
     | `/address/postal-code/${string}`

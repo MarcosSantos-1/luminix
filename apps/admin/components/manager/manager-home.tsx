@@ -1,6 +1,5 @@
 'use client'
 
-import Link from 'next/link'
 import { Avatar, Button, Card, Dropdown, Modal, SearchField } from '@heroui/react'
 import {
   ArrowRight,
@@ -85,7 +84,7 @@ export function ManagerHome({
   settingsTabs,
   profile,
   settings,
-  paymentsHref,
+  paymentsAction,
   media,
   panels,
   shareCode,
@@ -111,7 +110,7 @@ export function ManagerHome({
   sections?: ManagerSectionId[]
   settingsTabs?: ManagerSettingsSection[]
   profile?: ReactNode
-  paymentsHref?: string
+  paymentsAction?: ReactNode
   /**
    * Media library (Mídia); a placeholder explains it in the demo. The function form receives
    * photos picked from the mobile "+" menu, to be sent as soon as the library opens.
@@ -588,12 +587,7 @@ export function ManagerHome({
         ) : null}
         {workspace && isHome ? <NoticeCarousel go={go} /> : null}
         {section.id !== 'configuracoes' && banner}
-        {section.id === 'financeiro' && paymentsHref && (
-          <Link href={paymentsHref} className="manager-receipts-link">
-            <CreditCard size={17} aria-hidden /> Quer receber pelo app (Stripe)?{' '}
-            <ArrowRight size={15} aria-hidden />
-          </Link>
-        )}
+        {section.id === 'financeiro' && paymentsAction}
         {realPanel ? realPanel({ createSignal, navigate, focus: panelFocus, go }) : null}
         {section.id === 'inicio' && !realPanel && (
           <HomePanels

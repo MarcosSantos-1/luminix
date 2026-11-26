@@ -27,15 +27,7 @@ type Step = {
 type SaveToggle = (next: boolean) => Promise<boolean>
 
 /** "Clientes pagam pelo app" on/off, shared by the guide and the hub. */
-function InAppSwitch({
-  enabled,
-  onToggle,
-  label,
-}: {
-  enabled: boolean
-  onToggle: SaveToggle
-  label: string
-}) {
+export function InAppSwitch({ enabled, onToggle }: { enabled: boolean; onToggle: SaveToggle }) {
   const [on, setOn] = useState(enabled)
   const [busy, setBusy] = useState(false)
   async function toggle(next: boolean) {
@@ -47,18 +39,18 @@ function InAppSwitch({
       toast.success(
         next
           ? 'Pronto! Suas clientes já podem pagar pelo app.'
-          : 'Pagamento pelo app desligado. As clientes pagam no espaço.',
+          : 'Pagamento pela Stripe desligado.',
       )
     setBusy(false)
   }
   return (
     <div className={`connect-next-switch${on ? ' is-on' : ''}`}>
       <div>
-        <strong>{label}</strong>
+        <strong>Clientes pagam pelo app</strong>
         <span>
           {on
             ? 'Ligado: Pix e cartão já aparecem para as clientes ao agendar.'
-            : 'Desligado: as clientes continuam pagando no espaço.'}
+            : 'Desligado: você pode configurar o sinal por Pix do espaço.'}
         </span>
       </div>
       <Switch
@@ -84,17 +76,13 @@ function InAppSwitch({
  */
 export function ConnectNextSteps({
   clinicRef,
-  enabled,
   guideDone,
-  onToggle,
   onDone,
   onClose,
   onOpenPayouts,
 }: {
   clinicRef: string
-  enabled: boolean
   guideDone: boolean
-  onToggle: SaveToggle
   onDone: () => Promise<void>
   /** Reopened from the hub: closes it again. */
   onClose?: () => void
@@ -106,18 +94,18 @@ export function ConnectNextSteps({
     {
       icon: Smartphone,
       title: 'Como a cliente paga',
-      text: 'Ao agendar pelo site ou pelo app, ela escolhe Pix ou cartão e paga numa página segura da Stripe. O horário fica guardado por 30 minutos até o pagamento; se ela não pagar, o horário volta a ficar livre.',
+      text: 'Ao agendar pelo site ou pelo app, ela pode escolher Pix ou cartão e pagar numa página segura da Stripe. O horário fica reservado por até 35 minutos. Se ela não pagar, o horário volta a ficar livre.',
     },
     {
       icon: Tags,
       title: 'Quais serviços entram',
-      text: 'Serviços com preço fixo. "A combinar" e "a partir de" continuam pagos no espaço, porque o valor só é definido no atendimento. Pagar no local continua sempre disponível.',
+      text: 'A Stripe atende serviços de preço fixo. Se você pedir sinal para um serviço, a cliente paga o sinal ou o valor inteiro antes do atendimento.',
       action: { label: 'Conferir serviços', href: `${base}?secao=servicos` },
     },
     {
       icon: RotateCcw,
       title: 'Cancelamentos e devoluções',
-      text: 'Se a cliente cancelar dentro do seu prazo, ou se você cancelar, o valor volta inteiro para ela automaticamente. Em outros casos (uma falta, por exemplo) você decide e devolve pelo botão "Estornar" no atendimento.',
+      text: 'Quando a cliente cancela dentro do prazo ou o espaço cancela, o sistema solicita à Stripe a devolução integral. Em caso de falta, revise o combinado e use "Estornar" no atendimento quando a devolução for devida.',
     },
     {
       icon: Banknote,
@@ -140,7 +128,7 @@ export function ConnectNextSteps({
   }
 
   return (
-    <section id="proximos-passos" className="connect-next" aria-labelledby="connect-next-title">
+    <section className="connect-next" aria-labelledby="connect-next-title">
       <header>
         <span className="connect-next-icon" aria-hidden>
           <ListChecks size={20} />
@@ -151,21 +139,14 @@ export function ConnectNextSteps({
         </div>
       </header>
 
-      {guideDone ? null : (
-        <InAppSwitch enabled={enabled} onToggle={onToggle} label="1. Ligue o pagamento pelo app" />
-      )}
-
       <ol className="connect-next-list">
-        {steps.map(({ icon: Icon, title, text, action }, index) => (
+        {steps.map(({ icon: Icon, title, text, action }) => (
           <li key={title}>
             <span className="connect-next-num" aria-hidden>
               <Icon size={18} aria-hidden />
             </span>
             <div>
-              <strong>
-                {guideDone ? '' : `${index + 2}. `}
-                {title}
-              </strong>
+              <strong>{title}</strong>
               <p>{text}</p>
               {action ? (
                 action.href ? (
@@ -199,7 +180,7 @@ export function ConnectNextSteps({
 }
 
 /**
- * The page once everything is set up: no sign-up talk, just the switch and the doors to
+ * The page once everything is set up: the doors to
  * what the owner checks day to day (bank details, payments and refunds, payouts).
  */
 export type PackageMode = 'clinic_only' | 'in_app' | 'both'
@@ -258,15 +239,11 @@ function PackageModePicker({
 }
 
 export function ConnectHub({
-  enabled,
-  onToggle,
   onOpen,
   disabled,
   packageMode,
   onPackageMode,
 }: {
-  enabled: boolean
-  onToggle: SaveToggle
   onOpen: (purpose: 'management' | 'payments' | 'payouts') => void
   disabled: boolean
   packageMode: PackageMode
@@ -294,7 +271,6 @@ export function ConnectHub({
   ]
   return (
     <section className="connect-hub" aria-label="Pagamento pelo app">
-      <InAppSwitch enabled={enabled} onToggle={onToggle} label="Clientes pagam pelo app" />
       <PackageModePicker mode={packageMode} onChange={onPackageMode} />
       <div className="connect-hub-doors">
         {doors.map(({ purpose, icon: Icon, title, text }) => (

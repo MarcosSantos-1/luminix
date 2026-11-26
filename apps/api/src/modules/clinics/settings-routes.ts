@@ -135,6 +135,21 @@ export function clinicSettingsRoutes(
   )
 
   app.get<{ Params: { clinicId: string } }>(
+    '/clinics/:clinicId/payments/in-app',
+    { schema: { params } },
+    async (request, reply) => {
+      reply.header('Cache-Control', 'no-store')
+      return authorized(request, reply, 'settings:manage', async (connection, tenant) => {
+        const { rows } = await connection.query(
+          'SELECT luminix.clinic_online_ready($1) AS active',
+          [tenant.clinicId],
+        )
+        return { active: rows[0]?.active === true }
+      })
+    },
+  )
+
+  app.get<{ Params: { clinicId: string } }>(
     '/clinics/:clinicId/booking-rules',
     { schema: { params } },
     async (request, reply) =>
@@ -159,15 +174,17 @@ export function clinicSettingsRoutes(
             [tenant.clinicId],
           ),
           connection.query(
-            'SELECT accept_in_app FROM luminix.payment_preferences WHERE clinic_id = $1',
+            'SELECT accept_in_app, luminix.clinic_online_ready(clinic_id) AS ready FROM luminix.payment_preferences WHERE clinic_id = $1',
             [tenant.clinicId],
           ),
         ])
         const row = rules.rows[0]
-        if (!row) return { rules: null, services: [], acceptInApp: false }
+        const payment = payments.rows[0]
+        if (!row) return { rules: null, services: [], acceptInApp: false, onlineReady: false }
         const hours = (minutes: unknown) => (minutes == null ? null : Number(minutes) / 60)
         return {
-          acceptInApp: payments.rows[0]?.accept_in_app === true,
+          acceptInApp: payment?.accept_in_app === true,
+          onlineReady: payment?.ready === true,
           rules: {
             bookingNoticeHours: hours(row.booking_notice_minutes) ?? 1,
             bookingWindowDays:

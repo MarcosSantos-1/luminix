@@ -221,6 +221,32 @@
   transform: rotate(180deg);
 }
 
+.connect-payment-settings {
+  display: grid;
+  gap: 12px;
+  scroll-margin-top: 16px;
+}
+
+.connect-deposit {
+  scroll-margin-top: 16px;
+}
+
+.connect-deposit > summary {
+  list-style: none;
+}
+
+.connect-deposit > summary::-webkit-details-marker {
+  display: none;
+}
+
+.connect-deposit[open] > summary .connect-prep-chevron {
+  transform: rotate(180deg);
+}
+
+.connect-deposit .rules-layout {
+  grid-template-columns: minmax(0, 1fr);
+}
+
 .connect-prep.is-collapsed {
   padding-bottom: 14px;
 }

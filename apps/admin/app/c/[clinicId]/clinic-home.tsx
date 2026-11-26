@@ -20,6 +20,7 @@ import { ClientsPanel } from '@/components/manager/sections/clients-panel'
 import { AgendaPanel } from '@/components/manager/sections/agenda-panel'
 import { ClinicSettings } from '@/components/manager/sections/clinic-settings'
 import { useClinicApi } from '@/components/manager/settings/clinic-api'
+import { ReceiptsLink } from '@/components/payments/receipts-link'
 import type { SearchFocus } from '@/components/manager/workspace/workspace-signals'
 import { allowedSections, allowedSettings } from '@/lib/access'
 import { getFirebaseAuth } from '@/lib/firebase'
@@ -109,8 +110,14 @@ export function ClinicHome({
       shareCode={clinic.share_code ?? null}
       initialSection={initialSection}
       initialSettingsTab={initialSettingsTab}
-      paymentsHref={
-        canManageSettings ? `/c/${clinic.share_code || clinic.id}/recebimentos` : undefined
+      paymentsAction={
+        canManageSettings ? (
+          <ReceiptsLink
+            api={api}
+            href={`/c/${clinic.share_code || clinic.id}/recebimentos`}
+            className="manager-receipts-link"
+          />
+        ) : undefined
       }
       media={
         permissions.includes('media:read')

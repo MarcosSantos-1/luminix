@@ -55,3 +55,15 @@ valor cheio.
   serviço com sinal sem Pix do espaço (TD-012).
 - Devolução parcial (ficar com o sinal numa falta) continua manual (TD-018).
 - A assinatura e o e-commerce seguem fora desta decisão.
+
+### Configuração após o cadastro
+
+- Em **Financeiro → Recebimentos pelo app → Configurar sinais**, ou em **Configurações → Rotina →
+  Pagamentos**, a equipe com `settings:manage` acessa o mesmo editor de **Regras e combinados**.
+  O editor usa a política da clínica, aceita percentual inteiro de 1 a 100 e lista os serviços de
+  preço fixo. O valor exibido por serviço é uma estimativa. A reserva usa o preço final calculado
+  pelo servidor, com a promoção aplicável.
+- A tela deixa explícita a devolução integral dos pagamentos Stripe em cancelamentos e orienta a
+  equipe a revisar faltas e usar **Estornar** quando for devido. As preferências de devolução do
+  Pix do espaço são combinados tratados pela equipe. A janela de cancelamento pelo app não define
+  direitos legais da cliente. O site exibe a forma de devolução antes do pagamento.

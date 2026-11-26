@@ -61,6 +61,7 @@ type RulesResponse = {
   rules: Rules | null
   services: Service[]
   acceptInApp: boolean
+  onlineReady?: boolean
   pix?: Pix
 }
 
@@ -187,10 +188,13 @@ function Line({ title, hint, children }: { title: string; hint?: string; childre
 export function RulesSettings({
   clinicId,
   clinicName,
+  focusPayments = false,
+  onlineReady,
 }: {
   clinicId: string
   clinicName: string
-  paymentsHref?: string
+  focusPayments?: boolean
+  onlineReady?: boolean
 }) {
   const api = useClinicApi(clinicId)
   const resource = useClinicResource<RulesResponse>(api, 'booking-rules')
@@ -212,7 +216,8 @@ export function RulesSettings({
     <RulesEditor
       api={api}
       initial={toPayload(clinicName, data, data.rules)}
-      acceptInApp={data.acceptInApp}
+      focusPayments={focusPayments}
+      onlineReady={onlineReady ?? data.onlineReady ?? data.acceptInApp}
       initialPix={
         data.pix
           ? { ...data.pix, key: formatPixKey(data.pix.keyType, data.pix.key) }
@@ -226,13 +231,14 @@ function RulesEditor({
   api,
   initial,
   initialPix,
-  acceptInApp,
+  focusPayments,
+  onlineReady,
 }: {
   api: ClinicApi
   initial: Payload
   initialPix: Pix
-  /** Payments in the app (Stripe): the deposit is paid there, no Pix key. */
-  acceptInApp: boolean
+  focusPayments: boolean
+  onlineReady: boolean
 }) {
   const [explain, setExplain] = useState(false)
   const [payload, setPayload] = useState<Payload>(initial)
@@ -253,7 +259,9 @@ function RulesEditor({
   )
   const withDeposit = priced.filter((service) => service.depositRequired)
   const hasSpecial = payload.services.some(isSpecialService)
-  const example = withDeposit[0] ?? priced[0]
+  const example = withDeposit[0]
+  const validPercent = Number.isInteger(percent) && percent >= 1 && percent <= 100
+  const estimate = (price: number) => Math.max(1, Math.round((price * percent) / 100))
   const outcome = sinalOutcome(payload)
   const keyType = pixTypes.find((item) => item.id === pix.keyType)
 
@@ -272,11 +280,17 @@ function RulesEditor({
 
   async function save() {
     const found =
+      (depositOn && !validPercent
+        ? { field: 'depositPercent', message: 'Informe um percentual inteiro de 1 a 100.' }
+        : null) ??
+      (depositOn && !withDeposit.length
+        ? { field: 'depositServices', message: 'Escolha ao menos um serviço com preço fixo.' }
+        : null) ??
       depositProblem(payload) ??
-      (depositOn && !acceptInApp && (!pix.keyType || !pix.key.trim())
+      (depositOn && !onlineReady && (!pix.keyType || !pix.key.trim())
         ? { field: 'pix', message: 'Informe a chave Pix que vai receber o sinal.' }
         : null) ??
-      (!acceptInApp && pix.key.trim() && pixKeyProblem(pix.keyType, pix.key)
+      (!onlineReady && pix.key.trim() && pixKeyProblem(pix.keyType, pix.key)
         ? { field: 'pix', message: pixKeyProblem(pix.keyType, pix.key)! }
         : null)
     if (found) {
@@ -303,49 +317,54 @@ function RulesEditor({
   }
 
   const summary = [
-    p.bookingNoticeHours
-      ? `Agenda com pelo menos ${hoursLabel(p.bookingNoticeHours)} de antecedência, até ${p.bookingWindowDays ?? 30} dias à frente.`
-      : `Agenda até ${p.bookingWindowDays ?? 30} dias à frente.`,
+    focusPayments
+      ? null
+      : p.bookingNoticeHours
+        ? `Agenda com pelo menos ${hoursLabel(p.bookingNoticeHours)} de antecedência, até ${p.bookingWindowDays ?? 30} dias à frente.`
+        : `Agenda até ${p.bookingWindowDays ?? 30} dias à frente.`,
     `Cancela ou remarca pelo app até ${hoursLabel(p.cancellationHours)} antes${
       p.reschedulingHours != null && p.reschedulingHours !== p.cancellationHours
         ? ` (remarcar: até ${hoursLabel(p.reschedulingHours)} antes)`
         : ''
     }.`,
-    depositOn && example
-      ? `${example.name}: sinal de ${money(Math.round((example.priceCents * percent) / 100))} ${acceptInApp ? 'pelo app' : `por Pix, pago em até ${holdLabel(pix.holdMinutes)}`} para garantir o horário.`
-      : 'Não paga nada antes: o pagamento é no dia.',
-    depositOn
-      ? (sinalOutcomeOptions.find((option) => option.id === outcome)?.title ??
-        'Regra de devolução personalizada.')
-      : null,
+    !depositOn
+      ? 'A reserva segue sem sinal.'
+      : example && validPercent
+        ? `${example.name}: ${onlineReady && estimate(example.priceCents) < 50 ? 'sem opção de pagar só o sinal pelo app' : `sinal estimado de ${money(estimate(example.priceCents))} ${onlineReady ? 'pelo app' : `por Pix, com até ${holdLabel(pix.holdMinutes)} para pagar`}`}.`
+        : 'Defina o percentual e escolha os serviços para ver uma estimativa.',
   ].filter(Boolean) as string[]
 
   return (
     <div className="settings-stack rules-page">
       <div className="rules-layout">
         <div className="settings-stack">
-          <SettingsCard
-            icon={<CalendarClock size={20} />}
-            title="Agendamento pelo site"
-            description="Quando a cliente pode marcar sozinha."
-          >
-            <Line title="Antecedência mínima" hint="Evita marcações em cima da hora.">
-              <Chips
-                label="Antecedência mínima"
-                value={p.bookingNoticeHours ?? 1}
-                options={[0, 1, 2, 4, 12, 24].map((value) => ({ value, label: hoursLabel(value) }))}
-                onChange={(bookingNoticeHours) => prefs({ bookingNoticeHours })}
-              />
-            </Line>
-            <Line title="Até quantos dias à frente" hint="A agenda abre só até essa data.">
-              <Chips
-                label="Até quantos dias à frente"
-                value={p.bookingWindowDays ?? 30}
-                options={[7, 15, 30, 60, 90].map((value) => ({ value, label: `${value} dias` }))}
-                onChange={(bookingWindowDays) => prefs({ bookingWindowDays })}
-              />
-            </Line>
-          </SettingsCard>
+          {!focusPayments && (
+            <SettingsCard
+              icon={<CalendarClock size={20} />}
+              title="Agendamento pelo site"
+              description="Quando a cliente pode marcar sozinha."
+            >
+              <Line title="Antecedência mínima" hint="Evita marcações em cima da hora.">
+                <Chips
+                  label="Antecedência mínima"
+                  value={p.bookingNoticeHours ?? 1}
+                  options={[0, 1, 2, 4, 12, 24].map((value) => ({
+                    value,
+                    label: hoursLabel(value),
+                  }))}
+                  onChange={(bookingNoticeHours) => prefs({ bookingNoticeHours })}
+                />
+              </Line>
+              <Line title="Até quantos dias à frente" hint="A agenda abre só até essa data.">
+                <Chips
+                  label="Até quantos dias à frente"
+                  value={p.bookingWindowDays ?? 30}
+                  options={[7, 15, 30, 60, 90].map((value) => ({ value, label: `${value} dias` }))}
+                  onChange={(bookingWindowDays) => prefs({ bookingWindowDays })}
+                />
+              </Line>
+            </SettingsCard>
+          )}
 
           <SettingsCard
             icon={<RotateCcw size={20} />}
@@ -397,14 +416,14 @@ function RulesEditor({
 
           <SettingsCard
             icon={<QrCode size={20} />}
-            title={acceptInApp ? 'Sinal' : 'Sinal por Pix'}
+            title={onlineReady ? 'Sinal pelo app' : 'Sinal por Pix'}
             description={
-              acceptInApp
+              onlineReady
                 ? 'Um valor pago antes para garantir o horário, pelo próprio app.'
                 : 'Um valor pago antes para garantir o horário. A cliente paga no Pix do espaço e você confirma.'
             }
             badge={
-              acceptInApp ? null : (
+              onlineReady ? null : (
                 <Button size="sm" variant="secondary" onPress={() => setExplain(true)}>
                   <CircleHelp size={15} aria-hidden /> Como funciona?
                 </Button>
@@ -416,11 +435,11 @@ function RulesEditor({
               value={depositOn ? 'on' : 'off'}
               options={[
                 { value: 'off', label: 'Sem sinal' },
-                { value: 'on', label: acceptInApp ? 'Pedir sinal' : 'Pedir sinal por Pix' },
+                { value: 'on', label: 'Pedir sinal' },
               ]}
               onChange={(next) => {
                 change(withDepositEnabled(payload, next === 'on'))
-                if (next === 'on' && !depositOn && !acceptInApp) setExplain(true)
+                if (next === 'on' && !depositOn && !onlineReady) setExplain(true)
               }}
             />
             <QuickModal
@@ -437,23 +456,25 @@ function RulesEditor({
             </QuickModal>
             {depositOn ? (
               <div className="rules-deposit">
-                <Line title="Quanto do preço" hint="O restante é pago no dia.">
-                  <Chips
-                    label="Porcentagem do sinal"
-                    value={percent}
-                    options={[20, 30, 50, 100].map((value) => ({
-                      value,
-                      label: value === 100 ? 'Tudo' : `${value}%`,
-                    }))}
-                    onChange={(depositPercent) => prefs({ depositPercent })}
-                  />
-                </Line>
-                {acceptInApp ? (
+                <TextInputField
+                  label="Porcentagem do sinal"
+                  inputMode="numeric"
+                  suffix="%"
+                  maxLength={3}
+                  value={percent === 0 ? '' : String(percent)}
+                  onChange={(value) => {
+                    if (/^\d{0,3}$/.test(value)) prefs({ depositPercent: Number(value) })
+                  }}
+                  description="De 1 a 100% do preço final. O sinal é abatido do total."
+                  error={problem?.field === 'depositPercent' ? problem.message : undefined}
+                />
+                {onlineReady ? (
                   <p className="settings-muted">
-                    Recebimento pelo app ativo: o sinal é pago no próprio app, sem chave Pix.
+                    A cliente pode pagar só o sinal ou o valor inteiro. A Stripe exige pelo menos R$
+                    0,50 para cobrar só o sinal.
                   </p>
                 ) : null}
-                {acceptInApp ? null : (
+                {onlineReady ? null : (
                   <Line
                     title="Prazo para pagar"
                     hint="Sem pagamento, o horário volta a ficar livre."
@@ -470,7 +491,7 @@ function RulesEditor({
                   </Line>
                 )}
 
-                {acceptInApp ? null : (
+                {onlineReady ? null : (
                   <div
                     className={`rules-pix${problem?.field === 'pix' ? ' is-invalid' : ''}`}
                     data-field="pix"
@@ -550,8 +571,12 @@ function RulesEditor({
                         />
                         <span className="rules-price">
                           {money(service.priceCents)}
-                          {service.depositRequired ? (
-                            <b>sinal {money(Math.round((service.priceCents * percent) / 100))}</b>
+                          {service.depositRequired && validPercent ? (
+                            <b>
+                              {onlineReady && estimate(service.priceCents) < 50
+                                ? 'Sinal abaixo do mínimo da Stripe'
+                                : `sinal estimado ${money(estimate(service.priceCents))}`}
+                            </b>
                           ) : null}
                         </span>
                       </li>
@@ -560,17 +585,32 @@ function RulesEditor({
                 </div>
               </div>
             ) : (
-              <p className="settings-muted">
-                Ninguém paga antes. Ligue quando quiser reduzir faltas em serviços longos ou caros.
-              </p>
+              <p className="settings-muted">A cliente reserva sem pagar sinal.</p>
             )}
           </SettingsCard>
 
-          {depositOn ? (
+          {onlineReady ? (
+            <SettingsCard icon={<HandCoins size={20} />} title="Estornos e faltas">
+              <ul className="rules-refunds">
+                <li>
+                  <strong>Cancelamento pelo app ou pela equipe.</strong> O sistema solicita a
+                  devolução integral do valor pago pela Stripe, seja o sinal ou o preço cheio.
+                </li>
+                <li>
+                  <strong>Pedido depois do prazo.</strong> A cliente fala com o espaço. Se a equipe
+                  cancelar o atendimento, a devolução também é integral.
+                </li>
+                <li>
+                  <strong>Falta registrada na agenda.</strong> A devolução é analisada pela equipe.
+                  Quando for devida, use “Estornar” no atendimento.
+                </li>
+              </ul>
+            </SettingsCard>
+          ) : depositOn ? (
             <SettingsCard
               icon={<HandCoins size={20} />}
-              title="Se a cliente desistir"
-              description="O que acontece com o sinal. Avise a cliente antes; nunca fica mais que o sinal."
+              title="Devolução do sinal por Pix do espaço"
+              description="Registre o combinado e informe-o à cliente antes da reserva. A equipe confere cada caso e faz a devolução pelo próprio banco."
             >
               <div className="rules-outcomes" role="radiogroup" aria-label="Se a cliente desistir">
                 {sinalOutcomeOptions.map((option) => (
@@ -600,14 +640,16 @@ function RulesEditor({
 
         <aside className="manager-panel rules-preview" aria-label="Como a cliente vê">
           <h3>
-            <Eye size={18} aria-hidden /> Como a cliente vê
+            <Eye size={18} aria-hidden /> Prévia das regras
           </h3>
           <ul>
             {summary.map((line) => (
               <li key={line}>{line}</li>
             ))}
           </ul>
-          <small>Resumo mostrado no site antes de a cliente confirmar o horário.</small>
+          {example && depositOn && (
+            <small>O valor final usa o preço calculado no agendamento, incluindo promoções.</small>
+          )}
         </aside>
       </div>
 

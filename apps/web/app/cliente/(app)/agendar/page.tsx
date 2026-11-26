@@ -1093,6 +1093,18 @@ export default function BookingPage() {
               </div>
             )}
           </dl>
+          {!moving && !pack && payInApp && payMethod !== 'local' && (
+            <p className="ca-note">
+              Se você cancelar dentro do prazo do serviço ou o espaço cancelar, solicitamos à Stripe
+              a devolução integral do valor pago. Se o prazo já passou, fale com o espaço.
+            </p>
+          )}
+          {depositPix && (
+            <p className="ca-note">
+              Antes de pagar o sinal por Pix, confira o prazo e as condições de devolução com o
+              espaço. O espaço trata a devolução diretamente com você.
+            </p>
+          )}
           <button
             type="button"
             className="ca-button"

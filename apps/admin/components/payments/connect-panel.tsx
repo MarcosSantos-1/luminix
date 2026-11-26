@@ -2,6 +2,15 @@
 
 import { Button, Card, Link, Spinner, Tooltip, toast } from '@heroui/react'
 import {
+  type ReactNode,
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from 'react'
+import dynamic from 'next/dynamic'
+import {
   BadgePercent,
   Banknote,
   CheckCircle2,
@@ -10,6 +19,7 @@ import {
   ClipboardCheck,
   Clock3,
   CreditCard,
+  HandCoins,
   Landmark,
   QrCode,
   RefreshCw,
@@ -17,14 +27,6 @@ import {
   SquarePen,
   TriangleAlert,
 } from 'lucide-react'
-import {
-  type ReactNode,
-  useCallback,
-  useEffect,
-  useRef,
-  useState,
-  useSyncExternalStore,
-} from 'react'
 import { loadConnectAndInitialize, type StripeConnectInstance } from '@stripe/connect-js/pure'
 import {
   ConnectAccountManagement,
@@ -37,8 +39,20 @@ import { onAuthStateChanged } from 'firebase/auth'
 import { useStaff } from '@/components/staff-provider'
 import { useClinic } from '@/components/clinic-workspace'
 import { getFirebaseAuth } from '@/lib/firebase'
-import { ConnectHub, ConnectNextSteps, type PackageMode } from './connect-next-steps'
+import { ConnectHub, ConnectNextSteps, InAppSwitch, type PackageMode } from './connect-next-steps'
 import './connect-panel.css'
+
+const RulesSettings = dynamic(
+  () =>
+    import('@/components/manager/settings/rules-settings').then((module) => module.RulesSettings),
+  {
+    loading: () => (
+      <div role="status" className="connect-loading">
+        <Spinner size="sm" /> Carregando regras de sinal…
+      </div>
+    ),
+  },
+)
 
 type Purpose = 'onboarding' | 'management' | 'payments' | 'payouts'
 export type ConnectPhase = 'loading' | 'ready' | 'reviewing' | 'blocked'
@@ -147,6 +161,65 @@ function FlowDisclosure({
         </div>
       ) : null}
     </section>
+  )
+}
+
+function DepositSettingsDisclosure({
+  clinicId,
+  clinicName,
+  onlineReady,
+}: {
+  clinicId: string
+  clinicName: string
+  onlineReady: boolean
+}) {
+  const [visited, setVisited] = useState(false)
+  const details = useRef<HTMLDetailsElement>(null)
+
+  useEffect(() => {
+    function openFromLink() {
+      const target = details.current
+      if (!target || window.location.hash !== '#sinais') return
+      target.open = true
+      target.scrollIntoView({ block: 'start' })
+    }
+    openFromLink()
+    window.addEventListener('hashchange', openFromLink)
+    return () => window.removeEventListener('hashchange', openFromLink)
+  }, [])
+
+  return (
+    <details
+      id="sinais"
+      ref={details}
+      className="connect-prep connect-deposit"
+      onToggle={(event) => {
+        if (event.currentTarget.open) setVisited(true)
+      }}
+    >
+      <summary className="connect-prep-toggle">
+        <span className="connect-step-icon" aria-hidden="true">
+          <HandCoins size={20} />
+        </span>
+        <span className="connect-prep-toggle-copy">
+          <span className="connect-prep-title">Configurar sinais</span>
+          <span className="connect-prep-hint">
+            Percentual, serviços, cancelamentos e devoluções.
+          </span>
+        </span>
+        <ChevronDown size={20} aria-hidden="true" className="connect-prep-chevron" />
+      </summary>
+      {visited && (
+        <div className="connect-prep-body">
+          <RulesSettings
+            clinicId={clinicId}
+            clinicName={clinicName}
+            focusPayments
+            onlineReady={onlineReady}
+          />
+        </div>
+      )}
+    </details>
   )
 }
 
@@ -273,6 +346,7 @@ export function ConnectPanel({
     <ConnectContent
       key={`${staff.user.uid}/${clinic.id}/${staff.revision}`}
       clinicId={clinic.id}
+      clinicName={clinic.name}
       dashboard={dashboard}
       onReadyChange={onReadyChange}
       onSettledChange={onSettledChange}
@@ -284,12 +358,13 @@ export function ConnectPanel({
 
 function ConnectContent({
   clinicId,
+  clinicName,
   dashboard,
   onReadyChange,
   onSettledChange,
   onPhaseChange,
   onChooseOutside,
-}: PanelProps & { clinicId: string }) {
+}: PanelProps & { clinicId: string; clinicName: string }) {
   const { user } = useStaff()
   const [status, setStatus] = useState<Status | null>(null)
   const [canContinue, setCanContinue] = useState(false)
@@ -299,20 +374,20 @@ function ConnectContent({
     guideDone: boolean
     packageMode?: PackageMode
   } | null>(null)
+  const [loading, setLoading] = useState(true)
   // Test-only guidance disappears once the platform runs with real (live) keys.
   const testMode = status?.testMode !== false
   // Coming from the "Prosseguir" notice: the next steps render after the status loads.
   const scrolled = useRef(false)
   useEffect(() => {
-    if (scrolled.current || notice !== 'approved' || !inApp || !dashboard) return
+    if (scrolled.current || loading || notice !== 'approved' || !inApp || !dashboard) return
     if (window.location.hash !== '#proximos-passos') return
     scrolled.current = true
     requestAnimationFrame(() =>
       document.getElementById('proximos-passos')?.scrollIntoView({ behavior: 'smooth' }),
     )
-  }, [notice, inApp, dashboard])
+  }, [notice, inApp, dashboard, loading])
   const [error, setError] = useState('')
-  const [loading, setLoading] = useState(true)
   const [opening, setOpening] = useState(false)
   const [embedded, setEmbedded] = useState<{
     instance: StripeConnectInstance
@@ -396,7 +471,7 @@ function ConnectContent({
         body: JSON.stringify({ enabled }),
       })
       if (!response.ok) throw new Error('save failed')
-      setInApp((current) => ({ guideDone: current?.guideDone ?? false, enabled }))
+      setInApp((current) => ({ ...current, guideDone: current?.guideDone ?? false, enabled }))
       return true
     } catch {
       toast.danger('Não foi possível salvar agora. Tente de novo.')
@@ -433,7 +508,7 @@ function ConnectContent({
         body: '{}',
       })
       if (!response.ok) throw new Error('save failed')
-      setInApp((current) => ({ enabled: current?.enabled ?? false, guideDone: true }))
+      setInApp((current) => ({ ...current, enabled: current?.enabled ?? false, guideDone: true }))
       toast.success('Tudo pronto! Qualquer dúvida, o suporte está aqui.')
     } catch {
       toast.danger('Não foi possível salvar agora. Tente de novo.')
@@ -603,7 +678,7 @@ function ConnectContent({
 
   const flow = !dashboard
   // Approved on the Financeiro page: the guide first, then a hub to check things day to day.
-  const hub = dashboard && notice === 'approved' && !!inApp
+  const hub = dashboard === true && notice === 'approved' && inApp !== null
   const hubLead = inApp?.guideDone
     ? 'Ligue ou desligue o pagamento pelo app e consulte pagamentos, reembolsos, repasses e a conta bancária.'
     : leads.approved
@@ -614,7 +689,7 @@ function ConnectContent({
       }
       aria-busy={loading || opening}
     >
-      {!embedded && flow && !status && (
+      {!embedded && (!status || (dashboard && loading)) && (
         <Card.Content className="connect-body">
           {error ? (
             <>
@@ -644,7 +719,7 @@ function ConnectContent({
           )}
         </Card.Content>
       )}
-      {!embedded && (!flow || status) && (
+      {!embedded && status && (flow || !loading) && (
         <>
           <Card.Header>
             <div className="connect-title-block">
@@ -652,7 +727,11 @@ function ConnectContent({
                 {flow && awaitingForm ? (
                   <span className="connect-pulse" aria-hidden="true" />
                 ) : null}
-                {status && notice ? headlines[notice] : 'Recebimentos da clínica'}
+                {hub && inApp.enabled
+                  ? 'Pagamento pelo app ativo'
+                  : notice
+                    ? headlines[notice]
+                    : 'Recebimentos da clínica'}
               </Card.Title>
               {flow && status ? (
                 <p className="connect-lead">{notice ? leads[notice] : null}</p>
@@ -1030,12 +1109,6 @@ function ConnectContent({
                 </section>
               </>
             )}
-            {loading && !flow && (
-              <div role="status" className="connect-note is-info">
-                <Spinner size="sm" />
-                Consultando a situação da sua conta…
-              </div>
-            )}
             {status && notice && !hub && status.state !== 'not_started' && (!loading || flow) && (
               <div aria-live="polite" className={`connect-state is-${notice}`}>
                 <span className="connect-state-icon" aria-hidden="true">
@@ -1076,10 +1149,18 @@ function ConnectContent({
                 </div>
               </div>
             )}
+            {dashboard && (
+              <div className="connect-payment-settings" id="proximos-passos">
+                {hub && <InAppSwitch enabled={inApp.enabled} onToggle={saveInApp} />}
+                <DepositSettingsDisclosure
+                  clinicId={clinicId}
+                  clinicName={clinicName}
+                  onlineReady={hub && inApp.enabled}
+                />
+              </div>
+            )}
             {hub && inApp?.guideDone ? (
               <ConnectHub
-                enabled={inApp.enabled}
-                onToggle={saveInApp}
                 onOpen={(purpose) => void open(purpose)}
                 disabled={opening}
                 packageMode={inApp.packageMode ?? 'clinic_only'}
@@ -1089,9 +1170,7 @@ function ConnectContent({
             {hub && inApp && (!inApp.guideDone || guideOpen) ? (
               <ConnectNextSteps
                 clinicRef={clinicId}
-                enabled={inApp.enabled}
                 guideDone={inApp.guideDone}
-                onToggle={saveInApp}
                 onDone={finishGuide}
                 onClose={() => setGuideOpen(false)}
                 onOpenPayouts={() => void open('payouts')}

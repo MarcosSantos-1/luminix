@@ -1,13 +1,15 @@
 'use client'
 
 import Link from 'next/link'
-import { ArrowRight, Rocket, Wallet } from 'lucide-react'
+import { ArrowRight, HandCoins, Rocket, Wallet } from 'lucide-react'
+import { ReceiptsLink } from '@/components/payments/receipts-link'
 import { AccessSettings } from '../settings/access-settings'
 import { PersonalizationSettings } from '../settings/personalization-settings'
 import { ProfileSettings } from '../settings/profile-settings'
 import { RoutineSettings } from '../settings/routine-settings'
 import { RulesSettings } from '../settings/rules-settings'
 import { SettingsCard } from '../settings/settings-kit'
+import { useClinicApi } from '../settings/clinic-api'
 import { SiteSettings } from '../settings/site-settings'
 import { TeamSettings } from '../settings/team-settings'
 import type { ManagerSectionId } from '../demo-data'
@@ -33,6 +35,7 @@ export function ClinicSettings({
   ownName?: string
 }) {
   const ref = shareCode || clinic.id
+  const api = useClinicApi(clinic.id)
   const paymentsHref = permissions.includes('settings:manage')
     ? `/c/${ref}/recebimentos`
     : undefined
@@ -61,9 +64,7 @@ export function ClinicSettings({
           editorHref={`/c/${ref}/vitrine`}
         />
       )}
-      {tab === 'regras' && (
-        <RulesSettings clinicId={clinic.id} clinicName={clinic.name} paymentsHref={paymentsHref} />
-      )}
+      {tab === 'regras' && <RulesSettings clinicId={clinic.id} clinicName={clinic.name} />}
       {tab === 'personalizacao' && <PersonalizationSettings clinicId={clinic.id} />}
       {tab === 'equipe' && (
         <TeamSettings
@@ -82,9 +83,12 @@ export function ClinicSettings({
               title="Pagamentos"
               description="Configure os recebimentos online e os dados bancários do seu espaço."
             >
-              <Link className="settings-link-button" href={paymentsHref}>
-                <Wallet size={16} aria-hidden /> Receber pelo app (Stripe)
-              </Link>
+              <div className="settings-payment-links">
+                <ReceiptsLink api={api} href={paymentsHref} className="settings-link-button" />
+                <Link className="settings-link-button" href={`${paymentsHref}#sinais`}>
+                  <HandCoins size={16} aria-hidden /> Configurar sinais
+                </Link>
+              </div>
             </SettingsCard>
           )}
         </div>
