@@ -1,6 +1,6 @@
 'use client'
 
-import { Button, Checkbox, Label, Spinner, Tooltip, toast } from '@heroui/react'
+import { Button, Spinner, Tooltip, toast } from '@heroui/react'
 import { ArrowRight } from 'lucide-react'
 import { useEffect, useState, type ReactNode } from 'react'
 import { useRouter } from 'next/navigation'
@@ -27,6 +27,7 @@ import {
 import { depositProblem, normalizeLegacyDepositScope } from '@/components/onboarding/deposit-policy'
 import { hasDraftChanges } from '@/components/onboarding/review-persistence'
 import { RulesStep, ReviewStep } from '@/components/onboarding/rules-review'
+import { ShowcaseReady, defaultPublication } from '@/components/onboarding/showcase-ready'
 import type { FieldErrors } from '@/components/onboarding/ui'
 import { WelcomeStep } from '@/components/onboarding/welcome'
 import { useStaff } from '@/components/staff-provider'
@@ -329,13 +330,12 @@ export default function OnboardingPage() {
   const [stripeSettled, setStripeSettled] = useState(false)
   const [busy, setBusy] = useState(false)
   const [completed, setCompleted] = useState(false)
-  const [publishPage, setPublishPage] = useState(true)
-  const [publishAddress, setPublishAddress] = useState(false)
-  const [publishContacts, setPublishContacts] = useState(false)
   const canPublish = permissions.includes('settings:manage')
   const canOpenDashboard = permissions.includes('clinic:manage')
   const clinicPath = `/c/${encodeURIComponent(clinic.share_code || clinic.id)}`
-  const willPublish = canPublish && publishPage
+  // The showcase is built from the previous steps and goes live on completion (no questions);
+  // fine-tuning lives in Configurações → Vitrine e site.
+  const willPublish = canPublish
   const [uploadingMedia, setUploadingMedia] = useState(false)
   const [loadError, setLoadError] = useState('')
   const [retry, setRetry] = useState(0)
@@ -681,9 +681,7 @@ export default function OnboardingPage() {
         },
         body: JSON.stringify({
           version: completionVersion,
-          publication: willPublish
-            ? { address: publishAddress, contacts: publishContacts }
-            : undefined,
+          publication: willPublish ? defaultPublication(reviewed) : undefined,
         }),
         cache: 'no-store',
         signal: AbortSignal.timeout(20_000),
@@ -831,81 +829,46 @@ export default function OnboardingPage() {
         {step === 4 && <TeamStep {...stepProps} onUploadingChange={setUploadingMedia} />}
         {step === 5 && <ScheduleStep {...stepProps} />}
         {step === 6 && <HoursStep {...stepProps} />}
-        {step === 7 && (
-          <PaymentsStep
-            clinicId={clinic.share_code || clinic.id}
-            onReadyChange={setStripeReady}
-            onSettledChange={(settled) => {
-              setStripeChecked(true)
-              setStripeSettled(settled)
-              if (settled) {
-                setStepError((current) => (current === stripeRequiredMessage ? '' : current))
-                setFieldErrors((current) => {
-                  if (!current.payments) return current
-                  const next = { ...current }
-                  delete next.payments
-                  return next
-                })
+        <div className="ob2-vivid">
+          {step === 7 && (
+            <PaymentsStep
+              clinicId={clinic.share_code || clinic.id}
+              onReadyChange={setStripeReady}
+              onSettledChange={(settled) => {
+                setStripeChecked(true)
+                setStripeSettled(settled)
+                if (settled) {
+                  setStepError((current) => (current === stripeRequiredMessage ? '' : current))
+                  setFieldErrors((current) => {
+                    if (!current.payments) return current
+                    const next = { ...current }
+                    delete next.payments
+                    return next
+                  })
+                }
+              }}
+              {...stepProps}
+            />
+          )}
+          {step === 8 && <RulesStep {...stepProps} />}
+          {step === 9 && (
+            <ReviewStep
+              payload={ready}
+              error={stepError}
+              footer={footer}
+              isDisabled={locked}
+              publication={
+                canPublish && (
+                  <ShowcaseReady payload={ready} code={clinic.share_code || clinic.id} />
+                )
               }
-            }}
-            {...stepProps}
-          />
-        )}
-        {step === 8 && <RulesStep {...stepProps} />}
-        {step === 9 && (
-          <ReviewStep
-            payload={ready}
-            error={stepError}
-            footer={footer}
-            isDisabled={locked}
-            publication={
-              canPublish && (
-                <fieldset disabled={locked} className="grid gap-3">
-                  <legend className="mb-2 font-semibold">Vitrine do seu espaço</legend>
-                  <p>
-                    O link mostra seu catálogo, preços e horários. Você pode personalizar a página
-                    depois.
-                  </p>
-                  {[
-                    {
-                      label: 'Publicar minha vitrine ao concluir',
-                      selected: publishPage,
-                      change: setPublishPage,
-                    },
-                    {
-                      label: 'Mostrar meu endereço comercial no mapa',
-                      selected: publishAddress,
-                      change: setPublishAddress,
-                    },
-                    {
-                      label: 'Mostrar WhatsApp e redes sociais cadastradas',
-                      selected: publishContacts,
-                      change: setPublishContacts,
-                    },
-                  ].map(({ label, selected, change }, index) => (
-                    <Checkbox
-                      key={label}
-                      isSelected={selected && (index === 0 || publishPage)}
-                      isDisabled={locked || (index > 0 && !publishPage)}
-                      onChange={change}
-                    >
-                      <Checkbox.Content>
-                        <Checkbox.Control>
-                          <Checkbox.Indicator />
-                        </Checkbox.Control>
-                        <Label>{label}</Label>
-                      </Checkbox.Content>
-                    </Checkbox>
-                  ))}
-                </fieldset>
-              )
-            }
-            onEdit={(target) => {
-              setEditingFromReview(true)
-              navigateTo(target)
-            }}
-          />
-        )}
+              onEdit={(target) => {
+                setEditingFromReview(true)
+                navigateTo(target)
+              }}
+            />
+          )}
+        </div>
       </OnboardingShell>
     </SpaceKindProvider>
   )

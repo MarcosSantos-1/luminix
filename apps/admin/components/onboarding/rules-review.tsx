@@ -1014,7 +1014,7 @@ export function ReviewStep({
           items={[
             {
               title: 'O que acontece ao concluir?',
-              text: 'O cadastro, os serviços, a equipe e as preferências ficam salvos para sua clínica. Sua vitrine poderá ser personalizada depois, com fotos opcionais para o catálogo e a galeria.',
+              text: 'O cadastro, os serviços, a equipe e as preferências ficam salvos para sua clínica, e a vitrine entra no ar com o link para suas clientes. Capa, fotos, galeria e o que aparece no site você ajusta depois em Configurações → Vitrine e site.',
             },
           ]}
         />
