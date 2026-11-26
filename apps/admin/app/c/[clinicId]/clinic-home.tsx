@@ -42,6 +42,7 @@ export function ClinicHome({
   const [logoutError, setLogoutError] = useState('')
   const [signingOut, setSigningOut] = useState(false)
   const canManageSettings = permissions.includes('settings:manage')
+  const active = clinic.status === 'active'
   const user = staff.user
   const api = useClinicApi(clinic.id)
   const getPublicUrl = useCallback(
@@ -88,7 +89,7 @@ export function ClinicHome({
         if (staff.user) await updateProfile(staff.user, { displayName: name })
       }}
       workspace={
-        clinic.status === 'active'
+        active
           ? { api, clinicId: clinic.id, canAudit: permissions.includes('audit:read') }
           : undefined
       }
@@ -99,17 +100,22 @@ export function ClinicHome({
       sections={sections}
       settingsTabs={settingsTabs}
       messages={
-        clinic.status === 'active' && user
+        user && (active || welcome)
           ? {
               welcome,
-              scope: `${user.uid}/${clinic.id}`,
-              getPublicUrl: canManageSettings ? getPublicUrl : undefined,
+              scope: active ? `${user.uid}/${clinic.id}` : undefined,
+              getPublicUrl: active && canManageSettings ? getPublicUrl : undefined,
             }
           : undefined
       }
       shareCode={clinic.share_code ?? null}
       initialSection={initialSection}
       initialSettingsTab={initialSettingsTab}
+      onboardingPreviewHref={
+        permissions.includes('onboarding:manage')
+          ? `/c/${clinic.share_code || clinic.id}/onboarding?simular=1`
+          : undefined
+      }
       paymentsAction={
         canManageSettings ? (
           <ReceiptsLink
@@ -147,7 +153,7 @@ export function ClinicHome({
             }
           />
         ),
-        ...(clinic.status === 'active'
+        ...(active
           ? {
               inicio: ({ navigate, go }) => (
                 <HomeDashboard

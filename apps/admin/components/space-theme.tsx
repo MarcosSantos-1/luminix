@@ -15,18 +15,20 @@ export function SpaceThemeProvider({
   initialTheme,
   clinicId,
   clinicCode,
+  persist = true,
   children,
 }: {
   initialTheme?: string
   clinicId?: string
   clinicCode?: string | null
+  persist?: boolean
   children: ReactNode
 }) {
   const [theme, setTheme] = useState<SpaceTheme>(spaceTheme(initialTheme))
   useEffect(() => {
     document.documentElement.dataset.spaceTheme = theme
-    rememberSpaceTheme(theme, clinicId, clinicCode)
-  }, [theme, clinicId, clinicCode])
+    if (persist) rememberSpaceTheme(theme, clinicId, clinicCode)
+  }, [theme, clinicId, clinicCode, persist])
   return <ThemeContext.Provider value={{ theme, setTheme }}>{children}</ThemeContext.Provider>
 }
 

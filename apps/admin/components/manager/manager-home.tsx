@@ -12,6 +12,8 @@ import {
   SlidersHorizontal,
   LogOut,
   Plus,
+  RotateCcw,
+  Sparkles,
   Search,
   Settings2,
   UserRound,
@@ -85,6 +87,7 @@ export function ManagerHome({
   profile,
   settings,
   paymentsAction,
+  onboardingPreviewHref,
   media,
   panels,
   shareCode,
@@ -111,6 +114,7 @@ export function ManagerHome({
   settingsTabs?: ManagerSettingsSection[]
   profile?: ReactNode
   paymentsAction?: ReactNode
+  onboardingPreviewHref?: string
   /**
    * Media library (Mídia); a placeholder explains it in the demo. The function form receives
    * photos picked from the mobile "+" menu, to be sent as soon as the library opens.
@@ -638,8 +642,24 @@ export function ManagerHome({
               <Dropdown.Popover placement="top end" className="manager-account-menu">
                 <Dropdown.Menu
                   aria-label="Debug"
-                  onAction={(key) => (key === 'tour' ? startTour() : setDebugPlanOpen(true))}
+                  onAction={(key) => {
+                    if (key === 'tour') startTour()
+                    if (key === 'plan') setDebugPlanOpen(true)
+                    if (key === 'welcome') message.openWelcome()
+                  }}
                 >
+                  {onboardingPreviewHref && (
+                    <Dropdown.Item
+                      id="onboarding"
+                      href={onboardingPreviewHref}
+                      textValue="Voltar ao onboarding"
+                    >
+                      <RotateCcw size={16} aria-hidden /> Voltar ao onboarding
+                    </Dropdown.Item>
+                  )}
+                  <Dropdown.Item id="welcome" textValue="Simular boas-vindas">
+                    <Sparkles size={16} aria-hidden /> Simular boas-vindas
+                  </Dropdown.Item>
                   <Dropdown.Item id="tour" textValue="Abrir tour">
                     <Bug size={16} aria-hidden /> Abrir tour
                   </Dropdown.Item>

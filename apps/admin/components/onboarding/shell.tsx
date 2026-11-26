@@ -8,6 +8,8 @@ export function OnboardingShell({
   step,
   availableThrough,
   busy,
+  preview = false,
+  banner,
   onBack,
   onSelectStep,
   children,
@@ -15,6 +17,8 @@ export function OnboardingShell({
   step: number
   availableThrough: number
   busy: boolean
+  preview?: boolean
+  banner?: ReactNode
   onBack: () => void
   onSelectStep: (index: number) => void
   children: ReactNode
@@ -22,6 +26,7 @@ export function OnboardingShell({
   const current = stepInfo[step]
   const progress = Math.round(((availableThrough + 1) / stepInfo.length) * 100)
   const minimumStep = 0
+  const lastAvailable = preview ? stepInfo.length - 1 : availableThrough
   const stepsMenu = useOverlayState()
   return (
     <main className="ob2" data-surface="glass">
@@ -50,6 +55,7 @@ export function OnboardingShell({
             </Button>
           </div>
         </div>
+        {banner}
         <header className="ob2-bar">
           <Button
             className="ob2-icon ob2-back-mobile"
@@ -78,8 +84,10 @@ export function OnboardingShell({
                   </Drawer.Header>
                   <Drawer.Body className="ob2-form ob2-step-sheet">
                     <p className="ob2-step-lead">
-                      Etapa {step + 1} de {stepInfo.length}. O que você já preencheu fica salvo para
-                      retomar depois.
+                      Etapa {step + 1} de {stepInfo.length}.{' '}
+                      {preview
+                        ? 'Escolha qualquer etapa para experimentar.'
+                        : 'O que você já preencheu fica salvo para retomar depois.'}
                     </p>
                     <ol className="ob2-step-list ob2-step-menu">
                       {stepInfo.map((item, index) => (
@@ -92,7 +100,7 @@ export function OnboardingShell({
                           <Button
                             className="ob2-drawer-step"
                             variant="ghost"
-                            isDisabled={busy || index < minimumStep || index > availableThrough}
+                            isDisabled={busy || index < minimumStep || index > lastAvailable}
                             onPress={() => {
                               onSelectStep(index)
                               stepsMenu.close()
@@ -146,7 +154,7 @@ export function OnboardingShell({
                         : 'ob2-rail-item'
                   }
                   variant="ghost"
-                  isDisabled={busy || index < minimumStep || index > availableThrough}
+                  isDisabled={busy || index < minimumStep || index > lastAvailable}
                   onPress={() => onSelectStep(index)}
                 >
                   <span>

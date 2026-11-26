@@ -5896,3 +5896,26 @@ html:has(.ob2)::-webkit-scrollbar-thumb:hover,
     transition: none;
   }
 }
+
+.ob2-preview-banner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 16px;
+  margin: 0 0 16px;
+  padding: 10px 14px;
+  border: 1px solid currentColor;
+  border-radius: 12px;
+  color: inherit;
+  font-size: 14px;
+}
+
+.ob2-preview-banner p {
+  margin: 2px 0 0;
+}
+
+.ob2-preview-banner a {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}

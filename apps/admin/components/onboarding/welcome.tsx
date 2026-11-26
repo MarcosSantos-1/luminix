@@ -2,7 +2,7 @@
 
 import { Button } from '@heroui/react'
 import Image from 'next/image'
-import { useState } from 'react'
+import { useState, type ReactNode } from 'react'
 import { useRouter } from 'next/navigation'
 import { signOut } from 'firebase/auth'
 import { getFirebaseAuth } from '@/lib/firebase'
@@ -25,7 +25,17 @@ const preview = [
   },
 ] as const
 
-export function WelcomeStep({ busy, onStart }: { busy: boolean; onStart: () => void }) {
+export function WelcomeStep({
+  busy,
+  onStart,
+  preview: isPreview = false,
+  banner,
+}: {
+  busy: boolean
+  onStart: () => void
+  preview?: boolean
+  banner?: ReactNode
+}) {
   const router = useRouter()
   const [leaving, setLeaving] = useState(false)
   const [leaveError, setLeaveError] = useState('')
@@ -54,15 +64,18 @@ export function WelcomeStep({ busy, onStart }: { busy: boolean; onStart: () => v
             height={34}
             priority
           />
-          <Button
-            className="ob2-exit"
-            variant="ghost"
-            isDisabled={busy || leaving}
-            onPress={() => void leave()}
-          >
-            {leaving ? 'Saindo…' : 'Sair'}
-          </Button>
+          {!isPreview && (
+            <Button
+              className="ob2-exit"
+              variant="ghost"
+              isDisabled={busy || leaving}
+              onPress={() => void leave()}
+            >
+              {leaving ? 'Saindo…' : 'Sair'}
+            </Button>
+          )}
         </header>
+        {banner}
         <section className="ob2-welcome-card">
           <div className="ob2-welcome-body">
             <div className="ob2-welcome-copy">
@@ -89,8 +102,14 @@ export function WelcomeStep({ busy, onStart }: { busy: boolean; onStart: () => v
                 ))}
               </ol>
               <p className="ob2-welcome-pace">
-                <strong>Pode fazer no seu ritmo.</strong> Seu progresso é salvo automaticamente. Se
-                sair, você continua de onde parou.
+                {isPreview ? (
+                  'Passe pelas etapas e experimente os ajustes do cadastro.'
+                ) : (
+                  <>
+                    <strong>Pode fazer no seu ritmo.</strong> Seu progresso é salvo automaticamente.
+                    Se sair, você continua de onde parou.
+                  </>
+                )}
               </p>
               {leaveError ? (
                 <p className="ob2-welcome-error" role="alert">

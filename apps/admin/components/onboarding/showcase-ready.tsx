@@ -87,7 +87,15 @@ export function defaultPublication(payload: Payload) {
  * A small live preview (the site's own /c/previa page, fed by postMessage); a click opens the
  * same preview in a new tab. Fine-tuning lives in Configurações → Vitrine e site.
  */
-export function ShowcaseReady({ payload, code }: { payload: Payload; code: string }) {
+export function ShowcaseReady({
+  payload,
+  code,
+  preview = false,
+}: {
+  payload: Payload
+  code: string
+  preview?: boolean
+}) {
   const origin = publicSiteOrigin()
   const frame = useRef<HTMLIFrameElement>(null)
   const [frameReady, setFrameReady] = useState(false)
@@ -144,7 +152,10 @@ export function ShowcaseReady({ payload, code }: { payload: Payload; code: strin
         <h3 id="ob2-showcase-title">Sua vitrine já está pronta</h3>
         <p>
           Montamos o site com o que você preencheu: nome, logo, cores, serviços com preços e
-          horários. Ele entra no ar assim que você concluir, com um link para mandar às clientes.
+          horários.{' '}
+          {preview
+            ? 'A vitrine aparece aqui como prévia.'
+            : 'Ele entra no ar assim que você concluir, com um link para mandar às clientes.'}
         </p>
         <p className="ob2-showcase-note">
           <Settings2 size={15} aria-hidden />

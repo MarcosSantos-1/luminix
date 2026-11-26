@@ -171,7 +171,13 @@ painel, com navegação entre Início, Agenda, Clientes, Serviços, Estoque, Mar
 a permissão, Vitrine e Configurações. Cada etapa realça um controle ou o título da área e
 desabilita temporariamente o restante do painel. Recolher ou fechar o cartão libera a navegação.
 O destaque usa a chave `data-manager-spotlight` no controle e pode ser reutilizado para
-apresentar novidades. O rodapé oferece o atalho temporário **Debug · Abrir tour**. O sino abre **Novidades e avisos**.
+apresentar novidades. O sino abre **Novidades e avisos**.
+
+O rodapé do Início oferece **Debug → Simular boas-vindas** para reabrir esse mesmo modal e testar
+as entradas do tour e da vitrine. **Debug → Voltar ao onboarding** exige `onboarding:manage` e
+abre uma cópia temporária do cadastro original, com todas as etapas acessíveis. Campos, imagens
+e paleta podem ser experimentados na aba. A conclusão simulada abre as boas-vindas. A simulação
+não grava o cadastro, cria conta Stripe ou publica a vitrine.
 
 O modal usa HeroUI e o tema atual. O catálogo fica em
 `apps/admin/components/manager/manager-updates.ts`, em ordem do mais recente ao mais antigo.

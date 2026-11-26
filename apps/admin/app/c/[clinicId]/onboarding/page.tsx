@@ -3,7 +3,8 @@
 import { Button, Spinner, Tooltip, toast } from '@heroui/react'
 import { ArrowRight } from 'lucide-react'
 import { useEffect, useState, type ReactNode } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
+import Link from 'next/link'
 import { useSpaceTheme } from '@/components/space-theme'
 import { spaceTheme } from '@/lib/space-theme'
 import { AppStatus } from '@/components/app-status'
@@ -307,6 +308,11 @@ function notifyError(message: string) {
 }
 
 export default function OnboardingPage() {
+  const preview = useSearchParams().get('simular') === '1'
+  return <OnboardingFlow key={String(preview)} preview={preview} />
+}
+
+function OnboardingFlow({ preview }: { preview: boolean }) {
   const { clinic, permissions } = useClinic()
   const { setTheme } = useSpaceTheme()
   const staff = useStaff()
@@ -342,7 +348,12 @@ export default function OnboardingPage() {
 
   useEffect(() => {
     const user = staff.user
-    if (!user || clinic.status === 'active' || !permissions.includes('onboarding:manage')) return
+    if (
+      !user ||
+      (!preview && clinic.status === 'active') ||
+      !permissions.includes('onboarding:manage')
+    )
+      return
     const controller = new AbortController()
     void (async () => {
       try {
@@ -366,20 +377,21 @@ export default function OnboardingPage() {
         if (!next.ownerName.trim()) next.ownerName = user.displayName?.trim() || ''
         if (!next.email.trim()) next.email = user.email?.trim() || ''
         if (!next.clinic.taxIdKind) next.clinic.taxIdKind = 'cnpj'
-        if (!next.phone) {
+        if (!preview && !next.phone) {
           const signupPhone = peekSignupPhone(user.uid)
           if (signupPhone) {
             next.phone = signupPhone
             if (!next.clinic.whatsapp) next.clinic.whatsapp = signupPhone
           }
         }
+        if (controller.signal.aborted) return
         next.clinic.theme = spaceTheme(next.clinic.theme ?? clinic.theme)
         setPayload(next)
         setDraft({ ...data.draft, payload: next })
         setLoadError('')
         const stored = data.draft.step
         const focus = data.draft.payload.uiFocus
-        const resumedStep = Math.max(0, resumeStepIndex(stored, focus))
+        const resumedStep = preview ? 0 : Math.max(0, resumeStepIndex(stored, focus))
         setStep(resumedStep)
         setAvailableThrough(resumedStep)
       } catch {
@@ -397,6 +409,7 @@ export default function OnboardingPage() {
     permissions,
     retry,
     clinic.status,
+    preview,
   ])
 
   useEffect(() => {
@@ -545,8 +558,9 @@ export default function OnboardingPage() {
 
   function navigateTo(targetStep: number) {
     const minimumStep = 0
-    if (busy || uploadingMedia || targetStep < minimumStep || targetStep > availableThrough) return
-    const problem = targetStep > step ? firstProblem(targetStep - 1) : null
+    const lastAvailable = preview ? stepInfo.length - 1 : availableThrough
+    if (busy || uploadingMedia || targetStep < minimumStep || targetStep > lastAvailable) return
+    const problem = !preview && targetStep > step ? firstProblem(targetStep - 1) : null
     if (problem) {
       showProblem(problem)
       return
@@ -559,7 +573,7 @@ export default function OnboardingPage() {
   async function save(nextStep: number) {
     const user = staff.user
     if (!user || !payload || !draft || busy || uploadingMedia) return
-    const problem = nextStep > step ? firstProblem(step) : null
+    const problem = !preview && nextStep > step ? firstProblem(step) : null
     if (problem) {
       showProblem(problem)
       return
@@ -572,6 +586,15 @@ export default function OnboardingPage() {
     payloadToSave = {
       ...payloadToSave,
       uiFocus: uiFocusForStepKey(nextKey),
+    }
+    if (preview) {
+      setPayload(payloadToSave)
+      setStep(nextStep)
+      if (nextKey === 'review') setEditingFromReview(false)
+      setAvailableThrough((current) => Math.max(current, nextStep))
+      setStepError('')
+      setFieldErrors({})
+      return
     }
     setBusy(true)
     try {
@@ -637,6 +660,10 @@ export default function OnboardingPage() {
   async function complete() {
     const user = staff.user
     if (!user || !payload || !draft || busy || uploadingMedia) return
+    if (preview) {
+      router.replace(`${clinicPath}?boas-vindas=1`)
+      return
+    }
     const problem = firstProblem(stepInfo.length - 2)
     if (problem) {
       showProblem(problem)
@@ -718,7 +745,7 @@ export default function OnboardingPage() {
   if (!permissions.includes('onboarding:manage'))
     return <AppStatus alert>Você não tem acesso ao onboarding.</AppStatus>
   if (completed && canOpenDashboard) return <AppStatus />
-  if (completed || clinic.status === 'active') {
+  if (completed || (!preview && clinic.status === 'active')) {
     return (
       <AppStatus
         action={
@@ -757,13 +784,35 @@ export default function OnboardingPage() {
     )
 
   const ready = payload
-  if (step === 0) return <WelcomeStep busy={busy} onStart={() => void save(1)} />
+  const previewBanner = preview ? (
+    <aside className="ob2-preview-banner" aria-label="Simulação do onboarding">
+      <div>
+        <strong>Simulação do onboarding</strong>
+        <p>Cópia do cadastro original. As alterações duram até você sair desta tela.</p>
+      </div>
+      <Link href={clinicPath}>Voltar ao painel</Link>
+    </aside>
+  ) : null
+  if (step === 0)
+    return (
+      <WelcomeStep
+        busy={busy}
+        onStart={() => void save(1)}
+        preview={preview}
+        banner={previewBanner}
+      />
+    )
 
   const last = step === stepInfo.length - 1
   const locked = busy || uploadingMedia
-  const stripePending = step === 7 && ready.preferences.acceptInApp && !stripeChecked
+  const stripePending = !preview && step === 7 && ready.preferences.acceptInApp && !stripeChecked
   const stripeBlocked =
-    step === 7 && ready.preferences.acceptInApp && stripeChecked && !stripeReady && !stripeSettled
+    !preview &&
+    step === 7 &&
+    ready.preferences.acceptInApp &&
+    stripeChecked &&
+    !stripeReady &&
+    !stripeSettled
   const footer: ReactNode = (
     <Tooltip isDisabled={!stripeBlocked}>
       <Tooltip.Trigger
@@ -786,11 +835,15 @@ export default function OnboardingPage() {
                 ? 'Criando sua clínica…'
                 : 'Salvando…'
               : last
-                ? willPublish
-                  ? 'Concluir e publicar vitrine'
-                  : 'Concluir cadastro'
+                ? preview
+                  ? 'Simular conclusão'
+                  : willPublish
+                    ? 'Concluir e publicar vitrine'
+                    : 'Concluir cadastro'
                 : editingFromReview
-                  ? 'Salvar e voltar ao resumo'
+                  ? preview
+                    ? 'Voltar ao resumo'
+                    : 'Salvar e voltar ao resumo'
                   : 'Continuar'}
           {busy ? <Spinner size="sm" /> : <ArrowRight size={18} />}
         </Button>
@@ -818,21 +871,28 @@ export default function OnboardingPage() {
       <SpaceCopyEffect kind={ready.clinic.spaceKind} />
       <OnboardingShell
         step={step}
+        preview={preview}
+        banner={previewBanner}
         availableThrough={availableThrough}
         busy={locked}
         onBack={() => navigateTo(step - 1)}
         onSelectStep={navigateTo}
       >
-        {step === 1 && <ClinicStep {...stepProps} onUploadingChange={setUploadingMedia} />}
+        {step === 1 && (
+          <ClinicStep {...stepProps} preview={preview} onUploadingChange={setUploadingMedia} />
+        )}
         {step === 2 && <CatalogStep {...stepProps} />}
         {step === 3 && <ServicesStep {...stepProps} />}
-        {step === 4 && <TeamStep {...stepProps} onUploadingChange={setUploadingMedia} />}
+        {step === 4 && (
+          <TeamStep {...stepProps} preview={preview} onUploadingChange={setUploadingMedia} />
+        )}
         {step === 5 && <ScheduleStep {...stepProps} />}
         {step === 6 && <HoursStep {...stepProps} />}
         <div className="ob2-vivid">
           {step === 7 && (
             <PaymentsStep
               clinicId={clinic.share_code || clinic.id}
+              preview={preview}
               onReadyChange={setStripeReady}
               onSettledChange={(settled) => {
                 setStripeChecked(true)
@@ -859,7 +919,11 @@ export default function OnboardingPage() {
               isDisabled={locked}
               publication={
                 canPublish && (
-                  <ShowcaseReady payload={ready} code={clinic.share_code || clinic.id} />
+                  <ShowcaseReady
+                    payload={ready}
+                    code={clinic.share_code || clinic.id}
+                    preview={preview}
+                  />
                 )
               }
               onEdit={(target) => {

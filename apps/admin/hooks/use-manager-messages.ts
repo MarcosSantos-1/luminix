@@ -12,7 +12,7 @@ function subscribe(listener: () => void) {
 }
 
 export function useManagerMessages(initialWelcome: boolean, scope?: string) {
-  const [manualView, setManualView] = useState<'welcome' | 'updates' | null>(
+  const [manualView, setManualView] = useState<'welcome' | 'welcome-preview' | 'updates' | null>(
     initialWelcome ? 'welcome' : null,
   )
   const [dismissed, setDismissed] = useState(false)
@@ -31,10 +31,13 @@ export function useManagerMessages(initialWelcome: boolean, scope?: string) {
     serverSnapshot,
   )
   const shouldAnnounce = announcement && !initialWelcome && !dismissed && seen === false
-  const view = manualView ?? (shouldAnnounce ? 'updates' : null)
+  const view =
+    manualView === 'welcome-preview'
+      ? 'welcome'
+      : (manualView ?? (shouldAnnounce ? 'updates' : null))
 
   function close() {
-    if (view === 'welcome') {
+    if (manualView === 'welcome') {
       const url = new URL(window.location.href)
       url.searchParams.delete('boas-vindas')
       window.history.replaceState(null, '', url)
@@ -51,5 +54,7 @@ export function useManagerMessages(initialWelcome: boolean, scope?: string) {
 
   const openUpdates = useCallback(() => setManualView('updates'), [])
 
-  return { view, close, openUpdates }
+  const openWelcome = useCallback(() => setManualView('welcome-preview'), [])
+
+  return { view, close, openUpdates, openWelcome }
 }

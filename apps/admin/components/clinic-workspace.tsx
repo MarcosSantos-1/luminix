@@ -78,6 +78,7 @@ export function ClinicWorkspace({ children }: { children: ReactNode }) {
   const searchParams = useSearchParams()
   const router = useRouter()
   const onboarding = pathname.endsWith('/onboarding')
+  const onboardingPreview = onboarding && searchParams.get('simular') === '1'
   const staff = useStaff()
   const key = `${staff.user?.uid}/${clinicId}/${staff.revision}`
   const [state, setState] = useState<{
@@ -178,7 +179,8 @@ export function ClinicWorkspace({ children }: { children: ReactNode }) {
     return (
       <Context.Provider value={visible}>
         <SpaceThemeProvider
-          key={key}
+          key={`${key}/${onboardingPreview}`}
+          persist={!onboardingPreview}
           initialTheme={visible.clinic.theme}
           clinicId={visible.clinic.id}
           clinicCode={visible.clinic.share_code}

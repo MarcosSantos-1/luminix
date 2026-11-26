@@ -323,6 +323,7 @@ export function ClinicStep({
   fieldErrors = {},
   footer,
   onUploadingChange,
+  preview = false,
 }: {
   payload: Payload
   setPayload: (value: Payload) => void
@@ -330,6 +331,7 @@ export function ClinicStep({
   fieldErrors?: FieldErrors
   footer: ReactNode
   onUploadingChange?: (busy: boolean) => void
+  preview?: boolean
 }) {
   const details = useOverlayState()
   const copy = useSpaceCopy()
@@ -467,6 +469,7 @@ export function ClinicStep({
               payload={payload}
               setPayload={setPayload}
               onBusyChange={onUploadingChange}
+              previewOnly={preview}
             />
           </div>
           <div className="ob2-clinic-audience">
@@ -613,6 +616,7 @@ function ImageDropzone({
   fileName,
   onPreviewChange,
   onFile,
+  previewOnly = false,
   className = 'ob2-logo-drop',
 }: {
   label: string
@@ -622,6 +626,7 @@ function ImageDropzone({
   fileName: string
   onPreviewChange: (preview: string | null, fileName: string) => void
   onFile: (file: File) => Promise<void>
+  previewOnly?: boolean
   className?: string
 }) {
   const inputRef = useRef<HTMLInputElement>(null)
@@ -631,8 +636,7 @@ function ImageDropzone({
 
   async function acceptFile(file: File | undefined) {
     if (!file || busy) return
-    const url = URL.createObjectURL(file)
-    onPreviewChange(url, file.name)
+    if (!previewOnly) onPreviewChange(URL.createObjectURL(file), file.name)
     setBusy(true)
     try {
       await onFile(file)
@@ -743,11 +747,13 @@ function ProfessionalPhotoField({
   preview,
   onPreviewChange,
   onFile,
+  previewOnly = false,
 }: {
   gender: Professional['gender']
   preview: string | null
   onPreviewChange: (preview: string | null) => void
   onFile: (file: File) => Promise<void>
+  previewOnly?: boolean
 }) {
   const inputRef = useRef<HTMLInputElement>(null)
   const [dragging, setDragging] = useState(false)
@@ -755,7 +761,7 @@ function ProfessionalPhotoField({
 
   async function acceptFile(file: File | undefined) {
     if (!file || busy) return
-    onPreviewChange(URL.createObjectURL(file))
+    if (!previewOnly) onPreviewChange(URL.createObjectURL(file))
     setBusy(true)
     try {
       await onFile(file)
@@ -864,14 +870,30 @@ function ProfessionalPhotoField({
   )
 }
 
+function localImagePreview(file: File): Promise<string> {
+  if (
+    !['image/png', 'image/jpeg', 'image/webp'].includes(file.type) ||
+    file.size > 10 * 1024 * 1024
+  )
+    return Promise.reject(new Error('Escolha uma imagem PNG, JPG ou WebP de até 10 MB.'))
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = () => resolve(String(reader.result))
+    reader.onerror = () => reject(new Error('Não foi possível abrir a imagem.'))
+    reader.readAsDataURL(file)
+  })
+}
+
 function ClinicLogoDropzone({
   payload,
   setPayload,
   onBusyChange,
+  previewOnly,
 }: {
   payload: Payload
   setPayload: (value: Payload) => void
   onBusyChange?: (busy: boolean) => void
+  previewOnly: boolean
 }) {
   const { clinic } = useClinic()
   const staff = useStaff()
@@ -885,7 +907,12 @@ function ClinicLogoDropzone({
     <ImageDropzone
       label="Logo da clínica"
       emptyHint="PNG, JPG ou WebP"
-      fileHint="Imagem salva · clique ou arraste para trocar"
+      fileHint={
+        previewOnly
+          ? 'Clique ou arraste para trocar a prévia'
+          : 'Imagem salva · clique ou arraste para trocar'
+      }
+      previewOnly={previewOnly}
       preview={preview ?? payload.clinic.logoUrl ?? null}
       fileName={fileName}
       onPreviewChange={(next, name) => {
@@ -898,6 +925,16 @@ function ClinicLogoDropzone({
       onFile={async (file) => {
         onBusyChange?.(true)
         try {
+          if (previewOnly) {
+            const logoUrl = await localImagePreview(file)
+            setFileName(file.name)
+            const current = payloadRef.current
+            setPayload({
+              ...current,
+              clinic: { ...current.clinic, logoAssetId: undefined, logoUrl },
+            })
+            return
+          }
           if (!staff.user) throw new Error('Sua sessão expirou. Entre novamente.')
           const result = await uploadClinicMedia({
             clinicId: clinic.id,
@@ -1537,6 +1574,7 @@ export function TeamStep({
   fieldErrors = {},
   footer,
   onUploadingChange,
+  preview = false,
 }: {
   payload: Payload
   setPayload: (value: Payload) => void
@@ -1544,6 +1582,7 @@ export function TeamStep({
   fieldErrors?: FieldErrors
   footer: ReactNode
   onUploadingChange?: (busy: boolean) => void
+  preview?: boolean
 }) {
   const { clinic } = useClinic()
   const staff = useStaff()
@@ -1835,6 +1874,7 @@ export function TeamStep({
         <div className="ob2-pro-identity">
           <ProfessionalPhotoField
             gender={draft.gender}
+            previewOnly={preview}
             preview={draft.photoUrl ?? draft.photoPreview ?? null}
             onPreviewChange={(preview) =>
               patchDraft(
@@ -1847,6 +1887,11 @@ export function TeamStep({
               onUploadingChange?.(true)
               setPhotoUploading(true)
               try {
+                if (preview) {
+                  const photoUrl = await localImagePreview(file)
+                  patchDraft({ photoUrl, photoAssetId: undefined, photoPreview: undefined })
+                  return
+                }
                 if (!staff.user) throw new Error('Sua sessão expirou. Entre novamente.')
                 const result = await uploadClinicMedia({
                   clinicId: clinic.id,
@@ -2382,6 +2427,7 @@ export function PaymentsStep({
   footer,
   onReadyChange,
   onSettledChange,
+  preview = false,
 }: {
   clinicId: string
   payload: Payload
@@ -2390,6 +2436,7 @@ export function PaymentsStep({
   fieldErrors?: FieldErrors
   onReadyChange: (ready: boolean) => void
   onSettledChange: (settled: boolean) => void
+  preview?: boolean
   footer: ReactNode
 }) {
   const [phase, setPhase] = useState<ConnectPhase>('loading')
@@ -2501,8 +2548,17 @@ export function PaymentsStep({
       </Card>
       <div className="ob2-pay-rule" aria-hidden="true" />
       <DepositSettings payload={payload} setPayload={setPayload} fieldErrors={fieldErrors} />
-      {payload.preferences.acceptInApp ? (
-        <>
+      {payload.preferences.acceptInApp &&
+        (preview ? (
+          <Card className="ob2-panel">
+            <Card.Content className="ob2-form">
+              <strong>Cadastro Stripe</strong>
+              <p className="ob2-copy">
+                A conexão com a Stripe fica disponível no fluxo real de recebimentos.
+              </p>
+            </Card.Content>
+          </Card>
+        ) : (
           <ConnectPanel
             key={clinicId}
             onReadyChange={onReadyChange}
@@ -2510,8 +2566,7 @@ export function PaymentsStep({
             onPhaseChange={setPhase}
             onChooseOutside={selectOutside}
           />
-        </>
-      ) : null}
+        ))}
       <div className="ob2-pay-rule" aria-hidden="true" />
       <BlurDialog
         isOpen={packageHelp}
