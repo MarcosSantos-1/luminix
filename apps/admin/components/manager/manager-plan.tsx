@@ -2,6 +2,7 @@
 
 import Image from 'next/image'
 import { useEffect, useState } from 'react'
+import { remainingPlanDays } from '@/lib/plan-days'
 import {
   AlertTriangle,
   CalendarDays,
@@ -89,10 +90,6 @@ const day = (iso: string | null | undefined) =>
       }).format(Date.parse(iso))
     : null
 
-function remainingDays(end: number, now: number) {
-  return Math.max(0, Math.min(12, Math.ceil((end - now) / 86_400_000)))
-}
-
 /** Short status for the menu card. */
 export function planStatus(
   endsAt: string | null | undefined,
@@ -105,7 +102,7 @@ export function planStatus(
   if (access?.state === 'read_only') return 'Só leitura · assine'
   const end = access?.trialEndsAt ?? endsAt
   if (!end || !Number.isFinite(Date.parse(end))) return '12 dias gratuitos'
-  const left = remainingDays(Date.parse(end), now)
+  const left = remainingPlanDays(Date.parse(end), now)
   if (left <= 0) return 'Período gratuito encerrado'
   return left === 1 ? 'Falta 1 dia' : `Faltam ${left} dias`
 }
@@ -207,7 +204,7 @@ export function PlanModal({
   const current = info?.access ?? access ?? null
   const trialEnd = current?.trialEndsAt ?? endsAt ?? null
   const endTime = trialEnd ? Date.parse(trialEnd) : NaN
-  const remaining = previewDays ?? (Number.isFinite(endTime) ? remainingDays(endTime, now) : 12)
+  const remaining = previewDays ?? (Number.isFinite(endTime) ? remainingPlanDays(endTime, now) : 12)
   const cardOn =
     current?.paymentMethod === 'card' &&
     (current.cardStatus === 'active' || current.cardStatus === 'past_due')
