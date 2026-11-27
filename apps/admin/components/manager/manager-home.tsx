@@ -217,7 +217,9 @@ export function ManagerHome({
   const [settingsTab, setSettingsTab] = useState<ManagerSettingsSection>(
     () =>
       managerSettingsSections.find(
-        ({ id }) => id === initialSettingsTab && (!settingsTabs || settingsTabs.includes(id)),
+        ({ id }) =>
+          id === (initialSettingsTab === 'acessos' ? 'equipe' : initialSettingsTab) &&
+          (!settingsTabs || settingsTabs.includes(id)),
       )?.id ??
       settingsTabs?.[0] ??
       'espaco',
@@ -332,7 +334,11 @@ export function ManagerHome({
       select(match.id)
       return
     }
-    const settingsTarget = managerSettingsSections.find((item) => item.label === label)
+    const settingsTarget = managerSettingsSections.find(
+      (item) =>
+        item.label ===
+        (label === 'Equipe e horários' || label === 'Acessos e logins' ? 'Equipe' : label),
+    )
     if (settingsTarget) {
       select('configuracoes')
       setSettingsTab(settingsTarget.id)

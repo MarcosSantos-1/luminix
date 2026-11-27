@@ -60,6 +60,7 @@ export type Professional = {
   name: string
   role: string
   gender: ProfessionalGender
+  commissionBps?: number | null
   audience: Audience
   serviceNames: string[]
   serviceIds: string[]

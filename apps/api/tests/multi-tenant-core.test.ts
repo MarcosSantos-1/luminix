@@ -187,6 +187,7 @@ describe('versioned core migration', () => {
       { name: '0075_service_deposit_retention.sql' },
       { name: '0076_package_first_visit_payment.sql' },
       { name: '0077_team_compensation.sql' },
+      { name: '0078_unified_team.sql' },
     ])
   })
 

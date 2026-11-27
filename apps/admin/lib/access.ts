@@ -105,7 +105,6 @@ const settingsPermissions: Record<ManagerSettingsSection, string> = {
   regras: 'settings:manage',
   personalizacao: 'settings:manage',
   equipe: 'professional:manage',
-  acessos: 'team:manage',
   rotina: 'schedule:manage',
 }
 

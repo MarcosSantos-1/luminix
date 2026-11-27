@@ -22,7 +22,10 @@ const directory: StaffDirectory = {
     return { uid, created: true }
   },
   async describe(uids) {
-    return new Map(uids.map((uid) => [uid, { lastSignInAt: null, disabled: false }]))
+    const emails = new Map([...accounts].map(([email, uid]) => [uid, email]))
+    return new Map(
+      uids.map((uid) => [uid, { lastSignInAt: null, disabled: false, email: emails.get(uid) }]),
+    )
   },
   async signInLink(email, continueUrl, options) {
     if (options?.existingOnly && !accounts.has(email)) return null
@@ -603,5 +606,113 @@ describe('access levels and options', () => {
       fromName: 'Espaço b',
     })
     expect(outbox[0].subject).toContain('Bruna')
+  })
+})
+
+describe('cadastro unificado de funcionários', () => {
+  it('vincula a recepção ao convite, preserva permissões de equipe e bloqueia agendamento em seu nome', async () => {
+    const root = '/clinics/' + clinic('a').id
+    const id = '968bbd4c-018e-4603-a53b-14a437db10d0'
+    expect(
+      (
+        await put(
+          'owner-a',
+          'a',
+          id,
+          professional({
+            name: 'Vanessa',
+            role: 'Recepcionista',
+            staffKind: 'reception',
+            attends: true,
+          }),
+        )
+      ).statusCode,
+    ).toBe(200)
+    const email = 'nova-recepcao@example.com'
+    const invitation = await invite('owner-a', 'a', {
+      name: 'Vanessa',
+      role: 'team',
+      email,
+      professionalId: id,
+    })
+    expect(invitation.statusCode).toBe(200)
+    const login = accounts.get(email)!
+    const roster = (await app.inject({ url: root + '/team', headers: as('owner-a') })).json()
+      .professionals
+    expect(roster).toContainEqual(
+      expect.objectContaining({
+        id,
+        membershipId: invitation.json().member.id,
+        staffKind: 'reception',
+        attends: false,
+        commissionBps: null,
+      }),
+    )
+    const view = await agenda(login, 'a')
+    expect(view.statusCode).toBe(200)
+    expect(view.json().professionals).not.toContainEqual(expect.objectContaining({ id }))
+    const client = await app.inject({
+      method: 'POST',
+      url: root + '/clients',
+      headers: as(login),
+      payload: { name: 'Cliente da recepção' },
+    })
+    expect(client.statusCode).toBe(201)
+    const booking = await app.inject({
+      method: 'POST',
+      url: root + '/appointments',
+      headers: as(login),
+      payload: {
+        clientId: client.json().client.id,
+        serviceId: clinic('a').service,
+        professionalId: id,
+        localStartsAt: '2030-06-10T13:00',
+      },
+    })
+    expect(booking.statusCode).toBe(400)
+    const photo = 'data:image/jpeg;base64,YWJj'
+    expect(
+      (
+        await app.inject({
+          method: 'PUT',
+          url: root + '/account',
+          headers: as(login),
+          payload: { name: 'Vanessa', photo },
+        })
+      ).statusCode,
+    ).toBe(200)
+    const changed = 'vanessa-novo@example.com'
+    accounts.delete(email)
+    accounts.set(changed, login)
+    const staff = (await app.inject({ url: root + '/staff', headers: as('owner-a') })).json()
+      .members
+    expect(staff).toContainEqual(
+      expect.objectContaining({ professionalId: id, email: changed, photo }),
+    )
+    outbox.length = 0
+    expect(
+      (
+        await app.inject({
+          method: 'POST',
+          url: root + '/staff/' + invitation.json().member.id + '/access-link',
+          headers: as('owner-a'),
+        })
+      ).statusCode,
+    ).toBe(200)
+    expect(outbox).toContainEqual(expect.objectContaining({ to: changed }))
+  })
+
+  it('salva a comissão no perfil de quem atende', async () => {
+    const id = clinic('a').professional
+    expect((await put('owner-a', 'a', id, professional({ commissionBps: 1550 }))).statusCode).toBe(
+      200,
+    )
+    const view = await app.inject({
+      url: '/clinics/' + clinic('a').id + '/team',
+      headers: as('owner-a'),
+    })
+    expect(view.json().professionals).toContainEqual(
+      expect.objectContaining({ id, attends: true, commissionBps: 1550 }),
+    )
   })
 })

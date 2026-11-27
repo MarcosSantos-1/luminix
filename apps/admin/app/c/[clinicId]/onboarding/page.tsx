@@ -267,6 +267,7 @@ function teamPayload(payload: Payload, step: number): Payload {
           id: payload.professionals[0]?.id || crypto.randomUUID(),
           name: payload.ownerName.trim() || 'Você',
           role: 'Proprietária / profissional',
+          commissionBps: payload.professionals[0]?.commissionBps,
           gender: 'female',
           audience: payload.clinic.defaultAudience,
           serviceNames,
@@ -449,6 +450,8 @@ function OnboardingFlow({ preview }: { preview: boolean }) {
       if (Object.keys(fields).length > 0)
         fields.services = 'Revise nome, duração e valor dos serviços.'
     }
+    if (targetStep === 4 && payload.professionals.some((person) => person.commissionBps === 0))
+      fields.commission = 'Informe o percentual de comissão para continuar.'
     if (targetStep === 4 && payload.teamMode === 'solo') {
       for (const service of payload.services) {
         if (serviceIsIntimate(service) && service.audienceChosen !== true)

@@ -3,7 +3,6 @@
 import Link from 'next/link'
 import { ArrowRight, HandCoins, Rocket, Wallet } from 'lucide-react'
 import { ReceiptsLink } from '@/components/payments/receipts-link'
-import { AccessSettings } from '../settings/access-settings'
 import { PersonalizationSettings } from '../settings/personalization-settings'
 import { ProfileSettings } from '../settings/profile-settings'
 import { RoutineSettings } from '../settings/routine-settings'
@@ -73,7 +72,6 @@ export function ClinicSettings({
           canManageAccess={permissions.includes('team:manage')}
         />
       )}
-      {tab === 'acessos' && <AccessSettings clinicId={clinic.id} />}
       {tab === 'rotina' && (
         <div className="settings-stack">
           <RoutineSettings clinicId={clinic.id} onOpenAgenda={() => onOpen('agenda')} />

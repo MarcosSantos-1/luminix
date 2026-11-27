@@ -1148,7 +1148,7 @@ export async function operationRoutes(
                  FROM luminix.professionals p
                  LEFT JOIN luminix.media_assets photo ON photo.clinic_id = p.clinic_id
                    AND photo.id = p.photo_asset_id AND photo.status = 'ready'
-                WHERE p.clinic_id = $1 AND p.status = 'active'
+                WHERE p.clinic_id = $1 AND p.status = 'active' AND p.attends
                 ORDER BY lower(p.display_name) LIMIT 100`,
             [tenant.clinicId],
           ),
@@ -1169,7 +1169,7 @@ export async function operationRoutes(
             `SELECT w.professional_id, w.weekday, w.is_available, w.periods
                  FROM luminix.professional_weekly_availability w
                  JOIN luminix.professionals p ON p.clinic_id = w.clinic_id AND p.id = w.professional_id
-                WHERE w.clinic_id = $1 AND p.status = 'active'
+                WHERE w.clinic_id = $1 AND p.status = 'active' AND p.attends
                 ORDER BY w.professional_id, w.weekday`,
             [tenant.clinicId],
           ),
@@ -1190,7 +1190,7 @@ export async function operationRoutes(
             `SELECT o.professional_id, o.local_date::text AS local_date, o.is_available, o.periods, o.reason
                  FROM luminix.professional_schedule_overrides o
                  JOIN luminix.professionals p ON p.clinic_id = o.clinic_id AND p.id = o.professional_id
-                WHERE o.clinic_id = $1 AND p.status = 'active'
+                WHERE o.clinic_id = $1 AND p.status = 'active' AND p.attends
                   AND o.local_date BETWEEN $2::date AND $3::date
                 ORDER BY o.local_date, o.professional_id`,
             [tenant.clinicId, request.query.from.slice(0, 10), request.query.to.slice(0, 10)],
@@ -1334,7 +1334,7 @@ export async function operationRoutes(
           const professional = (
             await connection.query(
               `SELECT id FROM luminix.professionals
-                WHERE clinic_id = $1 AND id = $2 AND status = 'active'`,
+                WHERE clinic_id = $1 AND id = $2 AND status = 'active' AND attends`,
               [tenant.clinicId, request.body.professionalId],
             )
           ).rows[0]

@@ -251,3 +251,14 @@
   background: #ffffff18;
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--space-highlight, #ffb5d3) 24%, transparent);
 }
+
+.lx-commission-field {
+  display: grid;
+  align-items: start;
+  justify-items: start;
+  gap: 10px;
+  padding-block: 8px;
+}
+.lx-commission-field > .lx-field {
+  width: min(100%, 230px);
+}

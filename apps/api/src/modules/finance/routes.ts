@@ -218,6 +218,8 @@ export async function financeRoutes(
             name: String(row.name),
             professional: row.professional === true,
             baseCents: toNumber(row.base_cents),
+            commissionBps: toNumber(row.configured_commission_bps),
+            attends: row.attends === true,
             paid: row.entry_id
               ? {
                   salaryCents: toNumber(row.salary_cents),

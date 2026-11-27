@@ -1,4 +1,5 @@
 import type { FastifyInstance } from 'fastify'
+import type { StaffAccountInfo } from '../../shared/integrations/firebase/staff-directory.js'
 import type { AuthDependencies } from '../../shared/auth/staff-session.js'
 import {
   clinicRefParams,
@@ -65,12 +66,12 @@ export async function teamRoutes(
         const [people, links, days, services, hours] = await Promise.all([
           connection.query(
             `SELECT p.id, p.display_name, p.role_name, p.gender, p.audience, p.membership_id,
-                    p.photo_asset_id, photo.large_object_key AS photo_key
+                    p.photo_asset_id, p.staff_kind, p.attends, p.commission_bps, photo.large_object_key AS photo_key
                FROM luminix.professionals p
                LEFT JOIN luminix.media_assets photo ON photo.clinic_id = p.clinic_id
                  AND photo.id = p.photo_asset_id AND photo.status = 'ready'
               WHERE p.clinic_id = $1 AND p.status = 'active'
-              ORDER BY p.created_at, p.id LIMIT 60`,
+              ORDER BY p.created_at, p.id LIMIT 200`,
             [tenant.clinicId],
           ),
           connection.query(
@@ -119,6 +120,9 @@ export async function teamRoutes(
             return {
               id,
               name: String(person.display_name),
+              staffKind: person.staff_kind,
+              attends: person.attends === true,
+              commissionBps: person.commission_bps == null ? null : Number(person.commission_bps),
               role: person.role_name ? String(person.role_name) : '',
               gender: person.gender ?? 'female',
               audience: person.audience ?? 'all',
@@ -171,6 +175,12 @@ export async function teamRoutes(
             gender: { type: 'string', enum: ['female', 'male'] },
             audience: { type: 'string', enum: ['all', 'women', 'men'] },
             confirmCancellations: confirmCancellationsSchema,
+            staffKind: { type: 'string', enum: ['team', 'manager', 'reception', 'other'] },
+            attends: { type: 'boolean' },
+            commissionBps: {
+              anyOf: [{ type: 'integer', minimum: 1, maximum: 10000 }, { type: 'null' }],
+            },
+            accessRole: { type: 'string', enum: [...accessRoles] },
             photoAssetId: { type: 'string', pattern: `^$|${uuidPattern}` },
             membershipId: { anyOf: [{ type: 'string', pattern: uuidPattern }, { type: 'null' }] },
             serviceIds: {
@@ -217,7 +227,13 @@ export async function teamRoutes(
     async (request, reply) =>
       withCancellationMail(mail, reply, (outbox) =>
         authorized(request, reply, 'professional:manage', async (connection, tenant) => {
-          const { confirmCancellations, ...professional } = request.body
+          const { confirmCancellations, accessRole, ...professional } = request.body
+          if (accessRole)
+            await connection.query('SELECT luminix.update_staff_member($1, $2, $3, NULL, NULL)', [
+              tenant.clinicId,
+              professional.membershipId,
+              accessRole,
+            ])
           const before = await fittingAppointments(connection, tenant.clinicId)
           const id = (
             await connection.query('SELECT luminix.save_professional($1::uuid, $2::jsonb) AS id', [
@@ -273,7 +289,7 @@ export async function teamRoutes(
       )) as Record<string, unknown>[] | undefined
       if (!Array.isArray(result)) return result
       // Sign-in data is best effort: the list still works if Firebase is unreachable.
-      let activity = new Map<string, { lastSignInAt: string | null; disabled: boolean }>()
+      let activity = new Map<string, StaffAccountInfo>()
       try {
         activity =
           (await dependencies.staffDirectory?.describe(
@@ -287,8 +303,9 @@ export async function teamRoutes(
           const account = activity.get(String(row.firebase_uid ?? ''))
           return {
             id: String(row.membership_id),
-            name: row.display_name ? String(row.display_name) : '',
-            email: row.contact_email ? String(row.contact_email) : '',
+            name: row.display_name ? String(row.display_name) : (account?.name ?? ''),
+            email: account?.email ?? (row.contact_email ? String(row.contact_email) : ''),
+            photo: row.photo_data ? String(row.photo_data) : null,
             role: String(row.role_name),
             status: String(row.status),
             isSelf: row.is_self === true,
@@ -303,7 +320,12 @@ export async function teamRoutes(
 
   app.post<{
     Params: { clinicId: string }
-    Body: { name: string; email: string; role: (typeof accessRoles)[number] }
+    Body: {
+      name: string
+      email: string
+      role: (typeof accessRoles)[number]
+      professionalId?: string
+    }
   }>(
     '/clinics/:clinicId/staff',
     {
@@ -322,6 +344,7 @@ export async function teamRoutes(
               pattern: '^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$',
             },
             role: { type: 'string', enum: [...accessRoles] },
+            professionalId: { type: 'string', pattern: uuidPattern },
           },
         },
       },
@@ -348,6 +371,12 @@ export async function teamRoutes(
               [tenant.clinicId, identity?.identity_id, request.body.role, name, email],
             )
           ).rows[0]?.id
+          if (request.body.professionalId)
+            await connection.query('SELECT luminix.attach_staff_invitation($1, $2, $3)', [
+              tenant.clinicId,
+              request.body.professionalId,
+              memberId,
+            ])
           const clinic = await connection.query('SELECT name FROM luminix.clinics WHERE id = $1', [
             tenant.clinicId,
           ])
@@ -366,8 +395,17 @@ export async function teamRoutes(
             dependencies.tenantPool,
             identityId,
             request.params.clinicId,
-            'team:manage',
-            async () => undefined,
+            request.body.role === 'manager' ? 'onboarding:manage' : 'team:manage',
+            async (connection, tenant) => {
+              if (request.body.professionalId) {
+                const { rows } = await connection.query(
+                  "SELECT id FROM luminix.professionals WHERE clinic_id = $1 AND id = $2 AND membership_id IS NULL AND status = 'active'",
+                  [tenant.clinicId, request.body.professionalId],
+                )
+                if (!rows.length)
+                  throw Object.assign(new Error('Employee unavailable'), { statusCode: 409 })
+              }
+            },
           )
           account = await dependencies.staffDirectory.ensureAccount(email, name)
         },
@@ -409,10 +447,11 @@ export async function teamRoutes(
         const member = members.rows.find(
           (row) => String(row.membership_id) === request.params.memberId,
         )
-        if (!member || member.status !== 'active' || !member.contact_email)
+        if (!member || member.status !== 'active')
           return reply.code(404).send({ error: 'Member not found' })
         return {
-          email: String(member.contact_email),
+          email: String(member.contact_email ?? ''),
+          uid: String(member.firebase_uid ?? ''),
           name: String(member.display_name ?? ''),
           role: String(member.role_name),
           clinicId: tenant.clinicId,
@@ -422,11 +461,17 @@ export async function teamRoutes(
       if (reply.sent) return result
       const target = result as {
         clinicId: string
+        uid: string
         email: string
         name: string
         role: string
         clinicName: string
       }
+      const account =
+        target.uid && (await dependencies.staffDirectory?.describe([target.uid]))?.get(target.uid)
+      if (account && account.disabled) return reply.code(404).send({ error: 'Member not found' })
+      target.email = (account && account.email) || target.email
+      if (!target.email) return reply.code(404).send({ error: 'Member not found' })
       if (!mail) return reply.code(503).send({ error: 'Email unavailable', email: target.email })
       try {
         await mail.invite(target)

@@ -1,6 +1,8 @@
 'use client'
 
 import { Button, Spinner } from '@heroui/react'
+import { verifyBeforeUpdateEmail } from 'firebase/auth'
+import { getFirebaseAuth } from '@/lib/firebase'
 import { Camera, Trash2 } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { TextInputField } from '@/components/ui/fields'
@@ -67,6 +69,9 @@ export function AccountModal({
   const [photo, setPhoto] = useState<string | null>(null)
   const [error, setError] = useState('')
   const [saving, setSaving] = useState(false)
+  const [newEmail, setNewEmail] = useState('')
+  const [emailMessage, setEmailMessage] = useState('')
+  const [sendingEmail, setSendingEmail] = useState(false)
   const input = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
@@ -79,7 +84,7 @@ export function AccountModal({
         const filled = {
           ...data,
           name: data.name || fallbackName.trim(),
-          email: data.email || fallbackEmail,
+          email: fallbackEmail || data.email,
         }
         setAccount(filled)
         setName(filled.name)
@@ -103,11 +108,42 @@ export function AccountModal({
     try {
       await api.put('account', { name: name.trim(), photo })
       await onSaved({ ...account, name: name.trim(), photo })
+      window.dispatchEvent(new Event('luminix:account-saved'))
       onOpenChange(false)
     } catch {
       setError('Não foi possível salvar. Tente de novo.')
     } finally {
       setSaving(false)
+    }
+  }
+
+  async function changeEmail() {
+    const email = newEmail.trim().toLowerCase()
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      setEmailMessage('Informe um novo e-mail válido.')
+      return
+    }
+    setSendingEmail(true)
+    setEmailMessage('')
+    try {
+      const user = getFirebaseAuth().currentUser
+      if (!user || email === user.email?.toLowerCase()) {
+        setEmailMessage('Informe um endereço diferente do e-mail atual.')
+        return
+      }
+      await verifyBeforeUpdateEmail(user, email)
+      setNewEmail('')
+      setEmailMessage(
+        'Enviamos um link ao novo e-mail. Após confirmar, use o novo endereço para entrar.',
+      )
+    } catch (cause) {
+      setEmailMessage(
+        (cause as { code?: string })?.code === 'auth/requires-recent-login'
+          ? 'Entre novamente no Luminix antes de trocar o e-mail.'
+          : 'Não foi possível enviar a confirmação. Confira o endereço e tente novamente.',
+      )
+    } finally {
+      setSendingEmail(false)
     }
   }
 
@@ -185,7 +221,7 @@ export function AccountModal({
               label="E-mail de acesso"
               isDisabled
               value={account.email}
-              description="Usado para entrar. Não é alterado aqui."
+              description="Usado para entrar na sua conta Luminix."
               onChange={() => undefined}
             />
             <TextInputField
@@ -195,6 +231,25 @@ export function AccountModal({
               onChange={() => undefined}
             />
           </div>
+          <details className="account-change-email">
+            <summary>Alterar e-mail de acesso</summary>
+            <TextInputField
+              label="Novo e-mail"
+              type="email"
+              inputMode="email"
+              value={newEmail}
+              onChange={setNewEmail}
+            />
+            <Button
+              size="sm"
+              variant="secondary"
+              isDisabled={!newEmail.trim() || sendingEmail}
+              onPress={() => void changeEmail()}
+            >
+              Enviar confirmação
+            </Button>
+            {emailMessage ? <p role="status">{emailMessage}</p> : null}
+          </details>
         </>
       ) : null}
       {error ? (

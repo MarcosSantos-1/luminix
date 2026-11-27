@@ -661,7 +661,7 @@ export async function clientRoutes(app: FastifyInstance, dependencies: AuthDepen
            ON ps.clinic_id = p.clinic_id AND ps.professional_id = p.id AND ps.service_id = $2
          LEFT JOIN luminix.media_assets photo
            ON photo.clinic_id = p.clinic_id AND photo.id = p.photo_asset_id AND photo.status = 'ready'
-        WHERE p.clinic_id = $1 AND p.status = 'active'
+        WHERE p.clinic_id = $1 AND p.status = 'active' AND p.attends
         ORDER BY lower(p.display_name), p.id`,
       [scope.clinicId, serviceId],
     )

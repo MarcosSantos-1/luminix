@@ -1,3 +1,4 @@
+import { CommissionField } from '@/components/ui/commission-field'
 import { DepositSettings } from './deposit-settings'
 import { ConnectPanel, type ConnectPhase } from '@/components/payments/connect-panel'
 import { ThemePicker } from '@/components/space-theme'
@@ -1598,6 +1599,7 @@ export function TeamStep({
     role?: string
     gender?: string
     audience?: string
+    commission?: string
   }>({})
   const [photoUploading, setPhotoUploading] = useState(false)
   const singleGenderClinic = clinicServesSingleGender(payload.clinic.defaultAudience)
@@ -1652,9 +1654,11 @@ export function TeamStep({
       role?: string
       gender?: string
       audience?: string
+      commission?: string
     } = {}
     if (!draft.name.trim()) next.name = 'Informe o nome da profissional.'
     if (!draft.role.trim()) next.role = 'Informe a função ou especialidade.'
+    if (draft.commissionBps === 0) next.commission = 'Informe o percentual da comissão.'
     if (draft.gender !== 'female' && draft.gender !== 'male') next.gender = 'Escolha o sexo.'
     if (!singleGenderClinic && !isAudience(draft.audience))
       next.audience = 'Escolha o público atendido.'
@@ -1662,7 +1666,7 @@ export function TeamStep({
     const message =
       next.name && next.role
         ? 'Informe o nome e a função.'
-        : next.name || next.role || next.gender || next.audience
+        : next.name || next.role || next.gender || next.audience || next.commission
     if (message) toast.danger(message, { timeout: 5000 })
     return !message
   }
@@ -1779,6 +1783,21 @@ export function TeamStep({
               </p>
             </Card.Content>
           </Card>
+          {payload.professionals[0] ? (
+            <CommissionField
+              key={payload.professionals[0].id}
+              value={payload.professionals[0].commissionBps ?? null}
+              showError={Boolean(fieldErrors.commission)}
+              onChange={(commissionBps) =>
+                setPayload({
+                  ...payload,
+                  professionals: payload.professionals.map((person, i) =>
+                    i === 0 ? { ...person, commissionBps } : person,
+                  ),
+                })
+              }
+            />
+          ) : null}
           {fieldErrors.intimate ? (
             <SectionIssue
               title="Público dos atendimentos íntimos"
@@ -1979,6 +1998,14 @@ export function TeamStep({
               ) : null}
             </div>
           </div>
+        </div>
+        <div className="ob2-pro-section">
+          <CommissionField
+            key={draft.id}
+            value={draft.commissionBps ?? null}
+            showError={Boolean(formErrors.commission)}
+            onChange={(commissionBps) => patchDraft({ commissionBps })}
+          />
         </div>
         <div className="ob2-pro-section">
           <p className="ob2-dialog-section">

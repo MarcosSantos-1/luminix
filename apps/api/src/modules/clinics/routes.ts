@@ -100,6 +100,7 @@ type OnboardingPayload = {
     name: string
     role: string
     gender: 'female' | 'male'
+    commissionBps?: number | null
     audience: 'all' | 'women' | 'men'
     serviceNames: string[]
     serviceIds: string[]
@@ -1050,6 +1051,9 @@ export async function clinicRoutes(
             name: { type: 'string', minLength: 1, maxLength: 160 },
             role: { type: 'string', minLength: 1, maxLength: 120 },
             gender: { type: 'string', enum: ['female', 'male'] },
+            commissionBps: {
+              anyOf: [{ type: 'integer', minimum: 0, maximum: 10000 }, { type: 'null' }],
+            },
             audience: { type: 'string', enum: ['all', 'women', 'men'] },
             serviceNames: {
               type: 'array',

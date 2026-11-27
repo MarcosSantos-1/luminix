@@ -438,7 +438,7 @@ export async function workspaceRoutes(
             connection.query(
               `SELECT count(*) AS total FROM luminix.services s WHERE s.clinic_id = $1 AND s.status = 'active'
                 AND NOT EXISTS (SELECT 1 FROM luminix.professional_services ps
-                  JOIN luminix.professionals p ON p.clinic_id = ps.clinic_id AND p.id = ps.professional_id AND p.status = 'active'
+                  JOIN luminix.professionals p ON p.clinic_id = ps.clinic_id AND p.id = ps.professional_id AND p.status = 'active' AND p.attends
                   WHERE ps.clinic_id = s.clinic_id AND ps.service_id = s.id)`,
               [tenant.clinicId],
             ),

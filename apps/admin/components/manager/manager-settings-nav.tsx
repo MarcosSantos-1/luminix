@@ -6,7 +6,6 @@ import {
   Building2,
   CalendarDays,
   Globe,
-  KeyRound,
   Mail,
   Palette,
   ShieldCheck,
@@ -41,15 +40,9 @@ export const managerSettingsSections = [
   },
   {
     id: 'equipe',
-    label: 'Equipe e horários',
+    label: 'Equipe',
     icon: UsersRound,
-    hint: 'Quem atende, o que cada pessoa faz e quando.',
-  },
-  {
-    id: 'acessos',
-    label: 'Acessos e logins',
-    icon: KeyRound,
-    hint: 'Quem entra no painel e o que pode ver.',
+    hint: 'Funcionários, atendimentos, horários, comissões e acesso ao painel.',
   },
   { id: 'rotina', label: 'Rotina', icon: CalendarDays, hint: 'Horário de funcionamento e pausas.' },
 ] as const

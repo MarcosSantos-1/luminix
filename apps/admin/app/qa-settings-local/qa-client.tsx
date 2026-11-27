@@ -1314,7 +1314,7 @@ export default function QASettings({
           } as T
         if (path === 'team')
           return {
-            selfMembershipId: '',
+            selfMembershipId: 'm-owner',
             clinicHours: [0, 1, 2, 3, 4, 5, 6].map((weekday) => ({
               weekday,
               enabled: weekday > 0,
@@ -1334,10 +1334,12 @@ export default function QASettings({
               role: 'Cabeleireira',
               gender: 'female',
               audience: 'all',
-              membershipId: null,
+              membershipId: index === 0 ? 'm-joana' : 'm-owner',
+              attends: true,
+              commissionBps: index === 0 ? 1550 : null,
               photoAssetId: '',
               photoUrl: null,
-              serviceIds: [],
+              serviceIds: [services[0][0]],
               serviceAudiences: {},
               days: [0, 1, 2, 3, 4, 5, 6].map((weekday) => ({
                 weekday,

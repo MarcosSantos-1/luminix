@@ -795,7 +795,7 @@ describe('remuneração da equipe', () => {
     const professional = String(
       (
         await connection.query(
-          "INSERT INTO luminix.professionals (clinic_id, display_name) VALUES ($1, 'Profissional do repasse') RETURNING id",
+          "INSERT INTO luminix.professionals (clinic_id, display_name, commission_bps) VALUES ($1, 'Profissional do repasse', 1250) RETURNING id",
           [clinic.id],
         )
       ).rows[0].id,
@@ -817,7 +817,12 @@ describe('remuneração da equipe', () => {
     expect(charge.statusCode).toBe(200)
     const finance = (await call('owner-b', 'GET', root + '/finance')).json()
     expect(finance.team).toContainEqual(
-      expect.objectContaining({ id: professional, baseCents: 8500, paid: null }),
+      expect.objectContaining({
+        id: professional,
+        baseCents: 8500,
+        commissionBps: 1250,
+        paid: null,
+      }),
     )
 
     const payout = {

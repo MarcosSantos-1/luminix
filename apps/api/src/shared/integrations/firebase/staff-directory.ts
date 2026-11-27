@@ -2,11 +2,18 @@ import type { Auth } from 'firebase-admin/auth'
 import { getFirebaseAdminAuth } from './admin.js'
 
 /** Staff accounts live in Firebase Auth; the database only stores the Firebase UID. */
+export type StaffAccountInfo = {
+  lastSignInAt: string | null
+  disabled: boolean
+  email?: string
+  name?: string
+}
+
 export type StaffDirectory = {
   /** Finds the account for an e-mail or creates one without a password. */
   ensureAccount(email: string, displayName: string): Promise<{ uid: string; created: boolean }>
   /** Last sign-in and disabled flag; unknown UIDs are omitted. */
-  describe(uids: string[]): Promise<Map<string, { lastSignInAt: string | null; disabled: boolean }>>
+  describe(uids: string[]): Promise<Map<string, StaffAccountInfo>>
   /**
    * One-time sign-in link (Firebase e-mail link) that returns to `continueUrl`. With
    * `existingOnly`, returns null for unknown or disabled accounts so the public login form
@@ -41,7 +48,7 @@ export function createFirebaseStaffDirectory(
       return { uid: user.uid, created: true }
     },
     async describe(uids) {
-      const result = new Map<string, { lastSignInAt: string | null; disabled: boolean }>()
+      const result = new Map<string, StaffAccountInfo>()
       const auth = getAuth()
       for (let index = 0; index < uids.length; index += 100) {
         const { users } = await auth.getUsers(
@@ -53,6 +60,8 @@ export function createFirebaseStaffDirectory(
               ? new Date(user.metadata.lastSignInTime).toISOString()
               : null,
             disabled: user.disabled,
+            email: user.email,
+            name: user.displayName,
           })
       }
       return result

@@ -90,6 +90,7 @@ const payload = {
       id: professionalA,
       name: 'Ana Renomeada',
       role: 'Esteticista',
+      commissionBps: 1550,
       gender: 'female',
       audience: 'all',
       serviceNames: ['Limpeza de pele', 'Depilação com cera: íntima completa'],
@@ -421,11 +422,19 @@ describe('versioned clinic onboarding', () => {
     expect(
       (
         await db.query(
-          'SELECT id, display_name, gender FROM luminix.professionals WHERE clinic_id = $1',
+          'SELECT id, display_name, gender, commission_bps, membership_id IS NOT NULL AS has_login FROM luminix.professionals WHERE clinic_id = $1',
           [clinicA],
         )
       ).rows,
-    ).toEqual([{ id: professionalA, display_name: 'Ana Renomeada', gender: 'female' }])
+    ).toEqual([
+      {
+        id: professionalA,
+        display_name: 'Ana Renomeada',
+        gender: 'female',
+        commission_bps: 1550,
+        has_login: true,
+      },
+    ])
     const archived = (
       await db.query(
         `SELECT status, step, payload->>'name' AS name, payload->>'teamMode' AS team_mode

@@ -886,11 +886,11 @@
 }
 .team-card {
   display: grid;
-  grid-template-columns: 56px minmax(0, 1fr);
-  gap: 12px;
+  grid-template-columns: 48px minmax(0, 1fr) auto;
+  gap: 10px;
   width: 100%;
-  min-height: 132px;
-  padding: 14px;
+  min-height: 96px;
+  padding: 12px;
   border: 1px solid var(--manager-border, #ffffff26);
   border-radius: 18px;
   color: var(--manager-text);
@@ -907,8 +907,8 @@
   background: #ffffff1c;
 }
 .team-card > img {
-  width: 56px;
-  height: 56px;
+  width: 48px;
+  height: 48px;
   border-radius: 50%;
   object-fit: cover;
   background: #fff;
@@ -918,6 +918,7 @@
   align-content: start;
   gap: 3px;
   min-width: 0;
+  overflow-wrap: anywhere;
 }
 .team-card-copy strong {
   font-size: 16px;
@@ -940,6 +941,7 @@
   gap: 8px;
 }
 .team-card-edit {
+  align-self: end;
   margin-left: auto;
   font-size: 13px;
   font-weight: 700;
@@ -948,6 +950,7 @@
 }
 .team-card.is-add {
   grid-template-columns: 1fr;
+  gap: 7px;
   justify-items: center;
   align-content: center;
   border-style: dashed;
@@ -956,8 +959,8 @@
 .team-add-icon {
   display: grid;
   place-items: center;
-  width: 48px;
-  height: 48px;
+  width: 36px;
+  height: 36px;
   border-radius: 50%;
   color: #fff;
   background: var(--space-accent, #ec287a);
@@ -1867,4 +1870,54 @@
 .rules-outcomes button[aria-checked='true'] .rules-radio::after {
   background: var(--space-highlight, #ffb5d3);
   transform: scale(1);
+}
+
+.team-card .team-member-type {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-weight: 650;
+  color: var(--space-highlight, #ffd0e3);
+}
+.team-member-type svg {
+  color: #ffd478;
+  flex-shrink: 0;
+}
+.team-login-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.team-permissions > summary,
+.account-change-email > summary {
+  cursor: pointer;
+  font-weight: 650;
+}
+.team-permissions > summary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 0;
+}
+.team-permissions > summary::after {
+  content: '›';
+  margin-inline-start: 4px;
+}
+.team-permissions[open] > summary::after {
+  transform: rotate(90deg);
+}
+.account-change-email > * + * {
+  margin-block-start: 10px;
+}
+@media (min-width: 1000px) {
+  .ob2.manager-ob2.team-week {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    align-items: start;
+  }
+}
+
+.team-editor-modal .settings-savebar {
+  position: static;
+  flex: 1;
+  margin: 0;
 }

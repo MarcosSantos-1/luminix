@@ -84,3 +84,20 @@ arquivamento com mínimo de uma; convite de recepção (agenda 200, configuraç�
 nenhuma conta criada sem permissão, convite duplicado 409); gerente não altera owner nem cria
 gerente; inativação corta acesso e reativação restaura; isolamento entre clínicas. Testes de
 bootstrap/autorização atualizados para os presets.
+
+## Cadastro unificado no admin
+
+A aba Equipe reúne os profissionais e as pessoas com login. A recepção, Equipe e Outros usam
+as mesmas permissões configuráveis do papel de acesso `team`. Gerência e propriedade continuam
+com as proteções próprias. O cadastro pode existir antes do login. Ao convidar, a API vincula
+o acesso ao cadastro na mesma transação que cria o vínculo com a clínica.
+
+A migration 0078 separa a função exibida, a capacidade de atender e o percentual de comissão.
+Recepção fica fora dos seletores de atendimento e o banco bloqueia novas marcações atribuídas
+a quem não atende. Desativar atendimento preserva serviços e horários do cadastro. Mudanças
+que afetem visitas futuras seguem a confirmação da agenda. O Financeiro usa o percentual salvo
+e guarda o valor usado no pagamento. No onboarding só se configura a comissão dos profissionais.
+
+A foto do perfil da conta tem prioridade no card da equipe. O próprio titular pode confirmar um
+novo e-mail em Minha conta. A lista de acessos e o reenvio de convites consultam o e-mail da conta
+no Firebase pelo UID vinculado à clínica.

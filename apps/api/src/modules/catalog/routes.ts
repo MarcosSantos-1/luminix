@@ -60,7 +60,7 @@ export async function catalogRoutes(
                     array_agg(ps.professional_id ORDER BY lower(p.display_name)) AS professional_ids
                FROM luminix.professional_services ps
                JOIN luminix.professionals p ON p.clinic_id = ps.clinic_id AND p.id = ps.professional_id
-                AND p.status = 'active'
+                AND p.status = 'active' AND p.attends
               WHERE ps.clinic_id = $1 GROUP BY ps.service_id`,
             [tenant.clinicId],
           ),
@@ -79,7 +79,7 @@ export async function catalogRoutes(
                FROM luminix.professionals p
                LEFT JOIN luminix.media_assets photo ON photo.clinic_id = p.clinic_id
                  AND photo.id = p.photo_asset_id AND photo.status = 'ready'
-              WHERE p.clinic_id = $1 AND p.status = 'active'
+              WHERE p.clinic_id = $1 AND p.status = 'active' AND p.attends
               ORDER BY lower(p.display_name) LIMIT 100`,
             [tenant.clinicId],
           ),

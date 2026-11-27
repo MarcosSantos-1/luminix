@@ -57,6 +57,8 @@ type TeamPayee = {
   name: string
   professional: boolean
   baseCents: number
+  commissionBps: number
+  attends: boolean
   paid: { salaryCents: number; commissionCents: number; commissionBps: number; date: string } | null
 }
 
@@ -556,7 +558,7 @@ export function FinancePanel({
                         {money(person.paid.salaryCents)} · Comissão{' '}
                         {money(person.paid.commissionCents)}
                       </>
-                    ) : person.professional ? (
+                    ) : person.attends || person.baseCents > 0 ? (
                       <>
                         Recebimentos vinculados em {monthOf(data.month)} · {money(person.baseCents)}
                       </>
@@ -1382,20 +1384,17 @@ function FinancePaymentDialog({
   onSaved: () => void
 }) {
   const [amount, setAmount] = useState(item ? moneyInput(item.dueCents) : '')
-  const [rate, setRate] = useState('')
   const [date, setDate] = useState(today)
   const [method, setMethod] = useState('pix')
   const [error, setError] = useState('')
   const [saving, setSaving] = useState(false)
   const inFlight = useRef(false)
   const cents = parseMoney(amount) ?? 0
-  const validRate = !rate.trim() || /^\d{1,3}([,.]\d{1,2})?$/.test(rate.trim())
-  const bps =
-    person?.professional && validRate ? Math.round(Number(rate.trim().replace(',', '.')) * 100) : 0
+  const bps = person?.commissionBps ?? 0
   const commission = Math.round(((person?.baseCents ?? 0) * bps) / 10000)
   const total = cents + commission
   const maximum = item?.remainingCents ?? 100_000_000
-  const valid = validRate && bps <= 10000 && total > 0 && total <= maximum && date <= today
+  const valid = total > 0 && total <= maximum && date <= today
 
   async function save() {
     if (inFlight.current || !valid) return
@@ -1455,16 +1454,6 @@ function FinancePaymentDialog({
           value={amount}
           onChange={setAmount}
         />
-        {person?.professional ? (
-          <label>
-            <span>Comissão (%)</span>
-            <input
-              inputMode="decimal"
-              value={rate}
-              onChange={(event) => setRate(event.target.value)}
-            />
-          </label>
-        ) : null}
         <DateInputField
           label={item ? 'Recebido em' : 'Pago em'}
           value={date}
@@ -1473,9 +1462,10 @@ function FinancePaymentDialog({
         />
         <SelectField label="Forma" value={method} onChange={setMethod} options={methodOptions} />
       </div>
-      {person?.professional ? (
+      {person && bps > 0 ? (
         <p>
-          Comissão de {money(commission)} sobre {money(person.baseCents)} recebidos.
+          Comissão de {(bps / 100).toLocaleString('pt-BR')}% conforme o cadastro em Equipe.{' '}
+          {money(commission)} sobre {money(person.baseCents)} recebidos.
         </p>
       ) : null}
       {person ? (
@@ -1484,7 +1474,6 @@ function FinancePaymentDialog({
         </p>
       ) : null}
       {total > maximum ? <p role="alert">O valor máximo é {money(maximum)}.</p> : null}
-      {!validRate || bps > 10000 ? <p role="alert">Informe uma comissão entre 0% e 100%.</p> : null}
       {error ? (
         <p className="apt-error" role="alert">
           {error}
