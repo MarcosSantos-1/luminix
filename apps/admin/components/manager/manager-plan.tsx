@@ -165,6 +165,7 @@ export function PlanModal({
   status,
   endsAt,
   preview,
+  previewDays,
   now,
   clinicName,
   access,
@@ -177,6 +178,7 @@ export function PlanModal({
   now: number
   clinicName: string
   preview?: PlanPreview
+  previewDays?: number
   endsAt?: string | null
   access?: PlanAccess | null
   /** Real clinic: loads prices and opens the payment. */
@@ -205,7 +207,7 @@ export function PlanModal({
   const current = info?.access ?? access ?? null
   const trialEnd = current?.trialEndsAt ?? endsAt ?? null
   const endTime = trialEnd ? Date.parse(trialEnd) : NaN
-  const remaining = Number.isFinite(endTime) ? remainingDays(endTime, now) : 12
+  const remaining = previewDays ?? (Number.isFinite(endTime) ? remainingDays(endTime, now) : 12)
   const cardOn =
     current?.paymentMethod === 'card' &&
     (current.cardStatus === 'active' || current.cardStatus === 'past_due')
@@ -246,17 +248,20 @@ export function PlanModal({
     }
   }
 
-  const headline = preview
-    ? previewPlans[preview].title
-    : current?.state === 'active'
-      ? current.complimentary
-        ? 'Acesso cortesia'
-        : `Plano ${current.plan === 'annual' ? 'anual' : 'mensal'} ativo`
-      : current?.state === 'grace'
-        ? 'Pagamento pendente'
-        : current?.state === 'read_only'
-          ? 'Espaço só para leitura'
-          : status
+  const headline =
+    previewDays !== undefined
+      ? status
+      : preview
+        ? previewPlans[preview].title
+        : current?.state === 'active'
+          ? current.complimentary
+            ? 'Acesso cortesia'
+            : `Plano ${current.plan === 'annual' ? 'anual' : 'mensal'} ativo`
+          : current?.state === 'grace'
+            ? 'Pagamento pendente'
+            : current?.state === 'read_only'
+              ? 'Espaço só para leitura'
+              : planStatus(endsAt, now, current)
 
   return (
     <QuickModal
@@ -267,7 +272,16 @@ export function PlanModal({
       className="plan-dialog"
       badge={
         <>
-          <Crown size={13} aria-hidden /> Luminix
+          <Image
+            className="plan-brand-desktop"
+            src="/brand/logo-letter-white.png"
+            alt="Luminix"
+            width={190}
+            height={34}
+          />
+          <span className="plan-brand-mobile">
+            <Crown size={13} aria-hidden /> Luminix
+          </span>
         </>
       }
       hero={
@@ -322,7 +336,7 @@ export function PlanModal({
                 : 'Atenção'}
         </span>
         <h3>{headline}</h3>
-        {!preview && (current?.state === 'trial' || !current) ? (
+        {previewDays !== undefined || (!preview && (current?.state === 'trial' || !current)) ? (
           <div className="plan-days" aria-hidden>
             {Array.from({ length: 12 }, (_, index) => (
               <i key={index} data-elapsed={index < 12 - remaining} />

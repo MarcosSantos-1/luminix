@@ -50,7 +50,7 @@ export async function authRoutes(app: FastifyInstance, dependencies: AuthDepende
     if (!ref) return
     void refundDue(dependencies.database, onlinePaymentsOf(dependencies), ref, request.log)
   })
-  const authenticate = createStaffAuthenticator(dependencies)
+  const authenticate = createStaffAuthenticator(dependencies, 30, 240)
   // Welcome e-mails (space after onboarding, client on registration) go out after commit.
   const mail = { mailer: dependencies.mailer, adminOrigin: dependencies.adminOrigin }
   await clinicRoutes(app, authenticate, dependencies.tenantPool, dependencies.connectProvider, mail)

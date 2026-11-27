@@ -71,3 +71,14 @@ endereço e provedor configurado. A equipe pode compartilhar manualmente por Wha
 autorização de mensagens. A remoção de categoria de estoque preserva os produtos, que ficam
 sem categoria. A API de categorias é a mesma usada pelo salvamento automático ao sair do
 campo ou pressionar Enter.
+
+## Remuneração da equipe
+
+O Financeiro registra salário fixo e comissão por pessoa e competência mensal. O percentual é
+informado em cada pagamento. A base da comissão é o valor recebido no mês em lançamentos ativos
+vinculados a atendimentos concluídos do profissional. Receitas sem atendimento vinculado, como a
+venda antecipada de um pacote, ficam fora da base. A equipe administrativa recebe salário fixo.
+
+A migration 0077 guarda os valores usados no fechamento junto da saída de Equipe. A transação
+recalcula o total, exige permissão de Financeiro e bloqueia um segundo pagamento ativo para a mesma
+pessoa e competência. Anular a saída permite corrigir o lançamento, mantendo a trilha de auditoria.

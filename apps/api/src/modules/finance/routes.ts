@@ -61,6 +61,7 @@ export async function financeRoutes(
           stock,
           stockUsed,
           packages,
+          team,
         ] = await Promise.all([
           connection.query(
             `SELECT e.id, e.kind, e.amount_cents, e.occurred_on, e.description, e.category, e.method,
@@ -91,7 +92,7 @@ export async function financeRoutes(
                FROM luminix.appointments a
                JOIN luminix.clinic_clients c ON c.clinic_id = a.clinic_id AND c.id = a.clinic_client_id
                JOIN luminix.services s ON s.clinic_id = a.clinic_id AND s.id = a.service_id
-              WHERE a.clinic_id = $1 AND a.status = 'completed'
+              WHERE a.clinic_id = $1 AND a.client_package_id IS NULL AND a.status = 'completed'
                 AND a.starts_at > now() - interval '60 days'
                 AND (coalesce(a.price_cents, 0) > 0 OR s.price_type = 'quote')
                 -- Not paid yet, or paid in part ("a combinar": until something is received).
@@ -179,6 +180,10 @@ export async function financeRoutes(
           ),
           // Packages with installments behind (sold "a cada sessão" or "paga depois").
           connection.query(packagesDueQuery, [tenant.clinicId]),
+          connection.query('SELECT * FROM luminix.finance_team_month($1, $2::date)', [
+            tenant.clinicId,
+            first,
+          ]),
         ])
         const income = toNumber(totals.rows[0]?.income)
         const expense = toNumber(totals.rows[0]?.expense)
@@ -208,6 +213,20 @@ export async function financeRoutes(
             billId: row.bill_id ? String(row.bill_id) : null,
           })),
           packagesDue: packagesDue(packages.rows),
+          team: team.rows.map((row) => ({
+            id: String(row.recipient_id),
+            name: String(row.name),
+            professional: row.professional === true,
+            baseCents: toNumber(row.base_cents),
+            paid: row.entry_id
+              ? {
+                  salaryCents: toNumber(row.salary_cents),
+                  commissionCents: toNumber(row.commission_cents),
+                  commissionBps: toNumber(row.commission_bps),
+                  date: isoDate(row.paid_on),
+                }
+              : null,
+          })),
           pending: pending.rows.map((row) => ({
             appointmentId: String(row.id),
             startsAt: new Date(String(row.starts_at)).toISOString(),
@@ -292,6 +311,82 @@ export async function financeRoutes(
           ])
         ).rows[0]?.id
         return { id: String(id) }
+      }),
+  )
+
+  app.post<{
+    Params: { clinicId: string }
+    Body: {
+      recipient: string
+      professional: boolean
+      month: string
+      salaryCents: number
+      commissionBps: number
+      expectedCents: number
+      paidOn: string
+      method: string
+    }
+  }>(
+    '/clinics/:clinicId/finance/team-payments',
+    {
+      schema: {
+        params: clinicRefParams,
+        body: {
+          type: 'object',
+          additionalProperties: false,
+          required: [
+            'recipient',
+            'professional',
+            'month',
+            'salaryCents',
+            'commissionBps',
+            'expectedCents',
+            'paidOn',
+            'method',
+          ],
+          properties: {
+            recipient: uuidSchema,
+            professional: { type: 'boolean' },
+            month: { type: 'string', pattern: monthPattern },
+            salaryCents: { type: 'integer', minimum: 0, maximum: 100000000 },
+            commissionBps: { type: 'integer', minimum: 0, maximum: 10000 },
+            expectedCents: { type: 'integer', minimum: 1, maximum: 100000000 },
+            paidOn: dateSchema,
+            method: {
+              type: 'string',
+              enum: ['pix', 'cash', 'credit', 'debit', 'transfer', 'other'],
+            },
+          },
+        },
+      },
+    },
+    async (request, reply) =>
+      authorized(request, reply, 'finance:manage', async (connection, tenant) => {
+        const {
+          recipient,
+          professional,
+          month,
+          salaryCents,
+          commissionBps,
+          expectedCents,
+          paidOn,
+          method,
+        } = request.body
+        const { rows } = await connection.query(
+          'SELECT luminix.record_team_payment($1,$2,$3,$4::date,$5,$6,$7,$8::date,$9) AS id',
+          [
+            tenant.clinicId,
+            recipient,
+            professional,
+            month + '-01',
+            salaryCents,
+            commissionBps,
+            expectedCents,
+            paidOn,
+            method,
+          ],
+        )
+        return { id: String(rows[0]?.id) }
       }),
   )
 

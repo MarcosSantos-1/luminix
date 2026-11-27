@@ -2951,3 +2951,38 @@
     grid-template-columns: 1fr;
   }
 }
+
+.plan-dialog .plan-brand-desktop {
+  display: none;
+}
+.plan-dialog .plan-brand-mobile {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.plan-debug-days {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  flex-wrap: wrap;
+  margin-block: 12px;
+}
+@media (min-width: 901px) {
+  .plan-dialog .plan-brand-desktop {
+    display: block;
+    width: 142px;
+    height: auto;
+  }
+  .plan-dialog .plan-brand-mobile {
+    display: none;
+  }
+  .plan-dialog .qm-hero-facts li {
+    font-size: 1.1rem;
+    font-weight: 750;
+    padding: 12px 14px;
+    border: 1px solid #ffffff40;
+    border-radius: 12px;
+    background: #2b061945;
+    overflow-wrap: anywhere;
+  }
+}

@@ -6,6 +6,18 @@
  * session it is (2/4), how it is paid and what is still owed.
  */
 
+import type { SqlConnection } from '../../shared/database/migrations.js'
+
+export async function lockPackagePayment(
+  connection: SqlConnection,
+  clinicId: string,
+  packageId: string,
+) {
+  await connection.query('SELECT pg_advisory_xact_lock(hashtextextended($1, 0))', [
+    clinicId + '/package-payment/' + packageId.toLowerCase(),
+  ])
+}
+
 /** jsonb with the package of the appointment (alias "a"), or NULL. */
 export const appointmentPackage = `(SELECT jsonb_build_object(
     'id', cp.id,
@@ -20,6 +32,7 @@ export const appointmentPackage = `(SELECT jsonb_build_object(
                    AND (cp.kind = 'combo' OR v.service_id = a.service_id)
                    AND v.status IN ('scheduled', 'confirmed', 'completed', 'no_show')
                    AND (v.starts_at, v.id) <= (a.starts_at, a.id)),
+    'completed', a.status = 'completed',
     'done', (SELECT count(*)::integer FROM luminix.appointments v
               WHERE v.clinic_id = a.clinic_id AND v.client_package_id = a.client_package_id
                 AND v.status = 'completed'),
@@ -40,8 +53,9 @@ export type AppointmentPackage = {
   id: string
   name: string
   kind: 'combo' | 'sessions'
-  plan: 'paid' | 'per_visit' | 'later'
+  plan: 'paid' | 'per_visit' | 'later' | 'installments'
   session: number
+  firstUnfinished: boolean
   total: number
   /** Money fields are null for who does not see money. */
   priceCents: number | null
@@ -62,17 +76,24 @@ export function packageView(raw: unknown, seesMoney: boolean): AppointmentPackag
   const paid = Number(row.paidCents ?? 0)
   const sessionsTotal = Math.max(1, Number(row.sessionsTotal ?? 1))
   const remaining = Math.max(0, price - paid)
-  const installment = Math.ceil(price / sessionsTotal)
+  const done = Number(row.done ?? 0)
+  const next = Math.min(sessionsTotal, done + (row.completed ? 0 : 1))
+  const scheduled = (visits: number) => Math.floor((price * visits) / sessionsTotal)
+  const installment = scheduled(next) - scheduled(Math.max(0, next - 1))
   const visitPaid = Number(row.visitPaidCents ?? 0)
-  const plan = row.plan === 'per_visit' || row.plan === 'later' ? row.plan : 'paid'
+  const plan =
+    row.plan === 'per_visit' || row.plan === 'later' || row.plan === 'installments'
+      ? row.plan
+      : 'paid'
   const dueNow =
-    plan === 'per_visit' ? Math.min(remaining, Math.max(0, installment - visitPaid)) : remaining
+    plan === 'per_visit' ? Math.min(remaining, Math.max(0, scheduled(next) - paid)) : remaining
   return {
     id: String(row.id),
     name: String(row.name),
     kind: row.kind === 'combo' ? 'combo' : 'sessions',
     plan,
     session: Number(row.session ?? 0),
+    firstUnfinished: done === 0,
     total: Number(row.total ?? sessionsTotal),
     priceCents: seesMoney ? price : null,
     paidCents: seesMoney ? paid : null,
@@ -125,7 +146,7 @@ export function packagesDue(rows: Record<string, unknown>[]): PackageDue[] {
       const remaining = Math.max(0, price - paid)
       const expected =
         row.payment_plan === 'per_visit'
-          ? Math.min(price, Math.ceil(price / total) * done)
+          ? Math.floor((price * Math.min(total, done)) / total)
           : done > 0
             ? price
             : 0

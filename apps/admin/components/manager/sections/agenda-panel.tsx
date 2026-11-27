@@ -252,19 +252,22 @@ export function AgendaPanel({
   clinicId,
   createSignal = 0,
   embedded = false,
+  initialDate,
   onOpenClient,
 }: {
   clinicId: string
   createSignal?: number
   /** Inside a pop-up (Início): no outer spacing and no month view. */
   embedded?: boolean
+  initialDate?: string
   onOpenClient?: (client: { id: string; name: string }) => void
 }) {
   const api = useClinicApi(clinicId)
-  const [week, setWeek] = useState(() => startOfMonday(new Date()))
-  const [month, setMonth] = useState(() => startOfMonth(new Date()))
+  const [start] = useState(() => (initialDate ? new Date(initialDate + 'T12:00:00') : new Date()))
+  const [week, setWeek] = useState(() => startOfMonday(start))
+  const [month, setMonth] = useState(() => startOfMonth(start))
   const [view, setView] = useState<'week' | 'month'>('week')
-  const [selectedDate, setSelectedDate] = useState(() => ymd(new Date()))
+  const [selectedDate, setSelectedDate] = useState(() => ymd(start))
   const [data, setData] = useState<AgendaData | null>(null)
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')

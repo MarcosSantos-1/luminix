@@ -78,8 +78,9 @@ export type AppointmentPackage = {
   name: string
   kind: 'combo' | 'sessions'
   /** paid (na venda) | per_visit (a cada sessão) | later (paga depois). */
-  plan: 'paid' | 'per_visit' | 'later'
+  plan: 'paid' | 'per_visit' | 'later' | 'installments'
   session: number
+  firstUnfinished?: boolean
   total: number
   priceCents: number | null
   paidCents: number | null
@@ -91,7 +92,8 @@ export type AppointmentPackage = {
 }
 
 export const packagePlanLabel: Record<AppointmentPackage['plan'], string> = {
-  paid: 'Pago na venda',
+  paid: 'À vista',
+  installments: 'Pacote parcelado',
   per_visit: 'A cada sessão',
   later: 'Paga depois',
 }

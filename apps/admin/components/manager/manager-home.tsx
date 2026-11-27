@@ -233,12 +233,30 @@ export function ManagerHome({
   const [planOpen, setPlanOpen] = useState(false)
   const [planNow, setPlanNow] = useState(() => Date.now())
   const [debugPlanOpen, setDebugPlanOpen] = useState(false)
-  const [simulation, setSimulation] = useState<{ scope: string; plan: PlanPreview } | null>(null)
+  const [trialDays, setTrialDays] = useState(12)
+  useEffect(() => {
+    const update = () => setPlanNow(Date.now())
+    const timer = window.setInterval(update, 15_000)
+    document.addEventListener('visibilitychange', update)
+    return () => {
+      window.clearInterval(timer)
+      document.removeEventListener('visibilitychange', update)
+    }
+  }, [])
+  const [simulation, setSimulation] = useState<{
+    scope: string
+    plan: PlanPreview
+    days?: number
+  } | null>(null)
   const planScope = workspace?.clinicId ?? messages?.scope ?? clinicName
   const preview = simulation?.scope === planScope ? simulation.plan : undefined
-  const currentPlanStatus = preview
-    ? previewPlans[preview].title
-    : planStatus(trialEndsAt, planNow, access)
+  const previewDays = preview ? simulation?.days : undefined
+  const currentPlanStatus =
+    previewDays !== undefined
+      ? planStatus(new Date(planNow + previewDays * 86_400_000).toISOString(), planNow)
+      : preview
+        ? previewPlans[preview].title
+        : planStatus(trialEndsAt, planNow, access)
   const openPlan = () => {
     setPlanNow(Date.now())
     setPlanOpen(true)
@@ -344,13 +362,15 @@ export function ManagerHome({
     }
     if (target.create) requestCreate(target.section)
     setFocus(
-      target.query ||
+      target.overdue ||
+        target.query ||
         ((target.section === 'servicos' || target.section === 'marketing') && target.tab)
         ? {
             section: target.section,
             query: target.query ?? '',
             tab: target.tab,
             equipmentId: target.equipmentId,
+            overdue: target.overdue,
             nonce: Date.now(),
           }
         : null,
@@ -714,6 +734,31 @@ export function ManagerHome({
           title="Simular assinatura"
           subtitle="Veja como cada situação aparece em Meu plano. A simulação dura enquanto o painel estiver aberto."
         >
+          <label className="plan-debug-days">
+            Dias restantes no teste
+            <input
+              type="range"
+              min={0}
+              max={12}
+              value={trialDays}
+              onChange={(event) => setTrialDays(Number(event.target.value))}
+            />
+            <output>{trialDays}</output>
+          </label>
+          <Button
+            variant="secondary"
+            onPress={() => {
+              setSimulation({
+                scope: planScope,
+                plan: trialDays === 0 ? 'expired' : 'trial',
+                days: trialDays,
+              })
+              setDebugPlanOpen(false)
+              openPlan()
+            }}
+          >
+            Simular contagem
+          </Button>
           <div className="plan-debug-options">
             {(Object.keys(previewPlans) as PlanPreview[]).map((id) => (
               <Button
@@ -743,6 +788,7 @@ export function ManagerHome({
       )}
       <PlanModal
         preview={preview}
+        previewDays={previewDays}
         isOpen={planOpen}
         onOpenChange={setPlanOpen}
         status={currentPlanStatus}

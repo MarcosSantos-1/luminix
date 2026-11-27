@@ -30,7 +30,7 @@ const controls = [
   { key: 'edge', label: 'Brilho da borda', min: 0, max: 100, unit: '%' },
 ] as const
 type Glass = Record<(typeof controls)[number]['key'], number> & { tint: string }
-const initial: Glass = { opacity: 46, blur: 20, saturation: 120, edge: 38, tint: '#bc7398' }
+const initial: Glass = { opacity: 18, blur: 8, saturation: 120, edge: 24, tint: '#bc7398' }
 /** Phones start here (the owner's tuned look); "Restaurar padrão" comes back to it. */
 const mobileInitial: Glass = { opacity: 42, blur: 40, saturation: 120, edge: 65, tint: '#bc7398' }
 const mobileQuery = '(max-width: 900px)'
@@ -139,9 +139,8 @@ export function ManagerAppearanceShell({
   const appearance = useMemo(() => parseAppearance(raw), [raw])
   const { glass: saved, theme } = appearance
   const mobile = useSyncExternalStore(subscribeMobile, mobileSnapshot, () => false)
-  // Nothing saved: phones use their own default, larger screens keep the stylesheet's.
-  const active = saved ?? (mobile ? mobileInitial : null)
-  const value = active ?? initial
+  const active = saved ?? (mobile ? mobileInitial : initial)
+  const value = active
 
   useEffect(() => {
     if (!legacyScope || snapshot() !== null) return
@@ -168,17 +167,15 @@ export function ManagerAppearanceShell({
   function change(glass: Glass) {
     save({ ...appearance, glass })
   }
-  const style = active
-    ? ({
-        '--manager-glass-tint': active.tint,
-        '--manager-glass-opacity': `${active.opacity}%`,
-        '--manager-glass-blur': `${active.blur}px`,
-        '--manager-glass-saturation': `${active.saturation}%`,
-        '--manager-glass-edge': `${Math.round(active.edge * 0.65)}%`,
-      } as CSSProperties)
-    : undefined
+  const style = {
+    '--manager-glass-tint': active.tint,
+    '--manager-glass-opacity': `${active.opacity}%`,
+    '--manager-glass-blur': `${active.blur}px`,
+    '--manager-glass-saturation': `${active.saturation}%`,
+    '--manager-glass-edge': `${Math.round(active.edge * 0.65)}%`,
+  } as CSSProperties
   return (
-    <div {...shell} data-manager-glass={active ? 'custom' : undefined} style={style}>
+    <div {...shell} data-manager-glass="custom" style={style}>
       {children}
       <div
         id="manager-glass-panel"
@@ -213,17 +210,20 @@ export function ManagerAppearanceShell({
           />
         </details>
         <div className="manager-glass-presets" role="group" aria-label="Estilos de vidro">
-          {presets.map(({ label, icon: Icon, values }) => (
-            <button
-              key={label}
-              type="button"
-              aria-pressed={!!active && controls.every(({ key }) => active[key] === values[key])}
-              onClick={() => change({ ...value, ...values })}
-            >
-              <Icon size={17} aria-hidden />
-              {label}
-            </button>
-          ))}
+          {presets.map(({ label, icon: Icon, values }) => {
+            const preset = !mobile && label === 'Cristal' ? initial : values
+            return (
+              <button
+                key={label}
+                type="button"
+                aria-pressed={controls.every(({ key }) => value[key] === preset[key])}
+                onClick={() => change({ ...preset, tint: value.tint })}
+              >
+                <Icon size={17} aria-hidden />
+                {label}
+              </button>
+            )
+          })}
         </div>
         <div className="manager-glass-sliders">
           {controls.map(({ key, label, unit, min, max }) => (

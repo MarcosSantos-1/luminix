@@ -1,4 +1,5 @@
 import type { FastifyInstance } from 'fastify'
+import { lockPackagePayment } from './package-money.js'
 import type { SqlConnection } from '../../shared/database/migrations.js'
 import {
   clinicRefParams,
@@ -468,7 +469,13 @@ export async function packageRoutes(
   // Uma parcela do pacote (ou o restante): receita no Financeiro ligada ao pacote.
   app.post<{
     Params: { clinicId: string; clientPackageId: string }
-    Body: { amountCents: number; method?: string; occurredOn: string; appointmentId?: string }
+    Body: {
+      amountCents: number
+      method?: string
+      occurredOn: string
+      appointmentId?: string
+      expectedPaidCents?: number
+    }
   }>(
     '/clinics/:clinicId/client-packages/:clientPackageId/payments',
     {
@@ -484,22 +491,32 @@ export async function packageRoutes(
             method: methodSchema,
             occurredOn: dateSchema,
             appointmentId: uuidSchema,
+            expectedPaidCents: { type: 'integer', minimum: 0, maximum: 100000000 },
           },
         },
       },
     },
     async (request, reply) =>
       authorized(request, reply, 'finance:manage', async (connection, tenant) => {
+        await lockPackagePayment(connection, tenant.clinicId, request.params.clientPackageId)
         const item = (
           await connection.query(
-            `SELECT cp.name, c.display_name FROM luminix.client_packages cp
+            `SELECT cp.name, c.display_name, cp.price_cents, luminix.client_package_paid(cp.clinic_id, cp.id) AS paid_cents FROM luminix.client_packages cp
                JOIN luminix.clinic_clients c ON c.clinic_id = cp.clinic_id
                 AND c.id = cp.clinic_client_id
-              WHERE cp.clinic_id = $1 AND cp.id = $2`,
+              WHERE cp.clinic_id = $1 AND cp.id = $2 AND cp.status = 'active'`,
             [tenant.clinicId, request.params.clientPackageId],
           )
         ).rows[0]
         if (!item) return reply.code(404).send({ error: 'Package not found' })
+        const { expectedPaidCents, amountCents } = request.body
+        const alreadyPaid = Number(item.paid_cents)
+        if (expectedPaidCents !== undefined && alreadyPaid !== expectedPaidCents)
+          return reply
+            .code(409)
+            .send({ error: 'O saldo do pacote mudou. Feche e confira novamente.' })
+        if (alreadyPaid + amountCents > Number(item.price_cents))
+          return reply.code(400).send({ error: 'O valor passa do saldo do pacote.' })
         const entry = await financeEntry(connection, tenant, {
           kind: 'income',
           amountCents: request.body.amountCents,

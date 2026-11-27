@@ -142,9 +142,28 @@ describe('pacote pago a cada sessão', () => {
       method: 'pix',
       occurredOn: '2030-07-02',
       appointmentId: visit,
+      expectedPaidCents: 0,
     })
     expect(paid.statusCode).toBe(201)
     expect(paid.json().paidCents).toBe(10000)
+    const retry = await call(
+      'pay-a',
+      'POST',
+      clinicA,
+      'client-packages/' + clientPackage + '/payments',
+      {
+        amountCents: 10000,
+        occurredOn: '2030-07-02',
+        expectedPaidCents: 0,
+      },
+    )
+    expect(retry.statusCode).toBe(409)
+    const first = await call('pay-a', 'PUT', clinicA, 'appointments/' + visit + '/complete', {
+      supplies: [],
+      payment: null,
+      packagePlan: 'installments',
+    })
+    expect(first.statusCode).toBe(200)
     // Never more than the package price.
     expect(
       (
@@ -158,7 +177,7 @@ describe('pacote pago a cada sessão', () => {
       .json()
       .packages.find((item: { id: string }) => item.id === clientPackage)
     expect(mine).toMatchObject({
-      paymentPlan: 'per_visit',
+      paymentPlan: 'installments',
       paidCents: 10000,
       remainingCents: 20000,
       installmentCents: 10000,

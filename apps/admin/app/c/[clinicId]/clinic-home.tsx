@@ -154,10 +154,11 @@ export function ClinicHome({
         ),
         ...(active
           ? {
-              inicio: ({ navigate, go }) => (
+              inicio: ({ navigate, go, focus }) => (
                 <HomeDashboard
                   clinicId={clinic.id}
                   sections={sections}
+                  overdueFocus={focus?.overdue ? focus.nonce : undefined}
                   onNavigate={navigate}
                   onGo={go}
                   onOpenClient={(client) => go({ section: 'clientes', query: client.name })}

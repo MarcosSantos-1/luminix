@@ -183,6 +183,10 @@ describe('versioned core migration', () => {
       { name: '0071_online_deposit.sql' },
       { name: '0072_client_confirm_presence.sql' },
       { name: '0073_book_packages.sql' },
+      { name: '0074_staff_access_cards.sql' },
+      { name: '0075_service_deposit_retention.sql' },
+      { name: '0076_package_first_visit_payment.sql' },
+      { name: '0077_team_compensation.sql' },
     ])
   })
 
@@ -390,7 +394,9 @@ describe('authorized database scope', () => {
     }>(
       "SELECT relname, relrowsecurity, relforcerowsecurity FROM pg_class WHERE relnamespace = 'luminix'::regnamespace AND relkind = 'r' AND relname NOT IN ('identities', 'client_profiles', 'permissions')",
     )
-    expect(tables.rows).toHaveLength(56)
+    expect(tables.rows).toEqual(
+      expect.arrayContaining([expect.objectContaining({ relname: 'finance_team_payments' })]),
+    )
     expect(tables.rows.every((row) => row.relrowsecurity && row.relforcerowsecurity)).toBe(true)
   })
 

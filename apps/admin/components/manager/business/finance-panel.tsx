@@ -31,7 +31,12 @@ import {
 } from '@/components/ui/fields'
 import { KpiCards } from '../data-kit'
 import { QuickModal } from '../quick-modal'
-import { useClinicApi, useClinicResource, type ClinicApi } from '../settings/clinic-api'
+import {
+  ClinicApiError,
+  useClinicApi,
+  useClinicResource,
+  type ClinicApi,
+} from '../settings/clinic-api'
 import { LoadError, SettingsCard, SettingsSkeleton, StatusPill } from '../settings/settings-kit'
 import {
   dateBr,
@@ -46,6 +51,14 @@ import {
 import { BillWizard, billEmoji, EntryWizard, expenseCategories } from './finance-wizards'
 import './business.css'
 import { ToastNotice } from '@/components/ui/toast-notice'
+
+type TeamPayee = {
+  id: string
+  name: string
+  professional: boolean
+  baseCents: number
+  paid: { salaryCents: number; commissionCents: number; commissionBps: number; date: string } | null
+}
 
 type Entry = {
   id: string
@@ -107,6 +120,7 @@ type Finance = {
   pending: Pending[]
   /** Packages behind on installments ("a cada sessão") or with a balance to pay later. */
   packagesDue?: PackageDue[]
+  team?: TeamPayee[]
   bills?: Bill[]
   expenseCategories?: CategoryRow[]
   trend?: TrendRow[]
@@ -217,6 +231,8 @@ export function FinancePanel({
   const [busy, setBusy] = useState('')
   const [method, setMethod] = useState('pix')
   const [settle, setSettle] = useState<Bill | null>(null)
+  const [packageReceipt, setPackageReceipt] = useState<PackageDue | null>(null)
+  const [teamPayment, setTeamPayment] = useState<TeamPayee | null>(null)
   const [editBill, setEditBill] = useState<Bill | 'new' | null>(null)
   const [setup, setSetup] = useState(false)
   const [reviewing, setReviewing] = useState(false)
@@ -290,36 +306,21 @@ export function FinancePanel({
     setBusy(item.appointmentId)
     setNotice(null)
     try {
-      await api.post('finance/entries', {
-        kind: 'income',
-        amountCents: cents,
-        occurredOn: item.startsAt.slice(0, 10),
-        description: `${item.service} · ${item.client}`,
-        category: 'Atendimentos',
-        method,
-        appointmentId: item.appointmentId,
+      await api.put(`appointments/${item.appointmentId}/charge`, {
+        ...(item.quote ? { agreedPriceCents: cents } : {}),
+        payment: {
+          amountCents: cents,
+          description: `${item.service} · ${item.client}`.slice(0, 160),
+          method,
+        },
       })
       setAsking(null)
       done(`${money(cents)} lançado como entrada.`)
     } catch {
-      setNotice({ kind: 'error', text: 'Não foi possível lançar. Talvez já tenha sido lançado.' })
-    } finally {
-      setBusy('')
-    }
-  }
-
-  async function receivePackage(item: PackageDue) {
-    setBusy(item.clientPackageId)
-    setNotice(null)
-    try {
-      await api.post(`client-packages/${item.clientPackageId}/payments`, {
-        amountCents: item.dueCents,
-        occurredOn: data!.today,
-        method,
+      setNotice({
+        kind: 'error',
+        text: 'Não foi possível lançar. Confira o saldo atualizado e tente novamente.',
       })
-      done(`${money(item.dueCents)} do pacote de ${item.client} lançado como entrada.`)
-    } catch {
-      setNotice({ kind: 'error', text: 'Não foi possível lançar. Tente de novo.' })
     } finally {
       setBusy('')
     }
@@ -516,16 +517,18 @@ export function FinancePanel({
                   <strong>{item.client}</strong>
                   <span className="biz-row-meta">
                     🎁 {item.name} · {item.done}/{item.sessionsTotal} sessões ·{' '}
-                    {item.plan === 'per_visit' ? 'a cada sessão' : 'paga depois'} · pago{' '}
-                    {money(item.paidCents)} de {money(item.priceCents)}
+                    {item.plan === 'per_visit'
+                      ? 'por sessão'
+                      : item.plan === 'installments'
+                        ? 'parcelado'
+                        : item.plan === 'paid'
+                          ? 'à vista'
+                          : 'paga depois'}{' '}
+                    · pago {money(item.paidCents)} de {money(item.priceCents)}
                   </span>
                 </div>
                 <div className="biz-actions">
-                  <Button
-                    size="sm"
-                    isDisabled={busy === item.clientPackageId}
-                    onPress={() => void receivePackage(item)}
-                  >
+                  <Button size="sm" onPress={() => setPackageReceipt(item)}>
                     <Plus size={14} aria-hidden /> Receber {money(item.dueCents)}
                   </Button>
                 </div>
@@ -533,6 +536,84 @@ export function FinancePanel({
             ))}
           </ul>
         </SettingsCard>
+      ) : null}
+
+      <SettingsCard
+        icon={<UsersRound size={20} />}
+        title="Salários e comissões"
+        description="Remuneração da equipe por mês. A comissão usa os recebimentos vinculados a atendimentos concluídos."
+      >
+        {data.team?.length ? (
+          <ul className="biz-list">
+            {data.team.map((person) => (
+              <li key={person.id}>
+                <div className="biz-row-main">
+                  <strong>{person.name}</strong>
+                  <span className="biz-row-meta">
+                    {person.paid ? (
+                      <>
+                        Pago em {dateBr(person.paid.date)} · Salário{' '}
+                        {money(person.paid.salaryCents)} · Comissão{' '}
+                        {money(person.paid.commissionCents)}
+                      </>
+                    ) : person.professional ? (
+                      <>
+                        Recebimentos vinculados em {monthOf(data.month)} · {money(person.baseCents)}
+                      </>
+                    ) : (
+                      'Equipe administrativa'
+                    )}
+                  </span>
+                </div>
+                {person.paid ? (
+                  <StatusPill tone="on">Pago</StatusPill>
+                ) : (
+                  <Button size="sm" onPress={() => setTeamPayment(person)}>
+                    Registrar pagamento
+                  </Button>
+                )}
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="settings-muted">
+            Cadastre as pessoas da equipe para registrar os pagamentos.
+          </p>
+        )}
+      </SettingsCard>
+      {packageReceipt ? (
+        <FinancePaymentDialog
+          key={packageReceipt.clientPackageId}
+          api={api}
+          item={packageReceipt}
+          today={data.today}
+          month={data.month}
+          onClose={() => {
+            setPackageReceipt(null)
+            finance.reload()
+          }}
+          onSaved={() => {
+            setPackageReceipt(null)
+            done('Recebimento do pacote registrado.')
+          }}
+        />
+      ) : null}
+      {teamPayment ? (
+        <FinancePaymentDialog
+          key={teamPayment.id}
+          api={api}
+          person={teamPayment}
+          today={data.today}
+          month={data.month}
+          onClose={() => {
+            setTeamPayment(null)
+            finance.reload()
+          }}
+          onSaved={() => {
+            setTeamPayment(null)
+            done('Pagamento da equipe registrado.')
+          }}
+        />
       ) : null}
 
       <div className="fin-grid">
@@ -1279,6 +1360,136 @@ function AskAmount({
       }
     >
       <MoneyField label="Valor recebido" isRequired autoFocus value={amount} onChange={setAmount} />
+    </QuickModal>
+  )
+}
+
+function FinancePaymentDialog({
+  api,
+  item,
+  person,
+  today,
+  month,
+  onClose,
+  onSaved,
+}: {
+  api: ClinicApi
+  item?: PackageDue
+  person?: TeamPayee
+  today: string
+  month: string
+  onClose: () => void
+  onSaved: () => void
+}) {
+  const [amount, setAmount] = useState(item ? moneyInput(item.dueCents) : '')
+  const [rate, setRate] = useState('')
+  const [date, setDate] = useState(today)
+  const [method, setMethod] = useState('pix')
+  const [error, setError] = useState('')
+  const [saving, setSaving] = useState(false)
+  const inFlight = useRef(false)
+  const cents = parseMoney(amount) ?? 0
+  const validRate = !rate.trim() || /^\d{1,3}([,.]\d{1,2})?$/.test(rate.trim())
+  const bps =
+    person?.professional && validRate ? Math.round(Number(rate.trim().replace(',', '.')) * 100) : 0
+  const commission = Math.round(((person?.baseCents ?? 0) * bps) / 10000)
+  const total = cents + commission
+  const maximum = item?.remainingCents ?? 100_000_000
+  const valid = validRate && bps <= 10000 && total > 0 && total <= maximum && date <= today
+
+  async function save() {
+    if (inFlight.current || !valid) return
+    inFlight.current = true
+    setSaving(true)
+    setError('')
+    try {
+      if (item) {
+        await api.post('client-packages/' + item.clientPackageId + '/payments', {
+          amountCents: cents,
+          expectedPaidCents: item.paidCents,
+          occurredOn: date,
+          method,
+        })
+      } else if (person) {
+        await api.post('finance/team-payments', {
+          recipient: person.id,
+          professional: person.professional,
+          month,
+          salaryCents: cents,
+          commissionBps: bps,
+          expectedCents: total,
+          paidOn: date,
+          method,
+        })
+      }
+      onSaved()
+    } catch (caught) {
+      setError(
+        caught instanceof ClinicApiError && caught.status === 409
+          ? (caught.body?.error ?? 'Os valores mudaram. Feche e confira novamente.')
+          : 'Não foi possível registrar o pagamento. Tente novamente.',
+      )
+    } finally {
+      inFlight.current = false
+      setSaving(false)
+    }
+  }
+
+  return (
+    <QuickModal
+      isOpen
+      onOpenChange={(open) => !open && !inFlight.current && onClose()}
+      title={item ? 'Receber de ' + item.client : 'Pagar ' + person?.name}
+      subtitle={
+        item ? item.name + ' · saldo de ' + money(maximum) : 'Remuneração de ' + monthOf(month)
+      }
+      footer={
+        <Button onPress={() => void save()} isDisabled={!valid || saving}>
+          {saving ? 'Salvando…' : 'Confirmar pagamento'}
+        </Button>
+      }
+    >
+      <div className="manager-form-grid">
+        <MoneyField
+          label={item ? 'Valor recebido' : 'Salário fixo'}
+          value={amount}
+          onChange={setAmount}
+        />
+        {person?.professional ? (
+          <label>
+            <span>Comissão (%)</span>
+            <input
+              inputMode="decimal"
+              value={rate}
+              onChange={(event) => setRate(event.target.value)}
+            />
+          </label>
+        ) : null}
+        <DateInputField
+          label={item ? 'Recebido em' : 'Pago em'}
+          value={date}
+          max={today}
+          onChange={(value) => setDate(value || today)}
+        />
+        <SelectField label="Forma" value={method} onChange={setMethod} options={methodOptions} />
+      </div>
+      {person?.professional ? (
+        <p>
+          Comissão de {money(commission)} sobre {money(person.baseCents)} recebidos.
+        </p>
+      ) : null}
+      {person ? (
+        <p>
+          <strong>Total {money(total)}</strong>
+        </p>
+      ) : null}
+      {total > maximum ? <p role="alert">O valor máximo é {money(maximum)}.</p> : null}
+      {!validRate || bps > 10000 ? <p role="alert">Informe uma comissão entre 0% e 100%.</p> : null}
+      {error ? (
+        <p className="apt-error" role="alert">
+          {error}
+        </p>
+      ) : null}
     </QuickModal>
   )
 }

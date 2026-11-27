@@ -14,7 +14,7 @@ import {
   Package,
   Plus,
 } from 'lucide-react'
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useClinicApi, useClinicResource, type ClinicApi } from '../settings/clinic-api'
 import { LoadError, SettingsSkeleton } from '../settings/settings-kit'
 import { managerNavigation, type ManagerSectionId } from '../demo-data'
@@ -29,6 +29,7 @@ import { BookingModal, QuickClientModal } from '../appointments/booking-modal'
 import {
   clock,
   dayLabel,
+  localDate,
   needsAttention,
   serviceTitle,
   visitBadge,
@@ -42,6 +43,7 @@ import { ToastNotice } from '@/components/ui/toast-notice'
 
 type Dashboard = {
   today: string
+  overdue?: AppointmentView | null
   appointments: AppointmentView[]
   /** Next open appointments after today. */
   upcoming?: AppointmentView[]
@@ -81,7 +83,7 @@ function payLabel(item: AppointmentView) {
   if (item.status === 'canceled' || item.status === 'no_show' || item.priceCents == null)
     return null
   if (item.package)
-    return item.package.dueNowCents ? 'A receber' : item.package.plan === 'paid' ? null : 'Pago'
+    return item.package.dueNowCents ? 'A receber' : item.package.remainingCents ? 'Em dia' : 'Pago'
   if (!item.paid && item.priceCents === 0 && item.priceType !== 'quote') return null
   return item.paid ? 'Pago' : 'A receber'
 }
@@ -90,12 +92,14 @@ function payLabel(item: AppointmentView) {
 function AppointmentRow({
   item,
   showDay,
+  highlighted,
   onOpen,
   api,
 }: {
   item: AppointmentView
   api: ClinicApi
   showDay?: boolean
+  highlighted?: boolean
   onOpen: (item: AppointmentView) => void
 }) {
   const badge = dayBadge(item)
@@ -103,7 +107,7 @@ function AppointmentRow({
   return (
     <button
       type="button"
-      className={`apt-row is-${item.status}`}
+      className={`apt-row is-${item.status}${highlighted ? ' apt-row-highlighted' : ''}`}
       onClick={() => onOpen(item)}
       aria-label={`${item.client}, ${item.service}, ${clock(item.startsAt)}${needsAttention(item) ? ', tem observações' : ''}. Abrir opções`}
     >
@@ -174,9 +178,11 @@ export function HomeDashboard({
   onNavigate,
   onGo,
   onOpenClient,
+  overdueFocus,
 }: {
   clinicId: string
   sections: ManagerSectionId[]
+  overdueFocus?: number
   onNavigate: (label: string) => void
   /** Opens a page on a given tab (e.g. Marketing → Promoções). */
   onGo?: (target: GoTarget) => void
@@ -201,7 +207,15 @@ export function HomeDashboard({
     }
   }
   const dashboard = useClinicResource<Dashboard>(api, 'dashboard')
+  const dayCard = useRef<HTMLDivElement>(null)
+  const overdueId = dashboard.data?.overdue?.id
+  useEffect(() => {
+    if (!overdueFocus || !overdueId) return
+    dayCard.current?.querySelector<HTMLButtonElement>('.apt-row-highlighted')?.focus()
+  }, [overdueFocus, overdueId])
   const [notice, setNotice] = useState('')
+  const [handledFocus, setHandledFocus] = useState<number>()
+  const [reviewedDate, setReviewedDate] = useState<string>()
   const [opened, setOpened] = useState<AppointmentView | null>(null)
   const [quick, setQuick] = useState<'booking' | 'agenda' | 'client' | 'deposits' | null>(null)
   if (dashboard.error && !dashboard.data)
@@ -211,7 +225,15 @@ export function HomeDashboard({
   const live = data.appointments.filter((item) => item.status !== 'canceled')
   const done = live.filter((item) => item.status === 'completed').length
   const upcoming = data.upcoming ?? []
+  const pinned = overdueFocus !== undefined && overdueFocus !== handledFocus ? data.overdue : null
+  const dayRows = pinned
+    ? [pinned, ...data.appointments.filter((item) => item.id !== pinned.id)]
+    : data.appointments
   const changed = (message: string) => {
+    if (pinned && opened?.id === pinned.id) {
+      setHandledFocus(overdueFocus)
+      setReviewedDate(localDate(opened.startsAt))
+    }
     setNotice(message)
     dashboard.reload()
     signals?.refresh()
@@ -376,7 +398,7 @@ export function HomeDashboard({
       </section>
       <ToastNotice message={notice} onShown={() => setNotice('')} />
       <div className="manager-grid">
-        <div className="manager-agenda-block">
+        <div className="manager-agenda-block" ref={dayCard}>
           <div className="apt-day-head">
             <h2>Clientes do dia</h2>
             <button type="button" onClick={() => setQuick('agenda')}>
@@ -385,10 +407,17 @@ export function HomeDashboard({
           </div>
           <Card className="manager-panel manager-agenda">
             <Card.Content className="apt-day">
-              {data.appointments.length ? (
+              {dayRows.length ? (
                 <div className="apt-rows">
-                  {data.appointments.map((item) => (
-                    <AppointmentRow key={item.id} item={item} api={api} onOpen={setOpened} />
+                  {dayRows.map((item) => (
+                    <AppointmentRow
+                      key={item.id}
+                      item={item}
+                      api={api}
+                      onOpen={setOpened}
+                      highlighted={item.id === pinned?.id}
+                      showDay={localDate(item.startsAt) !== data.today}
+                    />
                   ))}
                 </div>
               ) : (
@@ -561,7 +590,12 @@ export function HomeDashboard({
         }
       >
         {quick === 'agenda' ? (
-          <AgendaPanel clinicId={clinicId} embedded onOpenClient={onOpenClient} />
+          <AgendaPanel
+            clinicId={clinicId}
+            embedded
+            initialDate={reviewedDate}
+            onOpenClient={onOpenClient}
+          />
         ) : null}
       </QuickModal>
     </>

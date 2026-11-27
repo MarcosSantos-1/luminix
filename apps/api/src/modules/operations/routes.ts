@@ -1,5 +1,5 @@
 import { appointmentRentalDates } from './rental-calendar.js'
-import { appointmentPackage, packageView } from '../catalog/package-money.js'
+import { appointmentPackage, lockPackagePayment, packageView } from '../catalog/package-money.js'
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify'
 import {
   appointmentLinkEmail,
@@ -101,6 +101,7 @@ async function recordVisitPayment(
       [clinicId, appointmentId],
     )
   ).rows[0]?.client_package_id as string | null | undefined
+  if (clientPackage) await lockPackagePayment(connection, clinicId, clientPackage)
   const entry = await connection.query(
     'SELECT luminix.save_finance_entry($1::uuid, $2::jsonb) AS id',
     [
@@ -1495,6 +1496,16 @@ export async function operationRoutes(
     async (request, reply) =>
       authorized(request, reply, 'agenda:manage', async (connection, tenant) => {
         const id = request.params.appointmentId
+        await connection.query('SELECT pg_advisory_xact_lock(hashtextextended($1, 0))', [
+          tenant.clinicId + '/visit/' + id.toLowerCase(),
+        ])
+        const current = (
+          await connection.query(
+            'SELECT checked_in_at FROM luminix.appointments WHERE clinic_id = $1 AND id = $2',
+            [tenant.clinicId, id],
+          )
+        ).rows[0]
+        if (current?.checked_in_at) return { checkedIn: true }
         await connection.query('SELECT luminix.check_in_appointment($1::uuid, $2::uuid)', [
           tenant.clinicId,
           id,
@@ -1756,6 +1767,7 @@ export async function operationRoutes(
       supplies: { itemId: string; quantity: number }[]
       payment: { amountCents: number; method: string; description: string } | null
       agreedPriceCents?: number
+      packagePlan?: 'paid' | 'installments' | 'per_visit'
     }
   }>(
     '/clinics/:clinicId/appointments/:appointmentId/complete',
@@ -1790,6 +1802,7 @@ export async function operationRoutes(
               },
             },
             payment: paymentBody,
+            packagePlan: { type: 'string', enum: ['paid', 'installments', 'per_visit'] },
             agreedPriceCents: { type: 'integer', minimum: 0, maximum: 100000000 },
           },
         },
@@ -1798,6 +1811,26 @@ export async function operationRoutes(
     async (request, reply) =>
       authorized(request, reply, 'agenda:manage', async (connection, tenant) => {
         const id = request.params.appointmentId
+        await connection.query('SELECT pg_advisory_xact_lock(hashtextextended($1, 0))', [
+          tenant.clinicId + '/visit/' + id.toLowerCase(),
+        ])
+        const current = (
+          await connection.query(
+            'SELECT status, client_package_id FROM luminix.appointments WHERE clinic_id = $1 AND id = $2',
+            [tenant.clinicId, id],
+          )
+        ).rows[0]
+        if (current?.status === 'completed') return { completed: true, consumed: 0 }
+        if (current && !activeAppointmentStatuses.includes(String(current.status)))
+          return reply.code(409).send({ error: 'Este atendimento já foi encerrado.' })
+        if (current?.client_package_id)
+          await lockPackagePayment(connection, tenant.clinicId, String(current.client_package_id))
+        if (request.body.packagePlan)
+          await connection.query('SELECT luminix.set_first_visit_package_plan($1, $2, $3)', [
+            tenant.clinicId,
+            id,
+            request.body.packagePlan,
+          ])
         await connection.query(
           "SELECT luminix.set_appointment_status($1::uuid, $2::uuid, 'completed')",
           [tenant.clinicId, id],

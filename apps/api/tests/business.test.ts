@@ -786,3 +786,111 @@ describe('inventory and marketing', () => {
     expect(marketing.site).toMatchObject({ slug: c('a').slug, published: true })
   })
 })
+
+describe('remuneração da equipe', () => {
+  it('calcula sobre o que entrou, bloqueia duplicidade e respeita a clínica', async () => {
+    const clinic = c('b')
+    const root = '/clinics/' + clinic.id
+    await db.exec('RESET ROLE')
+    const professional = String(
+      (
+        await connection.query(
+          "INSERT INTO luminix.professionals (clinic_id, display_name) VALUES ($1, 'Profissional do repasse') RETURNING id",
+          [clinic.id],
+        )
+      ).rows[0].id,
+    )
+    const visit = String(
+      (
+        await connection.query(
+          "INSERT INTO luminix.appointments (clinic_id, clinic_client_id, service_id, professional_id, starts_at, ends_at, price_cents, status, booking_source) VALUES ($1,$2,$3,$4,now() - interval '2 hours',now() - interval '1 hour',10000,'completed','manager') RETURNING id",
+          [clinic.id, clinic.client, clinic.service, professional],
+        )
+      ).rows[0].id,
+    )
+    await db.exec('SET ROLE luminix_api')
+
+    const today = (await call('owner-b', 'GET', root + '/finance')).json().today
+    const charge = await call('owner-b', 'PUT', root + '/appointments/' + visit + '/charge', {
+      payment: { amountCents: 8500, method: 'pix', description: 'Pagamento parcial' },
+    })
+    expect(charge.statusCode).toBe(200)
+    const finance = (await call('owner-b', 'GET', root + '/finance')).json()
+    expect(finance.team).toContainEqual(
+      expect.objectContaining({ id: professional, baseCents: 8500, paid: null }),
+    )
+
+    const payout = {
+      recipient: professional,
+      professional: true,
+      month: today.slice(0, 7),
+      salaryCents: 100000,
+      commissionBps: 1250,
+      expectedCents: 101063,
+      paidOn: today,
+      method: 'transfer',
+    }
+    const path = '/finance/team-payments'
+    expect((await call('owner-a', 'POST', '/clinics/' + c('a').id + path, payout)).statusCode).toBe(
+      409,
+    )
+    expect(
+      (await call('owner-b', 'POST', root + path, { ...payout, expectedCents: 101062 })).statusCode,
+    ).toBe(409)
+    expect((await call('owner-b', 'POST', root + path, payout)).statusCode).toBe(200)
+    expect((await call('owner-b', 'POST', root + path, payout)).statusCode).toBe(409)
+    const saved = (await call('owner-b', 'GET', root + '/finance')).json()
+    expect(saved.team).toContainEqual(
+      expect.objectContaining({
+        id: professional,
+        paid: { salaryCents: 100000, commissionCents: 1063, commissionBps: 1250, date: today },
+      }),
+    )
+    expect(
+      saved.entries.filter((entry: { category: string }) => entry.category === 'Equipe'),
+    ).toEqual([expect.objectContaining({ kind: 'expense', amountCents: 101063 })])
+  })
+})
+
+describe('atendimento pendente no início', () => {
+  it('encontra atendimento de uma data anterior e mantém o check-in e a conclusão idempotentes', async () => {
+    const clinic = c('b')
+    const root = '/clinics/' + clinic.id
+    await db.exec('RESET ROLE')
+    const visit = String(
+      (
+        await connection.query(
+          "INSERT INTO luminix.appointments (clinic_id, clinic_client_id, service_id, starts_at, ends_at, status, booking_source) VALUES ($1,$2,$3,now() - interval '9 days',now() - interval '9 days' + interval '1 hour','confirmed','manager') RETURNING id",
+          [clinic.id, clinic.client, clinic.service],
+        )
+      ).rows[0].id,
+    )
+    await db.exec('SET ROLE luminix_api')
+    const notices = (await call('owner-b', 'GET', root + '/notices')).json().notices
+    expect(notices).toContainEqual(
+      expect.objectContaining({
+        action: { label: 'Ver', target: 'inicio', overdue: true },
+      }),
+    )
+    const before = (await call('owner-b', 'GET', root + '/dashboard')).json()
+    expect(before.overdue.id).toBe(visit)
+    expect(before.appointments.some((item: { id: string }) => item.id === visit)).toBe(false)
+    for (let attempt = 0; attempt < 2; attempt++) {
+      expect(
+        (await call('owner-b', 'PUT', root + '/appointments/' + visit + '/check-in', {}))
+          .statusCode,
+      ).toBe(200)
+    }
+    for (let attempt = 0; attempt < 2; attempt++) {
+      expect(
+        (
+          await call('owner-b', 'PUT', root + '/appointments/' + visit + '/complete', {
+            supplies: [],
+            payment: null,
+          })
+        ).statusCode,
+      ).toBe(200)
+    }
+    expect((await call('owner-b', 'GET', root + '/dashboard')).json().overdue?.id).not.toBe(visit)
+  })
+})

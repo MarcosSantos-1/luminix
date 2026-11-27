@@ -36,11 +36,12 @@ export type Notice = {
   tone: 'info' | 'warning' | 'success'
   title: string
   text: string
-  action?: { label: string; target: string; tab?: string; equipmentId?: string }
+  action?: { label: string; target: string; tab?: string; equipmentId?: string; overdue?: boolean }
 }
 export type GoTarget = {
   section: string
   equipmentId?: string
+  overdue?: boolean
   tab?: string
   /** Prefills the search box of the destination page. */
   query?: string
@@ -246,6 +247,7 @@ export function NotificationBell({ api, go }: { api: ClinicApi; go: (target: GoT
                                 section: notice.action.target,
                                 tab: notice.action.tab,
                                 equipmentId: notice.action.equipmentId,
+                                overdue: notice.action.overdue,
                               })
                             setOpen(false)
                           }}
@@ -345,6 +347,7 @@ export function NoticeCarousel({ go }: { go: (target: GoTarget) => void }) {
               section: notice.action!.target,
               tab: notice.action!.tab,
               equipmentId: notice.action!.equipmentId,
+              overdue: notice.action!.overdue,
             })
           }
         >
@@ -404,6 +407,7 @@ export type SearchFocus = {
   query: string
   tab?: string
   equipmentId?: string
+  overdue?: boolean
   nonce: number
 }
 const consumedFocus = new Set<number>()

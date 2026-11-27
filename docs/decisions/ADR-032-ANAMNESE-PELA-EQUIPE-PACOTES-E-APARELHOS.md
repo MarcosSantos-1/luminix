@@ -50,6 +50,12 @@ remarcações, cancelamentos e sessões associadas. A venda é registrada em Ser
   depois. Cada parcela é uma receita no Financeiro ligada ao pacote em
   `client_package_payments`; saldo = preço − parcelas ativas (nunca passa do preço).
   `POST client-packages/:id/payments` exige `finance:manage`.
+- **Primeira sessão com saldo:** quem tem acesso ao Financeiro confirma se o pacote será pago à vista,
+  parcelado ou por sessão. O lançamento registra o valor efetivamente recebido. Pagamentos por
+  sessão usam a fração acumulada arredondada para baixo em centavos até cada visita, de modo que
+  a última sessão completa o preço exato. Para pacotes parcelados, o Financeiro mostra o saldo e
+  aceita recebimentos parciais informados pela equipe. A alteração do plano e a conclusão da
+  primeira sessão são gravadas na mesma transação (migration 0076).
 - **Progresso:** a lista de pacotes da cliente devolve as visitas em ordem (1/N, 2/N…). Ao
   agendar, os pacotes ativos aparecem antes dos serviços com uma barrinha por sessão (feita,
   marcada, falta, livre), o valor pago/restante e "Receber R$ X".

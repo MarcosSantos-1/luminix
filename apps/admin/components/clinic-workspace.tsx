@@ -80,7 +80,7 @@ export function ClinicWorkspace({ children }: { children: ReactNode }) {
   const onboarding = pathname.endsWith('/onboarding')
   const onboardingPreview = onboarding && searchParams.get('simular') === '1'
   const staff = useStaff()
-  const key = `${staff.user?.uid}/${clinicId}/${staff.revision}`
+  const key = `${staff.user?.uid}/${clinicId}`
   const [state, setState] = useState<{
     key: string
     data?: ClinicContext
@@ -106,13 +106,17 @@ export function ClinicWorkspace({ children }: { children: ReactNode }) {
           signal: AbortSignal.any([abort.signal, AbortSignal.timeout(20_000)]),
         })
         if (!response.ok) {
-          if (active) {
+          const denied = [401, 403, 404].includes(response.status)
+          if (active && (denied || !clinicViews.has(key))) {
             clinicViews.delete(key)
             clinicListeners.forEach((listener) => listener())
             setState({
               key,
-              denied: [401, 403, 404].includes(response.status),
-              error: 'Não foi possível acessar esta clínica.',
+              denied,
+              error:
+                response.status === 429
+                  ? 'Muitas solicitações seguidas. Aguarde um instante e tente novamente.'
+                  : 'Não foi possível carregar a clínica agora.',
             })
           }
           return
@@ -134,7 +138,7 @@ export function ClinicWorkspace({ children }: { children: ReactNode }) {
       active = false
       abort.abort()
     }
-  }, [staff.user, staff.loading, staff.error, clinicId, key])
+  }, [staff.user, staff.loading, staff.error, staff.revision, clinicId, key])
   const failed = state?.key === key && !state.data
   const visible =
     staff.loading || staff.error || !staff.user || failed

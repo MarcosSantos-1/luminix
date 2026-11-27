@@ -18,6 +18,31 @@ import {
 
 const zone = 'America/Sao_Paulo'
 
+const appointmentRows = `SELECT a.id, a.starts_at, a.ends_at, a.status, a.price_cents, a.promotion_id, a.price_agreed_at,
+                    a.booking_source, a.checked_in_at, a.status_note, a.notes, a.override_reasons, a.previous_starts_at, c.id AS client_id,
+                    a.deposit_cents, a.deposit_status, a.deposit_due_at, a.deposit_reported_at,
+                    c.display_name AS client, c.contact_phone AS phone, c.notes AS client_notes,
+                    (SELECT m.small_object_key FROM luminix.media_assets m
+                     WHERE m.clinic_id = c.clinic_id AND m.id = c.photo_asset_id
+                       AND m.status = 'ready') AS photo_key,
+                    luminix.clinic_client_has_account_photo(c.clinic_id, c.id) AS account_photo,
+                    s.name AS service, ${appointmentRentalDates} AS rental_dates, s.price_type, p.display_name AS professional,
+                    luminix.appointment_paid_cents(a.clinic_id, a.id) AS paid_cents,
+                    ${appointmentPackage} AS package,
+                    a.online_payment_status, a.online_payment_due_at,
+                      (SELECT op.refund_status FROM luminix.online_payments op
+                        WHERE op.clinic_id = a.clinic_id AND op.appointment_id = a.id
+                          AND op.status IN ('paid', 'paid_late')
+                        ORDER BY op.created_at DESC LIMIT 1) AS online_refund_status,
+                    link.answer AS link_answer, link.answered_at AS link_answered_at,
+                    link.opened_at AS link_opened_at
+               FROM luminix.appointments a
+               JOIN luminix.clinic_clients c ON c.clinic_id = a.clinic_id AND c.id = a.clinic_client_id
+               JOIN luminix.services s ON s.clinic_id = a.clinic_id AND s.id = a.service_id
+               LEFT JOIN luminix.professionals p ON p.clinic_id = a.clinic_id AND p.id = a.professional_id
+               LEFT JOIN luminix.appointment_links link
+                 ON link.clinic_id = a.clinic_id AND link.appointment_id = a.id`
+
 /**
  * Read models for Início, Relatórios and Marketing. Each block is included only when the
  * caller's level allows it, so Equipe sees the day but not the money.
@@ -39,32 +64,9 @@ export async function insightsRoutes(
         const today = isoDate(
           (await connection.query('SELECT luminix.clinic_today() AS d')).rows[0]?.d,
         )!
-        const [appointments, week, upcoming] = await Promise.all([
+        const [appointments, week, upcoming, overdue] = await Promise.all([
           connection.query(
-            `SELECT a.id, a.starts_at, a.ends_at, a.status, a.price_cents, a.promotion_id, a.price_agreed_at,
-                    a.booking_source, a.checked_in_at, a.status_note, a.notes, a.override_reasons, a.previous_starts_at, c.id AS client_id,
-                    a.deposit_cents, a.deposit_status, a.deposit_due_at, a.deposit_reported_at,
-                    c.display_name AS client, c.contact_phone AS phone, c.notes AS client_notes,
-                    (SELECT m.small_object_key FROM luminix.media_assets m
-                     WHERE m.clinic_id = c.clinic_id AND m.id = c.photo_asset_id
-                       AND m.status = 'ready') AS photo_key,
-                    luminix.clinic_client_has_account_photo(c.clinic_id, c.id) AS account_photo,
-                    s.name AS service, ${appointmentRentalDates} AS rental_dates, s.price_type, p.display_name AS professional,
-                    luminix.appointment_paid_cents(a.clinic_id, a.id) AS paid_cents,
-                    ${appointmentPackage} AS package,
-                    a.online_payment_status, a.online_payment_due_at,
-                      (SELECT op.refund_status FROM luminix.online_payments op
-                        WHERE op.clinic_id = a.clinic_id AND op.appointment_id = a.id
-                          AND op.status IN ('paid', 'paid_late')
-                        ORDER BY op.created_at DESC LIMIT 1) AS online_refund_status,
-                    link.answer AS link_answer, link.answered_at AS link_answered_at,
-                    link.opened_at AS link_opened_at
-               FROM luminix.appointments a
-               JOIN luminix.clinic_clients c ON c.clinic_id = a.clinic_id AND c.id = a.clinic_client_id
-               JOIN luminix.services s ON s.clinic_id = a.clinic_id AND s.id = a.service_id
-               LEFT JOIN luminix.professionals p ON p.clinic_id = a.clinic_id AND p.id = a.professional_id
-               LEFT JOIN luminix.appointment_links link
-                 ON link.clinic_id = a.clinic_id AND link.appointment_id = a.id
+            `${appointmentRows}
               WHERE a.clinic_id = $1 AND (a.starts_at AT TIME ZONE '${zone}')::date = $2::date
               ORDER BY a.starts_at, a.id`,
             [tenant.clinicId, today],
@@ -77,35 +79,21 @@ export async function insightsRoutes(
           ),
           // What comes next, so a quiet day still shows the week ahead.
           connection.query(
-            `SELECT a.id, a.starts_at, a.ends_at, a.status, a.price_cents, a.promotion_id, a.price_agreed_at,
-                    a.booking_source, a.checked_in_at, a.status_note, a.notes, a.override_reasons, a.previous_starts_at, c.id AS client_id,
-                    a.deposit_cents, a.deposit_status, a.deposit_due_at, a.deposit_reported_at,
-                    c.display_name AS client, c.contact_phone AS phone, c.notes AS client_notes,
-                    (SELECT m.small_object_key FROM luminix.media_assets m
-                     WHERE m.clinic_id = c.clinic_id AND m.id = c.photo_asset_id
-                       AND m.status = 'ready') AS photo_key,
-                    luminix.clinic_client_has_account_photo(c.clinic_id, c.id) AS account_photo,
-                    s.name AS service, ${appointmentRentalDates} AS rental_dates, s.price_type, p.display_name AS professional,
-                    luminix.appointment_paid_cents(a.clinic_id, a.id) AS paid_cents,
-                    ${appointmentPackage} AS package,
-                    a.online_payment_status, a.online_payment_due_at,
-                      (SELECT op.refund_status FROM luminix.online_payments op
-                        WHERE op.clinic_id = a.clinic_id AND op.appointment_id = a.id
-                          AND op.status IN ('paid', 'paid_late')
-                        ORDER BY op.created_at DESC LIMIT 1) AS online_refund_status,
-                    link.answer AS link_answer, link.answered_at AS link_answered_at,
-                    link.opened_at AS link_opened_at
-               FROM luminix.appointments a
-               JOIN luminix.clinic_clients c ON c.clinic_id = a.clinic_id AND c.id = a.clinic_client_id
-               JOIN luminix.services s ON s.clinic_id = a.clinic_id AND s.id = a.service_id
-               LEFT JOIN luminix.professionals p ON p.clinic_id = a.clinic_id AND p.id = a.professional_id
-               LEFT JOIN luminix.appointment_links link
-                 ON link.clinic_id = a.clinic_id AND link.appointment_id = a.id
+            `${appointmentRows}
               WHERE a.clinic_id = $1 AND (a.starts_at AT TIME ZONE '${zone}')::date > $2::date
                 AND a.status IN ('scheduled', 'confirmed')
               ORDER BY a.starts_at, a.id LIMIT 6`,
             [tenant.clinicId, today],
           ),
+          can.has('agenda:manage')
+            ? connection.query(
+                `${appointmentRows}
+                  WHERE a.clinic_id = $1 AND a.status IN ('scheduled', 'confirmed')
+                    AND a.ends_at < now()
+                  ORDER BY a.starts_at, a.id LIMIT 1`,
+                [tenant.clinicId],
+              )
+            : null,
         ])
         const seesClients = can.has('client:read')
         const view = async (row: Record<string, unknown>) => ({
@@ -198,6 +186,7 @@ export async function insightsRoutes(
             .filter((row) => !row.linked)
             .map((row) => row.name),
           appointments: await Promise.all(appointments.rows.map(view)),
+          overdue: overdue?.rows[0] ? await view(overdue.rows[0]) : null,
           upcoming: await Promise.all(upcoming.rows.map(view)),
           upcomingWeek: toNumber(week.rows[0]?.upcoming),
           canManageAgenda: can.has('agenda:manage'),
@@ -266,11 +255,7 @@ export async function insightsRoutes(
         // Sinais por Pix to check (ADR-037): the ones the client says she paid come first.
         if (can.has('agenda:manage')) {
           const deposits = await connection.query(
-            `SELECT a.id, a.starts_at, a.deposit_cents, a.deposit_status, a.deposit_due_at,
-                    a.deposit_reported_at, c.display_name AS client, s.name AS service
-               FROM luminix.appointments a
-               JOIN luminix.clinic_clients c ON c.clinic_id = a.clinic_id AND c.id = a.clinic_client_id
-               JOIN luminix.services s ON s.clinic_id = a.clinic_id AND s.id = a.service_id
+            `${appointmentRows}
               WHERE a.clinic_id = $1 AND a.deposit_status IN ('awaiting', 'reported')
                 AND a.status IN ('scheduled', 'confirmed')
               ORDER BY a.deposit_status = 'reported' DESC, a.starts_at LIMIT 30`,

@@ -111,11 +111,14 @@ type Photo = {
 }
 
 /** What was filled in "Concluir atendimento", kept in this browser until it is completed. */
+type PackagePlan = 'paid' | 'installments' | 'per_visit'
+
 type Draft = {
+  packagePlan?: PackagePlan
   savedAt: number
   step: Step
   seen: Step[]
-  mode: 'full' | 'part' | 'later'
+  mode: 'full' | 'part' | 'later' | null
   cash: string
   method: string
   agreed: string
@@ -181,8 +184,23 @@ export function CompleteVisit({
   onDone: (message: string) => void
 }) {
   const due = payment(item)
-  const pk = item.package ?? null
+  const soldPackage = item.package ?? null
   const [draft] = useState(() => readDraft(item.id))
+  const choosePlan = Boolean(
+    access.charge && soldPackage?.firstUnfinished && (soldPackage.remainingCents ?? 0) > 0,
+  )
+  const [packagePlan, setPackagePlan] = useState<PackagePlan | undefined>(draft?.packagePlan)
+  const pk =
+    soldPackage && choosePlan && packagePlan
+      ? {
+          ...soldPackage,
+          plan: packagePlan,
+          dueNowCents:
+            packagePlan === 'per_visit'
+              ? Math.max(0, (soldPackage.installmentCents ?? 0) - (soldPackage.paidCents ?? 0))
+              : soldPackage.remainingCents,
+        }
+      : soldPackage
   const [restored, setRestored] = useState(
     Boolean(draft && (draft.seen.length > 1 || draft.photos.length)),
   )
@@ -193,7 +211,7 @@ export function CompleteVisit({
       (variable && item.priceType === 'from' ? moneyInput(item.priceCents ?? 0) : ''),
   )
   const agreedCents = variable ? parseMoney(agreed) : null
-  const quote = isQuote(item) && !item.paid && !variable
+  const quote = !pk && isQuote(item) && !item.paid && !variable
   const target = pk
     ? (pk.dueNowCents ?? 0)
     : variable
@@ -203,9 +221,7 @@ export function CompleteVisit({
   const ceiling = pk ? (pk.remainingCents ?? 0) : quote ? Infinity : target
   const charge = access.charge && (quote || variable || ceiling > 0)
 
-  const [mode, setMode] = useState<'full' | 'part' | 'later'>(
-    draft?.mode ?? (charge && (target > 0 || quote || variable) ? 'full' : 'later'),
-  )
+  const [mode, setMode] = useState<'full' | 'part' | 'later' | null>(draft?.mode ?? null)
   const [cash, setCash] = useState(draft?.cash ?? (quote || !target ? '' : moneyInput(target)))
   const [method, setMethod] = useState(draft?.method ?? 'pix')
   const [supplies, setSupplies] = useState<Supply[] | null>(null)
@@ -294,6 +310,7 @@ export function CompleteVisit({
     if (finished.current) return
     const draftValue: Draft = {
       savedAt: Date.now(),
+      packagePlan,
       step,
       seen,
       mode,
@@ -316,13 +333,14 @@ export function CompleteVisit({
     } catch {
       // No storage (private mode): the visit is still completed normally.
     }
-  }, [item.id, step, seen, mode, cash, method, agreed, used, photoKind, photos])
+  }, [item.id, step, seen, mode, cash, method, agreed, used, photoKind, photos, packagePlan])
 
   function discardDraft() {
     clearDraft(item.id)
     finished.current = true
     setRestored(false)
-    setMode(charge && (target > 0 || quote || variable) ? 'full' : 'later')
+    setMode(null)
+    setPackagePlan(undefined)
     setCash(quote || !target ? '' : moneyInput(target))
     setMethod('pix')
     setAgreed(variable && item.priceType === 'from' ? moneyInput(item.priceCents ?? 0) : '')
@@ -340,18 +358,22 @@ export function CompleteVisit({
     })
   }
 
-  const cents = mode === 'later' ? 0 : (parseMoney(cash) ?? 0)
+  const cents = mode === 'full' || mode === 'part' ? (parseMoney(cash) ?? 0) : 0
   const owedAfter = quote ? 0 : Math.max(0, target - cents)
   const payError =
-    variable && (agreedCents == null || !agreed.trim())
-      ? 'Informe o valor combinado do atendimento.'
-      : !charge || mode === 'later'
-        ? ''
-        : !cents
-          ? 'Informe quanto foi pago, ou escolha “Vai pagar depois”.'
-          : cents > ceiling
-            ? `O valor passa do que falta receber (${money(ceiling)}).`
-            : ''
+    choosePlan && !packagePlan
+      ? 'Informe como o pacote será pago.'
+      : variable && (agreedCents == null || !agreed.trim())
+        ? 'Informe o valor combinado do atendimento.'
+        : !charge || mode === 'later'
+          ? ''
+          : !mode
+            ? 'Informe se houve pagamento ou se fica para depois.'
+            : !cents
+              ? 'Informe quanto foi pago, ou escolha “Vai pagar depois”.'
+              : cents > ceiling
+                ? `O valor passa do que falta receber (${money(ceiling)}).`
+                : ''
 
   function go(next: Step) {
     setError('')
@@ -449,6 +471,7 @@ export function CompleteVisit({
                 ).slice(0, 160),
               }
             : null,
+        ...(choosePlan && packagePlan ? { packagePlan } : {}),
         ...(variable && agreedCents != null ? { agreedPriceCents: agreedCents } : {}),
       })
       finished.current = true
@@ -544,6 +567,32 @@ export function CompleteVisit({
 
         {step === 'pay' ? (
           <div className="cv-pane">
+            {choosePlan ? (
+              <fieldset className="cv-methods">
+                <legend>Como o pacote será pago?</legend>
+                {(
+                  [
+                    ['paid', 'À vista'],
+                    ['installments', 'Parcelado'],
+                    ['per_visit', 'Por sessão'],
+                  ] as const
+                ).map(([id, label]) => (
+                  <button
+                    type="button"
+                    key={id}
+                    aria-pressed={id === packagePlan}
+                    onClick={() => {
+                      setPackagePlan(id)
+                      setMode(null)
+                      setCash('')
+                      setError('')
+                    }}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </fieldset>
+            ) : null}
             {variable ? (
               <div className="cv-agreed">
                 <MoneyField
@@ -568,7 +617,7 @@ export function CompleteVisit({
               <span className="cv-due-label">
                 {pk
                   ? pk.plan === 'per_visit'
-                    ? 'Parcela desta sessão'
+                    ? 'A receber até esta sessão'
                     : 'Saldo do pacote'
                   : quote
                     ? 'Serviço a combinar'
@@ -636,7 +685,7 @@ export function CompleteVisit({
                 ))}
             </div>
 
-            {mode !== 'later' ? (
+            {mode === 'full' || mode === 'part' ? (
               <>
                 <MoneyField
                   label={mode === 'part' ? 'Quanto pagou' : 'Valor recebido'}

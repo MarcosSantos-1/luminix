@@ -780,3 +780,8 @@
   border-radius: 18px;
   background: color-mix(in srgb, var(--space-accent, #ec287a) 14%, transparent);
 }
+
+.cv-methods button[aria-pressed='true'] {
+  outline: 2px solid currentColor;
+  outline-offset: -2px;
+}

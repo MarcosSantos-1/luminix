@@ -30,7 +30,7 @@ type Notice = {
   tone: 'info' | 'warning' | 'success'
   title: string
   text: string
-  action?: { label: string; target: string; tab?: string; equipmentId?: string }
+  action?: { label: string; target: string; tab?: string; equipmentId?: string; overdue?: boolean }
 }
 
 /** Panel-wide features: activity inbox, notices (avisos) and the indexed search. */
@@ -302,8 +302,7 @@ export async function workspaceRoutes(
             (
               await connection.query(
                 `SELECT count(*) AS total FROM luminix.appointments
-                  WHERE clinic_id = $1 AND status IN ('scheduled', 'confirmed') AND ends_at < now()
-                    AND ends_at > now() - interval '7 days'`,
+                  WHERE clinic_id = $1 AND status IN ('scheduled', 'confirmed') AND ends_at < now()`,
                 [tenant.clinicId],
               )
             ).rows[0]?.total,
@@ -314,7 +313,7 @@ export async function workspaceRoutes(
               tone: 'info',
               title: `${open} ${open === 1 ? 'atendimento já passou' : 'atendimentos já passaram'} sem conclusão`,
               text: 'Marque como concluído ou falta para manter a agenda e o financeiro certinhos.',
-              action: { label: 'Ver no Início', target: 'inicio' },
+              action: { label: 'Ver', target: 'inicio', overdue: true },
             })
         }
         if (can.has('finance:manage')) {
@@ -323,7 +322,7 @@ export async function workspaceRoutes(
               await connection.query(
                 `SELECT count(*) AS total FROM luminix.appointments a
                    JOIN luminix.services s ON s.clinic_id = a.clinic_id AND s.id = a.service_id
-                  WHERE a.clinic_id = $1 AND a.status = 'completed' AND a.starts_at > now() - interval '60 days'
+                  WHERE a.clinic_id = $1 AND a.client_package_id IS NULL AND a.status = 'completed' AND a.starts_at > now() - interval '60 days'
                     AND (coalesce(a.price_cents, 0) > 0 OR s.price_type = 'quote')
                     AND luminix.appointment_paid_cents(a.clinic_id, a.id)
                       < greatest(coalesce(a.price_cents, 0), 1)`,

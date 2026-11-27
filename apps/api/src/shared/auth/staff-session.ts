@@ -26,9 +26,14 @@ export type AuthDependencies = {
   tenantPool?: TenantPool
 }
 
-export function createStaffAuthenticator(dependencies: AuthDependencies, perMinute = 30) {
+export function createStaffAuthenticator(
+  dependencies: AuthDependencies,
+  perMinute = 30,
+  verifiedPerMinute?: number,
+) {
   // Bounded, per-process protection. Never trust forwarding headers for the rate key.
   const attempts = new Map<string, { count: number; until: number }>()
+  const sessions = new Map<string, { count: number; until: number }>()
   return async (request: FastifyRequest, reply: FastifyReply): Promise<string | null> => {
     reply.header('Cache-Control', 'no-store')
     const now = Date.now()
@@ -38,10 +43,9 @@ export function createStaffAuthenticator(dependencies: AuthDependencies, perMinu
       reply.code(429).header('Retry-After', '60').send({ error: 'Too many requests' })
       return null
     }
-    attempts.set(request.ip, {
-      count: (attempt?.count ?? 0) + 1,
-      until: attempt?.until ?? now + 60_000,
-    })
+    const pending = attempt ?? { count: 0, until: now + 60_000 }
+    pending.count += 1
+    attempts.set(request.ip, pending)
     const bearer = /^Bearer ([^\s,]+)$/i.exec(request.headers.authorization ?? '')
     if (!bearer || bearer[1].length > 8192) {
       request.log.info({ event: 'staff_session_denied', reason: 'missing_bearer' })
@@ -57,6 +61,19 @@ export function createStaffAuthenticator(dependencies: AuthDependencies, perMinu
       request.log.info({ event: 'staff_session_denied', reason: 'invalid_token' })
       reply.code(401).send({ error: 'Invalid session' })
       return null
+    }
+    if (verifiedPerMinute !== undefined) {
+      // A proxy may put an entire clinic behind one IP. Count valid sessions by UID.
+      pending.count -= 1
+      if (pending.count === 0 && attempts.get(request.ip) === pending) attempts.delete(request.ip)
+      for (const [key, value] of sessions) if (value.until <= now) sessions.delete(key)
+      const session = sessions.get(uid) ?? { count: 0, until: now + 60_000 }
+      if (session.count >= verifiedPerMinute || (!sessions.has(uid) && sessions.size >= 10_000)) {
+        reply.code(429).header('Retry-After', '60').send({ error: 'Too many requests' })
+        return null
+      }
+      session.count += 1
+      sessions.set(uid, session)
     }
     try {
       // Conflict never reactivates a disabled identity and never associates by email.
