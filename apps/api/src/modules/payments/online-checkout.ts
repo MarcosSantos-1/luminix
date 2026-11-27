@@ -45,12 +45,13 @@ export interface OnlinePaymentsProvider {
     intent: string | null
   }): Promise<string | null>
   readEvent(rawBody: Buffer, signature: string): ConnectPaymentEvent | null
-  /** Full refund on the clinic's account; idempotent per payment. Returns the refund id. */
+  /** Refund on the clinic's account. `amount` omitted refunds whatever is left. Idempotent per payment and amount. */
   refund(input: {
     account: string
     paymentId: string
     intent: string | null
     session: string
+    amount?: number
   }): Promise<string>
 }
 
@@ -126,7 +127,7 @@ export function createOnlinePaymentsProvider(
       return charge && typeof charge !== 'string' ? (charge.receipt_url ?? null) : null
     },
     readEvent: (rawBody, signature) => readEvent(rawBody, signature),
-    async refund({ account, paymentId, intent, session }) {
+    async refund({ account, paymentId, intent, session, amount }) {
       let paymentIntent = intent
       if (!paymentIntent) {
         const found = await stripe.checkout.sessions.retrieve(
@@ -138,8 +139,15 @@ export function createOnlinePaymentsProvider(
       }
       if (!paymentIntent) throw new Error('Payment without intent')
       const refund = await stripe.refunds.create(
-        { payment_intent: paymentIntent, metadata: { luminix_payment_id: paymentId } },
-        { stripeAccount: account, idempotencyKey: `luminix-refund-${paymentId}` },
+        {
+          payment_intent: paymentIntent,
+          ...(amount ? { amount } : {}),
+          metadata: { luminix_payment_id: paymentId },
+        },
+        {
+          stripeAccount: account,
+          idempotencyKey: `luminix-refund-${paymentId}-${amount ?? 'full'}`,
+        },
       )
       return refund.id
     },

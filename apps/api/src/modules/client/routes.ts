@@ -478,14 +478,15 @@ export async function clientRoutes(app: FastifyInstance, dependencies: AuthDepen
         const policy = (
           await connection.query(
             `SELECT allow_client_cancellation, cancellation_notice_minutes,
-                    rescheduling_notice_minutes, client_instructions
+                    rescheduling_notice_minutes, client_instructions,
+                    late_change_retention_percent, no_show_retention_percent
                FROM luminix.booking_policies WHERE clinic_id = $1`,
             [scope!.clinicId],
           )
         ).rows[0]
         // Services that ask for a deposit now (ADR-042): marked in the list and at booking.
         const { rows: depositServices } = await connection.query(
-          `SELECT id FROM luminix.services
+          `SELECT id, deposit_percent_override, deposit_fixed_cents FROM luminix.services
             WHERE clinic_id = $1 AND status = 'active' AND luminix.service_requires_deposit($1, id)`,
           [scope!.clinicId],
         )
@@ -528,10 +529,22 @@ export async function clientRoutes(app: FastifyInstance, dependencies: AuthDepen
             cancellationNoticeMinutes: policy?.cancellation_notice_minutes ?? 0,
             reschedulingNoticeMinutes: policy?.rescheduling_notice_minutes ?? null,
             instructions: policy?.client_instructions ?? '',
+            retention: {
+              lateChangePercent: Number(policy?.late_change_retention_percent ?? 0),
+              noShowPercent: Number(policy?.no_show_retention_percent ?? 0),
+            },
             deposit: depositServices.length
               ? {
                   percent: Number(depositPercent ?? 0),
                   serviceIds: depositServices.map((row) => String(row.id)),
+                  amounts: depositServices.map((row) => ({
+                    id: String(row.id),
+                    percent:
+                      row.deposit_percent_override == null
+                        ? null
+                        : Number(row.deposit_percent_override),
+                    cents: row.deposit_fixed_cents == null ? null : Number(row.deposit_fixed_cents),
+                  })),
                 }
               : null,
           },
@@ -849,14 +862,19 @@ export async function clientRoutes(app: FastifyInstance, dependencies: AuthDepen
       await connection.query(
         `SELECT luminix.service_requires_deposit($1, $2) AS needed,
                 luminix.clinic_online_ready($1) AS online,
-                b.pix_key IS NOT NULL AS pix, b.deposit_percent
-           FROM luminix.booking_policies b WHERE b.clinic_id = $1`,
+                b.pix_key IS NOT NULL AS pix,
+                coalesce(s.deposit_percent_override, b.deposit_percent) AS deposit_percent,
+                s.deposit_fixed_cents
+           FROM luminix.booking_policies b
+           LEFT JOIN luminix.services s ON s.clinic_id = b.clinic_id AND s.id = $2
+          WHERE b.clinic_id = $1`,
         [scope.clinicId, serviceId],
       )
     ).rows[0]
     if (row?.needed !== true) return null
     return {
-      percent: Number(row.deposit_percent),
+      percent: row.deposit_fixed_cents == null ? Number(row.deposit_percent) : null,
+      cents: row.deposit_fixed_cents == null ? null : Number(row.deposit_fixed_cents),
       online: row.online === true,
       pix: row.pix === true,
     }
@@ -1656,7 +1674,8 @@ export async function clientRoutes(app: FastifyInstance, dependencies: AuthDepen
         },
       )) as { clinicId: string } | undefined
       if (reply.sent || !canceled) return canceled
-      // Paid in the app (ADR-040): canceling within the deadline gives the full amount back.
+      // Paid in the app: within the deadline the whole amount comes back. After it, the
+      // retention frozen on the payment decides how much of the deposit the space keeps.
       const refunded = await refundDue(
         dependencies.database,
         payments(),

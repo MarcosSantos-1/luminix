@@ -13,7 +13,13 @@ import {
   Plus,
   UserRound,
 } from 'lucide-react'
-import { rememberPendingSpace, useClient } from '../../lib/client-app/store'
+import {
+  chosenSpace,
+  peekPendingSpace,
+  rememberPendingSpace,
+  setActiveSpace,
+  useClient,
+} from '../../lib/client-app/store'
 import { recordState } from '@luminix/contracts/anamnesis'
 import { Avatar, Preparing, SpaceLogo } from './ui'
 import { useClinic } from './use-clinic'
@@ -60,17 +66,37 @@ export function AppShell({ children }: { children: ReactNode }) {
   const { ready, account, space, anamnesis } = useClient()
   const router = useRouter()
   const pathname = usePathname()
-  const target = !ready
-    ? null
-    : !account
-      ? '/cliente/entrar'
-      : !account.anamnesis
-        ? '/cliente/anamnese'
-        : !space
-          ? '/cliente/espacos'
-          : recordState(anamnesis, space.requiredLevel) !== 'ok'
-            ? `/cliente/anamnese?espaco=${space.summary.slug}`
-            : null
+  // A new tab has not picked a space yet, so the list comes first. The clinic site
+  // (`?espaco=`) and a choice already made in this tab go straight in.
+  const [gate, setGate] = useState<'wait' | 'in' | 'picker'>('wait')
+  useEffect(() => {
+    if (!ready || !account?.anamnesis) {
+      if (ready) setGate('in')
+      return
+    }
+    const pending = peekPendingSpace()
+    const chosen = chosenSpace()
+    if (pending || !chosen || !account.spaces[chosen]) {
+      setGate('picker')
+      return
+    }
+    if (account.activeSlug !== chosen) setActiveSpace(chosen)
+    setGate('in')
+  }, [ready, account])
+  const target =
+    !ready || gate === 'wait'
+      ? null
+      : !account
+        ? '/cliente/entrar'
+        : !account.anamnesis
+          ? '/cliente/anamnese'
+          : gate === 'picker'
+            ? '/cliente/espacos'
+            : !space
+              ? '/cliente/espacos'
+              : recordState(anamnesis, space.requiredLevel) !== 'ok'
+                ? `/cliente/anamnese?espaco=${space.summary.slug}`
+                : null
   useEffect(() => {
     if (target) router.replace(target)
   }, [target, router])
@@ -88,7 +114,7 @@ export function AppShell({ children }: { children: ReactNode }) {
     const timer = setTimeout(() => setHeld(false), dataReady ? 700 : 8000)
     return () => clearTimeout(timer)
   }, [held, dataReady])
-  if (!ready || !account || !space || !anamnesis || target) return <Splash />
+  if (!ready || gate !== 'in' || !account || !space || !anamnesis || target) return <Splash />
   if (held && !target) return <Preparing space={space.summary} />
 
   const unread = space.notices.filter((item) => !item.read).length

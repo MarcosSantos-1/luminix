@@ -17,6 +17,12 @@ export type StaffClinic = {
   name: string
   status: 'draft' | 'active'
   role: string
+  theme?: string
+  logoUrl?: string | null
+  slug?: string | null
+  /** Onboarding step key while the clinic is still a draft. */
+  step?: string | null
+  progress?: number | null
 }
 type StaffState = {
   user: User | null
@@ -37,7 +43,11 @@ function sameClinics(left: StaffClinic[], right: StaffClinic[]) {
       clinic.code === right[index]?.code &&
       clinic.name === right[index]?.name &&
       clinic.status === right[index]?.status &&
-      clinic.role === right[index]?.role,
+      clinic.role === right[index]?.role &&
+      clinic.theme === right[index]?.theme &&
+      clinic.logoUrl === right[index]?.logoUrl &&
+      clinic.step === right[index]?.step &&
+      clinic.progress === right[index]?.progress,
   )
 }
 

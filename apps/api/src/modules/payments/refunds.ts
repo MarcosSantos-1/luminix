@@ -13,6 +13,8 @@ export type RefundRow = {
   session_id: string
   payment_intent_id: string | null
   amount_cents: number
+  /** What Stripe should return now. Omitted on older rows: the whole payment. */
+  refund_cents?: number | null
 }
 
 export async function settleRefunds(
@@ -25,11 +27,13 @@ export async function settleRefunds(
   for (const row of rows) {
     let refundId: string | null = null
     try {
+      const amount = Number(row.refund_cents ?? row.amount_cents)
       refundId = await provider.refund({
         account: String(row.account_id),
         paymentId: String(row.payment_id),
         intent: row.payment_intent_id ? String(row.payment_intent_id) : null,
         session: String(row.session_id),
+        ...(amount > 0 ? { amount } : {}),
       })
     } catch {
       log.warn({ event: 'online_refund_failed' })

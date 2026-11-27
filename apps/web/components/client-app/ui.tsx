@@ -243,17 +243,39 @@ export function Preparing({ space, onDone }: { space: SpaceSummary; onDone?: () 
   )
 }
 
-/** Deposit of a service right now (ADR-042): same share the API freezes at booking, or null. */
+/** Deposit of a service right now (ADR-042): the service's own amount, or the clinic percent. */
 export function depositOf(
   service: Pick<PublicService, 'id' | 'priceType' | 'priceCents' | 'promoPriceCents'>,
   policy: BookingPolicy | null,
-  percent = policy?.deposit?.percent,
+  offer?: number | { percent?: number | null; cents?: number | null } | null,
 ) {
-  if (!percent || service.priceType !== 'fixed') return null
+  if (service.priceType !== 'fixed') return null
   if (policy && !policy.deposit?.serviceIds.includes(service.id)) return null
   const price = effectivePrice(service as PublicService)
   if (price <= 0) return null
+  const rule = policy?.deposit?.amounts?.find((item) => item.id === service.id)
+  const given = typeof offer === 'number' ? { percent: offer } : offer
+  const cents = given?.cents ?? rule?.cents ?? null
+  if (cents != null && cents > 0) return Math.min(price, cents)
+  const percent = given?.percent ?? rule?.percent ?? policy?.deposit?.percent
+  if (!percent) return null
   return Math.min(price, Math.max(1, Math.round((price * percent) / 100)))
+}
+
+/** What the client is told before paying, matching the retention the Stripe will apply. */
+export function depositRefundNote(
+  retention: { lateChangePercent: number; noShowPercent: number } | null | undefined,
+  online: boolean,
+) {
+  if (!online)
+    return 'O espaço trata a devolução do Pix diretamente com você, conforme a regra combinada.'
+  const late = retention?.lateChangePercent ?? 0
+  const missed = retention?.noShowPercent ?? 0
+  if (late <= 0 && missed <= 0)
+    return 'Se você cancelar, o espaço cancelar ou você faltar, devolvemos pela Stripe o valor pago.'
+  if (late <= 0)
+    return 'Dentro do prazo, devolvemos tudo. Se faltar sem avisar, o espaço fica com o sinal e devolvemos o que passou dele.'
+  return 'Dentro do prazo, devolvemos tudo. Depois do prazo ou se faltar, o espaço fica com o sinal e devolvemos o que passou dele.'
 }
 
 /** "Agenda especial" and "Sinal" tags on a service, shown wherever the client picks one. */

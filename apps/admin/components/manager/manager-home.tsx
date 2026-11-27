@@ -2,6 +2,7 @@
 
 import { Avatar, Button, Card, Dropdown, Modal, SearchField } from '@heroui/react'
 import {
+  ArrowLeftRight,
   ArrowRight,
   Bell,
   Bug,
@@ -166,6 +167,7 @@ export function ManagerHome({
     [canManageSettings, sections],
   )
   const allowedIds = useMemo(() => navigation.map((item) => item.id), [navigation])
+  const showPlan = !workspace || canPay
   const { section: sectionId, select } = useManagerSection(allowedIds, initialSection)
   const section = navigation.find((item) => item.id === sectionId) ?? navigation[0]
   // "+" asks one page to open its creation form. It is tied to that page, so opening the
@@ -405,16 +407,17 @@ export function ManagerHome({
         Pular para o conteúdo
       </a>
       <ManagerSidebar
+        navigation={navigation}
         activeLabel={section.label}
-        canManageSettings={canManageSettings}
         collapsed={collapsed}
+        showPlan={showPlan}
         planStatus={currentPlanStatus}
         onPlan={openPlan}
         onToggle={() => setCollapsed((value) => !value)}
         onNavigate={navigate}
       />
       <main className="manager-main" id="manager-content">
-        {preview ? null : <PlanBanner access={access} onOpen={openPlan} />}
+        {preview || !showPlan ? null : <PlanBanner access={access} onOpen={openPlan} />}
         <header className="manager-header">
           <div className="manager-greeting">
             {isHome ? (
@@ -520,6 +523,7 @@ export function ManagerHome({
                   aria-label="Conta"
                   onAction={(key) => {
                     if (key === 'plan') openPlan()
+                    if (key === 'spaces') router.push('/c')
                     if (key === 'design')
                       requestAnimationFrame(() => glassPanel.current?.showPopover())
                     if (key === 'account') openAccount()
@@ -534,10 +538,16 @@ export function ManagerHome({
                     <UserRound size={18} />
                     <span>Minha conta</span>
                   </Dropdown.Item>
-                  <Dropdown.Item id="plan" textValue="Meu plano">
-                    <Crown size={18} />
-                    <span>Meu plano</span>
+                  <Dropdown.Item id="spaces" textValue="Trocar de espaço">
+                    <ArrowLeftRight size={18} />
+                    <span>Trocar de espaço</span>
                   </Dropdown.Item>
+                  {showPlan ? (
+                    <Dropdown.Item id="plan" textValue="Meu plano">
+                      <Crown size={18} />
+                      <span>Meu plano</span>
+                    </Dropdown.Item>
+                  ) : null}
                   <Dropdown.Item id="design" textValue="Ajustar design">
                     <SlidersHorizontal size={18} />
                     <span>Ajustar design</span>
@@ -678,6 +688,7 @@ export function ManagerHome({
         onSelect={(id) => select(id)}
         go={go}
         onAccount={openAccount}
+        showPlan={showPlan}
         planStatus={currentPlanStatus}
         onPlan={openPlan}
         pickMedia={() => fileInput.current?.click()}

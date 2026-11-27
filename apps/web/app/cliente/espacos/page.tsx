@@ -1,7 +1,7 @@
 'use client'
 
 import { useRouter } from 'next/navigation'
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import {
   ArrowLeft,
   ArrowRight,
@@ -18,8 +18,11 @@ import {
 } from 'lucide-react'
 import { levelNames, missingSteps, recordState } from '@luminix/contracts/anamnesis'
 import {
+  chosenSpace,
   linkSpace,
+  peekPendingSpace,
   refreshSpace,
+  rememberChosenSpace,
   setActiveSpace,
   signOut,
   takePendingSpace,
@@ -77,6 +80,8 @@ export default function SpacesPage() {
   const [entering, setEntering] = useState<SpaceSummary | null>(null)
   const [busy, setBusy] = useState(false)
   const [problem, setProblem] = useState('')
+  const [canReturn, setCanReturn] = useState(false)
+  const pendingHandled = useRef(false)
   const hasRecord = Boolean(account?.anamnesis)
   const hasSpaces = Boolean(account && Object.keys(account.spaces).length)
 
@@ -98,17 +103,35 @@ export default function SpacesPage() {
     for (const slug of unloaded.split(',')) void refreshSpace(slug)
   }, [unloaded])
 
-  // Arrived from a clinic site: open that space's confirmation instead of linking silently.
   useEffect(() => {
-    if (!ready || !hasRecord) return
-    const slug = takePendingSpace()
-    if (slug)
-      void fetchSpace(slug).then((found) => {
-        if (!found) return
-        setPreview(found.summary)
-        setView('confirm')
-      })
-  }, [ready, hasRecord])
+    setCanReturn(Boolean(chosenSpace()))
+  }, [account?.activeSlug])
+
+  // Arrived from a clinic site: link if needed and go straight in. No confirmation step.
+  useEffect(() => {
+    if (!ready || !hasRecord || !account || pendingHandled.current) return
+    const slug = peekPendingSpace()
+    if (!slug) return
+    pendingHandled.current = true
+    takePendingSpace()
+    const current = account
+    void (async () => {
+      const found = await fetchSpace(slug)
+      if (!found) return
+      rememberChosenSpace(found.summary.slug)
+      const linked = current.spaces[found.summary.slug]
+      if (linked) {
+        setActiveSpace(found.summary.slug)
+        const record = linked.shareAnamnesis ? current.anamnesis : linked.anamnesis
+        if (recordState(record, linked.requiredLevel) === 'ok') setEntering(found.summary)
+        else router.push(`/cliente/anamnese?espaco=${found.summary.slug}&entrar=1`)
+        return
+      }
+      const failure = await linkSpace(found.summary, true)
+      if (failure) return setProblem(failure)
+      router.push(`/cliente/anamnese?espaco=${found.summary.slug}&entrar=1`)
+    })()
+  }, [ready, hasRecord, account, router])
 
   const term = how === 'code' ? (/^[A-Z]{2}-\d{4}$/.test(query) ? query : '') : query.trim()
   useEffect(() => {
@@ -151,6 +174,7 @@ export default function SpacesPage() {
   /** Opens a space already linked: straight in, or through the record it still needs. */
   function open(slug: string) {
     const space = spaces[slug]
+    rememberChosenSpace(slug)
     setActiveSpace(slug)
     const record = space.shareAnamnesis ? accountRecord : space.anamnesis
     if (recordState(record, space.requiredLevel) === 'ok') setEntering(space.summary)
@@ -159,6 +183,7 @@ export default function SpacesPage() {
 
   async function link(share: boolean) {
     if (!preview) return
+    rememberChosenSpace(preview.slug)
     setBusy(true)
     const failure = await linkSpace(preview, share)
     setBusy(false)
@@ -176,7 +201,7 @@ export default function SpacesPage() {
       <div className="ca-flow-card">
         <header className="ca-flow-top">
           {current === 'list' || (current === 'how' && !hasSpaces) ? (
-            hasSpaces && account.activeSlug ? (
+            hasSpaces && canReturn ? (
               <button
                 type="button"
                 className="ca-icon-button"

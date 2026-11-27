@@ -16,7 +16,18 @@ import { billingRoutes } from '../billing/routes.js'
 import { onlinePaymentsOf } from '../payments/online-checkout.js'
 import { refundDue } from '../payments/refunds.js'
 import { formatClinicGeocodeAddress, pickGeocodedPoint } from './geocode.js'
+import { publicMediaUrl } from '../clinics/media-storage.js'
 export type { AuthDependencies } from '../../shared/auth/staff-session.js'
+
+/** A missing public bucket must not hide the clinic list. */
+function logoUrlOf(key: unknown) {
+  if (!key) return null
+  try {
+    return publicMediaUrl(String(key))
+  } catch {
+    return null
+  }
+}
 
 export async function authRoutes(app: FastifyInstance, dependencies: AuthDependencies) {
   app.addHook('onSend', async (request, reply, payload) => {
@@ -83,6 +94,11 @@ export async function authRoutes(app: FastifyInstance, dependencies: AuthDepende
           name: String(row.clinic_name),
           status: String(row.clinic_status),
           role: String(row.role_name),
+          slug: row.clinic_slug ? String(row.clinic_slug) : null,
+          theme: row.clinic_theme ? String(row.clinic_theme) : 'rosa',
+          logoUrl: logoUrlOf(row.logo_key),
+          step: row.draft_step ? String(row.draft_step) : null,
+          progress: row.draft_progress == null ? null : Number(row.draft_progress),
         }))
         return { clinics, nextCursor: result.rows.length > 50 ? clinics.at(-1)!.id : null }
       } catch {

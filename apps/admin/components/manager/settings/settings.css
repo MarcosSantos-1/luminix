@@ -1614,13 +1614,47 @@
   list-style: none;
 }
 .rules-services li {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
+  display: grid;
   gap: 10px;
   padding: 8px 12px;
   border: 1px solid #ffffff12;
   border-radius: 12px;
+}
+.rules-service-main {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+.rules-sinal {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+.rules-sinal button {
+  padding: 6px 10px;
+  border: 1px solid #ffffff26;
+  border-radius: 999px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: 12.5px;
+  cursor: pointer;
+}
+.rules-sinal button[aria-pressed='true'] {
+  background: #fff;
+  color: #1c1c22;
+  border-color: #fff;
+}
+.rules-sinal input {
+  width: 88px;
+  padding: 6px 10px;
+  border: 1px solid #ffffff26;
+  border-radius: 10px;
+  background: #ffffff0a;
+  color: inherit;
+  font: inherit;
 }
 .rules-services li:has([data-selected='true']) {
   border-color: color-mix(in srgb, var(--space-highlight, #ffb5d3) 50%, transparent);

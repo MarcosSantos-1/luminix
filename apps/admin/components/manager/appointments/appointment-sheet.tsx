@@ -735,11 +735,15 @@ function SheetBody({
                   ? 'O estorno falhou'
                   : item.onlinePayment.refundStatus === 'pending'
                     ? 'Estorno em andamento'
-                    : item.onlinePayment.kind === 'deposit'
-                      ? 'Sinal pago pelo app'
-                      : item.onlinePayment.kind === 'package'
-                        ? 'Pacote pago pelo app'
-                        : 'Pago pelo app'}
+                    : item.onlinePayment.refundStatus === 'retained' ||
+                        item.onlinePayment.refundStatus === 'partial' ||
+                        item.onlinePayment.status === 'partially_refunded'
+                      ? 'Sinal ficou com o espaço'
+                      : item.onlinePayment.kind === 'deposit'
+                        ? 'Sinal pago pelo app'
+                        : item.onlinePayment.kind === 'package'
+                          ? 'Pacote pago pelo app'
+                          : 'Pago pelo app'}
             </strong>
             <small>
               {item.onlinePayment.status === 'refunded' ||
@@ -747,13 +751,18 @@ function SheetBody({
                 ? 'O valor voltou para a cliente. A taxa da Stripe fica com o espaço.'
                 : item.onlinePayment.refundStatus === 'failed'
                   ? 'Tente de novo. Se continuar, estorne pelo painel da Stripe.'
-                  : item.onlinePayment.kind === 'deposit'
-                    ? 'Cancelar o horário devolve o sinal automaticamente.'
-                    : 'Cancelar o horário devolve o valor inteiro automaticamente.'}
+                  : item.onlinePayment.refundStatus === 'retained' ||
+                      item.onlinePayment.refundStatus === 'partial' ||
+                      item.onlinePayment.status === 'partially_refunded'
+                    ? 'A regra de devolução ficou com o sinal. O que passou dele voltou. Estornar devolve o que restou.'
+                    : item.onlinePayment.kind === 'deposit'
+                      ? 'Dentro do prazo, cancelar devolve o sinal. Depois do prazo, vale a regra de retenção.'
+                      : 'Dentro do prazo, cancelar devolve o valor. Depois do prazo, o espaço fica no máximo com o sinal.'}
             </small>
           </div>
           {access.charge &&
-          item.onlinePayment.status === 'paid' &&
+          (item.onlinePayment.status === 'paid' ||
+            item.onlinePayment.status === 'partially_refunded') &&
           item.onlinePayment.refundStatus !== 'pending' &&
           item.onlinePayment.refundStatus !== 'refunded' ? (
             <Button
@@ -763,9 +772,13 @@ function SheetBody({
               onPress={() => {
                 if (
                   !window.confirm(
-                    item.onlinePayment?.kind === 'deposit'
-                      ? `Estornar o sinal de ${item.client}? O valor do sinal volta para ela.`
-                      : `Estornar o pagamento de ${item.client}? O valor inteiro volta para ela.`,
+                    item.onlinePayment?.refundStatus === 'retained' ||
+                      item.onlinePayment?.refundStatus === 'partial' ||
+                      item.onlinePayment?.status === 'partially_refunded'
+                      ? `Estornar o que ficou do pagamento de ${item.client}? Esse valor volta para ela.`
+                      : item.onlinePayment?.kind === 'deposit'
+                        ? `Estornar o sinal de ${item.client}? O valor do sinal volta para ela.`
+                        : `Estornar o pagamento de ${item.client}? O valor inteiro volta para ela.`,
                   )
                 )
                   return

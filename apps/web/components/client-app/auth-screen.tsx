@@ -52,7 +52,7 @@ export function AuthScreen({ mode }: { mode: 'entrar' | 'cadastro' }) {
   }
 
   useEffect(() => {
-    if (ready && account) router.replace('/cliente')
+    if (ready && account) router.replace('/cliente/espacos')
   }, [ready, account, router])
 
   useEffect(() => {

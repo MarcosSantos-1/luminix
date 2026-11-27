@@ -49,12 +49,12 @@ export type AppointmentView = {
   link?: AppointmentLinkState | null
   /** Client paying in the app (ADR-040): awaiting holds the slot until dueAt. */
   onlinePayment?: {
-    status: 'awaiting' | 'paid' | 'expired' | 'refunded'
+    status: 'awaiting' | 'paid' | 'expired' | 'refunded' | 'partially_refunded'
     dueAt: string | null
     /** Only the deposit of the visit, or all of it (ADR-042). */
     kind?: 'full' | 'deposit' | 'package'
     /** Refund of the app payment: pending, refunded or failed (retry with "Estornar"). */
-    refundStatus?: 'pending' | 'refunded' | 'failed' | null
+    refundStatus?: 'pending' | 'refunded' | 'failed' | 'retained' | 'partial' | null
   } | null
 }
 

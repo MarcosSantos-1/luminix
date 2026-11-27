@@ -105,7 +105,7 @@ export function ConnectNextSteps({
     {
       icon: RotateCcw,
       title: 'Cancelamentos e devoluções',
-      text: 'Quando a cliente cancela dentro do prazo ou o espaço cancela, o sistema solicita à Stripe a devolução integral. Em caso de falta, revise o combinado e use "Estornar" no atendimento quando a devolução for devida.',
+      text: 'Dentro do prazo, a Stripe devolve o valor pago. Depois do prazo ou numa falta, ela fica com o sinal da regra salva em Configurar sinais e devolve o que passou dele. Estornar no atendimento devolve o que ficou.',
     },
     {
       icon: Banknote,

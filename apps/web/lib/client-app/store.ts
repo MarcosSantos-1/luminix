@@ -993,6 +993,23 @@ export async function confirmPresence(slug: string, appointmentId: string) {
   }
 }
 
+/** Space chosen in this tab. A new visit, without this, opens the space list first. */
+const CHOSEN = 'luminix.cliente.escolha'
+export function rememberChosenSpace(slug: string) {
+  try {
+    sessionStorage.setItem(CHOSEN, slug)
+  } catch {
+    // The list is shown again on the next navigation.
+  }
+}
+export function chosenSpace() {
+  try {
+    return sessionStorage.getItem(CHOSEN)
+  } catch {
+    return null
+  }
+}
+
 /** Space the visitor came from (site button), kept until a session can link it. */
 const PENDING = 'luminix.cliente.espaco'
 export function rememberPendingSpace(slug: string) {

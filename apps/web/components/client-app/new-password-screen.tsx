@@ -52,7 +52,7 @@ export function NewPasswordScreen() {
     try {
       await confirmPasswordReset(clientAuth(), state.code, password)
       await signInWithEmailAndPassword(clientAuth(), state.email, password)
-      router.replace('/cliente')
+      router.replace('/cliente/espacos')
     } catch (caught) {
       const code = (caught as { code?: string })?.code ?? ''
       if (/expired|invalid-action/.test(code)) setState({ kind: 'invalid' })

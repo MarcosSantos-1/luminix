@@ -74,7 +74,7 @@ type Row = {
   link_answer?: 'confirmed' | 'reschedule' | 'not_me' | 'canceled' | null
   link_answered_at?: string | null
   link_opened_at?: string | null
-  online_payment_status?: 'awaiting' | 'paid' | 'expired' | 'refunded' | null
+  online_payment_status?: 'awaiting' | 'paid' | 'expired' | 'refunded' | 'partially_refunded' | null
   online_refund_status?: 'pending' | 'refunded' | 'failed' | null
   online_payment_due_at?: string | null
   online_payment_kind?: 'full' | 'deposit' | 'package' | null

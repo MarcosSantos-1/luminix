@@ -75,7 +75,6 @@ export function ClinicHome({
   }
   const sections = allowedSections(permissions)
   const settingsTabs = allowedSettings(permissions)
-  const canOpenSettings = settingsTabs.length > 0
   return (
     <ManagerHome
       key={`${staff.user?.uid}/${clinic.id}`}
@@ -96,7 +95,7 @@ export function ClinicHome({
       onLogout={() => void logout()}
       signingOut={signingOut}
       logoutError={logoutError}
-      canManageSettings={canOpenSettings}
+      canManageSettings={canManageSettings}
       sections={sections}
       settingsTabs={settingsTabs}
       messages={
@@ -216,7 +215,7 @@ export function ClinicHome({
           : {}),
       }}
       settings={
-        canOpenSettings
+        sections.includes('configuracoes')
           ? (tab, open) => (
               <ClinicSettings
                 tab={tab}

@@ -40,6 +40,7 @@ export function ManagerMobileNav({
   go,
   pickMedia,
   onAccount,
+  showPlan,
   planStatus,
   onPlan,
 }: {
@@ -49,6 +50,7 @@ export function ManagerMobileNav({
   go: (target: GoTarget) => void
   pickMedia: () => void
   onAccount: () => void
+  showPlan: boolean
   planStatus: string
   onPlan: () => void
 }) {
@@ -210,13 +212,15 @@ export function ManagerMobileNav({
                 </div>
               )
             })}
-            <PlanCard
-              status={planStatus}
-              onOpen={() => {
-                setSheet(null)
-                onPlan()
-              }}
-            />
+            {showPlan ? (
+              <PlanCard
+                status={planStatus}
+                onOpen={() => {
+                  setSheet(null)
+                  onPlan()
+                }}
+              />
+            ) : null}
             <div className="mnav-menu-footer">
               <button
                 type="button"

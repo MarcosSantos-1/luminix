@@ -122,8 +122,15 @@ export type BookingPolicy = {
   cancellationNoticeMinutes: number
   reschedulingNoticeMinutes: number | null
   instructions: string
+  /** What the space keeps of an in-app payment after the deadline, or on a no-show. */
+  retention?: { lateChangePercent: number; noShowPercent: number } | null
   /** Services that ask for a deposit to hold the time (ADR-042). */
-  deposit?: { percent: number; serviceIds: string[] } | null
+  deposit?: {
+    percent: number
+    serviceIds: string[]
+    /** Null percent and null cents: use the clinic percent. Cents wins when set. */
+    amounts?: { id: string; percent: number | null; cents: number | null }[]
+  } | null
 }
 
 export type SpaceLink = {
@@ -159,7 +166,7 @@ export type Availability = {
   /** Pix/card are offered only when the space accepts payments in the app. */
   inAppPayments: boolean
   /** The service asks for a deposit: paid in the app (online) or by the space's Pix. */
-  deposit?: { percent: number; online: boolean; pix: boolean } | null
+  deposit?: { percent: number | null; cents?: number | null; online: boolean; pix: boolean } | null
   professionals: Professional[]
   /** Free start times per professional id; "" is the single agenda of a space without team. */
   slots: Record<string, string[]>

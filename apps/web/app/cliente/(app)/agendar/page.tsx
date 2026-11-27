@@ -60,6 +60,7 @@ import {
   PageHeader,
   ServiceFlags,
   depositOf,
+  depositRefundNote,
 } from '../../../../components/client-app/ui'
 import { toast } from '../../../../components/client-app/toast'
 
@@ -352,7 +353,10 @@ export default function BookingPage() {
   const start = picked && time ? `${picked}T${time}` : null
   // Deposit of this service (ADR-042), in the app (Stripe) or by the space's own Pix.
   const depositRule = !moving && priced && !pack ? (current?.deposit ?? null) : null
-  const depositCents = service && depositRule ? depositOf(service, null, depositRule.percent) : null
+  const depositCents =
+    service && depositRule
+      ? depositOf(service, null, { percent: depositRule.percent, cents: depositRule.cents })
+      : null
   const depositOnline = Boolean(depositRule?.online)
   const depositPix = Boolean(depositRule && !depositRule.online && depositRule.pix)
   // Paying only the deposit online needs at least R$ 0,50; below that it is the full price.
@@ -1094,16 +1098,10 @@ export default function BookingPage() {
             )}
           </dl>
           {!moving && !pack && payInApp && payMethod !== 'local' && (
-            <p className="ca-note">
-              Se você cancelar dentro do prazo do serviço ou o espaço cancelar, solicitamos à Stripe
-              a devolução integral do valor pago. Se o prazo já passou, fale com o espaço.
-            </p>
+            <p className="ca-note">{depositRefundNote(space?.policy?.retention, true)}</p>
           )}
           {depositPix && (
-            <p className="ca-note">
-              Antes de pagar o sinal por Pix, confira o prazo e as condições de devolução com o
-              espaço. O espaço trata a devolução diretamente com você.
-            </p>
+            <p className="ca-note">{depositRefundNote(space?.policy?.retention, false)}</p>
           )}
           <button
             type="button"

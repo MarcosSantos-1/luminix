@@ -168,6 +168,7 @@ export function clinicSettingsRoutes(
             `SELECT id, name, coalesce(category, 'Cuidados') AS category, description, price_cents,
                     duration_minutes, price_type, booking_mode, audience, is_sensitive,
                     cancellation_notice_minutes, deposit_required,
+                    deposit_percent_override, deposit_fixed_cents,
                     late_change_retention_percent, no_show_retention_percent
                FROM luminix.services WHERE clinic_id = $1 AND status = 'active'
               ORDER BY category, name, id LIMIT 80`,
@@ -220,6 +221,18 @@ export function clinicSettingsRoutes(
             resourceName: '',
             cancellationHours: hours(service.cancellation_notice_minutes),
             depositRequired: service.deposit_required === true,
+            depositMode:
+              service.deposit_fixed_cents != null
+                ? 'fixed'
+                : service.deposit_percent_override != null
+                  ? 'percent'
+                  : 'inherit',
+            depositPercent:
+              service.deposit_percent_override == null
+                ? null
+                : Number(service.deposit_percent_override),
+            depositCents:
+              service.deposit_fixed_cents == null ? null : Number(service.deposit_fixed_cents),
             lateChangeRetentionPercent:
               service.late_change_retention_percent == null
                 ? null
@@ -301,6 +314,11 @@ export function clinicSettingsRoutes(
                 properties: {
                   id: { type: 'string', format: 'uuid' },
                   depositRequired: { type: 'boolean' },
+                  depositMode: { type: 'string', enum: ['inherit', 'percent', 'fixed'] },
+                  depositPercent: nullablePercent,
+                  depositCents: {
+                    anyOf: [{ type: 'integer', minimum: 1, maximum: 100000000 }, { type: 'null' }],
+                  },
                   lateChangeRetentionPercent: nullablePercent,
                   noShowRetentionPercent: nullablePercent,
                 },

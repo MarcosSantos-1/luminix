@@ -115,6 +115,9 @@ function toBody(payload: Payload, pix: Pix) {
     services: payload.services.map((service) => ({
       id: service.id,
       depositRequired: service.depositRequired === true,
+      depositMode: service.depositMode ?? 'inherit',
+      depositPercent: service.depositMode === 'percent' ? (service.depositPercent ?? null) : null,
+      depositCents: service.depositMode === 'fixed' ? (service.depositCents ?? null) : null,
       lateChangeRetentionPercent: service.lateChangeRetentionPercent ?? null,
       noShowRetentionPercent: service.noShowRetentionPercent ?? null,
     })),
@@ -131,6 +134,22 @@ const hoursLabel = (hours: number) =>
   hours === 0 ? 'Na hora' : hours < 24 || hours % 24 ? `${hours} h` : `${hours / 24} d`
 const holdLabel = (minutes: number) =>
   minutes < 60 ? `${minutes} min` : minutes % 60 ? `${minutes / 60} h` : `${minutes / 60} h`
+
+/** What this service charges as a deposit, in cents. Null when the percent is not usable. */
+function sinalCents(service: Service, clinicPercent: number) {
+  if (service.depositMode === 'fixed' && service.depositCents != null && service.depositCents > 0)
+    return Math.min(service.priceCents, service.depositCents)
+  const percent = service.depositMode === 'percent' ? (service.depositPercent ?? 0) : clinicPercent
+  if (!Number.isInteger(percent) || percent < 1 || percent > 100) return null
+  return Math.min(service.priceCents, Math.max(1, Math.round((service.priceCents * percent) / 100)))
+}
+
+function parseReais(value: string) {
+  const normalized = value.trim().replace(/\./g, '').replace(',', '.')
+  if (!/^\d+(\.\d{1,2})?$/.test(normalized)) return null
+  const cents = Math.round(Number(normalized) * 100)
+  return cents > 0 ? cents : null
+}
 
 const pixTypes: { id: PixKeyType; label: string; placeholder: string }[] = [
   { id: 'cpf', label: 'CPF', placeholder: '000.000.000-00' },
@@ -261,7 +280,7 @@ function RulesEditor({
   const hasSpecial = payload.services.some(isSpecialService)
   const example = withDeposit[0]
   const validPercent = Number.isInteger(percent) && percent >= 1 && percent <= 100
-  const estimate = (price: number) => Math.max(1, Math.round((price * percent) / 100))
+  const estimate = (service: Service) => sinalCents(service, percent)
   const outcome = sinalOutcome(payload)
   const keyType = pixTypes.find((item) => item.id === pix.keyType)
 
@@ -285,6 +304,17 @@ function RulesEditor({
         : null) ??
       (depositOn && !withDeposit.length
         ? { field: 'depositServices', message: 'Escolha ao menos um serviço com preço fixo.' }
+        : null) ??
+      (depositOn
+        ? (() => {
+            const broken = withDeposit.find((service) => estimate(service) == null)
+            return broken
+              ? {
+                  field: 'depositServices',
+                  message: `Informe o sinal de ${broken.name}: um percentual de 1 a 100 ou um valor em R$.`,
+                }
+              : null
+          })()
         : null) ??
       depositProblem(payload) ??
       (depositOn && !onlineReady && (!pix.keyType || !pix.key.trim())
@@ -330,7 +360,7 @@ function RulesEditor({
     !depositOn
       ? 'A reserva segue sem sinal.'
       : example && validPercent
-        ? `${example.name}: ${onlineReady && estimate(example.priceCents) < 50 ? 'sem opção de pagar só o sinal pelo app' : `sinal estimado de ${money(estimate(example.priceCents))} ${onlineReady ? 'pelo app' : `por Pix, com até ${holdLabel(pix.holdMinutes)} para pagar`}`}.`
+        ? `${example.name}: ${onlineReady && (estimate(example) ?? 0) < 50 ? 'sem opção de pagar só o sinal pelo app' : `sinal de ${money(estimate(example) ?? 0)} ${onlineReady ? 'pelo app' : `por Pix, com até ${holdLabel(pix.holdMinutes)} para pagar`}`}.`
         : 'Defina o percentual e escolha os serviços para ver uma estimativa.',
   ].filter(Boolean) as string[]
 
@@ -465,7 +495,7 @@ function RulesEditor({
                   onChange={(value) => {
                     if (/^\d{0,3}$/.test(value)) prefs({ depositPercent: Number(value) })
                   }}
-                  description="De 1 a 100% do preço final. O sinal é abatido do total."
+                  description="Padrão da clínica, de 1 a 100% do preço. Cada serviço pode usar este percentual ou um valor próprio."
                   error={problem?.field === 'depositPercent' ? problem.message : undefined}
                 />
                 {onlineReady ? (
@@ -554,31 +584,117 @@ function RulesEditor({
                         key={service.id}
                         className={isSpecialService(service) ? 'is-special' : undefined}
                       >
-                        <CheckboxField
-                          label={service.name}
-                          description={
-                            isSpecialService(service) ? (
-                              <>
-                                <span className="rules-special-tag">⭐ Especial (alugado)</span>{' '}
-                                {service.category}
-                              </>
-                            ) : (
-                              service.category
-                            )
-                          }
-                          isSelected={service.depositRequired === true}
-                          onChange={(on) => change(setServicesDeposit(payload, [service.id], on))}
-                        />
-                        <span className="rules-price">
-                          {money(service.priceCents)}
-                          {service.depositRequired && validPercent ? (
-                            <b>
-                              {onlineReady && estimate(service.priceCents) < 50
-                                ? 'Sinal abaixo do mínimo da Stripe'
-                                : `sinal estimado ${money(estimate(service.priceCents))}`}
-                            </b>
-                          ) : null}
-                        </span>
+                        <div className="rules-service-main">
+                          <CheckboxField
+                            label={service.name}
+                            description={
+                              isSpecialService(service) ? (
+                                <>
+                                  <span className="rules-special-tag">⭐ Especial (alugado)</span>{' '}
+                                  {service.category}
+                                </>
+                              ) : (
+                                service.category
+                              )
+                            }
+                            isSelected={service.depositRequired === true}
+                            onChange={(on) => change(setServicesDeposit(payload, [service.id], on))}
+                          />
+                          <span className="rules-price">
+                            {money(service.priceCents)}
+                            {service.depositRequired && estimate(service) != null ? (
+                              <b>
+                                {onlineReady && (estimate(service) ?? 0) < 50
+                                  ? 'Sinal abaixo do mínimo da Stripe'
+                                  : `sinal ${money(estimate(service) ?? 0)}`}
+                              </b>
+                            ) : null}
+                          </span>
+                        </div>
+                        {service.depositRequired ? (
+                          <div className="rules-sinal">
+                            {(
+                              [
+                                ['inherit', 'Padrão da clínica'],
+                                ['percent', 'Percentual'],
+                                ['fixed', 'Valor em R$'],
+                              ] as const
+                            ).map(([mode, label]) => (
+                              <button
+                                key={mode}
+                                type="button"
+                                aria-pressed={(service.depositMode ?? 'inherit') === mode}
+                                onClick={() =>
+                                  change({
+                                    ...payload,
+                                    services: payload.services.map((item) =>
+                                      item.id === service.id
+                                        ? {
+                                            ...item,
+                                            depositMode: mode,
+                                            depositPercent:
+                                              mode === 'percent'
+                                                ? (item.depositPercent ?? percent)
+                                                : null,
+                                            depositCents:
+                                              mode === 'fixed' ? (item.depositCents ?? null) : null,
+                                          }
+                                        : item,
+                                    ),
+                                  })
+                                }
+                              >
+                                {label}
+                              </button>
+                            ))}
+                            {service.depositMode === 'percent' ? (
+                              <input
+                                inputMode="numeric"
+                                aria-label={`Percentual do sinal de ${service.name}`}
+                                value={service.depositPercent ?? ''}
+                                onChange={(event) => {
+                                  const raw = event.target.value
+                                  if (!/^\d{0,3}$/.test(raw)) return
+                                  change({
+                                    ...payload,
+                                    services: payload.services.map((item) =>
+                                      item.id === service.id
+                                        ? {
+                                            ...item,
+                                            depositPercent: raw === '' ? null : Number(raw),
+                                          }
+                                        : item,
+                                    ),
+                                  })
+                                }}
+                              />
+                            ) : null}
+                            {service.depositMode === 'fixed' ? (
+                              <input
+                                inputMode="decimal"
+                                aria-label={`Valor do sinal de ${service.name}`}
+                                placeholder="0,00"
+                                defaultValue={
+                                  service.depositCents
+                                    ? (service.depositCents / 100).toFixed(2).replace('.', ',')
+                                    : ''
+                                }
+                                key={`${service.id}-${service.depositCents ?? 'empty'}`}
+                                onBlur={(event) => {
+                                  const cents = parseReais(event.target.value)
+                                  change({
+                                    ...payload,
+                                    services: payload.services.map((item) =>
+                                      item.id === service.id
+                                        ? { ...item, depositCents: cents }
+                                        : item,
+                                    ),
+                                  })
+                                }}
+                              />
+                            ) : null}
+                          </div>
+                        ) : null}
                       </li>
                     ))}
                   </ul>
@@ -589,28 +705,17 @@ function RulesEditor({
             )}
           </SettingsCard>
 
-          {onlineReady ? (
-            <SettingsCard icon={<HandCoins size={20} />} title="Estornos e faltas">
-              <ul className="rules-refunds">
-                <li>
-                  <strong>Cancelamento pelo app ou pela equipe.</strong> O sistema solicita a
-                  devolução integral do valor pago pela Stripe, seja o sinal ou o preço cheio.
-                </li>
-                <li>
-                  <strong>Pedido depois do prazo.</strong> A cliente fala com o espaço. Se a equipe
-                  cancelar o atendimento, a devolução também é integral.
-                </li>
-                <li>
-                  <strong>Falta registrada na agenda.</strong> A devolução é analisada pela equipe.
-                  Quando for devida, use “Estornar” no atendimento.
-                </li>
-              </ul>
-            </SettingsCard>
-          ) : depositOn ? (
+          {depositOn ? (
             <SettingsCard
               icon={<HandCoins size={20} />}
-              title="Devolução do sinal por Pix do espaço"
-              description="Registre o combinado e informe-o à cliente antes da reserva. A equipe confere cada caso e faz a devolução pelo próprio banco."
+              title={
+                onlineReady ? 'Retenção do sinal pelo app' : 'Devolução do sinal por Pix do espaço'
+              }
+              description={
+                onlineReady
+                  ? 'Dentro do prazo, a Stripe devolve o valor pago. Depois do prazo ou numa falta, ela fica com o sinal desta regra e devolve o que passou dele. Estornar no atendimento devolve o que ficou.'
+                  : 'Registre o combinado e informe-o à cliente antes da reserva. A equipe confere cada caso e faz a devolução pelo próprio banco.'
+              }
             >
               <div className="rules-outcomes" role="radiogroup" aria-label="Se a cliente desistir">
                 {sinalOutcomeOptions.map((option) => (

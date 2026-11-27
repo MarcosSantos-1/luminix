@@ -46,6 +46,10 @@ export type Service = {
   evaluation?: boolean
   resourceName: string
   depositRequired?: boolean
+  /** inherit: clinic percent. percent / fixed: this service's own sinal. */
+  depositMode?: 'inherit' | 'percent' | 'fixed'
+  depositPercent?: number | null
+  depositCents?: number | null
   cancellationHours: number | null
   lateChangeRetentionPercent?: number | null
   noShowRetentionPercent?: number | null

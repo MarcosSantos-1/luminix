@@ -3,7 +3,7 @@
 import Image from 'next/image'
 import { Button } from '@heroui/react'
 import { MessageCircle, PanelLeftClose, PanelLeftOpen } from 'lucide-react'
-import { managerNavigation, type ManagerSectionId } from './demo-data'
+import { type ManagerNavItem, type ManagerSectionId } from './demo-data'
 import { PlanCard } from './manager-plan'
 import { supportWhatsAppUrl } from './support'
 
@@ -15,18 +15,21 @@ const groups: { label: string; ids: ManagerSectionId[] }[] = [
 ]
 
 export function ManagerSidebar({
+  navigation,
   activeLabel,
-  canManageSettings,
   collapsed,
   onToggle,
+  showPlan,
   planStatus,
   onPlan,
   onNavigate,
 }: {
+  navigation: ManagerNavItem[]
   activeLabel: string
-  canManageSettings: boolean
   collapsed: boolean
   onToggle: () => void
+  /** Meu plano: only who can manage the subscription. */
+  showPlan: boolean
   planStatus: string
   onPlan: () => void
   onNavigate: (label: string) => void
@@ -58,10 +61,7 @@ export function ManagerSidebar({
       <div className="manager-sidebar-scroll">
         <nav aria-label="Navegação do gestor" className="manager-nav">
           {groups.map((group) => {
-            const items = managerNavigation.filter(
-              (item) =>
-                group.ids.includes(item.id) && (item.id !== 'configuracoes' || canManageSettings),
-            )
+            const items = navigation.filter((item) => group.ids.includes(item.id))
             if (!items.length) return null
             return (
               <div
@@ -92,7 +92,7 @@ export function ManagerSidebar({
             )
           })}
         </nav>
-        <PlanCard status={planStatus} onOpen={onPlan} />
+        {showPlan ? <PlanCard status={planStatus} onOpen={onPlan} /> : null}
       </div>
       <div className="manager-support">
         <a

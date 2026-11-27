@@ -51,9 +51,9 @@ const online: OnlinePaymentsProvider = {
     if (signature !== 'ok') throw new Error('bad signature')
     return JSON.parse(raw.toString('utf8')) as ConnectPaymentEvent
   },
-  refund: async ({ paymentId }) => {
+  refund: async ({ paymentId, amount }) => {
     if (!refundWorks) throw new Error('stripe down')
-    refunds.push(paymentId)
+    refunds.push(amount == null ? paymentId : `${paymentId}:${amount}`)
     return `re_${refunds.length}`
   },
 }
@@ -447,7 +447,7 @@ describe('pagamento do atendimento pelo app', () => {
     ).toBe(409)
   })
 
-  it('leaves a no-show for manual review and refunds only when staff requests it', async () => {
+  it('refunds a no-show in full when the space keeps nothing', async () => {
     const booked = await book('card')
     expect(booked.statusCode).toBe(201)
     const { id } = booked.json()
@@ -464,14 +464,12 @@ describe('pagamento do atendimento pelo app', () => {
       },
     )
     expect(status.statusCode).toBe(200)
-    expect(await visit(id)).toMatchObject({ status: 'no_show', online_payment_status: 'paid' })
-    const refund = await call(
-      'dona-online',
-      'POST',
-      `/clinics/${clinic}/appointments/${id}/refund`,
-      {},
+    for (
+      let tries = 0;
+      tries < 20 && (await visit(id)).online_payment_status !== 'refunded';
+      tries++
     )
-    expect(refund.statusCode).toBe(200)
+      await new Promise((resolve) => setTimeout(resolve, 50))
     expect(await visit(id)).toMatchObject({
       status: 'no_show',
       online_payment_status: 'refunded',
@@ -501,7 +499,7 @@ describe('pagamento do atendimento pelo app', () => {
       depositScope: 'selected',
       depositPercent: 37,
       cancellationHours: 24,
-      // Legacy retention preferences do not override the Stripe refund on cancellation.
+      // Canceling inside the window still returns everything, even when a late cancel would keep the deposit.
       lateChangeRetentionPercent: 100,
       noShowRetentionPercent: 100,
       pix: config.pix,
@@ -519,7 +517,12 @@ describe('pagamento do atendimento pelo app', () => {
       'GET',
       `/client/spaces/${slug}/availability?serviceId=${special}&date=${day}`,
     )
-    expect(offer.json().deposit).toEqual({ percent: 37, online: true, pix: false })
+    expect(offer.json().deposit).toMatchObject({
+      percent: 37,
+      cents: null,
+      online: true,
+      pix: false,
+    })
     // No Pix key: paying at the space without a deposit is refused.
     const local = await call('ana-online', 'POST', `/client/spaces/${slug}/appointments`, {
       serviceId: special,
@@ -584,6 +587,135 @@ describe('pagamento do atendimento pelo app', () => {
       payAmount: 'deposit',
     })
     expect(wrong.statusCode).toBe(400)
+  })
+
+  it('keeps only the service deposit after a late cancel or a no-show', async () => {
+    const priced = await asOwner(async () => {
+      const [row] = await sql(
+        `INSERT INTO luminix.services (clinic_id, name, price_cents, duration_minutes, booking_mode)
+         VALUES ($1, 'Coloração', 20000, 60, 'instant') RETURNING id`,
+        [clinic],
+      )
+      return String(row.id)
+    })
+    const rulesUrl = `/clinics/${clinic}/booking-rules`
+    const config = (await call('dona-online', 'GET', rulesUrl)).json()
+    const saved = await call('dona-online', 'PUT', rulesUrl, {
+      ...config.rules,
+      depositScope: 'selected',
+      depositPercent: 20,
+      cancellationHours: 24,
+      lateChangeRetentionPercent: 100,
+      noShowRetentionPercent: 100,
+      pix: config.pix,
+      services: config.services.map(
+        (item: {
+          id: string
+          depositRequired?: boolean
+          depositMode?: string
+          depositPercent?: number | null
+          depositCents?: number | null
+        }) => ({
+          id: item.id,
+          depositRequired: item.id === priced || item.depositRequired === true,
+          depositMode: item.id === priced ? 'fixed' : (item.depositMode ?? 'inherit'),
+          depositPercent: item.id === priced ? null : (item.depositPercent ?? null),
+          depositCents: item.id === priced ? 5000 : (item.depositCents ?? null),
+          lateChangeRetentionPercent: null,
+          noShowRetentionPercent: null,
+        }),
+      ),
+    })
+    expect(saved.statusCode).toBe(200)
+    const day = nextWeekday()
+    const offer = await call(
+      'ana-online',
+      'GET',
+      `/client/spaces/${slug}/availability?serviceId=${priced}&date=${day}`,
+    )
+    expect(offer.json().deposit).toMatchObject({ percent: null, cents: 5000, online: true })
+    const full = await call('ana-online', 'POST', `/client/spaces/${slug}/appointments`, {
+      serviceId: priced,
+      localStartsAt: `${day}T09:00`,
+      paymentMethod: 'card',
+    })
+    expect(full.statusCode).toBe(201)
+    expect(full.json().payment.amountCents).toBe(20000)
+    await hook({ id: 'evt_keep_full', session: `cs_test_${sessions}` })
+    const fullId = full.json().id
+    await asOwner(() =>
+      sql(
+        `UPDATE luminix.appointments
+            SET starts_at = now() + interval '1 hour', ends_at = now() + interval '2 hours'
+          WHERE clinic_id = $1 AND id = $2`,
+        [clinic, fullId],
+      ),
+    )
+    const before = refunds.length
+    expect(
+      (
+        await call('dona-online', 'PUT', `/clinics/${clinic}/appointments/${fullId}/status`, {
+          status: 'canceled',
+          note: 'Em cima da hora',
+        })
+      ).statusCode,
+    ).toBe(200)
+    for (
+      let tries = 0;
+      tries < 20 && (await visit(fullId)).online_payment_status !== 'partially_refunded';
+      tries++
+    )
+      await new Promise((resolve) => setTimeout(resolve, 50))
+    expect(await visit(fullId)).toMatchObject({
+      status: 'canceled',
+      online_payment_status: 'partially_refunded',
+      paid: 5000,
+    })
+    expect(refunds.slice(before).some((item) => item.endsWith(':15000'))).toBe(true)
+
+    const missed = await call('ana-online', 'POST', `/client/spaces/${slug}/appointments`, {
+      serviceId: priced,
+      localStartsAt: `${nextWeekday()}T10:00`,
+      paymentMethod: 'pix',
+      payAmount: 'deposit',
+    })
+    expect(missed.statusCode).toBe(201)
+    expect(missed.json().payment).toMatchObject({ kind: 'deposit', amountCents: 5000 })
+    await hook({ id: 'evt_keep_deposit', session: `cs_test_${sessions}` })
+    const missedId = missed.json().id
+    expect(
+      (
+        await call('dona-online', 'PUT', `/clinics/${clinic}/appointments/${missedId}/status`, {
+          status: 'no_show',
+        })
+      ).statusCode,
+    ).toBe(200)
+    const held = async () =>
+      (
+        await asOwner(() =>
+          sql(
+            `SELECT refund_status FROM luminix.online_payments
+              WHERE clinic_id = $1 AND appointment_id = $2`,
+            [clinic, missedId],
+          ),
+        )
+      )[0]
+    for (let tries = 0; tries < 20 && (await held()).refund_status !== 'retained'; tries++)
+      await new Promise((resolve) => setTimeout(resolve, 50))
+    expect(await held()).toMatchObject({ refund_status: 'retained' })
+    expect(await visit(missedId)).toMatchObject({
+      status: 'no_show',
+      online_payment_status: 'paid',
+      paid: 5000,
+    })
+    const refund = await call(
+      'dona-online',
+      'POST',
+      `/clinics/${clinic}/appointments/${missedId}/refund`,
+      {},
+    )
+    expect(refund.statusCode).toBe(200)
+    expect(await visit(missedId)).toMatchObject({ online_payment_status: 'refunded', paid: 0 })
   })
 
   it('lists the packages the space sells, with the price one by one', async () => {

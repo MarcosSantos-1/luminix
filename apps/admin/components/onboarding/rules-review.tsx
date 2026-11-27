@@ -108,7 +108,7 @@ function SinalRules({
           items={[
             {
               title: 'Isso está de acordo com a lei?',
-              text: 'Sim, quando a regra é clara e informada antes do pagamento. O Código Civil (arts. 417 a 420) permite ficar com o sinal quando quem pagou desiste sem cumprir o combinado, e o Código de Defesa do Consumidor exige informação prévia (art. 6º, III) e proíbe cláusulas exageradas (art. 51). Por isso o Luminix nunca retém mais que o sinal e sempre devolve quando o espaço cancela. Em reservas feitas pela internet, a lei também prevê o direito de desistir em até 7 dias com devolução integral, quando aplicável (art. 49). Em imprevistos, como doença, você pode devolver mesmo assim. Na dúvida, confirme sua política com um advogado.',
+              text: 'Sim, quando a regra é clara e informada antes do pagamento. O Código Civil (arts. 417 a 420) permite ficar com o sinal quando quem pagou desiste sem cumprir o combinado, e o Código de Defesa do Consumidor exige informação prévia (art. 6º, III) e proíbe cláusulas exageradas (art. 51). Por isso o Luminix nunca retém mais que o sinal e devolve tudo quando o cancelamento é dentro do prazo. Depois do prazo, vale a regra escolhida. Em reservas feitas pela internet, a lei também prevê o direito de desistir em até 7 dias com devolução integral, quando aplicável (art. 49). Em imprevistos, como doença, você pode devolver mesmo assim. Na dúvida, confirme sua política com um advogado.',
             },
           ]}
         />
